@@ -190,7 +190,7 @@ const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
             </Typography>
             <Grid container spacing={2}>
               {files.map((file) => (
-                <Grid item xs={12} sm={6} md={4} key={file.id}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={file.id}>
                   <Card variant="outlined">
                     {file.preview ? (
                       <CardMedia

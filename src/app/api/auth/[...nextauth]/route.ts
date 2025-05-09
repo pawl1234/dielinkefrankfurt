@@ -1,5 +1,11 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { User } from 'next-auth';
+
+// Extend the User type to include role
+interface CustomUser extends User {
+  role?: string;
+}
 
 // Here we're using a simple username/password combo for the admin
 // In a production app, you'd use a more secure method
@@ -39,8 +45,9 @@ const handler = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
+      // Type cast user to CustomUser
       if (user) {
-        token.role = user.role;
+        token.role = (user as CustomUser).role;
       }
       return token;
     },

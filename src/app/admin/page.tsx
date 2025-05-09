@@ -251,7 +251,7 @@ export default function AdminPage() {
                     <Divider sx={{ mb: 2 }} />
                     
                     <Grid container spacing={3}>
-                      <Grid item size={8}>
+                      <Grid size={8}>
                         <Typography variant="h6" gutterBottom>
                           Veranstaltungsdetails
                         </Typography>
@@ -272,7 +272,7 @@ export default function AdminPage() {
                        
                       </Grid>
                       
-                      <Grid item size={4}>
+                      <Grid size={4}>
                         <Typography variant="h6" gutterBottom>
                           Datum & Ort
                         </Typography>
@@ -330,7 +330,7 @@ export default function AdminPage() {
                           </Typography>
                         </Box>
                       </Grid>
-                      <Grid item size={12}>
+                      <Grid size={12}>
                         <Typography variant="h6" gutterBottom>
                           Anhänge
                         </Typography>
@@ -343,7 +343,7 @@ export default function AdminPage() {
                                 const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
 
                                 return (
-                                  <Grid item xs={12} sm={6} md={4} key={fileUrl}>
+                                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={fileUrl}>
                                     <Card variant="outlined" sx={{ mb: 1 }}>
                                       {isImage && (
                                         <CardMedia
