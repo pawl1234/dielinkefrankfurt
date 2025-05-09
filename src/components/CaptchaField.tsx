@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { UseFormRegister, UseFormSetValue } from 'react-hook-form';
+import { Box, Typography, FormHelperText, Paper } from '@mui/material';
+import SecurityIcon from '@mui/icons-material/Security';
 
 declare global {
   interface Window {
@@ -22,17 +24,17 @@ const CaptchaField = ({ register, error, setValue }: CaptchaFieldProps) => {
     register('captchaToken', {
       required: 'Bitte bestätigen Sie, dass Sie kein Roboter sind.',
     });
-    
+
     // Load reCAPTCHA script if it's not already loaded
     if (!window.grecaptcha) {
       window.onRecaptchaLoad = initRecaptcha;
-      
+
       const script = document.createElement('script');
       script.src = `https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit`;
       script.async = true;
       script.defer = true;
       document.head.appendChild(script);
-      
+
       return () => {
         document.head.removeChild(script);
       };
@@ -40,7 +42,7 @@ const CaptchaField = ({ register, error, setValue }: CaptchaFieldProps) => {
       initRecaptcha();
     }
   }, [register]);
-  
+
   const initRecaptcha = () => {
     if (window.grecaptcha && document.getElementById('recaptcha-container')) {
       try {
@@ -55,7 +57,7 @@ const CaptchaField = ({ register, error, setValue }: CaptchaFieldProps) => {
         });
       } catch (error) {
         console.error('reCAPTCHA error (development mode):', error);
-        
+
         // In development, automatically set a fake token after a delay
         if (process.env.NODE_ENV !== 'production') {
           setTimeout(() => {
@@ -72,12 +74,39 @@ const CaptchaField = ({ register, error, setValue }: CaptchaFieldProps) => {
       }
     }
   };
-  
+
   return (
-    <div>
-      <div id="recaptcha-container"></div>
-      {error && <p className="mt-1 text-dark-crimson text-sm">{error}</p>}
-    </div>
+    <Box sx={{ mb: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        mb: 2,
+        gap: 1
+      }}>
+        <SecurityIcon color="primary" />
+        <Typography variant="body2" color="text.secondary">
+          Bestätigen Sie bitte, dass Sie kein Roboter sind, um fortzufahren.
+        </Typography>
+      </Box>
+
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 2,
+          display: 'flex',
+          justifyContent: 'center',
+          borderRadius: 1
+        }}
+      >
+        <Box id="recaptcha-container"></Box>
+      </Paper>
+
+      {error && (
+        <FormHelperText error sx={{ mt: 1 }}>
+          {error}
+        </FormHelperText>
+      )}
+    </Box>
   );
 };
 

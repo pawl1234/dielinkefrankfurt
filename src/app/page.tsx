@@ -1,41 +1,94 @@
+'use client';
+
 import AppointmentForm from '@/components/AppointmentForm';
+import MuiSetup from '@/components/MuiSetup';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  Paper,
+  Card,
+  CardContent
+} from '@mui/material';
 
 export default function Home() {
   return (
-    <>
-      <header className="bg-primary text-white py-6">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold tracking-wider">Die Linke Frankfurt</h1>
-          </div>
-        </div>
-      </header>
-      
-      <main className="container mx-auto py-8 px-4 max-w-4xl">
-        <div className="die-linke-header text-center">
-          <h2 className="text-3xl font-bold mb-2">Termin-Anmeldung</h2>
-          <p className="text-lg font-medium">Online-Formular zur Einreichung von Veranstaltungen</p>
-        </div>
-        
-        <div className="mb-6 text-center">
-          <p className="text-lg text-gray-800">   </p>
-        </div>
-        
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <div className="mb-8">
-            <h3 className="form-section-title">Informationen zur Veranstaltung</h3>
-            <p className="text-gray-800 mb-4">
-              Geben Sie hier alle Details zu Ihrer geplanten Veranstaltung an. Je genauer Ihre Angaben sind, 
+    <MuiSetup>
+      <AppBar position="static" sx={{ mb: 4 }}>
+        <Toolbar>
+          <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold', letterSpacing: 1 }}>
+            Die Linke Frankfurt
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Box
+          sx={{
+            bgcolor: 'primary.main',
+            color: 'white',
+            py: 3,
+            px: 4,
+            mb: 4,
+            borderRadius: 1,
+            textAlign: 'center',
+            boxShadow: 3
+          }}
+        >
+          <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Termin-Anmeldung
+          </Typography>
+          <Typography variant="h6" component="p" sx={{ fontWeight: 'medium' }}>
+            Online-Formular zur Einreichung von Veranstaltungen
+          </Typography>
+        </Box>
+
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            mb: 4,
+            borderRadius: 2
+          }}
+        >
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h5"
+              component="h3"
+              color="primary"
+              gutterBottom
+              sx={{
+                pb: 1,
+                borderBottom: 1,
+                borderColor: 'divider',
+                fontWeight: 'medium'
+              }}
+            >
+              Informationen zur Veranstaltung
+            </Typography>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              Geben Sie hier alle Details zu Ihrer geplanten Veranstaltung an. Je genauer Ihre Angaben sind,
               desto besser können wir Ihren Termin planen.
-            </p>
+            </Typography>
             <AppointmentForm />
-          </div>
-        </div>
-        
-        <div className="mt-4 text-center text-sm text-gray-600">
-          <p>© {new Date().getFullYear()} Die Linke Frankfurt am Main</p>
-        </div>
-      </main>
-    </>
+          </Box>
+        </Paper>
+
+        <Box
+          component="footer"
+          sx={{
+            mt: 3,
+            textAlign: 'center',
+            pb: 3
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            © {new Date().getFullYear()} Die Linke Frankfurt am Main
+          </Typography>
+        </Box>
+      </Container>
+    </MuiSetup>
   );
 }

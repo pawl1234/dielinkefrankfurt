@@ -1,0 +1,34 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Appointment {
+  id             Int      @id @default(autoincrement())
+  teaser         String
+  mainText       String
+  startDateTime  DateTime
+  endDateTime    DateTime?
+  street         String?
+  city           String?
+  state          String?
+  postalCode     String?
+  firstName      String?
+  lastName       String?
+  recurringText  String?
+  fileUrls       String?  // JSON string of file URLs
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  processed      Boolean  @default(false)
+  processingDate DateTime?
+}

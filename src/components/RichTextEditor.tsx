@@ -4,6 +4,23 @@ import { useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import {
+  Box,
+  Paper,
+  Typography,
+  IconButton,
+  Divider,
+  Tooltip,
+  ToggleButton,
+  Stack,
+  LinearProgress,
+  Alert
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import FormatBoldIcon from '@mui/icons-material/FormatBold';
+import FormatItalicIcon from '@mui/icons-material/FormatItalic';
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import LinkIcon from '@mui/icons-material/Link';
 
 interface RichTextEditorProps {
   value: string;
@@ -11,10 +28,44 @@ interface RichTextEditorProps {
   maxLength: number;
 }
 
+// Styled component for the editor content
+const StyledEditorContent = styled(EditorContent)(({ theme }) => ({
+  '& .ProseMirror': {
+    padding: theme.spacing(2),
+    minHeight: '150px',
+    outline: 'none',
+    '&:focus': {
+      outline: 'none',
+    },
+    '& p': {
+      marginBottom: theme.spacing(1.5)
+    },
+    '& ul': {
+      marginLeft: theme.spacing(3),
+      marginBottom: theme.spacing(1.5)
+    }
+  }
+}));
+
+// Styled toggle button to match the theme
+const EditorToggleButton = styled(IconButton, {
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active?: boolean }>(({ theme, active }) => ({
+  padding: theme.spacing(0.5),
+  marginRight: theme.spacing(1),
+  backgroundColor: active ? theme.palette.action.selected : 'transparent',
+  borderRadius: theme.shape.borderRadius,
+  '&:hover': {
+    backgroundColor: active
+      ? theme.palette.action.hover
+      : theme.palette.action.hover,
+  },
+}));
+
 const RichTextEditor = ({ value, onChange, maxLength }: RichTextEditorProps) => {
   const [charCount, setCharCount] = useState(0);
   const [showLimitMessage, setShowLimitMessage] = useState(false);
-  
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -25,9 +76,9 @@ const RichTextEditor = ({ value, onChange, maxLength }: RichTextEditorProps) => 
       const html = editor.getHTML();
       const text = editor.getText();
       const currentCount = html.length;
-      
+
       setCharCount(currentCount);
-      
+
       if (currentCount <= maxLength) {
         onChange(html);
         setShowLimitMessage(false);
@@ -36,7 +87,7 @@ const RichTextEditor = ({ value, onChange, maxLength }: RichTextEditorProps) => 
       }
     },
   });
-  
+
   useEffect(() => {
     if (editor && value === '') {
       editor.commands.setContent('');
@@ -47,65 +98,107 @@ const RichTextEditor = ({ value, onChange, maxLength }: RichTextEditorProps) => 
     return null;
   }
 
+  // Calculate percentage for progress bar
+  const usagePercentage = Math.min((charCount / maxLength) * 100, 100);
+  const progressColor = usagePercentage > 90 ? 'error' : usagePercentage > 70 ? 'warning' : 'primary';
+
   return (
-    <div className="border border-gray-300 rounded overflow-hidden">
-      <div className="flex p-2 bg-gray-50 border-b">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-1 rounded mr-1 ${editor.isActive('bold') ? 'bg-gray-200' : ''}`}
-          title="Fett"
-        >
-          <strong>B</strong>
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-1 rounded mr-1 ${editor.isActive('italic') ? 'bg-gray-200' : ''}`}
-          title="Kursiv"
-        >
-          <em>I</em>
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`p-1 rounded mr-1 ${editor.isActive('bulletList') ? 'bg-gray-200' : ''}`}
-          title="Aufzählung"
-        >
-          • Liste
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const url = window.prompt('URL eingeben:');
-            if (url) {
-              // Set link with the URL
-              editor.chain().focus().setLink({ href: url }).run();
-            }
-          }}
-          className={`p-1 rounded mr-1 ${editor.isActive('link') ? 'bg-gray-200' : ''}`}
-          title="Link"
-        >
-          🔗
-        </button>
-      </div>
-      
-      <EditorContent 
-        editor={editor} 
-        className="prose p-3 min-h-[150px] focus:outline-none" 
-      />
-      
-      <div className="flex justify-between items-center p-2 bg-gray-50 border-t text-sm text-gray-500">
-        <div>
-          {charCount} / {maxLength} Zeichen
-        </div>
-        {showLimitMessage && (
-          <div className="text-dark-crimson">
-            Maximum character limit of 1000 reached.
-          </div>
-        )}
-      </div>
-    </div>
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: 1,
+        overflow: 'hidden',
+        mb: 2
+      }}
+    >
+      <Box sx={{
+        display: 'flex',
+        p: 1,
+        bgcolor: 'grey.50',
+        borderBottom: 1,
+        borderColor: 'divider'
+      }}>
+        <Tooltip title="Fett">
+          <EditorToggleButton
+            size="small"
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            active={editor.isActive('bold')}
+          >
+            <FormatBoldIcon fontSize="small" />
+          </EditorToggleButton>
+        </Tooltip>
+
+        <Tooltip title="Kursiv">
+          <EditorToggleButton
+            size="small"
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            active={editor.isActive('italic')}
+          >
+            <FormatItalicIcon fontSize="small" />
+          </EditorToggleButton>
+        </Tooltip>
+
+        <Tooltip title="Aufzählung">
+          <EditorToggleButton
+            size="small"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            active={editor.isActive('bulletList')}
+          >
+            <FormatListBulletedIcon fontSize="small" />
+          </EditorToggleButton>
+        </Tooltip>
+
+        <Tooltip title="Link einfügen">
+          <EditorToggleButton
+            size="small"
+            onClick={() => {
+              const url = window.prompt('URL eingeben:');
+              if (url) {
+                editor.chain().focus().setLink({ href: url }).run();
+              }
+            }}
+            active={editor.isActive('link')}
+          >
+            <LinkIcon fontSize="small" />
+          </EditorToggleButton>
+        </Tooltip>
+      </Box>
+
+      <StyledEditorContent editor={editor} />
+
+      <Divider />
+
+      <Box sx={{
+        p: 1.5,
+        bgcolor: 'grey.50',
+        borderTop: 1,
+        borderColor: 'divider'
+      }}>
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 0.5
+        }}>
+          <Typography variant="caption" color="text.secondary">
+            {charCount} / {maxLength} Zeichen
+          </Typography>
+
+          {showLimitMessage && (
+            <Typography variant="caption" color="error">
+              Zeichenlimit von {maxLength} erreicht.
+            </Typography>
+          )}
+        </Box>
+
+        <LinearProgress
+          variant="determinate"
+          value={usagePercentage}
+          color={progressColor}
+          sx={{ height: 4, borderRadius: 2 }}
+        />
+      </Box>
+    </Paper>
   );
 };
 

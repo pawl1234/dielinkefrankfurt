@@ -1,83 +1,68 @@
 'use client';
 
-import { UseFormRegister } from 'react-hook-form';
+import { UseFormRegister, Control } from 'react-hook-form';
+import {
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Box
+} from '@mui/material';
+import { Grid } from '@mui/material';
 
 interface AddressFieldsProps {
   register: UseFormRegister<any>;
   errors: Record<string, any>;
+  control?: Control<any>;
 }
 
-const AddressFields = ({ register, errors }: AddressFieldsProps) => {
+const AddressFields = ({ register, errors, control }: AddressFieldsProps) => {
   return (
-    <div className="form-section p-4 mb-6">
-      <h3 className="form-section-title">Veranstaltungsort</h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Straße und Hausnummer
-          </label>
-          <input
-            type="text"
-            {...register('street')}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dark-teal"
-            placeholder="Straße und Hausnummer"
-          />
-          {errors.street && (
-            <p className="mt-1 text-dark-crimson text-sm">{errors.street.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Stadt
-          </label>
-          <input
-            type="text"
-            {...register('city')}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dark-teal"
-            placeholder="Stadt"
-          />
-          {errors.city && (
-            <p className="mt-1 text-dark-crimson text-sm">{errors.city.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Bundesland
-          </label>
-          <input
-            type="text"
-            {...register('state')}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dark-teal"
-            placeholder="Bundesland"
-          />
-          {errors.state && (
-            <p className="mt-1 text-dark-crimson text-sm">{errors.state.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Postleitzahl
-          </label>
-          <input
-            type="text"
-            {...register('postalCode')}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dark-teal"
-            placeholder="Postleitzahl"
-          />
-          {errors.postalCode && (
-            <p className="mt-1 text-dark-crimson text-sm">{errors.postalCode.message}</p>
-          )}
-        </div>
-      </div>
-      
-      <p className="text-xs text-gray-500 mt-2">
-        Geben Sie den Ort an, an dem die Veranstaltung stattfinden soll. Leere Felder werden als "Nicht angegeben" gekennzeichnet.
-      </p>
-    </div>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+      <TextField
+        fullWidth
+        label="Straße und Hausnummer"
+        placeholder="Straße und Hausnummer"
+        {...register('street')}
+        error={!!errors.street}
+        helperText={errors.street?.message}
+        margin="normal"
+        variant="outlined"
+      />
+
+      <TextField
+        fullWidth
+        label="Stadt"
+        placeholder="Stadt"
+        {...register('city')}
+        error={!!errors.city}
+        helperText={errors.city?.message}
+        margin="normal"
+        variant="outlined"
+      />
+
+      <TextField
+        fullWidth
+        label="Bundesland"
+        placeholder="Bundesland"
+        {...register('state')}
+        error={!!errors.state}
+        helperText={errors.state?.message}
+        margin="normal"
+        variant="outlined"
+      />
+
+      <TextField
+        fullWidth
+        label="Postleitzahl"
+        placeholder="Postleitzahl"
+        {...register('postalCode')}
+        error={!!errors.postalCode}
+        helperText={errors.postalCode?.message}
+        margin="normal"
+        variant="outlined"
+      />
+    </Box>
   );
 };
 

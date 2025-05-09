@@ -1,140 +1,254 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Uppy from '@uppy/core';
-import { FileInput } from '@uppy/react';
+import { Dashboard } from '@uppy/react';
 import ThumbnailGenerator from '@uppy/thumbnail-generator';
+import DragDrop from '@uppy/drag-drop';
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  FormHelperText,
+  IconButton,
+  Card,
+  CardContent,
+  CardMedia,
+  CardActions,
+  styled,
+  BoxProps,
+  Grid,
+  Chip
+} from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CloseIcon from '@mui/icons-material/Close';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface FileUploadProps {
-  onFileSelect: (file: File | Blob | null) => void;
+  onFilesSelect: (files: (File | Blob)[]) => void;
+  maxFiles?: number;
 }
 
-const FileUpload = ({ onFileSelect }: FileUploadProps) => {
-  const [uppy, setUppy] = useState<Uppy | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<string | null>(null);
+// Styled component for the upload box
+const UploadBox = styled(Box)<BoxProps>(({ theme }) => ({
+  border: `2px dashed ${theme.palette.divider}`,
+  borderRadius: theme.shape.borderRadius,
+  padding: theme.spacing(3),
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: theme.palette.background.default,
+  transition: 'border-color 0.2s, background-color 0.2s',
+  cursor: 'pointer',
+  '&:hover': {
+    borderColor: theme.palette.primary.main,
+    backgroundColor: theme.palette.action.hover
+  }
+}));
+
+interface FileItem {
+  id: string;
+  name: string;
+  type: string;
+  preview?: string;
+  file: File | Blob;
+}
+
+const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
+  const [files, setFiles] = useState<FileItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const uppyInstance = new Uppy({
-      id: 'cover-picture',
-      restrictions: {
-        maxFileSize: 5 * 1024 * 1024, // 5MB
-        allowedFileTypes: ['.jpg', '.jpeg', '.png', '.pdf'],
-        maxNumberOfFiles: 1,
-      },
-      autoProceed: true,
-    });
-    
-    uppyInstance.use(ThumbnailGenerator, {
-      thumbnailWidth: 400,
-      waitForThumbnailsBeforeUpload: true,
-    });
-    
-    uppyInstance.on('file-added', (file) => {
-      setFileName(file.name || null);
-      setFileType(file.type || null);
-      onFileSelect(file.data);
-      setError(null);
-      
-      if (file.type === 'application/pdf') {
-        setPreview(null);
-      }
-    });
-    
-    uppyInstance.on('thumbnail:generated', (file, preview) => {
-      if (file.type.includes('image')) {
-        setPreview(preview);
-      }
-    });
-    
-    uppyInstance.on('restriction-failed', (file, error) => {
-      if (error.message.includes('exceeds maximum allowed size')) {
-        setError("File size exceeds 5MB limit. Please upload a smaller file.");
-      } else if (error.message.includes('You can only upload')) {
-        setError("Unsupported file type. Please upload a JPEG, PNG, or PDF.");
-      } else {
-        setError(error.message);
-      }
-      
-      setPreview(null);
-      setFileName(null);
-      setFileType(null);
-      onFileSelect(null);
-    });
-    
-    setUppy(uppyInstance);
-    
-    return () => {
-      uppyInstance.cancelAll();
-    };
-  }, [onFileSelect]);
-  
-  const handleReset = () => {
-    if (uppy) {
-      uppy.cancelAll();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle file input change
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = event.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+
+    // Check if adding these files would exceed the limit
+    if (files.length + selectedFiles.length > maxFiles) {
+      setError(`Du kannst maximal ${maxFiles} Dateien hochladen.`);
+      return;
     }
-    setPreview(null);
-    setFileName(null);
-    setFileType(null);
-    onFileSelect(null);
+
+    // Process each selected file
+    const newFiles: FileItem[] = [];
+    const validFileTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    Array.from(selectedFiles).forEach(file => {
+      // Validate file type
+      if (!validFileTypes.includes(file.type)) {
+        setError("Nicht unterstützter Dateityp. Bitte lade JPEG, PNG oder PDF hoch.");
+        return;
+      }
+
+      // Validate file size
+      if (file.size > maxSize) {
+        setError("Dateigröße überschreitet 5MB Limit. Bitte lade eine kleinere Datei hoch.");
+        return;
+      }
+
+      // Create a new file item
+      const fileItem: FileItem = {
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        type: file.type,
+        file: file
+      };
+
+      // Generate preview for image files
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const updatedFiles = [...files, ...newFiles].map(f => {
+            if (f.id === fileItem.id) {
+              return { ...f, preview: e.target?.result as string };
+            }
+            return f;
+          });
+          setFiles(updatedFiles);
+          onFilesSelect(updatedFiles.map(f => f.file));
+        };
+        reader.readAsDataURL(file);
+      }
+
+      newFiles.push(fileItem);
+    });
+
+    // Add new files to state
+    setFiles(prev => [...prev, ...newFiles]);
+    onFilesSelect([...files, ...newFiles].map(f => f.file));
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
     setError(null);
   };
-  
+
+  // Remove a file
+  const handleRemoveFile = (id: string) => {
+    const updatedFiles = files.filter(file => file.id !== id);
+    setFiles(updatedFiles);
+    onFilesSelect(updatedFiles.map(f => f.file));
+  };
+
+  // Handle click on upload box
+  const handleUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
-    <div className="space-y-3">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Titelbild hochladen (JPEG, PNG, PDF, max. 5MB)
-      </label>
-      
-      <div className="border border-gray-300 rounded p-4">
-        {!fileName ? (
-          <div>
-            {uppy && <FileInput uppy={uppy} />}
-            <p className="text-sm text-gray-500 mt-2">
+    <Box sx={{ mb: 3 }}>
+      <Typography
+        variant="subtitle1"
+        component="label"
+        sx={{ display: 'block', mb: 1, fontWeight: 600 }}
+      >
+        Dateien hochladen (JPEG, PNG, PDF, max. 5MB)
+      </Typography>
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        {files.length < maxFiles && (
+          <Box>
+            <UploadBox onClick={handleUploadClick}>
+              <CloudUploadIcon color="primary" sx={{ fontSize: 48, mb: 2 }} />
+              <Typography variant="subtitle1" gutterBottom>
+                {files.length > 0 
+                  ? `Weitere Dateien auswählen (${files.length}/${maxFiles})`
+                  : 'Dateien auswählen oder hierher ziehen'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                JPEG, PNG, PDF (max. 5MB)
+              </Typography>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                onChange={handleFileChange} 
+                accept=".jpg,.jpeg,.png,.pdf"
+                multiple={files.length < maxFiles - 1}
+              />
+            </UploadBox>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
               Für Bilder (JPEG/PNG) wird ein Seitenverhältnis von 4:3 empfohlen.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">{fileName}</span>
-              <button 
-                type="button" 
-                onClick={handleReset}
-                className="text-sm text-dark-teal hover:text-bright-teal"
-              >
-                Entfernen
-              </button>
-            </div>
-            
-            {preview && fileType && (fileType.includes('image')) && (
-              <div className="relative">
-                <div className="aspect-w-4 aspect-h-3 overflow-hidden rounded">
-                  <img 
-                    src={preview} 
-                    alt="Preview" 
-                    className="object-cover w-full h-full" 
-                  />
-                </div>
-                <div className="text-xs text-gray-500 mt-1">Vorschaubild (wird im Verhältnis 4:3 angezeigt)</div>
-              </div>
-            )}
-            
-            {fileType === 'application/pdf' && (
-              <div className="bg-gray-100 p-3 rounded text-sm">
-                PDF-Datei: {fileName}
-              </div>
-            )}
-          </div>
+            </Typography>
+          </Box>
         )}
-        
+
+        {files.length > 0 && (
+          <Box sx={{ mt: files.length < maxFiles ? 3 : 0 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Hochgeladene Dateien ({files.length}/{maxFiles})
+            </Typography>
+            <Grid container spacing={2}>
+              {files.map((file) => (
+                <Grid item xs={12} sm={6} md={4} key={file.id}>
+                  <Card variant="outlined">
+                    {file.preview ? (
+                      <CardMedia
+                        component="img"
+                        image={file.preview}
+                        alt={file.name}
+                        sx={{
+                          aspectRatio: '4/3',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{ 
+                        p: 3, 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        bgcolor: 'grey.100'
+                      }}>
+                        {file.type === 'application/pdf' ? (
+                          <PictureAsPdfIcon sx={{ fontSize: 48, color: 'error.main' }} />
+                        ) : (
+                          <InsertDriveFileIcon sx={{ fontSize: 48, color: 'primary.main' }} />
+                        )}
+                      </Box>
+                    )}
+                    <CardContent sx={{ py: 1 }}>
+                      <Typography variant="body2" noWrap title={file.name}>
+                        {file.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {file.type === 'application/pdf' ? 'PDF' : file.type.split('/')[1].toUpperCase()}
+                      </Typography>
+                    </CardContent>
+                    <CardActions>
+                      <Button 
+                        size="small" 
+                        color="error" 
+                        onClick={() => handleRemoveFile(file.id)}
+                        startIcon={<DeleteIcon />}
+                      >
+                        Entfernen
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
+
         {error && (
-          <div className="mt-2 text-dark-crimson text-sm">{error}</div>
+          <FormHelperText error sx={{ mt: 1 }}>
+            {error}
+          </FormHelperText>
         )}
-      </div>
-    </div>
+      </Paper>
+    </Box>
   );
 };
 

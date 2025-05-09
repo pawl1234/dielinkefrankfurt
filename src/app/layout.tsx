@@ -19,7 +19,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-light-gray min-h-screen antialiased">{children}</body>
+      <body>
+        {children}
+      </body>
     </html>
   );
 }

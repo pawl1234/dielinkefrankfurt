@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
-import { formatEmailBody, formatHtmlEmailBody } from '@/lib/emailUtils';
+import prisma from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,104 +28,83 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Validate file upload if present
-    const file = formData.get('file') as File | null;
-    let attachment = null;
-    let tempFilePath = null;
+    // Process multiple file uploads if present
+    const fileCount = formData.get('fileCount');
+    const fileUrls: string[] = [];
     
-    if (file) {
-      // Check file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: 'File size exceeds 5MB limit. Please upload a smaller file.' },
-          { status: 400 }
-        );
-      }
-      
-      // Check file type
-      const fileType = file.type;
-      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(fileType)) {
-        return NextResponse.json(
-          { error: 'Unsupported file type. Please upload a JPEG, PNG, or PDF.' },
-          { status: 400 }
-        );
-      }
-      
-      // Store file temporarily
-      const tempDir = os.tmpdir();
-      tempFilePath = path.join(tempDir, file.name);
-      const buffer = Buffer.from(await file.arrayBuffer());
-      fs.writeFileSync(tempFilePath, buffer);
-      
-      attachment = {
-        filename: file.name,
-        path: tempFilePath,
-      };
+    // Create upload directory if it doesn't exist
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
-    // Format the email body using utility functions
-    const emailData = {
-      teaser,
-      mainText,
-      startDateTime,
-      endDateTime,
-      street,
-      city,
-      state,
-      postalCode,
-      firstName,
-      lastName,
-      recurringText,
-    };
-    
-    const plainTextBody = formatEmailBody(emailData);
-    const htmlBody = formatHtmlEmailBody(emailData);
-    
-    // Configure email transporter (replace with your actual email settings)
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.example.com',
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: process.env.EMAIL_SECURE === 'true',
-      auth: {
-        user: process.env.EMAIL_USER || 'user@example.com',
-        pass: process.env.EMAIL_PASSWORD || 'password',
-      },
-    });
-    
-    // Setup email data
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || 'appointments@dielinkefrankfurt.de',
-      to: process.env.EMAIL_TO || 'newsletter@dielinkefrankfurt.de',
-      subject: `Neue Terminanfrage: ${firstName} ${lastName}`.trim(),
-      text: plainTextBody,
-      html: htmlBody,
-      attachments: attachment ? [attachment] : [],
-    };
-    
+
+    if (fileCount) {
+      const count = parseInt(fileCount as string, 10);
+      
+      for (let i = 0; i < count; i++) {
+        const file = formData.get(`file-${i}`) as File | null;
+        
+        if (file) {
+          // Check file size (5MB)
+          if (file.size > 5 * 1024 * 1024) {
+            return NextResponse.json(
+              { error: 'File size exceeds 5MB limit. Please upload smaller files.' },
+              { status: 400 }
+            );
+          }
+
+          // Check file type
+          const fileType = file.type;
+          if (!['image/jpeg', 'image/png', 'application/pdf'].includes(fileType)) {
+            return NextResponse.json(
+              { error: 'Unsupported file type. Please upload only JPEG, PNG, or PDF files.' },
+              { status: 400 }
+            );
+          }
+
+          // Create a unique filename
+          const timestamp = new Date().getTime();
+          const uniqueFileName = `${timestamp}-${i}-${file.name.replace(/\\s+/g, '-')}`;
+
+          // Save file to public/uploads directory for permanent storage
+          const filePath = path.join(uploadDir, uniqueFileName);
+          const buffer = Buffer.from(await file.arrayBuffer());
+          fs.writeFileSync(filePath, buffer);
+
+          // Add the URL to the array for storing in the database
+          fileUrls.push(`/uploads/${uniqueFileName}`);
+        }
+      }
+    }
+
+    // Save appointment to database
     try {
-      // Try to send email if configured
-      await transporter.sendMail(mailOptions);
-    } catch (emailError) {
-      // In development, just log the error but still return success
-      console.error('Email sending error (continuing in development mode):', emailError);
-      console.log('Email would have contained:', {
-        to: mailOptions.to,
-        subject: mailOptions.subject,
-        text: plainTextBody,
-        hasAttachment: !!attachment
+      await prisma.appointment.create({
+        data: {
+          teaser,
+          mainText,
+          startDateTime: new Date(startDateTime),
+          endDateTime: endDateTime ? new Date(endDateTime) : null,
+          street,
+          city,
+          state,
+          postalCode,
+          firstName,
+          lastName,
+          recurringText,
+          fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
+        }
       });
-      
-      // In production, you might want to throw this error
-      if (process.env.NODE_ENV === 'production') {
-        throw emailError;
-      }
+
+      console.log('Appointment saved to database');
+    } catch (dbError) {
+      console.error('Error saving to database:', dbError);
+      return NextResponse.json(
+        { error: 'Fehler beim Speichern der Terminanfrage in der Datenbank.' },
+        { status: 500 }
+      );
     }
-    
-    // Clean up temporary file if it exists
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
-    
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error submitting appointment:', error);

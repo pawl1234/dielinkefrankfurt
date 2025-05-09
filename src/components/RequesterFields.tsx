@@ -1,63 +1,58 @@
 'use client';
 
-import { UseFormRegister } from 'react-hook-form';
+import { UseFormRegister, Controller, Control } from 'react-hook-form';
+import {
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Box
+} from '@mui/material';
+import { Grid } from '@mui/material';
 
 interface RequesterFieldsProps {
   register: UseFormRegister<any>;
   errors: Record<string, any>;
+  control?: Control<any>;
 }
 
-const RequesterFields = ({ register, errors }: RequesterFieldsProps) => {
+const RequesterFields = ({ register, errors, control }: RequesterFieldsProps) => {
   return (
-    <div className="form-section p-4 mb-6">
-      <h3 className="form-section-title">Antragsteller</h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Vorname
-          </label>
-          <input
-            type="text"
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+          <TextField
+            fullWidth
+            label="Vorname"
+            placeholder="Vorname"
             {...register('firstName', {
               pattern: {
                 value: /^[A-Za-zÀ-ÖØ-öø-ÿ\s-]+$/,
                 message: 'Bitte nur Buchstaben eingeben',
               },
             })}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dark-teal"
-            placeholder="Vorname"
+            error={!!errors.firstName}
+            helperText={errors.firstName?.message}
+            margin="normal"
+            size="medium"
+            variant="outlined"
           />
-          {errors.firstName && (
-            <p className="mt-1 text-dark-crimson text-sm">{errors.firstName.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nachname
-          </label>
-          <input
-            type="text"
+
+          <TextField
+            fullWidth
+            label="Nachname"
+            placeholder="Nachname"
             {...register('lastName', {
               pattern: {
                 value: /^[A-Za-zÀ-ÖØ-öø-ÿ\s-]+$/,
                 message: 'Bitte nur Buchstaben eingeben',
               },
             })}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dark-teal"
-            placeholder="Nachname"
+            error={!!errors.lastName}
+            helperText={errors.lastName?.message}
+            margin="normal"
+            size="medium"
+            variant="outlined"
           />
-          {errors.lastName && (
-            <p className="mt-1 text-dark-crimson text-sm">{errors.lastName.message}</p>
-          )}
-        </div>
-      </div>
-      
-      <p className="text-xs text-gray-500 mt-2">
-        Bitte geben Sie Ihren Namen an, damit wir Sie bei Rückfragen kontaktieren können.
-      </p>
-    </div>
+        </Box>
   );
 };
 
