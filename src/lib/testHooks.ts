@@ -5,6 +5,7 @@ import { formatEmailBody } from './emailUtils';
 export async function testEmailFormatting() {
   // Sample data
   const testData = {
+    teaser: 'Test Event in Frankfurt',
     mainText: '<p>This is a test event for our newsletter.</p>',
     startDateTime: new Date('2025-06-01T18:00:00').toISOString(),
     endDateTime: new Date('2025-06-01T20:00:00').toISOString(),
