@@ -43,22 +43,22 @@ const AddressFields = ({ register, errors, control }: AddressFieldsProps) => {
 
       <TextField
         fullWidth
-        label="Bundesland"
-        placeholder="Bundesland"
-        {...register('state')}
-        error={!!errors.state}
-        helperText={errors.state?.message}
+        label="Postleitzahl"
+        placeholder="Postleitzahl"
+        {...register('postalCode')}
+        error={!!errors.postalCode}
+        helperText={errors.postalCode?.message}
         margin="normal"
         variant="outlined"
       />
 
       <TextField
         fullWidth
-        label="Postleitzahl"
-        placeholder="Postleitzahl"
-        {...register('postalCode')}
-        error={!!errors.postalCode}
-        helperText={errors.postalCode?.message}
+        label="Angabe wie Saalbau Bornheim"
+        placeholder="Angabe wie Saalbau Bornheim"
+        {...register('zusatzAngabe')}
+        error={!!errors.zusatzAngabe}
+        helperText={errors.zusatzAngabe?.message}
         margin="normal"
         variant="outlined"
       />

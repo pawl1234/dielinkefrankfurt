@@ -168,6 +168,35 @@ export default function AppointmentForm() {
 
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ '& > *': { mt: 3 } }}>
+            {submissionError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <strong>Fehler beim Absenden:</strong> {submissionError}
+        </Alert>
+      )}
+
+      {submissionSuccess && (
+        <Alert
+          severity="success"
+          sx={{
+            mb: 3,
+            p: 2,
+            borderLeft: 3,
+            borderColor: 'success.main',
+            '& .MuiAlert-icon': {
+              fontSize: '2rem',
+            }
+          }}
+        >
+          <Box sx={{ mb: 1 }}>
+            <Typography variant="h6" component="div" gutterBottom>
+              Vielen Dank für Ihre Terminanfrage!
+            </Typography>
+            <Typography variant="body1">
+              Ihre Anfrage wurde erfolgreich übermittelt. Wir werden uns so schnell wie möglich mit Ihnen in Verbindung setzen.
+            </Typography>
+          </Box>
+        </Alert>
+      )}
       <Card variant="outlined" sx={{
         mb: 3,
         borderLeft: 4,
@@ -218,7 +247,7 @@ export default function AppointmentForm() {
               Teaser <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
             </Typography>
 
-            <Typography variant="caption" display="block" gutterBottom>
+            <Typography variant="body1" display="block" gutterBottom>
               Kurze Zusammenfassung Ihrer Veranstaltung (max. 300 Zeichen).
               {teaserLength > 100 && (
                 <Typography variant="caption" color="error.main" component="span">
@@ -256,6 +285,9 @@ export default function AppointmentForm() {
               Beschreibung <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
             </Typography>
 
+            <Typography variant="body1" display="block" mb={2} gutterBottom>
+              Ausführliche und motivierende Beschreibung des Events. Text kann hier formatiert und Emojies verwerdet werden.
+            </Typography>
             <RichTextEditor
               value={mainText}
               onChange={setMainText}
@@ -266,24 +298,39 @@ export default function AppointmentForm() {
                 {errors.mainText.message}
               </Typography>
             )}
-
-            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-              Bitte beschreiben Sie Ihre Veranstaltung. Diese Beschreibung wird für die interne Planung verwendet.
-            </Typography>
           </Box>
+
+
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined" sx={{
+        mb: 3,
+        borderLeft: 4,
+        borderLeftColor: 'primary.main',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
+      }}>
+        <CardContent>
+          <SectionHeader
+            title="Datei Anhänge"
+            helpTitle="Anhänge hochladen"
+            helpText={
+              <>
+                <Typography variant="body2">
+                  Hier können Sie anhänge wie Flyer oder Plakate als Bild oder PDF hochladen 
+                </Typography>
+              </>
+            }
+          />
 
           <Box sx={{ mb: 2 }}>
             <FileUpload
               onFilesSelect={setFileList}
               maxFiles={5}
             />
-            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-              Optional können Sie bis zu 5 Bilder oder PDF-Dokumente hochladen (max. 5MB pro Datei).
-            </Typography>
           </Box>
         </CardContent>
       </Card>
-
       <Card variant="outlined" sx={{
         mb: 3,
         borderLeft: 4,
@@ -310,9 +357,6 @@ export default function AppointmentForm() {
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
             <Box>
-              <Typography variant="caption" display="block" gutterBottom>
-                Wann beginnt Ihre Veranstaltung?
-              </Typography>
               <DateTimePicker
                 label="Startdatum und -uhrzeit"
                 name="startDateTime"
@@ -324,9 +368,6 @@ export default function AppointmentForm() {
             </Box>
 
             <Box>
-              <Typography variant="caption" display="block" gutterBottom>
-                Wann endet Ihre Veranstaltung? Falls nicht bekannt, lassen Sie dieses Feld leer.
-              </Typography>
               <DateTimePicker
                 label="Enddatum und -uhrzeit (optional)"
                 name="endDateTime"
@@ -339,7 +380,7 @@ export default function AppointmentForm() {
             </Box>
           </Box>
 
-          <Box sx={{ mt: 2 }}>
+          <Box>
             <FormControlLabel
               control={
                 <Checkbox
@@ -354,12 +395,12 @@ export default function AppointmentForm() {
 
           {isRecurring && (
             <Box sx={{ mt: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                <Typography variant="subtitle1">
                   Wiederholende Termine
                 </Typography>
-              </Box>
-
+              <Typography variant="body1" display="block" sx={{ mt: 1 }}>
+                Beschreiben Sie den wiederkehrenden Termin in eigenen Worten, z. B. 'Jeden zweiten Mittwoch'.
+              </Typography>
               <Controller
                 name="recurringText"
                 control={control}
@@ -377,9 +418,7 @@ export default function AppointmentForm() {
                 )}
               />
 
-              <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                Beschreiben Sie den wiederkehrenden Termin in eigenen Worten, z. B. 'Jeden zweiten Mittwoch'.
-              </Typography>
+
 
               <Collapse in={helpOpen}>
                 <Paper sx={{ mt: 2, p: 2, bgcolor: 'grey.50' }}>
@@ -458,36 +497,6 @@ export default function AppointmentForm() {
             />
           </CardContent>
         </Card>
-      )}
-
-      {submissionError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <strong>Fehler beim Absenden:</strong> {submissionError}
-        </Alert>
-      )}
-
-      {submissionSuccess && (
-        <Alert
-          severity="success"
-          sx={{
-            mb: 3,
-            p: 2,
-            borderLeft: 3,
-            borderColor: 'success.main',
-            '& .MuiAlert-icon': {
-              fontSize: '2rem',
-            }
-          }}
-        >
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="h6" component="div" gutterBottom>
-              Vielen Dank für Ihre Terminanfrage!
-            </Typography>
-            <Typography variant="body1">
-              Ihre Anfrage wurde erfolgreich übermittelt. Wir werden uns so schnell wie möglich mit Ihnen in Verbindung setzen.
-            </Typography>
-          </Box>
-        </Alert>
       )}
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>

@@ -192,9 +192,9 @@ export default function AdminPage() {
             </Typography>
           </Paper>
         ) : (
-          <Grid size={12} container spacing={3}>
+          <Grid container spacing={3}>
             {filteredAppointments.map((appointment) => (
-              <Grid item xs={12} key={appointment.id}>
+              <Grid size={12} key={appointment.id}>
                 <Accordion>
                   <AccordionSummary
                     expandIcon={<ExpandMoreIcon />}
@@ -251,7 +251,7 @@ export default function AdminPage() {
                     <Divider sx={{ mb: 2 }} />
                     
                     <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
+                      <Grid item size={8}>
                         <Typography variant="h6" gutterBottom>
                           Veranstaltungsdetails
                         </Typography>
@@ -260,20 +260,82 @@ export default function AdminPage() {
                         
                         {appointment.recurringText && (
                           <Box sx={{ mt: 2 }}>
-                            <Typography variant="subtitle2">
+                            <Typography variant="subtitle1">
                               Wiederholungsdetails:
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body1">
                               {appointment.recurringText}
                             </Typography>
                           </Box>
                         )}
                         
-                        {appointment.fileUrls && (
-                          <Box sx={{ mt: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              Angehängte Dateien:
+                       
+                      </Grid>
+                      
+                      <Grid item size={4}>
+                        <Typography variant="h6" gutterBottom>
+                          Datum & Ort
+                        </Typography>
+                        
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle1">
+                            Startzeit:
+                          </Typography>
+                          <Typography variant="body1">
+                            {format(new Date(appointment.startDateTime), 'PPPp', { locale: de })}
+                          </Typography>
+                        </Box>
+                        
+                        {appointment.endDateTime && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1">
+                              Endzeit:
                             </Typography>
+                            <Typography variant="body1">
+                              {format(new Date(appointment.endDateTime), 'PPPp', { locale: de })}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {(appointment.street || appointment.city || appointment.state || appointment.postalCode) && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom>
+                              Ort:
+                            </Typography>
+                            <Typography variant="body1">
+                              {appointment.street && `${appointment.street}`}
+                              {appointment.street && <br />}
+                              {appointment.postalCode && appointment.city && `${appointment.postalCode} ${appointment.city}`}
+                              {(appointment.postalCode || appointment.city) && <br />}
+                              {appointment.state && `${appointment.state}`}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle1" gutterBottom>
+                            Kontakt:
+                          </Typography>
+                          <Typography variant="body1">
+                            {appointment.firstName} {appointment.lastName}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle1" gutterBottom>
+                            Anfrage erhalten:
+                          </Typography>
+                          <Typography variant="body1">
+                            {format(new Date(appointment.createdAt), 'PPPp', { locale: de })}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item size={12}>
+                        <Typography variant="h6" gutterBottom>
+                          Anhänge
+                        </Typography>
+                      {appointment.fileUrls && (
+                          <Box sx={{ mt: 2 }}>
                             <Grid container spacing={1}>
                               {JSON.parse(appointment.fileUrls).map((fileUrl: string, index: number) => {
                                 const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');
@@ -320,65 +382,6 @@ export default function AdminPage() {
                             </Grid>
                           </Box>
                         )}
-                      </Grid>
-                      
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="h6" gutterBottom>
-                          Datum & Ort
-                        </Typography>
-                        
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2">
-                            Startzeit:
-                          </Typography>
-                          <Typography variant="body1">
-                            {format(new Date(appointment.startDateTime), 'PPPp', { locale: de })}
-                          </Typography>
-                        </Box>
-                        
-                        {appointment.endDateTime && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2">
-                              Endzeit:
-                            </Typography>
-                            <Typography variant="body1">
-                              {format(new Date(appointment.endDateTime), 'PPPp', { locale: de })}
-                            </Typography>
-                          </Box>
-                        )}
-                        
-                        {(appointment.street || appointment.city || appointment.state || appointment.postalCode) && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              Ort:
-                            </Typography>
-                            <Typography variant="body2">
-                              {appointment.street && `${appointment.street}`}
-                              {appointment.street && <br />}
-                              {appointment.postalCode && appointment.city && `${appointment.postalCode} ${appointment.city}`}
-                              {(appointment.postalCode || appointment.city) && <br />}
-                              {appointment.state && `${appointment.state}`}
-                            </Typography>
-                          </Box>
-                        )}
-                        
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>
-                            Kontakt:
-                          </Typography>
-                          <Typography variant="body2">
-                            {appointment.firstName} {appointment.lastName}
-                          </Typography>
-                        </Box>
-                        
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>
-                            Anfrage erhalten:
-                          </Typography>
-                          <Typography variant="body2">
-                            {format(new Date(appointment.createdAt), 'PPPp', { locale: de })}
-                          </Typography>
-                        </Box>
                       </Grid>
                     </Grid>
 
