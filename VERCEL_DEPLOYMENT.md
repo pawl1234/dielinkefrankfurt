@@ -18,15 +18,33 @@ Required environment variables for production:
 ### Prisma Setup
 The project is configured to:
 - Generate Prisma client during build process
+- Run database migrations automatically during build
 - Generate Prisma client during package installation
 - Run enhanced database connection logging
 
 ### Database Migration
+This project now automatically runs migrations during deployment with `prisma migrate deploy`.
+
 When switching from SQLite to PostgreSQL:
-1. Create a new PostgreSQL database
-2. Set the DATABASE_URL in your .env file
-3. Run `npx prisma migrate deploy` to apply migrations
-4. If needed, export data from SQLite and import to PostgreSQL
+1. Create a new PostgreSQL database (using Neon, Supabase, Railway, etc.)
+2. Set the DATABASE_URL in your Vercel environment variables
+3. The build process will automatically:
+   - Generate the Prisma client
+   - Run database migrations to create all required tables
+   - Build the Next.js application
+
+If you need to manually apply migrations:
+```bash
+# Local development
+npx prisma migrate dev
+
+# Production deployment
+npx prisma migrate deploy
+```
+
+For data migration:
+1. Export data from SQLite if needed
+2. Import to PostgreSQL (can use pgAdmin or similar tools)
 
 ### Deployment Checklist
 - [ ] Set up PostgreSQL database
