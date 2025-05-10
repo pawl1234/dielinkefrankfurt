@@ -26,10 +26,13 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
   ],
 });
 
-// Set up event listeners for logging database connection health
-prisma.$on('query', (e) => {
-  console.log('Query: ' + e.query);
-  console.log('Duration: ' + e.duration + 'ms');
+// Enhanced logging via middleware instead of events
+prisma.$use(async (params, next) => {
+  const before = Date.now();
+  const result = await next(params);
+  const after = Date.now();
+  console.log(`Query: ${params.model}.${params.action} took ${after - before}ms`);
+  return result;
 });
 
 // Log database connection status at startup

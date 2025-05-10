@@ -80,35 +80,36 @@ export async function POST(request: NextRequest) {
     // Save appointment to database
     try {
       // First check database connection
-      let isConnected = false;
       try {
-        await prisma.$queryRaw`SELECT 1 as connection_test`;
-        isConnected = true;
-        console.log('✅ Database connection confirmed before saving appointment');
+        // Use a simple query that works with both PostgreSQL and SQLite
+        const result = await prisma.$queryRaw`SELECT 1 as connection_test`;
+        console.log('✅ Database connection confirmed:', result);
       } catch (connectionError) {
         console.error('❌ Database connection test failed:', connectionError);
-        throw new Error('Database connection failed');
+        return NextResponse.json(
+          { error: 'Database connection failed. Please try again later.' },
+          { status: 503 }
+        );
       }
 
-      if (isConnected) {
-        await prisma.appointment.create({
-          data: {
-            teaser,
-            mainText,
-            startDateTime: new Date(startDateTime),
-            endDateTime: endDateTime ? new Date(endDateTime) : null,
-            street,
-            city,
-            state,
-            postalCode,
-            firstName,
-            lastName,
-            recurringText,
-            fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
-          }
-        });
-        console.log('✅ Appointment successfully saved to database');
-      }
+      // Connection successful, proceed with creating appointment
+      await prisma.appointment.create({
+        data: {
+          teaser,
+          mainText,
+          startDateTime: new Date(startDateTime),
+          endDateTime: endDateTime ? new Date(endDateTime) : null,
+          street,
+          city,
+          state,
+          postalCode,
+          firstName,
+          lastName,
+          recurringText,
+          fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
+        }
+      });
+      console.log('✅ Appointment successfully saved to database');
     } catch (dbError) {
       console.error('❌ Error saving to database:', dbError);
       // Log more detailed error information
