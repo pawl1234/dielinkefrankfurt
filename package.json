@@ -5,14 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && node prisma/setup-postgres.js && next build",
+    "build": "node prisma/vercel-build.js && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "reset-db": "node prisma/reset-migrations.js && prisma generate && prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
