@@ -79,26 +79,43 @@ export async function POST(request: NextRequest) {
 
     // Save appointment to database
     try {
-      await prisma.appointment.create({
-        data: {
-          teaser,
-          mainText,
-          startDateTime: new Date(startDateTime),
-          endDateTime: endDateTime ? new Date(endDateTime) : null,
-          street,
-          city,
-          state,
-          postalCode,
-          firstName,
-          lastName,
-          recurringText,
-          fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
-        }
-      });
+      // First check database connection
+      let isConnected = false;
+      try {
+        await prisma.$queryRaw`SELECT 1 as connection_test`;
+        isConnected = true;
+        console.log('✅ Database connection confirmed before saving appointment');
+      } catch (connectionError) {
+        console.error('❌ Database connection test failed:', connectionError);
+        throw new Error('Database connection failed');
+      }
 
-      console.log('Appointment saved to database');
+      if (isConnected) {
+        await prisma.appointment.create({
+          data: {
+            teaser,
+            mainText,
+            startDateTime: new Date(startDateTime),
+            endDateTime: endDateTime ? new Date(endDateTime) : null,
+            street,
+            city,
+            state,
+            postalCode,
+            firstName,
+            lastName,
+            recurringText,
+            fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
+          }
+        });
+        console.log('✅ Appointment successfully saved to database');
+      }
     } catch (dbError) {
-      console.error('Error saving to database:', dbError);
+      console.error('❌ Error saving to database:', dbError);
+      // Log more detailed error information
+      if (dbError instanceof Error) {
+        console.error('Error message:', dbError.message);
+        console.error('Error stack:', dbError.stack);
+      }
       return NextResponse.json(
         { error: 'Fehler beim Speichern der Terminanfrage in der Datenbank.' },
         { status: 500 }
