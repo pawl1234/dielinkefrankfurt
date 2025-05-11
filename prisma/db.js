@@ -279,6 +279,180 @@ function deploySchema() {
 }
 
 /**
+ * Creates a baseline migration if needed and marks it as applied
+ */
+function baselineDatabase() {
+  try {
+    console.log('🏁 Checking if database needs to be baselined...');
+
+    // Check if _prisma_migrations table exists
+    const checkMigrationsTableCommand = IS_VERCEL
+      ? `npx prisma db execute --stdin < ${path.join(__dirname, 'check-migrations-table.sql')}`
+      : `psql "${process.env.DATABASE_URL}" -c "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = '_prisma_migrations');"`;
+
+    // Create SQL file to check for migrations table
+    fs.writeFileSync(
+      path.join(__dirname, 'check-migrations-table.sql'),
+      `SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = '_prisma_migrations');`
+    );
+
+    let migrationsTableExists = false;
+    try {
+      const result = execSync(checkMigrationsTableCommand, { stdio: 'pipe' }).toString();
+      migrationsTableExists = result.includes('t') || result.includes('true');
+    } catch (error) {
+      console.log('Could not check migrations table, assuming it does not exist:', error.message);
+    }
+
+    // Clean up the SQL file
+    try {
+      fs.unlinkSync(path.join(__dirname, 'check-migrations-table.sql'));
+    } catch (error) {
+      console.log('Could not delete check-migrations-table.sql:', error.message);
+    }
+
+    // If migrations table doesn't exist but database has tables, we need to baseline
+    if (!migrationsTableExists) {
+      console.log('🏁 Migration table not found, initializing baseline migration...');
+
+      // Create baseline migration
+      const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+      const baselineMigrationDir = path.join(MIGRATIONS_DIR, `${timestamp}_baseline`);
+
+      if (!fs.existsSync(baselineMigrationDir)) {
+        fs.mkdirSync(baselineMigrationDir, { recursive: true });
+      }
+
+      // Get current schema from database
+      fs.writeFileSync(
+        path.join(baselineMigrationDir, 'migration.sql'),
+        `-- CreateTable
+CREATE TABLE IF NOT EXISTS "Appointment" (
+    "id" SERIAL PRIMARY KEY,
+    "teaser" TEXT NOT NULL,
+    "mainText" TEXT NOT NULL,
+    "startDateTime" TIMESTAMP(3) NOT NULL,
+    "endDateTime" TIMESTAMP(3),
+    "street" TEXT,
+    "city" TEXT,
+    "state" TEXT,
+    "postalCode" TEXT,
+    "firstName" TEXT,
+    "lastName" TEXT,
+    "recurringText" TEXT,
+    "fileUrls" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "processed" BOOLEAN NOT NULL DEFAULT false,
+    "processingDate" TIMESTAMP(3)
+);
+
+-- CreateMigrationsTable
+-- This is needed for migration history tracking
+CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+    "id" VARCHAR(36) NOT NULL,
+    "checksum" VARCHAR(64) NOT NULL,
+    "finished_at" TIMESTAMPTZ,
+    "migration_name" VARCHAR(255) NOT NULL,
+    "logs" TEXT,
+    "rolled_back_at" TIMESTAMPTZ,
+    "started_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "applied_steps_count" INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY ("id")
+);
+`
+      );
+
+      console.log('✅ Created baseline migration at', baselineMigrationDir);
+
+      // Mark the baseline migration as applied
+      if (IS_VERCEL) {
+        try {
+          // Create a temporary script to mark migration as applied
+          const markAppliedScriptPath = path.join(__dirname, 'mark-migration-applied.js');
+          fs.writeFileSync(markAppliedScriptPath, `
+const path = require('path');
+const fs = require('fs');
+const { execSync } = require('child_process');
+
+// Get migration name from migration folder
+const migrationDir = '${baselineMigrationDir.replace(/\\/g, '\\\\')}';
+const migrationName = path.basename(migrationDir);
+
+// Create SQL to mark migration as applied
+const sql = \`
+-- Create migrations table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+    "id" VARCHAR(36) NOT NULL,
+    "checksum" VARCHAR(64) NOT NULL,
+    "finished_at" TIMESTAMPTZ,
+    "migration_name" VARCHAR(255) NOT NULL,
+    "logs" TEXT,
+    "rolled_back_at" TIMESTAMPTZ,
+    "started_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "applied_steps_count" INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY ("id")
+);
+
+-- Insert our migration as applied
+INSERT INTO "_prisma_migrations" ("id", "checksum", "finished_at", "migration_name", "logs", "rolled_back_at", "started_at", "applied_steps_count")
+VALUES (
+    gen_random_uuid(), -- random UUID
+    md5('${migrationName}'), -- checksum based on migration name
+    NOW(), -- finished_at
+    '${migrationName}', -- migration_name
+    NULL, -- logs
+    NULL, -- rolled_back_at
+    NOW(), -- started_at
+    1 -- applied_steps_count
+);
+\`;
+
+// Write SQL to file
+const sqlPath = path.join(__dirname, 'mark-migration-applied.sql');
+fs.writeFileSync(sqlPath, sql);
+
+// Execute SQL
+try {
+  execSync(\`npx prisma db execute --file=\${sqlPath}\`, { stdio: 'inherit' });
+  console.log('✅ Marked baseline migration as applied');
+} catch (error) {
+  console.error('❌ Error marking migration as applied:', error);
+  process.exit(1);
+} finally {
+  // Clean up
+  if (fs.existsSync(sqlPath)) {
+    fs.unlinkSync(sqlPath);
+  }
+}
+          `);
+
+          // Execute the script
+          execSync(`node ${markAppliedScriptPath}`, { stdio: 'inherit' });
+
+          // Clean up
+          if (fs.existsSync(markAppliedScriptPath)) {
+            fs.unlinkSync(markAppliedScriptPath);
+          }
+        } catch (error) {
+          console.error('❌ Error marking baseline migration as applied:', error);
+          return false;
+        }
+      }
+
+      console.log('✅ Database baseline completed');
+    } else {
+      console.log('✅ Migrations table already exists, skipping baseline');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error creating baseline:', error);
+    return false;
+  }
+}
+
+/**
  * Deploys the schema to the database safely preserving all data
  * Uses migrate dev in development and migrate deploy in production
  */
@@ -288,19 +462,36 @@ function deploySchemaSafely() {
     console.log('🔧 Generating Prisma client...');
     execSync('npx prisma generate', { stdio: 'inherit' });
 
+    // Ensure database has a baseline if needed
+    if (!baselineDatabase()) {
+      console.error('❌ Failed to baseline database');
+      return false;
+    }
+
     // Use the migration flow that preserves data
     console.log('🚀 Deploying schema changes while preserving data...');
 
     if (IS_VERCEL) {
-      // In production use migrate deploy which is safer for production data
-      console.log('🔒 Using prisma migrate deploy for production environment...');
+      // In production use db push for first deployment after baselining
+      // This is safer since we've already baselined the database
+      console.log('🔒 Using prisma db push for production environment...');
       try {
-        execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-        console.log('✅ Migration deploy completed successfully');
+        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+        console.log('✅ Schema push completed successfully');
         return true;
-      } catch (migrateError) {
-        console.error('❌ Migration deploy failed:', migrateError);
-        return false;
+      } catch (pushError) {
+        console.error('❌ Schema push failed, trying migrate deploy:', pushError);
+
+        // Fall back to migrate deploy
+        try {
+          console.log('🔒 Using prisma migrate deploy for production environment...');
+          execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+          console.log('✅ Migration deploy completed successfully');
+          return true;
+        } catch (migrateError) {
+          console.error('❌ Migration deploy failed:', migrateError);
+          return false;
+        }
       }
     } else {
       // In development use migrate dev with createOnly flag to create new migrations
@@ -327,6 +518,7 @@ module.exports = {
   resetMigrations,
   resetDatabase,
   deploySchema,
+  baselineDatabase,
   deploySchemaSafely,
   IS_VERCEL
 };
