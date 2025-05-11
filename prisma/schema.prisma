@@ -46,6 +46,10 @@ model Appointment {
   processed      Boolean   @default(false)
   processingDate DateTime?
 
+  // Appointment status
+  status         String    @default("pending") // possible values: pending, accepted, rejected
+
   @@index([processed]) // Add index for common query filter
+  @@index([status]) // Add index for status filtering
   @@map("appointment") // Lowercase table name for PostgreSQL convention
 }

@@ -39,25 +39,29 @@ This is a Next.js application for appointment submission for Die Linke Frankfurt
    ```
 4. The project includes a default `.env.local` file with development settings that allow you to run the application without real reCAPTCHA credentials.
 
-### Database Setup
+#### Local Development with PostgreSQL
 
-The application uses SQLite for local development and can be configured to use PostgreSQL, MySQL, or other databases for production.
+If you want to use PostgreSQL locally (recommended for testing production-like setup):
 
-In development:
-- SQLite database is automatically created at `prisma/dev.db`
-- No additional setup is required
+1. Install PostgreSQL on your machine or use Docker:
+   ```bash
+   npm run db:start
+   ```
 
-For database operations:
-```bash
-# View database data with Prisma Studio
-npx prisma studio
+2. Update your `.env.local` file with the PostgreSQL connection string:
+   ```
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dielinkefrankfurt"
+   ```
 
-# Apply database schema changes
-npx prisma migrate dev
+3. Run migrations:
+   ```bash
+   npm run db:push
+   ```
 
-# Reset development database (caution: deletes all data)
-npx prisma migrate reset
-```
+4. You can now start your app with:
+   ```bash
+   npm run dev
+   ```
 
 ### Development Mode
 
@@ -137,9 +141,10 @@ When you're ready to deploy the application to production, you'll need to:
 
 ### Production Database Considerations
 
-For production deployment, we recommend using a PostgreSQL database for better performance and reliability:
+For production deployment, we use a PostgreSQL database for better performance and reliability:
 
 1. Create a PostgreSQL database on your hosting provider or use a managed service like:
+   - Neon (currently used)
    - Supabase
    - Railway
    - Heroku Postgres
@@ -159,6 +164,43 @@ For production deployment, we recommend using a PostgreSQL database for better p
 4. Run `npx prisma migrate deploy` to apply migrations to your production database.
 
 5. If you need to make schema changes, develop them locally first with `npx prisma migrate dev`, then apply them to production with `npx prisma migrate deploy`.
+
+### Database Migrations and Vercel Deployment
+
+This project includes a custom deployment script (`prisma/vercel-build.js`) that:
+
+1. Validates the database connection
+2. Ensures schema is properly configured
+3. Creates a baseline migration if needed (for existing databases)
+4. Safely deploys schema changes without data loss
+
+#### Understanding the Database Preservation System
+
+The application uses a custom baselining approach to preserve production data between deployments:
+
+1. When deployed to Vercel, it checks if the database has a Prisma migrations table
+2. If not, it creates one and records existing tables as a baseline
+3. Future schema changes are applied on top of this baseline
+
+This system ensures:
+- Production data is preserved between deployments
+- Schema changes are safely applied
+- No data loss occurs during migrations
+
+#### Manually Baselining an Existing Database
+
+If you need to manually baseline an existing database:
+
+```bash
+# Create a baseline migration
+npx prisma migrate diff \
+  --from-empty \
+  --to-schema-datamodel prisma/schema.prisma \
+  --script > prisma/migrations/$(date +%Y%m%d%H%M%S)_baseline/migration.sql
+
+# Apply the migration
+npx prisma migrate deploy
+```
 
 ## Project Structure
 

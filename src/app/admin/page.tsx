@@ -57,6 +57,7 @@ interface Appointment {
   createdAt: string;
   processed: boolean;
   processingDate: string | null;
+  status: 'pending' | 'accepted' | 'rejected';
 }
 
 export default function AdminPage() {
@@ -66,6 +67,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tabValue, setTabValue] = useState(0);
+
+  // Define view types
+  type ViewType = 'pending' | 'upcoming' | 'archive';
+  const views: ViewType[] = ['pending', 'upcoming', 'archive'];
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -77,19 +82,19 @@ export default function AdminPage() {
   useEffect(() => {
     // Fetch appointments when authenticated
     if (status === 'authenticated') {
-      fetchAppointments();
+      fetchAppointments(views[tabValue]);
     }
-  }, [status]);
+  }, [status, tabValue]);
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = async (view: ViewType) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/appointments');
-      
+      const response = await fetch(`/api/admin/appointments?view=${view}`);
+
       if (!response.ok) {
         throw new Error('Failed to fetch appointments');
       }
-      
+
       const data = await response.json();
       setAppointments(data);
       setError(null);
@@ -101,26 +106,40 @@ export default function AdminPage() {
     }
   };
 
-  const handleProcessAppointment = async (id: number, processed: boolean) => {
+  const handleAppointmentUpdate = async (id: number, data: { processed?: boolean, status?: 'pending' | 'accepted' | 'rejected' }) => {
     try {
       const response = await fetch('/api/admin/appointments', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id, processed }),
+        body: JSON.stringify({ id, ...data }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to update appointment');
       }
-      
+
       // Refresh appointments after update
-      fetchAppointments();
+      fetchAppointments(views[tabValue]);
     } catch (err) {
       console.error(err);
       setError('Failed to update appointment status.');
     }
+  };
+
+  // Process appointment (legacy method, keep for backward compatibility)
+  const handleProcessAppointment = async (id: number, processed: boolean) => {
+    await handleAppointmentUpdate(id, { processed });
+  };
+
+  // New methods for accepting/rejecting
+  const handleAcceptAppointment = async (id: number) => {
+    await handleAppointmentUpdate(id, { status: 'accepted' });
+  };
+
+  const handleRejectAppointment = async (id: number) => {
+    await handleAppointmentUpdate(id, { status: 'rejected' });
   };
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -131,10 +150,36 @@ export default function AdminPage() {
     signOut({ callbackUrl: '/admin/login' });
   };
 
-  // Filter appointments based on the selected tab
-  const filteredAppointments = appointments.filter(appointment => 
-    (tabValue === 0 && !appointment.processed) || (tabValue === 1 && appointment.processed)
-  );
+  // Get current view
+  const currentView = views[tabValue];
+
+  // Define tab labels
+  const getTabLabel = (view: ViewType) => {
+    switch (view) {
+      case 'pending':
+        return 'Neue Anfragen';
+      case 'upcoming':
+        return 'Angenommene Termine';
+      case 'archive':
+        return 'Archiv';
+      default:
+        return view;
+    }
+  };
+
+  // Get empty state message based on current view
+  const getEmptyStateMessage = (view: ViewType) => {
+    switch (view) {
+      case 'pending':
+        return 'Keine neuen Terminanfragen vorhanden.';
+      case 'upcoming':
+        return 'Keine anstehenden Termine vorhanden.';
+      case 'archive':
+        return 'Keine archivierten Termine vorhanden.';
+      default:
+        return 'Keine Termine gefunden.';
+    }
+  };
 
   if (status === 'loading' || status === 'unauthenticated') {
     return (
@@ -164,18 +209,19 @@ export default function AdminPage() {
       
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Paper sx={{ p: 0, mb: 4 }}>
-          <Tabs 
-            value={tabValue} 
+          <Tabs
+            value={tabValue}
             onChange={handleTabChange}
             indicatorColor="primary"
             textColor="primary"
             variant="fullWidth"
           >
-            <Tab label="Neue Anfragen" />
-            <Tab label="Archiv" />
+            {views.map((view, index) => (
+              <Tab key={view} label={getTabLabel(view)} />
+            ))}
           </Tabs>
         </Paper>
-        
+
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
             <CircularProgress />
@@ -184,17 +230,15 @@ export default function AdminPage() {
           <Paper sx={{ p: 3, textAlign: 'center' }}>
             <Typography color="error">{error}</Typography>
           </Paper>
-        ) : filteredAppointments.length === 0 ? (
+        ) : appointments.length === 0 ? (
           <Paper sx={{ p: 5, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary">
-              {tabValue === 0 
-                ? 'Keine neuen Terminanfragen vorhanden.'
-                : 'Keine archivierten Terminanfragen vorhanden.'}
+              {getEmptyStateMessage(currentView)}
             </Typography>
           </Paper>
         ) : (
           <Grid container spacing={3}>
-            {filteredAppointments.map((appointment) => (
+            {appointments.map((appointment) => (
               <Grid size={12} key={appointment.id}>
                 <Accordion>
                   <AccordionSummary
@@ -206,7 +250,7 @@ export default function AdminPage() {
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                           {appointment.title}
-                        </Typography>                   
+                        </Typography>
                         <Typography variant="subtitle1">
                           {appointment.teaser}
                         </Typography>
@@ -215,32 +259,67 @@ export default function AdminPage() {
                         </Typography>
                       </Box>
                       <Box>
-                        {!appointment.processed ? (
-                          <IconButton 
-                            color="primary" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProcessAppointment(appointment.id, true);
-                            }}
+                        {/* Show different controls based on the current view and appointment status */}
+                        {currentView === 'pending' && (
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <IconButton
+                              color="success"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAcceptAppointment(appointment.id);
+                              }}
+                              size="small"
+                              sx={{
+                                borderRadius: 1,
+                                bgcolor: 'rgba(46, 125, 50, 0.08)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(46, 125, 50, 0.12)',
+                                },
+                                px: 1
+                              }}
+                            >
+                              <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
+                              <Typography variant="button">
+                                Annehmen
+                              </Typography>
+                            </IconButton>
+
+                            <IconButton
+                              color="error"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRejectAppointment(appointment.id);
+                              }}
+                              size="small"
+                              sx={{
+                                borderRadius: 1,
+                                bgcolor: 'rgba(211, 47, 47, 0.08)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(211, 47, 47, 0.12)',
+                                },
+                                px: 1
+                              }}
+                            >
+                              <Typography variant="button">
+                                Ablehnen
+                              </Typography>
+                            </IconButton>
+                          </Box>
+                        )}
+
+                        {currentView === 'upcoming' && (
+                          <Chip
+                            label={`Bestätigt: ${format(new Date(appointment.processingDate!), 'dd.MM.yyyy', { locale: de })}`}
+                            color="success"
+                            variant="outlined"
                             size="small"
-                            sx={{ 
-                              borderRadius: 1,
-                              bgcolor: 'rgba(25, 118, 210, 0.08)',
-                              '&:hover': {
-                                bgcolor: 'rgba(25, 118, 210, 0.12)',
-                              },
-                              px: 1
-                            }}
-                          >
-                            <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
-                            <Typography variant="button">
-                              Erledigt
-                            </Typography>
-                          </IconButton>
-                        ) : (
-                          <Chip 
-                            label={`Erledigt am ${format(new Date(appointment.processingDate!), 'dd.MM.yyyy', { locale: de })}`}
-                            color="success" 
+                          />
+                        )}
+
+                        {currentView === 'archive' && (
+                          <Chip
+                            label={appointment.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
+                            color={appointment.status === 'accepted' ? 'success' : 'error'}
                             variant="outlined"
                             size="small"
                           />
@@ -386,15 +465,46 @@ export default function AdminPage() {
                       </Grid>
                     </Grid>
 
-                    {tabValue === 1 && (
-                      <Button 
+                    {/* Show appropriate action buttons based on current view */}
+                    {currentView === 'archive' && appointment.status === 'rejected' && (
+                      <Button
                         variant="outlined"
                         color="primary"
-                        onClick={() => handleProcessAppointment(appointment.id, false)}
+                        onClick={() => handleAppointmentUpdate(appointment.id, { status: 'pending' })}
                         sx={{ mt: 2 }}
                       >
-                        Zurück zu offenen Anfragen
+                        Als Anfrage wiederherstellen
                       </Button>
+                    )}
+
+                    {currentView === 'upcoming' && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => handleAppointmentUpdate(appointment.id, { status: 'rejected' })}
+                        sx={{ mt: 2 }}
+                      >
+                        Termin absagen
+                      </Button>
+                    )}
+
+                    {currentView === 'pending' && (
+                      <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          onClick={() => handleAcceptAppointment(appointment.id)}
+                        >
+                          Termin annehmen
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={() => handleRejectAppointment(appointment.id)}
+                        >
+                          Anfrage ablehnen
+                        </Button>
+                      </Box>
                     )}
                   </AccordionDetails>
                 </Accordion>
