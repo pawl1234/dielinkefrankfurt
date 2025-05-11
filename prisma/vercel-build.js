@@ -21,7 +21,7 @@ try {
   }
 
   // Verify the database URL is for PostgreSQL and potentially Neon
-  if (!process.env.DATABASE_URL.includes('postgresql://')) {
+  if (!process.env.DATABASE_URL.includes('postgres://')) {
     console.error('❌ DATABASE_URL does not appear to be a PostgreSQL connection string');
     console.error('Please ensure your Neon PostgreSQL connection string is correctly formatted');
     process.exit(1);
