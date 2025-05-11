@@ -62,6 +62,7 @@ For local development:
 
 1. Set up your local PostgreSQL database or connect to a remote Neon database
 2. Create a `.env` file with your `DATABASE_URL`
+3. Run `npm run db:start` to set up the database
 3. Run `npm run db:reset` to set up the database
 4. Run `npm run dev` to start the development server
 

@@ -41,6 +41,7 @@ import { de } from 'date-fns/locale';
 // Define the Appointment type based on our Prisma schema
 interface Appointment {
   id: number;
+  title: string;
   teaser: string;
   mainText: string;
   startDateTime: string;
@@ -203,9 +204,9 @@ export default function AdminPage() {
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                       <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                          Teaser Text
-                        </Typography>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                          {appointment.title}
+                        </Typography>                   
                         <Typography variant="subtitle1">
                           {appointment.teaser}
                         </Typography>

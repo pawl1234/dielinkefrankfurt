@@ -18,7 +18,9 @@
     "db:studio": "prisma studio",
     "db:migrate": "node prisma/reset-migrations.js",
     "db:generate": "prisma generate",
-    "db:validate": "prisma validate"
+    "db:validate": "prisma validate",
+    "db:start": "docker run --name postgres-dev -e POSTGRES_USER=devuser -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=mydatabase -p 5432:5432 -d postgres",
+    "db:stop": "docker stop postgres-dev && docker rm postgres-dev"    
   },
   "keywords": [],
   "author": "",

@@ -30,6 +30,7 @@ import { LoadingButton } from '@mui/lab';
 import SendIcon from '@mui/icons-material/Send';
 
 interface FormInput {
+  title: string;
   teaser: string;
   mainText: string;
   startDateTime: Date;
@@ -97,6 +98,7 @@ export default function AppointmentForm() {
     try {
       // Create form data
       const formData = new FormData();
+      formData.append('title', data.title)
       formData.append('teaser', data.teaser || '');
       formData.append('mainText', mainText);
 
@@ -243,6 +245,28 @@ export default function AppointmentForm() {
           />
 
           <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
+            Titel <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
+          </Typography>
+
+          <Controller
+            name="title"
+            control={control}
+            rules={{ required: 'Titel ist erforderlich', maxLength: 100 }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                placeholder="Titel der Veranstaltung..."
+                inputProps={{ maxLength: 100 }}
+                error={!!errors.title}
+                helperText={errors.title?.message || `${field.value?.length || 0}/100`}
+                margin="normal"
+                onChange={(e) => field.onChange(e)} // You can customize the onChange logic here if needed
+              />
+            )}
+          />
+
             <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
               Teaser <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
             </Typography>

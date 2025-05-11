@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
 
     // Extract text fields
+    const title = formData.get('title') as string;
     const teaser = formData.get('teaser') as string;
     const mainText = formData.get('mainText') as string;
     const startDateTime = formData.get('startDateTime') as string;
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
       // Connection successful, proceed with creating appointment
       await prisma.appointment.create({
         data: {
+          title,
           teaser,
           mainText,
           startDateTime: new Date(startDateTime),
