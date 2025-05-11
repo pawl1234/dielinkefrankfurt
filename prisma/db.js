@@ -278,6 +278,48 @@ function deploySchema() {
   }
 }
 
+/**
+ * Deploys the schema to the database safely preserving all data
+ * Uses migrate dev in development and migrate deploy in production
+ */
+function deploySchemaSafely() {
+  try {
+    // Generate Prisma client
+    console.log('🔧 Generating Prisma client...');
+    execSync('npx prisma generate', { stdio: 'inherit' });
+
+    // Use the migration flow that preserves data
+    console.log('🚀 Deploying schema changes while preserving data...');
+
+    if (IS_VERCEL) {
+      // In production use migrate deploy which is safer for production data
+      console.log('🔒 Using prisma migrate deploy for production environment...');
+      try {
+        execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+        console.log('✅ Migration deploy completed successfully');
+        return true;
+      } catch (migrateError) {
+        console.error('❌ Migration deploy failed:', migrateError);
+        return false;
+      }
+    } else {
+      // In development use migrate dev with createOnly flag to create new migrations
+      console.log('🔧 Using prisma migrate dev for development environment...');
+      try {
+        execSync('npx prisma migrate dev --create-only', { stdio: 'inherit' });
+        console.log('✅ Migration development completed');
+        return true;
+      } catch (devError) {
+        console.error('❌ Migration dev failed:', devError);
+        return false;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error deploying schema safely:', error);
+    return false;
+  }
+}
+
 // Export all functions
 module.exports = {
   validateEnvironment,
@@ -285,5 +327,6 @@ module.exports = {
   resetMigrations,
   resetDatabase,
   deploySchema,
+  deploySchemaSafely,
   IS_VERCEL
 };

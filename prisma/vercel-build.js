@@ -12,22 +12,14 @@ async function main() {
     if (!db.validateEnvironment()) {
       process.exit(1);
     }
-    
+
     // Ensure schema is properly configured
     if (!db.validateSchema()) {
       process.exit(1);
     }
-    
-    // If in Vercel, reset the database if needed
-    if (db.IS_VERCEL) {
-      await db.resetDatabase();
-    }
-    
-    // Reset and recreate migrations
-    db.resetMigrations();
-    
-    // Deploy schema to database
-    if (!db.deploySchema()) {
+
+    // Deploy schema to database (preserving existing data)
+    if (!db.deploySchemaSafely()) {
       process.exit(1);
     }
     
