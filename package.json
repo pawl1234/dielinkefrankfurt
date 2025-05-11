@@ -13,7 +13,13 @@
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
-    "reset-db": "node prisma/reset-migrations.js && prisma generate && prisma migrate deploy"
+
+    "db:reset": "node prisma/reset-database.js",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:studio": "prisma studio",
+    "db:migrate": "node prisma/reset-migrations.js",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate"
   },
   "keywords": [],
   "author": "",

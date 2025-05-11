@@ -1,11 +1,12 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
+  // Specify the output location for better organization
+  output   = "../node_modules/.prisma/client"
+  // Add Prisma engine binary location for better Vercel compatibility
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
 }
 
 datasource db {
@@ -13,22 +14,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Appointment model for event registration and management
 model Appointment {
-  id             Int      @id @default(autoincrement())
-  teaser         String
-  mainText       String
+  // Identifiers and core fields
+  id             Int       @id @default(autoincrement())
+  teaser         String    // Short headline/title for the appointment
+  mainText       String    // Detailed description
+
+  // Date and time information
   startDateTime  DateTime
   endDateTime    DateTime?
+
+  // Location information
   street         String?
   city           String?
   state          String?
   postalCode     String?
+
+  // Requester information
   firstName      String?
   lastName       String?
-  recurringText  String?
-  fileUrls       String?  // JSON string of file URLs
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  processed      Boolean  @default(false)
+
+  // Additional details
+  recurringText  String?   // Information about recurring nature of event if applicable
+  fileUrls       String?   // JSON string of file URLs for attached documents
+
+  // System fields
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  processed      Boolean   @default(false)
   processingDate DateTime?
+
+  @@index([processed]) // Add index for common query filter
+  @@map("appointment") // Lowercase table name for PostgreSQL convention
 }
