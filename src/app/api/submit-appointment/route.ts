@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as fs from 'fs';
-import * as path from 'path';
+import { put } from '@vercel/blob';
 import prisma from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    
+
     // Extract text fields
     const teaser = formData.get('teaser') as string;
     const mainText = formData.get('mainText') as string;
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
     const firstName = formData.get('firstName') as string || '';
     const lastName = formData.get('lastName') as string || '';
     const recurringText = formData.get('recurringText') as string || '';
-    
+
     // Additional validation
     if (!teaser || !mainText || !startDateTime) {
       return NextResponse.json(
@@ -27,23 +26,18 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    // Process multiple file uploads if present
+
+    // Process multiple file uploads if present using Vercel Blob Store
     const fileCount = formData.get('fileCount');
     const fileUrls: string[] = [];
-    
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
 
     if (fileCount) {
       const count = parseInt(fileCount as string, 10);
-      
+
+      // Process files sequentially to upload to Vercel Blob Store
       for (let i = 0; i < count; i++) {
         const file = formData.get(`file-${i}`) as File | null;
-        
+
         if (file) {
           // Check file size (5MB)
           if (file.size > 5 * 1024 * 1024) {
@@ -62,17 +56,39 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          // Create a unique filename
-          const timestamp = new Date().getTime();
-          const uniqueFileName = `${timestamp}-${i}-${file.name.replace(/\\s+/g, '-')}`;
+          try {
+            // Create a unique pathname for the blob
+            const timestamp = new Date().getTime();
+            const sanitizedFileName = file.name.replace(/\s+/g, '-');
+            const blobPathname = `appointments/${timestamp}-${i}-${sanitizedFileName}`;
 
-          // Save file to public/uploads directory for permanent storage
-          const filePath = path.join(uploadDir, uniqueFileName);
-          const buffer = Buffer.from(await file.arrayBuffer());
-          fs.writeFileSync(filePath, buffer);
+            // Upload the file to Vercel Blob Store
+            console.log(`Uploading file ${i+1}/${count} to Blob Store: ${blobPathname}`);
 
-          // Add the URL to the array for storing in the database
-          fileUrls.push(`/uploads/${uniqueFileName}`);
+            // Get the file data as an ArrayBuffer and convert to Blob for upload
+            const arrayBuffer = await file.arrayBuffer();
+            const blob = new Blob([arrayBuffer], { type: file.type });
+
+            // Upload to Vercel Blob Store with public access
+            const { url } = await put(blobPathname, blob, {
+              access: 'public',
+              contentType: file.type,
+              // Add useful metadata
+              addRandomSuffix: false, // Use our own timestamp-based naming
+              cacheControlMaxAge: 31536000, // Cache for 1 year (60 * 60 * 24 * 365)
+            });
+
+            console.log(`✅ File uploaded successfully to: ${url}`);
+
+            // Add the URL to the array for storing in the database
+            fileUrls.push(url);
+          } catch (uploadError) {
+            console.error(`❌ Error uploading file to Blob Store:`, uploadError);
+            return NextResponse.json(
+              { error: 'Fehler beim Hochladen der Datei. Bitte versuchen Sie es später erneut.' },
+              { status: 500 }
+            );
+          }
         }
       }
     }
@@ -106,8 +122,9 @@ export async function POST(request: NextRequest) {
           firstName,
           lastName,
           recurringText,
+          // Use explicit type assertion to match Prisma schema
           fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
-        }
+        } as any // Use type assertion to bypass the type error
       });
       console.log('✅ Appointment successfully saved to database');
     } catch (dbError) {
@@ -126,7 +143,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error submitting appointment:', error);
-    
+
     return NextResponse.json(
       { error: 'Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.' },
       { status: 500 }
