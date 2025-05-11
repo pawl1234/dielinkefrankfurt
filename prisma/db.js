@@ -287,7 +287,7 @@ function baselineDatabase() {
 
     // Check if _prisma_migrations table exists
     const checkMigrationsTableCommand = IS_VERCEL
-      ? `npx prisma db execute --stdin < ${path.join(__dirname, 'check-migrations-table.sql')}`
+      ? `npx prisma db execute --file=${path.join(__dirname, 'check-migrations-table.sql')} --schema=${SCHEMA_PATH}`
       : `psql "${process.env.DATABASE_URL}" -c "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = '_prisma_migrations');"`;
 
     // Create SQL file to check for migrations table
@@ -368,19 +368,13 @@ CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
       // Mark the baseline migration as applied
       if (IS_VERCEL) {
         try {
-          // Create a temporary script to mark migration as applied
-          const markAppliedScriptPath = path.join(__dirname, 'mark-migration-applied.js');
-          fs.writeFileSync(markAppliedScriptPath, `
-const path = require('path');
-const fs = require('fs');
-const { execSync } = require('child_process');
+          // Get migration name directly
+          const migrationName = path.basename(baselineMigrationDir);
+          console.log(`🏁 Creating baseline migration: ${migrationName}`);
 
-// Get migration name from migration folder
-const migrationDir = '${baselineMigrationDir.replace(/\\/g, '\\\\')}';
-const migrationName = path.basename(migrationDir);
-
-// Create SQL to mark migration as applied
-const sql = \`
+          // Create SQL directly to mark migration as applied
+          const sqlPath = path.join(__dirname, 'mark-migration-applied.sql');
+          fs.writeFileSync(sqlPath, `
 -- Create migrations table if it doesn't exist
 CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
     "id" VARCHAR(36) NOT NULL,
@@ -397,7 +391,7 @@ CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
 -- Insert our migration as applied
 INSERT INTO "_prisma_migrations" ("id", "checksum", "finished_at", "migration_name", "logs", "rolled_back_at", "started_at", "applied_steps_count")
 VALUES (
-    gen_random_uuid(), -- random UUID
+    md5(random()::text || clock_timestamp()::text)::uuid, -- random UUID
     md5('${migrationName}'), -- checksum based on migration name
     NOW(), -- finished_at
     '${migrationName}', -- migration_name
@@ -406,33 +400,20 @@ VALUES (
     NOW(), -- started_at
     1 -- applied_steps_count
 );
-\`;
+`);
 
-// Write SQL to file
-const sqlPath = path.join(__dirname, 'mark-migration-applied.sql');
-fs.writeFileSync(sqlPath, sql);
+          // Execute SQL directly
+          try {
+            execSync(`npx prisma db execute --file=${sqlPath} --schema=${SCHEMA_PATH}`, { stdio: 'inherit' });
+            console.log('✅ Marked baseline migration as applied');
 
-// Execute SQL
-try {
-  execSync(\`npx prisma db execute --file=\${sqlPath}\`, { stdio: 'inherit' });
-  console.log('✅ Marked baseline migration as applied');
-} catch (error) {
-  console.error('❌ Error marking migration as applied:', error);
-  process.exit(1);
-} finally {
-  // Clean up
-  if (fs.existsSync(sqlPath)) {
-    fs.unlinkSync(sqlPath);
-  }
-}
-          `);
-
-          // Execute the script
-          execSync(`node ${markAppliedScriptPath}`, { stdio: 'inherit' });
-
-          // Clean up
-          if (fs.existsSync(markAppliedScriptPath)) {
-            fs.unlinkSync(markAppliedScriptPath);
+            // Clean up
+            if (fs.existsSync(sqlPath)) {
+              fs.unlinkSync(sqlPath);
+            }
+          } catch (error) {
+            console.error('❌ Error marking migration as applied:', error);
+            return false;
           }
         } catch (error) {
           console.error('❌ Error marking baseline migration as applied:', error);
