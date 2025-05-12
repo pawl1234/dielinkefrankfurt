@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { UseFormRegister } from 'react-hook-form';
+import { Box, Typography, IconButton, Paper } from '@mui/material';
 
 interface RecurringFieldsProps {
   register: UseFormRegister<any>;
@@ -12,46 +13,65 @@ const RecurringFields = ({ register, errors }: RecurringFieldsProps) => {
   const [showHelp, setShowHelp] = useState(false);
   
   return (
-    <div className="form-section p-4 mb-6">
-      <div className="flex items-center mb-2">
-        <h3 className="form-section-title">Wiederholende Termine</h3>
-        <button
-          type="button"
-          className="ml-2 text-sm bg-gray-200 rounded-full h-5 w-5 flex items-center justify-center hover:bg-gray-300"
+    <Box sx={{ mb: 3, p: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600 }}>
+          Wiederholende Termine
+        </Typography>
+        <IconButton
+          size="small"
           onClick={() => setShowHelp(!showHelp)}
+          sx={{ ml: 1, width: 20, height: 20, bgcolor: 'grey.200', '&:hover': { bgcolor: 'grey.300' } }}
         >
           ?
-        </button>
-      </div>
-      
-      <div>
+        </IconButton>
+      </Box>
+
+      <Box>
         <textarea
           {...register('recurringText')}
-          className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-dark-teal"
+          style={{
+            width: '100%',
+            padding: '0.5rem',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            outline: 'none',
+            transition: 'border-color 0.2s',
+            fontFamily: 'inherit',
+            fontSize: '1rem'
+          }}
           rows={3}
           placeholder="Beschreiben Sie den wiederkehrenden Termin..."
         />
         {errors.recurringText && (
-          <p className="mt-1 text-dark-crimson text-sm">{errors.recurringText.message}</p>
+          <Typography color="error" variant="caption" sx={{ mt: 1, display: 'block' }}>
+            {errors.recurringText.message}
+          </Typography>
         )}
-        
-        <p className="text-xs text-gray-500 mt-2">
+
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
           Beschreiben Sie den wiederkehrenden Termin in eigenen Worten, z. B. 'Jeden zweiten Mittwoch'. (optional)
-        </p>
-      </div>
-      
+        </Typography>
+      </Box>
+
       {showHelp && (
-        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded text-sm">
-          <h4 className="font-bold mb-1">Wiederholende Termine erklären</h4>
-          <p>Wenn Ihr Termin in regelmäßigen Abständen stattfindet, können Sie dies hier beschreiben. Schreiben Sie zum Beispiel:</p>
-          <ul className="list-disc pl-5 mt-1 space-y-1">
+        <Paper sx={{ mt: 2, p: 2, bgcolor: 'grey.50', border: 1, borderColor: 'grey.200', borderRadius: 1 }}>
+          <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
+            Wiederholende Termine erklären
+          </Typography>
+          <Typography variant="body2">
+            Wenn Ihr Termin in regelmäßigen Abständen stattfindet, können Sie dies hier beschreiben. Schreiben Sie zum Beispiel:
+          </Typography>
+          <Box component="ul" sx={{ pl: 3, mt: 1, '& > li': { mb: 0.5 } }}>
             <li>Jeden Dienstag um 15:00 Uhr für 4 Wochen</li>
             <li>Alle zwei Wochen Mittwochmorgens</li>
-          </ul>
-          <p className="mt-1">Wenn der Termin nicht wiederholt wird, lassen Sie dieses Feld einfach leer.</p>
-        </div>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Wenn der Termin nicht wiederholt wird, lassen Sie dieses Feld einfach leer.
+          </Typography>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 };
 

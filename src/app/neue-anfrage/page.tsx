@@ -10,21 +10,101 @@ import {
   Box,
   Paper,
   Breadcrumbs,
-  Button
+  Button,
+  IconButton
 } from '@mui/material';
 import Link from 'next/link';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import HomeIcon from '@mui/icons-material/Home';
+import SearchIcon from '@mui/icons-material/Search';
 
 export default function NewAppointmentPage() {
   return (
     <MuiSetup>
-      <AppBar position="static" sx={{ mb: 4 }}>
-        <Toolbar>
-          <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold', letterSpacing: 1 }}>
-            Die Linke Frankfurt
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      {/* Main header with logo and background */}
+      <Box
+        sx={{
+          position: 'relative',
+          backgroundImage: 'url("/images/header-bg.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          py: { xs: 3, md: 4 },
+          mb: 4
+        }}
+      >
+        {/* Header actions - positioned absolutely in top right */}
+        <Paper
+          elevation={2}
+          sx={{
+            p: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            borderRadius: 1,
+            bgcolor: 'common.white',
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 10
+          }}
+        >
+          <IconButton
+            aria-label="search"
+            sx={{
+              mr: 0.5,
+              color: 'grey.700',
+              fontSize: 'large',
+              p: { xs: 1, md: 1.5 }
+            }}
+          >
+            <SearchIcon sx={{ fontSize: 28 }} />
+          </IconButton>
+          <Link href="/" style={{ display: 'flex' }}>
+            <IconButton
+              aria-label="home"
+              sx={{
+                color: 'grey.700',
+                fontSize: 'large',
+                p: { xs: 1, md: 1.5 }
+              }}
+            >
+              <HomeIcon sx={{ fontSize: 28 }} />
+            </IconButton>
+          </Link>
+        </Paper>
+
+        <Container maxWidth="lg">
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+              width: '100%'
+            }}
+          >
+            {/* Logo */}
+            <Box
+              component="div"
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: { xs: 'center', md: 'flex-start' }
+              }}
+            >
+              <Box
+                component="img"
+                src="/images/logo.png"
+                alt="Die Linke Kreisverband Frankfurt Logo"
+                sx={{
+                  height: 'auto',
+                  width: { xs: '220px', md: '280px' },
+                  maxWidth: '100%',
+                }}
+              />
+            </Box>
+          </Box>
+        </Container>
+      </Box>
 
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
