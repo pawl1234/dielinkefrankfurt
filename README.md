@@ -14,6 +14,7 @@ This is a Next.js application for appointment submission for Die Linke Frankfurt
 - Database storage of appointments with SQLite (or other database in production)
 - Admin dashboard for appointment management
 - Processing and archiving of appointment requests
+- RSS feed for approved appointments
 
 ## Technologies Used
 
@@ -212,11 +213,46 @@ npx prisma migrate diff \
 npx prisma migrate deploy
 ```
 
+## RSS Feed
+
+The application provides an RSS feed of approved appointments that can be used to display events on other websites:
+
+- **Feed URL**: `/api/rss/appointments`
+- **Format**: RSS 2.0 (XML, browser-friendly)
+- **Content**: Approved appointments only
+- **Fields included**:
+  - Title (from appointment title)
+  - Description (from appointment teaser)
+  - Link (to appointment detail page)
+  - Publication date (from appointment startDateTime)
+  - Category (from appointment city, if available)
+
+### Using the RSS Feed
+
+To integrate the appointments on another website:
+
+1. Use the RSS feed URL: `https://your-domain.com/api/rss/appointments`
+2. Import using any standard RSS reader or feed parsing library
+3. The feed is cached for 1 hour to improve performance
+
+### Example RSS Item
+
+```xml
+<item>
+  <title>Appointment Title</title>
+  <description>A short teaser text for the appointment</description>
+  <link>https://your-domain.com/termine/123</link>
+  <guid isPermaLink="true">https://your-domain.com/termine/123</guid>
+  <pubDate>Mon, 30 Oct 2023 10:00:00 GMT</pubDate>
+  <category>Frankfurt am Main</category>
+</item>
+```
+
 ## Project Structure
 
 - `/src/app`: Next.js app router files
 - `/src/components`: React components
-- `/src/app/api`: API routes for form submission
+- `/src/app/api`: API routes for form submission and RSS feed
 - `/public`: Static assets
 
 ## License
