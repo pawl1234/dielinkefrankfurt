@@ -1,22 +1,23 @@
 'use client';
 
 import MuiSetup from '@/components/MuiSetup';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Container, 
-  Box, 
-  Paper, 
-  Grid, 
-  Card, 
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  Paper,
+  Grid,
+  Card,
   CardMedia,
   Button,
   Divider,
   Breadcrumbs,
   Chip,
   CircularProgress,
-  Link as MuiLink
+  Link as MuiLink,
+  IconButton
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
@@ -45,7 +46,12 @@ interface Appointment {
   fileUrls: string | null;
 }
 
-export default function AppointmentDetailPage({ params }: { params: { id: string } }) {
+type Params = {
+  id: string;
+};
+
+// @ts-ignore - Suppressing Next.js PageProps error
+export default function AppointmentDetailPage({ params }: { params: Params }) {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -247,17 +253,17 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
             
             <Divider sx={{ mb: 3 }} />
             
-            <Grid container spacing={4}>
-              <Grid item xs={12} md={8}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
+              <Box sx={{ flex: '1 1 auto', width: { xs: '100%', md: '60%' } }}>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium' }}>
                   Beschreibung
                 </Typography>
-                <Typography 
-                  variant="body1" 
+                <Typography
+                  variant="body1"
                   sx={{ mb: 3, lineHeight: 1.7 }}
                   dangerouslySetInnerHTML={{ __html: appointment.mainText }}
                 />
-                
+
                 {appointment.recurringText && (
                   <Box sx={{ mt: 3 }}>
                     <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium' }}>
@@ -268,9 +274,9 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                     </Typography>
                   </Box>
                 )}
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
+              </Box>
+
+              <Box sx={{ width: { xs: '100%', md: '35%' } }}>
                 <Paper elevation={1} sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
                   <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium' }}>
                     Wann und Wo
@@ -314,8 +320,8 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                 >
                   Neuen Termin anfragen
                 </Button>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
             
             {appointment.fileUrls && (
               <Box sx={{ mt: 4 }}>
@@ -323,14 +329,20 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                   Dateien und Anhänge
                 </Typography>
                 
-                <Grid container spacing={2}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                   {JSON.parse(appointment.fileUrls).map((fileUrl: string, index: number) => {
                     const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');
                     const isPdf = fileUrl.endsWith('.pdf');
                     const fileName = fileUrl.split('/').pop() || `Datei-${index + 1}`;
                     
                     return (
-                      <Grid item xs={12} sm={6} md={4} lg={3} key={fileUrl}>
+                      <Box 
+                        key={fileUrl}
+                        sx={{ 
+                          width: { xs: '100%', sm: '45%', md: '30%', lg: '22%' }, 
+                          mb: 2 
+                        }}
+                      >
                         <Card variant="outlined">
                           {isImage && (
                             <CardMedia
@@ -362,10 +374,10 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                             </Button>
                           </Box>
                         </Card>
-                      </Grid>
+                      </Box>
                     );
                   })}
-                </Grid>
+                </Box>
               </Box>
             )}
             

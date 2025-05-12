@@ -1,4 +1,12 @@
 import { createTheme } from '@mui/material/styles';
+import { Theme, ThemeOptions } from '@mui/material/styles';
+
+// Extend the TypeBackground interface to include our custom properties
+declare module '@mui/material/styles' {
+  interface TypeBackground {
+    darkHeader?: string;
+  }
+}
 
 // Create a theme instance based on Die Linke Frankfurt style guidelines
 const theme = createTheme({

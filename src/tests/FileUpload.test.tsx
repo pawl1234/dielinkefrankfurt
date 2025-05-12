@@ -4,15 +4,21 @@ import '@testing-library/jest-dom';
 import FileUpload from '../components/FileUpload';
 
 // Mock File API for testing
-global.File = class File {
+class MockFile {
   name: string;
   size: number;
   type: string;
+  lastModified: number;
+  webkitRelativePath: string;
+  bytes: Uint8Array;
   
-  constructor(bits: any, name: string, options = {}) {
+  constructor(bits: any, name: string, options: any = {}) {
     this.name = name;
     this.size = bits.length;
-    this.type = (options as any).type || 'application/octet-stream';
+    this.type = options.type || 'application/octet-stream';
+    this.lastModified = Date.now();
+    this.webkitRelativePath = '';
+    this.bytes = new Uint8Array(0);
   }
   
   slice() {
@@ -30,25 +36,31 @@ global.File = class File {
   text() {
     return Promise.resolve('');
   }
-};
+}
+
+// Assign the mock class to global.File
+global.File = MockFile as unknown as typeof File;
 
 // Mock the FileReader API
 class FileReaderMock {
-  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
+  onload: ((ev: ProgressEvent<FileReader>) => any) | null = null;
   result: string | ArrayBuffer | null = null;
   
   readAsDataURL(file: Blob) {
     setTimeout(() => {
       this.result = 'data:image/jpeg;base64,mockbase64data';
       if (this.onload) {
-        this.onload.call(this, { target: this } as unknown as ProgressEvent<FileReader>);
+        const mockEvent = {
+          target: { result: this.result }
+        } as unknown as ProgressEvent<FileReader>;
+        this.onload(mockEvent);
       }
     }, 0);
   }
 }
 
 // Replace global FileReader with our mock
-global.FileReader = FileReaderMock as any;
+global.FileReader = FileReaderMock as unknown as typeof FileReader;
 
 describe('FileUpload Component', () => {
   const mockOnFilesSelect = jest.fn();

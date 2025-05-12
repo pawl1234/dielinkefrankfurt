@@ -370,11 +370,12 @@ export default function Home() {
             
             <Grid container spacing={3}>
               {appointments.map((appointment) => (
-                <Grid item xs={12} sm={6} md={4} key={appointment.id}>
+                <Grid key={appointment.id} style={{ padding: '12px' }}>
                   <Card elevation={1} sx={{ 
                     height: '100%', 
                     display: 'flex', 
                     flexDirection: 'column',
+                    width: { xs: '100%', sm: '300px', md: '350px' }
                   }}>
                     <CardContent sx={{ flexGrow: 1 }}>
                       <Typography 
