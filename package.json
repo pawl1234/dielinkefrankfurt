@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "node prisma/vercel-build.js && next build",
+    "build:local": "node prisma/vercel-build.js && next build --no-lint",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",

@@ -74,6 +74,16 @@ npm run dev
 1. Open [http://localhost:3000](http://localhost:3000) in your browser to see the appointment form
 2. Access the admin dashboard at [http://localhost:3000/admin](http://localhost:3000/admin) (default credentials: username `admin`, password `password123`)
 
+### Building Without a Database
+
+If you just want to build or run the application locally without setting up a database, you can do so by running:
+
+```bash
+npm run build
+```
+
+The build script will automatically skip the database operations if no DATABASE_URL is found in the environment.
+
 ### Development Features
 
 In development mode:
