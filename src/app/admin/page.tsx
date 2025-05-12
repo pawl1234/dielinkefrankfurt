@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import MainLayout from '@/components/MainLayout';
 import {
   Box,
   Typography,
@@ -10,10 +11,6 @@ import {
   Tabs,
   Tab,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
-  CardMedia,
   IconButton,
   Chip,
   Container,
@@ -28,6 +25,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  CardMedia,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -190,329 +188,321 @@ export default function AdminPage() {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static" color="primary">
-        <Toolbar>
-          <EventIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Terminanfragen-Verwaltung
-          </Typography>
-          <Button 
-            color="inherit" 
-            onClick={handleLogout}
-            startIcon={<LogoutIcon />}
-          >
-            Abmelden
-          </Button>
-        </Toolbar>
-      </AppBar>
+    <MainLayout
+      breadcrumbs={[
+        { label: 'Start', href: '/' },
+        { label: 'Administration', href: '/admin', active: true },
+      ]}
+    >
+      <Box sx={{ flexGrow: 1 }}>
       
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Paper sx={{ p: 0, mb: 4 }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            indicatorColor="primary"
-            textColor="primary"
-            variant="fullWidth"
-          >
-            {views.map((view, index) => (
-              <Tab key={view} label={getTabLabel(view)} />
-            ))}
-          </Tabs>
-        </Paper>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Paper sx={{ p: 3, textAlign: 'center' }}>
-            <Typography color="error">{error}</Typography>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <Paper sx={{ p: 0, mb: 4 }}>
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              indicatorColor="primary"
+              textColor="primary"
+              variant="fullWidth"
+            >
+              {views.map((view, index) => (
+                <Tab key={view} label={getTabLabel(view)} />
+              ))}
+            </Tabs>
           </Paper>
-        ) : appointments.length === 0 ? (
-          <Paper sx={{ p: 5, textAlign: 'center' }}>
-            <Typography variant="h6" color="text.secondary">
-              {getEmptyStateMessage(currentView)}
-            </Typography>
-          </Paper>
-        ) : (
-          <Grid container spacing={3}>
-            {appointments.map((appointment) => (
-              <Grid size={12} key={appointment.id}>
-                <Accordion>
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    aria-controls={`appointment-${appointment.id}-content`}
-                    id={`appointment-${appointment.id}-header`}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                      <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                          {appointment.title}
-                        </Typography>
-                        <Typography variant="subtitle1">
-                          {appointment.teaser}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {appointment.firstName} {appointment.lastName} • {format(new Date(appointment.startDateTime), 'PPP', { locale: de })}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        {/* Show different controls based on the current view and appointment status */}
-                        {currentView === 'pending' && (
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <IconButton
-                              color="success"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAcceptAppointment(appointment.id);
-                              }}
-                              size="small"
-                              sx={{
-                                borderRadius: 1,
-                                bgcolor: 'rgba(46, 125, 50, 0.08)',
-                                '&:hover': {
-                                  bgcolor: 'rgba(46, 125, 50, 0.12)',
-                                },
-                                px: 1
-                              }}
-                            >
-                              <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
-                              <Typography variant="button">
-                                Annehmen
-                              </Typography>
-                            </IconButton>
 
-                            <IconButton
-                              color="error"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRejectAppointment(appointment.id);
-                              }}
-                              size="small"
-                              sx={{
-                                borderRadius: 1,
-                                bgcolor: 'rgba(211, 47, 47, 0.08)',
-                                '&:hover': {
-                                  bgcolor: 'rgba(211, 47, 47, 0.12)',
-                                },
-                                px: 1
-                              }}
-                            >
-                              <Typography variant="button">
-                                Ablehnen
-                              </Typography>
-                            </IconButton>
-                          </Box>
-                        )}
-
-                        {currentView === 'upcoming' && (
-                          <Chip
-                            label={`Bestätigt: ${format(new Date(appointment.processingDate!), 'dd.MM.yyyy', { locale: de })}`}
-                            color="success"
-                            variant="outlined"
-                            size="small"
-                          />
-                        )}
-
-                        {currentView === 'archive' && (
-                          <Chip
-                            label={appointment.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
-                            color={appointment.status === 'accepted' ? 'success' : 'error'}
-                            variant="outlined"
-                            size="small"
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Divider sx={{ mb: 2 }} />
-                    
-                    <Grid container spacing={3}>
-                      <Grid size={8}>
-                        <Typography variant="h6" gutterBottom>
-                          Veranstaltungsdetails
-                        </Typography>
-                        
-                        <Typography variant="body1" sx={{ mb: 1 }} dangerouslySetInnerHTML={{ __html: appointment.mainText }} />
-                        
-                        {appointment.recurringText && (
-                          <Box sx={{ mt: 2 }}>
-                            <Typography variant="subtitle1">
-                              Wiederholungsdetails:
-                            </Typography>
-                            <Typography variant="body1">
-                              {appointment.recurringText}
-                            </Typography>
-                          </Box>
-                        )}
-                        
-                       
-                      </Grid>
-                      
-                      <Grid size={4}>
-                        <Typography variant="h6" gutterBottom>
-                          Datum & Ort
-                        </Typography>
-                        
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle1">
-                            Startzeit:
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Paper sx={{ p: 3, textAlign: 'center' }}>
+              <Typography color="error">{error}</Typography>
+            </Paper>
+          ) : appointments.length === 0 ? (
+            <Paper sx={{ p: 5, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary">
+                {getEmptyStateMessage(currentView)}
+              </Typography>
+            </Paper>
+          ) : (
+            <Grid container spacing={3}>
+              {appointments.map((appointment) => (
+                <Grid size={{xs: 12}} key={appointment.id}>
+                  <Accordion>
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls={`appointment-${appointment.id}-content`}
+                      id={`appointment-${appointment.id}-header`}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                            {appointment.title}
                           </Typography>
-                          <Typography variant="body1">
-                            {format(new Date(appointment.startDateTime), 'PPPp', { locale: de })}
+                          <Typography variant="subtitle1">
+                            {appointment.teaser}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {appointment.firstName} {appointment.lastName} • {format(new Date(appointment.startDateTime), 'PPP', { locale: de })}
                           </Typography>
                         </Box>
+                        <Box>
+                          {/* Show different controls based on the current view and appointment status */}
+                          {currentView === 'pending' && (
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <IconButton
+                                color="success"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAcceptAppointment(appointment.id);
+                                }}
+                                size="small"
+                                sx={{
+                                  borderRadius: 1,
+                                  bgcolor: 'rgba(46, 125, 50, 0.08)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(46, 125, 50, 0.12)',
+                                  },
+                                  px: 1
+                                }}
+                              >
+                                <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                <Typography variant="button">
+                                  Annehmen
+                                </Typography>
+                              </IconButton>
+
+                              <IconButton
+                                color="error"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRejectAppointment(appointment.id);
+                                }}
+                                size="small"
+                                sx={{
+                                  borderRadius: 1,
+                                  bgcolor: 'rgba(211, 47, 47, 0.08)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(211, 47, 47, 0.12)',
+                                  },
+                                  px: 1
+                                }}
+                              >
+                                <Typography variant="button">
+                                  Ablehnen
+                                </Typography>
+                              </IconButton>
+                            </Box>
+                          )}
+
+                          {currentView === 'upcoming' && (
+                            <Chip
+                              label={`Bestätigt: ${format(new Date(appointment.processingDate!), 'dd.MM.yyyy', { locale: de })}`}
+                              color="success"
+                              variant="outlined"
+                              size="small"
+                            />
+                          )}
+
+                          {currentView === 'archive' && (
+                            <Chip
+                              label={appointment.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
+                              color={appointment.status === 'accepted' ? 'success' : 'error'}
+                              variant="outlined"
+                              size="small"
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Divider sx={{ mb: 2 }} />
+                      
+                      <Grid container spacing={3}>
+                        <Grid size={{xs: 8}}>
+                          <Typography variant="h6" gutterBottom>
+                            Veranstaltungsdetails
+                          </Typography>
+                          
+                          <Typography variant="body1" sx={{ mb: 1 }} dangerouslySetInnerHTML={{ __html: appointment.mainText }} />
+                          
+                          {appointment.recurringText && (
+                            <Box sx={{ mt: 2 }}>
+                              <Typography variant="subtitle1">
+                                Wiederholungsdetails:
+                              </Typography>
+                              <Typography variant="body1">
+                                {appointment.recurringText}
+                              </Typography>
+                            </Box>
+                          )}
+                          
+                         
+                        </Grid>
                         
-                        {appointment.endDateTime && (
+                        <Grid size={{xs: 4}}>
+                          <Typography variant="h6" gutterBottom>
+                            Datum & Ort
+                          </Typography>
+                          
                           <Box sx={{ mb: 2 }}>
                             <Typography variant="subtitle1">
-                              Endzeit:
+                              Startzeit:
                             </Typography>
                             <Typography variant="body1">
-                              {format(new Date(appointment.endDateTime), 'PPPp', { locale: de })}
+                              {format(new Date(appointment.startDateTime), 'PPPp', { locale: de })}
                             </Typography>
                           </Box>
-                        )}
-                        
-                        {(appointment.street || appointment.city || appointment.state || appointment.postalCode) && (
+                          
+                          {appointment.endDateTime && (
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="subtitle1">
+                                Endzeit:
+                              </Typography>
+                              <Typography variant="body1">
+                                {format(new Date(appointment.endDateTime), 'PPPp', { locale: de })}
+                              </Typography>
+                            </Box>
+                          )}
+                          
+                          {(appointment.street || appointment.city || appointment.state || appointment.postalCode) && (
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="subtitle1" gutterBottom>
+                                Ort:
+                              </Typography>
+                              <Typography variant="body1">
+                                {appointment.street && `${appointment.street}`}
+                                {appointment.street && <br />}
+                                {appointment.postalCode && appointment.city && `${appointment.postalCode} ${appointment.city}`}
+                                {(appointment.postalCode || appointment.city) && <br />}
+                                {appointment.state && `${appointment.state}`}
+                              </Typography>
+                            </Box>
+                          )}
+                          
                           <Box sx={{ mb: 2 }}>
                             <Typography variant="subtitle1" gutterBottom>
-                              Ort:
+                              Kontakt:
                             </Typography>
                             <Typography variant="body1">
-                              {appointment.street && `${appointment.street}`}
-                              {appointment.street && <br />}
-                              {appointment.postalCode && appointment.city && `${appointment.postalCode} ${appointment.city}`}
-                              {(appointment.postalCode || appointment.city) && <br />}
-                              {appointment.state && `${appointment.state}`}
+                              {appointment.firstName} {appointment.lastName}
                             </Typography>
                           </Box>
-                        )}
-                        
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            Kontakt:
-                          </Typography>
-                          <Typography variant="body1">
-                            {appointment.firstName} {appointment.lastName}
-                          </Typography>
-                        </Box>
-                        
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            Anfrage erhalten:
-                          </Typography>
-                          <Typography variant="body1">
-                            {format(new Date(appointment.createdAt), 'PPPp', { locale: de })}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid size={12}>
-                        <Typography variant="h6" gutterBottom>
-                          Anhänge
-                        </Typography>
-                      {appointment.fileUrls && (
-                          <Box sx={{ mt: 2 }}>
-                            <Grid container spacing={1}>
-                              {JSON.parse(appointment.fileUrls).map((fileUrl: string, index: number) => {
-                                const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');
-                                const isPdf = fileUrl.endsWith('.pdf');
-                                const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
-
-                                return (
-                                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={fileUrl}>
-                                    <Card variant="outlined" sx={{ mb: 1 }}>
-                                      {isImage && (
-                                        <CardMedia
-                                          component="img"
-                                          height="140"
-                                          image={fileUrl}
-                                          alt={`Attachment ${index + 1}`}
-                                          sx={{ objectFit: 'cover' }}
-                                        />
-                                      )}
-                                      {isPdf && (
-                                        <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-                                          <PictureAsPdfIcon sx={{ fontSize: 40, color: 'error.main' }} />
-                                        </Box>
-                                      )}
-                                      <CardContent sx={{ py: 1 }}>
-                                        <Typography variant="caption" noWrap title={fileName}>
-                                          {fileName}
-                                        </Typography>
-                                      </CardContent>
-                                      <CardActions>
-                                        <Button
-                                          variant="outlined"
-                                          size="small"
-                                          href={fileUrl}
-                                          target="_blank"
-                                          fullWidth
-                                        >
-                                          Öffnen
-                                        </Button>
-                                      </CardActions>
-                                    </Card>
-                                  </Grid>
-                                );
-                              })}
-                            </Grid>
+                          
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom>
+                              Anfrage erhalten:
+                            </Typography>
+                            <Typography variant="body1">
+                              {format(new Date(appointment.createdAt), 'PPPp', { locale: de })}
+                            </Typography>
                           </Box>
-                        )}
+                        </Grid>
+                        <Grid size={{xs: 12}}>
+                          <Typography variant="h6" gutterBottom>
+                            Anhänge
+                          </Typography>
+                        {appointment.fileUrls && (
+                            <Box sx={{ mt: 2 }}>
+                              <Grid container spacing={1}>
+                                {JSON.parse(appointment.fileUrls).map((fileUrl: string, index: number) => {
+                                  const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');
+                                  const isPdf = fileUrl.endsWith('.pdf');
+                                  const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
+
+                                  return (
+                                    <Grid size={{xs: 12, sm: 6, md: 4}} key={fileUrl}>
+                                      <Card variant="outlined" sx={{ mb: 1 }}>
+                                        {isImage && (
+                                          <CardMedia
+                                            component="img"
+                                            height="140"
+                                            image={fileUrl}
+                                            alt={`Attachment ${index + 1}`}
+                                            sx={{ objectFit: 'cover' }}
+                                          />
+                                        )}
+                                        {isPdf && (
+                                          <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+                                            <PictureAsPdfIcon sx={{ fontSize: 40, color: 'error.main' }} />
+                                          </Box>
+                                        )}
+                                        <CardContent sx={{ py: 1 }}>
+                                          <Typography variant="caption" noWrap title={fileName}>
+                                            {fileName}
+                                          </Typography>
+                                        </CardContent>
+                                        <CardActions>
+                                          <Button
+                                            variant="outlined"
+                                            size="small"
+                                            href={fileUrl}
+                                            target="_blank"
+                                            fullWidth
+                                          >
+                                            Öffnen
+                                          </Button>
+                                        </CardActions>
+                                      </Card>
+                                    </Grid>
+                                  );
+                                })}
+                              </Grid>
+                            </Box>
+                          )}
+                        </Grid>
                       </Grid>
-                    </Grid>
 
-                    {/* Show appropriate action buttons based on current view */}
-                    {currentView === 'archive' && appointment.status === 'rejected' && (
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => handleAppointmentUpdate(appointment.id, { status: 'pending' })}
-                        sx={{ mt: 2 }}
-                      >
-                        Als Anfrage wiederherstellen
-                      </Button>
-                    )}
-
-                    {currentView === 'upcoming' && (
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => handleAppointmentUpdate(appointment.id, { status: 'rejected' })}
-                        sx={{ mt: 2 }}
-                      >
-                        Termin absagen
-                      </Button>
-                    )}
-
-                    {currentView === 'pending' && (
-                      <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                      {/* Show appropriate action buttons based on current view */}
+                      {currentView === 'archive' && appointment.status === 'rejected' && (
                         <Button
-                          variant="contained"
-                          color="success"
-                          onClick={() => handleAcceptAppointment(appointment.id)}
+                          variant="outlined"
+                          color="primary"
+                          onClick={() => handleAppointmentUpdate(appointment.id, { status: 'pending' })}
+                          sx={{ mt: 2 }}
                         >
-                          Termin annehmen
+                          Als Anfrage wiederherstellen
                         </Button>
+                      )}
+
+                      {currentView === 'upcoming' && (
                         <Button
                           variant="outlined"
                           color="error"
-                          onClick={() => handleRejectAppointment(appointment.id)}
+                          onClick={() => handleAppointmentUpdate(appointment.id, { status: 'rejected' })}
+                          sx={{ mt: 2 }}
                         >
-                          Anfrage ablehnen
+                          Termin absagen
                         </Button>
-                      </Box>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-      </Container>
-    </Box>
+                      )}
+
+                      {currentView === 'pending' && (
+                        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            onClick={() => handleAcceptAppointment(appointment.id)}
+                          >
+                            Termin annehmen
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={() => handleRejectAppointment(appointment.id)}
+                          >
+                            Anfrage ablehnen
+                          </Button>
+                        </Box>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Container>
+      </Box>
+    </MainLayout>
   );
 }

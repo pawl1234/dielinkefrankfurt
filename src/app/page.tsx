@@ -1,9 +1,7 @@
 'use client';
 
-import MuiSetup from '@/components/MuiSetup';
+import MainLayout from '@/components/MainLayout';
 import {
-  AppBar,
-  Toolbar,
   Typography,
   Container,
   Box,
@@ -16,12 +14,6 @@ import {
   Chip,
   CircularProgress,
   CardActions,
-  CardHeader,
-  List,
-  ListItemButton,
-  ListItemText,
-  Drawer,
-  IconButton
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
@@ -31,10 +23,6 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AddIcon from '@mui/icons-material/Add';
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseIcon from '@mui/icons-material/Close';
-import SearchIcon from '@mui/icons-material/Search';
-import HomeIcon from '@mui/icons-material/Home';
 
 interface Appointment {
   id: number;
@@ -52,11 +40,6 @@ export default function Home() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -81,200 +64,12 @@ export default function Home() {
     fetchAppointments();
   }, []);
 
-  // Navigation drawer content
-  const drawer = (
-    <Box sx={{ width: 300 }}>
-      <Toolbar sx={{ justifyContent: 'space-between', borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 'fontWeightBold' }}>
-          Die Linke Frankfurt
-        </Typography>
-        <IconButton 
-          onClick={handleDrawerToggle} 
-          sx={{ color: 'text.primary' }}
-          aria-label="close menu"
-        >
-          <CloseIcon />
-        </IconButton>
-      </Toolbar>
-      <List component="nav">
-        <ListItemButton
-          component={Link}
-          href="/"
-          selected
-          sx={{
-            '&.Mui-selected': {
-              color: 'primary.main',
-              '& .MuiListItemText-primary': {
-                fontWeight: 'fontWeightBold',
-                color: 'primary.main',
-              },
-            },
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <ListItemText 
-            primary="Termine" 
-            primaryTypographyProps={{ 
-              fontWeight: 'fontWeightBold', 
-              color: 'inherit' 
-            }} 
-          />
-        </ListItemButton>
-        <ListItemButton
-          component={Link}
-          href="/neue-anfrage"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <ListItemText 
-            primary="Termin anfragen" 
-            primaryTypographyProps={{ 
-              fontWeight: 'fontWeightBold', 
-              color: 'text.primary' 
-            }} 
-          />
-        </ListItemButton>
-        <ListItemButton
-          component={Link}
-          href="/admin"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <ListItemText 
-            primary="Administration" 
-            primaryTypographyProps={{ 
-              fontWeight: 'fontWeightBold', 
-              color: 'text.primary' 
-            }} 
-          />
-        </ListItemButton>
-      </List>
-    </Box>
-  );
-
   return (
-    <MuiSetup>
-      {/* Main header with logo and background */}
-      <Box
-        sx={{
-          position: 'relative',
-          backgroundImage: 'url("/images/header-bg.jpg")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          py: { xs: 3, md: 4 },
-          mb: 4
-        }}
-      >
-        {/* Header actions - positioned absolutely in top right */}
-        <Paper
-          elevation={2}
-          sx={{
-            p: 0.5,
-            display: 'flex',
-            alignItems: 'center',
-            borderRadius: 1,
-            bgcolor: 'common.white',
-            position: 'absolute',
-            top: 16,
-            right: 16,
-            zIndex: 10
-          }}
-        >
-          <IconButton
-            aria-label="search"
-            sx={{
-              mr: 0.5,
-              color: 'grey.700',
-              fontSize: 'large',
-              p: { xs: 1, md: 1.5 }
-            }}
-          >
-            <SearchIcon sx={{ fontSize: 28 }} />
-          </IconButton>
-          <IconButton
-            aria-label="menu"
-            onClick={handleDrawerToggle}
-            sx={{
-              color: 'grey.700',
-              fontSize: 'large',
-              p: { xs: 1, md: 1.5 }
-            }}
-          >
-            <MenuIcon sx={{ fontSize: 28 }} />
-          </IconButton>
-        </Paper>
-
-        <Container maxWidth="lg">
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              alignItems: 'center',
-              width: '100%'
-            }}
-          >
-            {/* Logo */}
-            <Box
-              component="div"
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: { xs: 'center', md: 'flex-start' }
-              }}
-            >
-              <Box
-                component="img"
-                src="/images/logo.png"
-                alt="Die Linke Kreisverband Frankfurt Logo"
-                sx={{
-                  height: 'auto',
-                  width: { xs: '220px', md: '280px' },
-                  maxWidth: '100%',
-                }}
-              />
-            </Box>
-          </Box>
-        </Container>
-      </Box>
-
-      {/* Mobile navigation drawer */}
-      <Drawer
-        anchor="right"
-        open={mobileOpen}
-        onClose={handleDrawerToggle}
-        ModalProps={{
-          keepMounted: true, // Better mobile performance
-        }}
-      >
-        {drawer}
-      </Drawer>
-      
-      {/* Breadcrumbs */}
-      <Container maxWidth="lg" sx={{ mb: 2 }}>
-        <Box 
-          component="nav" 
-          aria-label="breadcrumb" 
-          sx={{ py: 1 }}
-        >
-          <Chip
-            icon={<HomeIcon fontSize="small" />}
-            label="Termine"
-            component={Link}
-            href="/"
-            clickable
-            color="primary"
-            variant="outlined"
-            size="small"
-          />
-        </Box>
-      </Container>
-
+    <MainLayout
+      breadcrumbs={[
+        { label: 'Start', href: '/', active: true }
+      ]}
+    >
       <Container maxWidth="lg">
         {/* Title section container */}
         <Box sx={{ mb: 4 }}>
@@ -293,9 +88,6 @@ export default function Home() {
             </Typography>
           </Box>
 
-          {/* Clear floating and add small spacing 
-          <Box sx={{ display: 'block', height: '8px' }}></Box> */}
-
           {/* Secondary subtitle bar - indented from primary title */}
           <Box
             sx={{
@@ -313,22 +105,25 @@ export default function Home() {
           </Box>
         </Box>
 
+        <Divider> <b>Termine</b> </Divider>
+        
         {/* Call to action button */}
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'center',
-            mb: 4
+            justifyContent: 'left',
+            mb: 4,
+            mt: 2
           }}
         >
           <Button 
             href="/neue-anfrage"
-            variant="contained" 
+            variant="outlined" 
             size="large"
             startIcon={<AddIcon />}
             LinkComponent={Link}
           >
-            Neuen Termin anfragen
+            Neuen Termin eintragen
           </Button>
         </Box>
 
@@ -339,28 +134,15 @@ export default function Home() {
           </Box>
         ) : error ? (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="error" paragraph>{error}</Typography>
-            <Button
-              href="/neue-anfrage"
-              variant="contained"
-              LinkComponent={Link}
-            >
-              Neuen Termin anfragen
-            </Button>
+            <Typography color="error" paragraph>
+              Fehler beim laden der Termine
+            </Typography>
           </Paper>
         ) : appointments.length === 0 ? (
           <Paper sx={{ p: 5, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary" paragraph>
               Aktuell sind keine anstehenden Termine vorhanden.
             </Typography>
-            <Button
-              href="/neue-anfrage"
-              variant="contained"
-              startIcon={<AddIcon />}
-              LinkComponent={Link}
-            >
-              Termin anfragen
-            </Button>
           </Paper>
         ) : (
           <>
@@ -453,25 +235,6 @@ export default function Home() {
             </Grid>
           </>
         )}
-        
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            mt: 6, 
-            mb: 4 
-          }}
-        >
-          <Button
-            href="/neue-anfrage"
-            variant="outlined"
-            size="large"
-            startIcon={<AddIcon />}
-            LinkComponent={Link}
-          >
-            Eigenen Termin anfragen
-          </Button>
-        </Box>
 
         <Box
           component="footer"
@@ -486,6 +249,6 @@ export default function Home() {
           </Typography>
         </Box>
       </Container>
-    </MuiSetup>
+    </MainLayout>
   );
 }
