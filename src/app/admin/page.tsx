@@ -32,9 +32,12 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EventIcon from '@mui/icons-material/Event';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import { signOut } from 'next-auth/react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import NewsletterGenerator from '@/components/newsletter/NewsletterGenerator';
+import FeaturedToggle from '@/components/newsletter/FeaturedToggle';
 
 // Define the Appointment type based on our Prisma schema
 interface Appointment {
@@ -52,6 +55,7 @@ interface Appointment {
   lastName: string | null;
   recurringText: string | null;
   fileUrls: string | null;
+  featured: boolean;
   createdAt: string;
   processed: boolean;
   processingDate: string | null;
@@ -345,7 +349,17 @@ export default function AdminPage() {
                           <Typography variant="h6" gutterBottom>
                             Datum & Ort
                           </Typography>
-                          
+
+                          {/* Featured Toggle - Only show for accepted appointments */}
+                          {appointment.status === 'accepted' && (
+                            <Box sx={{ mb: 2 }}>
+                              <FeaturedToggle
+                                appointmentId={appointment.id}
+                                initialFeatured={appointment.featured}
+                              />
+                            </Box>
+                          )}
+
                           <Box sx={{ mb: 2 }}>
                             <Typography variant="subtitle1">
                               Startzeit:
@@ -499,10 +513,17 @@ export default function AdminPage() {
                   </Accordion>
                 </Grid>
               ))}
+                     
             </Grid>
           )}
         </Container>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          {/* Newsletter Generator */}
+          <NewsletterGenerator />          
+        </Container>                           
       </Box>
+
+
     </MainLayout>
   );
 }

@@ -39,6 +39,7 @@ model Appointment {
   // Additional details
   recurringText  String?   // Information about recurring nature of event if applicable
   fileUrls       String?   // JSON string of file URLs for attached documents
+  featured       Boolean   @default(false) // Flag for highlighting in newsletters
 
   // System fields
   createdAt      DateTime  @default(now())
@@ -51,5 +52,21 @@ model Appointment {
 
   @@index([processed]) // Add index for common query filter
   @@index([status]) // Add index for status filtering
+  @@index([featured]) // Add index for featured filtering
   @@map("appointment") // Lowercase table name for PostgreSQL convention
+}
+
+// Newsletter settings for email generation
+model Newsletter {
+  id              Int        @id @default(autoincrement())
+  headerLogo      String?    // URL for the header logo
+  headerBanner    String?    // URL for the header banner
+  footerText      String?    // Text for the newsletter footer
+  unsubscribeLink String?    // Link for unsubscribing (placeholder for now)
+
+  // System fields
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("newsletter") // Lowercase table name for PostgreSQL convention
 }
