@@ -105,21 +105,37 @@ const NewsletterGenerator: React.FC = () => {
     }
   };
 
-  // Generate newsletter preview
+  // Generate newsletter and open in new tab
   const handlePreviewNewsletter = async () => {
     try {
       setLoading(true);
-      
+
       // Encode the introduction text for URL parameters
       const encodedIntroductionText = encodeURIComponent(introductionText);
-      
+
       // Fetch the newsletter HTML
       const response = await fetch(`/api/admin/newsletter?introductionText=${encodedIntroductionText}`);
-      
+
       if (response.ok) {
         const html = await response.text();
+
+        // Store the HTML content
         setNewsletterHtml(html);
-        setPreviewOpen(true);
+
+        // Create a new tab with the HTML content
+        const newTab = window.open('', '_blank');
+        if (newTab) {
+          newTab.document.write(html);
+          newTab.document.close();
+        } else {
+          // If popup blocked, fallback to modal
+          setPreviewOpen(true);
+          setAlert({
+            open: true,
+            message: 'Pop-up wurde blockiert. Bitte erlauben Sie Pop-ups für diese Seite.',
+            severity: 'error',
+          });
+        }
       } else {
         setAlert({
           open: true,
