@@ -119,7 +119,17 @@ export default function AppointmentDetailPage({ params }: { params: Params }) {
               <Typography variant="h4" component="h1" gutterBottom>
                 {appointment.title}
               </Typography>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 'medium', color: 'primary.main' }}>
+              <Typography 
+                variant="body1"
+                sx={{ 
+                mb: 2,
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                color: 'text.secondary',
+                flexGrow: 1
+              }}>
                 {appointment.teaser}
               </Typography>
               
@@ -212,17 +222,6 @@ export default function AppointmentDetailPage({ params }: { params: Params }) {
                     </Box>
                   )}
                 </Paper>
-                
-                <Button
-                  href="/neue-anfrage"
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  sx={{ mb: 3 }}
-                  LinkComponent={Link}
-                >
-                  Neuen Termin anfragen
-                </Button>
               </Box>
             </Box>
             
@@ -292,14 +291,6 @@ export default function AppointmentDetailPage({ params }: { params: Params }) {
                 LinkComponent={Link}
               >
                 Alle Termine
-              </Button>
-
-              <Button
-                href="/neue-anfrage"
-                variant="contained"
-                LinkComponent={Link}
-              >
-                Neuen Termin anfragen
               </Button>
             </Box>
           </Paper>

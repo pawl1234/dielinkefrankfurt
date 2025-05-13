@@ -183,8 +183,9 @@ const theme = createTheme({
           borderRadius: 4, // Slightly rounded chips
         },
         outlinedPrimary: {
-          borderColor: '#FF0000',
-          color: '#FF0000',
+          borderColor: '#cccccc',
+          color: '#262626',
+          marginRight: '3px',
         },
       },
     },

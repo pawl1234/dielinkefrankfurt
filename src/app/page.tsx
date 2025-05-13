@@ -23,6 +23,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AddIcon from '@mui/icons-material/Add';
+import { grey } from '@mui/material/colors';
 
 interface Appointment {
   id: number;
@@ -152,32 +153,14 @@ export default function Home() {
             
             <Grid container spacing={3}>
               {appointments.map((appointment) => (
-                <Grid key={appointment.id} style={{ padding: '12px' }}>
-                  <Card elevation={1} sx={{ 
-                    height: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    width: { xs: '100%', sm: '300px', md: '350px' }
-                  }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography 
-                        variant="h6" 
-                        component="h3" 
-                        gutterBottom
-                        sx={{ 
-                          fontWeight: 'medium',
-                          color: 'primary.main',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          mb: 1
-                        }}
-                      >
+                <Grid key={appointment.id} size={{xs: 12}}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                         {appointment.title}
                       </Typography>
                       
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                      <Box mt={1} mb={1}>
                         <Chip 
                           icon={<CalendarTodayIcon />}
                           label={format(new Date(appointment.startDateTime), 'dd. MMM', { locale: de })}
@@ -202,7 +185,6 @@ export default function Home() {
                           />
                         )}
                       </Box>
-                      
                       <Typography 
                         variant="body1"
                         sx={{ 
@@ -223,7 +205,6 @@ export default function Home() {
                       <Button
                         href={`/termine/${appointment.id}`}
                         variant="contained"
-                        fullWidth
                         LinkComponent={Link}
                       >
                         Details anzeigen

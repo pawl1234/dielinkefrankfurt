@@ -244,7 +244,7 @@ export default function AdminPage() {
                           <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                             {appointment.title}
                           </Typography>
-                          <Typography variant="subtitle1">
+                          <Typography variant="body2">
                             {appointment.teaser}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
