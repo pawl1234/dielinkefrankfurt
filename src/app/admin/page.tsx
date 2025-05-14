@@ -185,9 +185,9 @@ export default function AdminPage() {
 
   if (status === 'loading' || status === 'unauthenticated') {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      //<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
-      </Box>
+      //</Box>
     );
   }
 

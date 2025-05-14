@@ -26,6 +26,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import RichTextEditor from '../RichTextEditor';
+import { htmlToText } from 'nodemailer-html-to-text';
 
 interface NewsletterSettings {
   id?: number;
@@ -124,8 +125,7 @@ const NewsletterGenerator: React.FC = () => {
         const html = await response.text();
 
         // Store the HTML content
-        setNewsletterHtml(html);
-
+        return html;
       } else {
         setAlert({
           open: true,
@@ -147,12 +147,12 @@ const NewsletterGenerator: React.FC = () => {
   // Generate newsletter and open in new tab
   const handlePreviewNewsletter = async () => {
     
-    await getNewsletter();
+    const newsletter = await getNewsletter();
     const newTab = window.open('', '_blank');
 
-    if (newTab) {
+    if (newTab && newsletter) {
       // The new tab/window was successfully opened
-      newTab.document.write(newsletterHtml); // Make sure newsletterHtml is defined and populated
+      newTab.document.write(newsletter);
       newTab.document.close();
     } else {
       // If popup blocked, fallback to modal
@@ -165,32 +165,19 @@ const NewsletterGenerator: React.FC = () => {
     }
   };
 
-  // Copy HTML to clipboard
-  const handleCopyHtml = () => {
-    navigator.clipboard.writeText(newsletterHtml);
-    setAlert({
-      open: true,
-      message: 'HTML in die Zwischenablage kopiert',
-      severity: 'success',
-    });
-  };
-
   // Send a test email
   const handleSendTestEmail = async () => {
     try {
       setSendingTest(true);
 
-      // Make sure we have the latest HTML content
-      if (!newsletterHtml) {
-        await getNewsletter();
-      }
+      const newsletter = await getNewsletter();
 
       const response = await fetch('/api/admin/newsletter/send-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ html: newsletterHtml }),
+        body: JSON.stringify({ html: newsletter }),
       });
 
       if (response.ok) {
@@ -364,7 +351,7 @@ const NewsletterGenerator: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Newsletter Preview Dialog */}
+      {/* Newsletter Preview Dialog not used at the moment 
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           Newsletter-Vorschau
@@ -398,7 +385,7 @@ const NewsletterGenerator: React.FC = () => {
           <Button onClick={() => setPreviewOpen(false)}>Schließen</Button>
         </DialogActions>
       </Dialog>
-
+        */}
       {/* Alert Snackbar */}
       <Snackbar
         open={alert.open}

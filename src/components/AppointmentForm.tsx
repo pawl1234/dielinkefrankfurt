@@ -20,13 +20,8 @@ import {
   FormControlLabel,
   Alert,
   Paper,
-  Divider,
-  IconButton,
   Collapse,
 } from '@mui/material';
-import { Grid } from '@mui/material';
-import InfoIcon from '@mui/icons-material/Info';
-import { LoadingButton } from '@mui/lab';
 import SendIcon from '@mui/icons-material/Send';
 
 interface FormInput {
@@ -524,7 +519,7 @@ export default function AppointmentForm() {
       )}
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <LoadingButton
+        <Button
           type="submit"
           variant="contained"
           color="primary"
@@ -532,7 +527,7 @@ export default function AppointmentForm() {
           endIcon={<SendIcon />}
         >
           {isSubmitting ? 'Wird gesendet...' : 'Termin einreichen'}
-        </LoadingButton>
+        </Button>
       </Box>
     </Box>
   );
