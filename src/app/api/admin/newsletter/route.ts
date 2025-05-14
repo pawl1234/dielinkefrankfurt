@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
     
     // Default newsletter settings (in case we can't access the database model yet)
     let newsletterSettings: NewsletterSettings = {
-      headerLogo: '/path/to/default/logo.png',
-      headerBanner: '/path/to/default/banner.jpg',
+      headerLogo: 'public/images/logo.png',
+      headerBanner: 'public/images/header-bg.jpg',
       footerText: 'Die Linke Frankfurt am Main<br/>Kommunalpolitische Vereinigung',
       unsubscribeLink: '#'
     };
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Base URL for links (should get from env in production)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://dielinkefrankfurt.de';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     
     // Generate HTML email directly instead of using React components
     const emailHtml = generateEmailHtml({
@@ -471,7 +471,7 @@ function generateEmailHtml({
             color: #FF0000;
             font-size: 24px;
             font-weight: bold;
-            margin-top: 30px;
+            margin-top: 10px;
             margin-bottom: 15px;
           }
           
@@ -573,21 +573,25 @@ function generateEmailHtml({
               <table class="container" width="600" cellPadding="0" cellSpacing="0" border="0">
                 <!-- Header -->
                 <tr>
-                  <td class="header">
-                    <img 
-                      src="${headerLogo}" 
-                      alt="Die Linke Frankfurt Logo" 
-                      class="logo"
-                    />
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <img 
-                      src="${headerBanner}" 
-                      alt="Die Linke Frankfurt Banner" 
+                  <td class="header" style="position: relative; padding: 0; line-height: 0; /* Attempt to collapse cell height */">
+                    <img
+                      src="${headerBanner}"
+                      alt="Die Linke Frankfurt Banner"
                       class="banner"
+                      width="600" /* <<< SET BANNER WIDTH HERE */
+                      height="150" /* <<< SET BANNER HEIGHT HERE, OR 'auto' if width defines it */
+                      style="display: block; max-width: 100%; height: auto; /* Responsive behavior */"
                     />
+                    <div style="position: absolute; top: 20px; left: 20px; /* Adjust these values */">
+                        <img
+                          src="${headerLogo}"
+                          alt="Die Linke Frankfurt Logo"
+                          class="logo"
+                          width="120" /* <<< SET LOGO WIDTH (adjust as needed) */
+                          height="auto" /* Maintain aspect ratio */
+                          style="display: block;"
+                        />
+                    </div>
                   </td>
                 </tr>
                 

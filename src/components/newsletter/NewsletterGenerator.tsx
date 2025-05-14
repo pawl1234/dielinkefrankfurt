@@ -17,11 +17,15 @@ import {
   LinearProgress,
   FormControlLabel,
   Switch,
+  Card,
+  CardContent,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CloseIcon from '@mui/icons-material/Close';
+import SendIcon from '@mui/icons-material/Send';
+import RichTextEditor from '../RichTextEditor';
 
 interface NewsletterSettings {
   id?: number;
@@ -38,6 +42,7 @@ const NewsletterGenerator: React.FC = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [newsletterHtml, setNewsletterHtml] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [alert, setAlert] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -105,8 +110,7 @@ const NewsletterGenerator: React.FC = () => {
     }
   };
 
-  // Generate newsletter and open in new tab
-  const handlePreviewNewsletter = async () => {
+  const getNewsletter = async () => {
     try {
       setLoading(true);
 
@@ -122,20 +126,6 @@ const NewsletterGenerator: React.FC = () => {
         // Store the HTML content
         setNewsletterHtml(html);
 
-        // Create a new tab with the HTML content
-        const newTab = window.open('', '_blank');
-        if (newTab) {
-          newTab.document.write(html);
-          newTab.document.close();
-        } else {
-          // If popup blocked, fallback to modal
-          setPreviewOpen(true);
-          setAlert({
-            open: true,
-            message: 'Pop-up wurde blockiert. Bitte erlauben Sie Pop-ups für diese Seite.',
-            severity: 'error',
-          });
-        }
       } else {
         setAlert({
           open: true,
@@ -153,6 +143,26 @@ const NewsletterGenerator: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }
+  // Generate newsletter and open in new tab
+  const handlePreviewNewsletter = async () => {
+    
+    await getNewsletter();
+    const newTab = window.open('', '_blank');
+
+    if (newTab) {
+      // The new tab/window was successfully opened
+      newTab.document.write(newsletterHtml); // Make sure newsletterHtml is defined and populated
+      newTab.document.close();
+    } else {
+      // If popup blocked, fallback to modal
+      setPreviewOpen(true);
+      setAlert({
+        open: true,
+        message: 'Pop-up wurde blockiert. Bitte erlauben Sie Pop-ups für diese Seite.',
+        severity: 'error',
+      });
+    }
   };
 
   // Copy HTML to clipboard
@@ -163,6 +173,52 @@ const NewsletterGenerator: React.FC = () => {
       message: 'HTML in die Zwischenablage kopiert',
       severity: 'success',
     });
+  };
+
+  // Send a test email
+  const handleSendTestEmail = async () => {
+    try {
+      setSendingTest(true);
+
+      // Make sure we have the latest HTML content
+      if (!newsletterHtml) {
+        await getNewsletter();
+      }
+
+      const response = await fetch('/api/admin/newsletter/send-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ html: newsletterHtml }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAlert({
+          open: true,
+          message: 'Test Newsletter erfolgreich gesendet',
+          severity: 'success',
+        });
+      } else {
+        const error = await response.json();
+        console.error('Error sending test newsletter:', error);
+        setAlert({
+          open: true,
+          message: `Fehler beim Senden des Test-Newsletters: ${error.message || error.error || 'Unbekannter Fehler'}`,
+          severity: 'error',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending test newsletter:', error);
+      setAlert({
+        open: true,
+        message: 'Fehler beim Senden des Test-Newsletters',
+        severity: 'error',
+      });
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   return (
@@ -183,10 +239,36 @@ const NewsletterGenerator: React.FC = () => {
 
       <Divider sx={{ mb: 3 }} />
 
+      {/* Preview & Testing Section */}
+        <Card sx={{ mb: 3, backgroundColor: '#f8f9fa' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Newsletter Vorschau & Test
+              </Typography>
+              <Box>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  startIcon={sendingTest ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+                  onClick={handleSendTestEmail}
+                  //disabled={sendingTest || !newsletterHtml}
+                  size="small"
+                >
+                  Test-Email senden
+                </Button>
+              </Box>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Test-Emails werden an {process.env.NEXT_PUBLIC_TEST_EMAIL_RECIPIENT || 'buero@linke-frankfurt.de'} gesendet. Die Email enthält nur den Newsletter-Inhalt, ohne diesen Steuerungsbereich.
+            </Typography>
+          </CardContent>
+        </Card>
+
       <Typography variant="subtitle1" gutterBottom>
         Einleitung des Newsletters
       </Typography>
-      <TextField
+     {/*  <TextField
         label="Einleitungstext (HTML)"
         multiline
         rows={4}
@@ -195,8 +277,14 @@ const NewsletterGenerator: React.FC = () => {
         fullWidth
         margin="normal"
         helperText="HTML-Tags können verwendet werden, z.B. <p>, <b>, <i>, etc."
-      />
-
+      />*/}
+      <Box sx={{ mb: 3 }}>
+        <RichTextEditor
+          value={introductionText}
+          onChange={(introductionText) => setIntroductionText(introductionText)}
+          maxLength={1000}
+        />
+      </Box>
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
         <Button
           variant="contained"
@@ -205,7 +293,7 @@ const NewsletterGenerator: React.FC = () => {
           onClick={handlePreviewNewsletter}
           startIcon={loading ? <CircularProgress size={20} /> : <MailOutlineIcon />}
         >
-          Newsletter generieren
+          Newsletter Preview
         </Button>
       </Box>
 
