@@ -41,6 +41,7 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { signOut } from 'next-auth/react';
 import { format, parse } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -69,6 +70,7 @@ interface Appointment {
   processed: boolean;
   processingDate: string | null;
   status: 'pending' | 'accepted' | 'rejected';
+  metadata?: string | null;
 }
 
 export default function AdminPage() {
@@ -90,17 +92,21 @@ export default function AdminPage() {
     }
   }, [status, router]);
 
+  // Add a timestamp state for cache busting
+  const [timestamp, setTimestamp] = useState(() => Date.now());
+  
   useEffect(() => {
     // Fetch appointments when authenticated
     if (status === 'authenticated') {
       fetchAppointments(views[tabValue]);
     }
-  }, [status, tabValue]);
+  }, [status, tabValue, timestamp]);
 
   const fetchAppointments = async (view: ViewType) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/appointments?view=${view}`);
+      // Add timestamp to query to prevent caching of API responses
+      const response = await fetch(`/api/admin/appointments?view=${view}&t=${Date.now()}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch appointments');
@@ -314,8 +320,43 @@ export default function AdminPage() {
                                   px: 1
                                 }}
                               >
+                                <CancelIcon fontSize="small" sx={{ mr: 0.5 }} />
                                 <Typography variant="button">
                                   Ablehnen
+                                </Typography>
+                              </IconButton>
+                              
+                              <IconButton
+                                component="span"
+                                color="secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Open the accordion to allow editing
+                                  const accordionSummary = e.currentTarget.closest('.MuiAccordionSummary-root');
+                                  if (accordionSummary && !accordionSummary.classList.contains('Mui-expanded')) {
+                                    (accordionSummary as HTMLElement).click();
+                                  }
+                                  // Wait for accordion animation to complete before showing edit form
+                                  setTimeout(() => {
+                                    const editButton = document.querySelector(`[data-appointment-id="${appointment.id}"]`);
+                                    if (editButton) {
+                                      (editButton as HTMLButtonElement).click();
+                                    }
+                                  }, 300);
+                                }}
+                                size="small"
+                                sx={{
+                                  borderRadius: 1,
+                                  bgcolor: 'rgba(25, 118, 210, 0.08)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(25, 118, 210, 0.12)',
+                                  },
+                                  px: 1
+                                }}
+                              >
+                                <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                <Typography variant="button">
+                                  Bearbeiten
                                 </Typography>
                               </IconButton>
                             </Box>
@@ -329,16 +370,84 @@ export default function AdminPage() {
                                 variant="outlined"
                                 size="small"
                               />
+                              <IconButton
+                                component="span"
+                                color="primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Open the accordion to allow editing
+                                  const accordionSummary = e.currentTarget.closest('.MuiAccordionSummary-root');
+                                  if (accordionSummary && !accordionSummary.classList.contains('Mui-expanded')) {
+                                    (accordionSummary as HTMLElement).click();
+                                  }
+                                  // Wait for accordion animation to complete before showing edit form
+                                  setTimeout(() => {
+                                    const editButton = document.querySelector(`[data-appointment-id="${appointment.id}"]`);
+                                    if (editButton) {
+                                      (editButton as HTMLButtonElement).click();
+                                    }
+                                  }, 300);
+                                }}
+                                size="small"
+                                sx={{
+                                  borderRadius: 1,
+                                  bgcolor: 'rgba(25, 118, 210, 0.08)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(25, 118, 210, 0.12)',
+                                  },
+                                  px: 1
+                                }}
+                              >
+                                <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                <Typography variant="button">
+                                  Bearbeiten
+                                </Typography>
+                              </IconButton>
                             </Box>
                           )}
 
                           {currentView === 'archive' && (
-                            <Chip
-                              label={appointment.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
-                              color={appointment.status === 'accepted' ? 'success' : 'error'}
-                              variant="outlined"
-                              size="small"
-                            />
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Chip
+                                label={appointment.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
+                                color={appointment.status === 'accepted' ? 'success' : 'error'}
+                                variant="outlined"
+                                size="small"
+                              />
+                              <IconButton
+                                component="span"
+                                color="primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Open the accordion to allow editing
+                                  const accordionSummary = e.currentTarget.closest('.MuiAccordionSummary-root');
+                                  if (accordionSummary && !accordionSummary.classList.contains('Mui-expanded')) {
+                                    (accordionSummary as HTMLElement).click();
+                                  }
+                                  // Wait for accordion animation to complete before showing edit form
+                                  setTimeout(() => {
+                                    const editButton = document.querySelector(`[data-appointment-id="${appointment.id}"]`);
+                                    if (editButton) {
+                                      (editButton as HTMLButtonElement).click();
+                                    }
+                                  }, 300);
+                                }}
+                                size="small"
+                                sx={{
+                                  borderRadius: 1,
+                                  bgcolor: 'rgba(25, 118, 210, 0.08)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(25, 118, 210, 0.12)',
+                                  },
+                                  px: 1
+                                }}
+                              >
+                                <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                <Typography variant="button">
+                                  Bearbeiten
+                                </Typography>
+                              </IconButton>
+                            </Box>
                           )}
                         </Box>
                       </Box>
@@ -348,7 +457,11 @@ export default function AdminPage() {
                       
                       <EditAppointmentWrapper
                         appointment={appointment}
-                        onEditComplete={() => fetchAppointments(views[tabValue])}
+                        onEditComplete={() => {
+                          // Update timestamp to force refresh and break image cache
+                          setTimestamp(Date.now());
+                          fetchAppointments(views[tabValue]);
+                        }}
                         appointmentComponent={
                           <>
                             <Grid container spacing={3}>
@@ -382,6 +495,13 @@ export default function AdminPage() {
                                     <FeaturedToggle
                                       appointmentId={appointment.id}
                                       initialFeatured={appointment.featured}
+                                      onToggle={(featured) => {
+                                        // Add a small delay before refreshing
+                                        setTimeout(() => {
+                                          setTimestamp(Date.now());
+                                          fetchAppointments(views[tabValue]);
+                                        }, 300);
+                                      }}
                                     />
                                   </Box>
                                 )}
@@ -443,8 +563,119 @@ export default function AdminPage() {
                                 <Typography variant="h6" gutterBottom>
                                   Anhänge
                                 </Typography>
+                              
+                              {/* Cover images from metadata if available */}
+                              {appointment.featured && appointment.metadata && (
+                                <Box sx={{ mt: 2, mb: 3 }} key={`cover-image-container-${timestamp}`}>
+                                  <Typography variant="subtitle2" gutterBottom>
+                                    Cover-Bilder (Featured Termin)
+                                  </Typography>
+                                  <Grid container spacing={2}>
+                                    {(() => {
+                                      try {
+                                        const metadata = JSON.parse(appointment.metadata);
+                                        const coverItems = [];
+                                        
+                                        if (metadata.coverImageUrl) {
+                                          // Generate a unique key for this cover image using the URL
+                                          const urlKey = metadata.coverImageUrl.split("?")[0]; // Remove any query params
+                                          const originalKey = `original-cover-${urlKey}`;
+                                          
+                                          coverItems.push(
+                                            <Grid size={{xs: 12, sm: 6}} key={originalKey}>
+                                              <Card variant="outlined" sx={{ mb: 1 }}>
+                                                <CardMedia
+                                                  component="img"
+                                                  height="140"
+                                                  image={metadata.coverImageUrl}
+                                                  alt="Original Cover-Bild"
+                                                  sx={{ objectFit: 'cover' }}
+                                                />
+                                                <CardContent sx={{ py: 1 }}>
+                                                  <Typography variant="caption" noWrap>
+                                                    Original Cover-Bild
+                                                  </Typography>
+                                                </CardContent>
+                                                <CardActions>
+                                                  <Button
+                                                    variant="outlined"
+                                                    size="small"
+                                                    href={metadata.coverImageUrl}
+                                                    target="_blank"
+                                                    fullWidth
+                                                  >
+                                                    Öffnen
+                                                  </Button>
+                                                </CardActions>
+                                              </Card>
+                                            </Grid>
+                                          );
+                                        }
+                                        
+                                        if (metadata.croppedCoverImageUrl) {
+                                          // Generate a unique key for this cropped cover image using the URL
+                                          const croppedUrlKey = metadata.croppedCoverImageUrl.split("?")[0]; // Remove any query params
+                                          const croppedKey = `cropped-cover-${croppedUrlKey}`;
+                                          
+                                          coverItems.push(
+                                            <Grid size={{xs: 12, sm: 6}} key={croppedKey}>
+                                              <Card variant="outlined" sx={{ mb: 1 }}>
+                                                <CardMedia
+                                                  component="img"
+                                                  height="140"
+                                                  image={metadata.croppedCoverImageUrl}
+                                                  alt="Zugeschnittenes Cover-Bild (14:5)"
+                                                  sx={{ objectFit: 'cover' }}
+                                                />
+                                                <CardContent sx={{ py: 1 }}>
+                                                  <Typography variant="caption" noWrap>
+                                                    Zugeschnittenes Cover-Bild (14:5)
+                                                  </Typography>
+                                                </CardContent>
+                                                <CardActions>
+                                                  <Button
+                                                    variant="outlined"
+                                                    size="small"
+                                                    href={metadata.croppedCoverImageUrl}
+                                                    target="_blank"
+                                                    fullWidth
+                                                  >
+                                                    Öffnen
+                                                  </Button>
+                                                </CardActions>
+                                              </Card>
+                                            </Grid>
+                                          );
+                                        }
+                                        
+                                        return coverItems.length > 0 ? coverItems : (
+                                          <Grid size={{xs: 12}}>
+                                            <Typography variant="body2" color="text.secondary">
+                                              Kein Cover-Bild vorhanden.
+                                            </Typography>
+                                          </Grid>
+                                        );
+                                      } catch (e) {
+                                        console.error("Error parsing metadata:", e);
+                                        return (
+                                          <Grid size={{xs: 12}}>
+                                            <Typography variant="body2" color="error">
+                                              Fehler beim Laden der Cover-Bilder.
+                                            </Typography>
+                                          </Grid>
+                                        );
+                                      }
+                                    })()}
+                                  </Grid>
+                                </Box>
+                              )}
+                              
+                              {/* Regular attachments */}
                               {appointment.fileUrls && (
                                   <Box sx={{ mt: 2 }}>
+                                    <Typography variant="subtitle2" gutterBottom>
+                                      Weitere Anhänge
+                                    </Typography>
                                     <Grid container spacing={1}>
                                       {JSON.parse(appointment.fileUrls).map((fileUrl: string, index: number) => {
                                         const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');

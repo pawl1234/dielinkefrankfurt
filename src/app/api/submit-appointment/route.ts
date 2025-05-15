@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const firstName = formData.get('firstName') as string || '';
     const lastName = formData.get('lastName') as string || '';
     const recurringText = formData.get('recurringText') as string || '';
+    const featured = formData.get('featured') === 'true';
 
     // Additional validation
     if (!teaser || !mainText || !startDateTime) {
@@ -31,6 +32,8 @@ export async function POST(request: NextRequest) {
     // Process multiple file uploads if present using Vercel Blob Store
     const fileCount = formData.get('fileCount');
     const fileUrls: string[] = [];
+    let coverImageUrl: string | null = null;
+    let croppedCoverImageUrl: string | null = null;
 
     if (fileCount) {
       const count = parseInt(fileCount as string, 10);
@@ -94,6 +97,60 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Process cover image if present (for featured appointments)
+    if (featured) {
+      const coverImage = formData.get('coverImage') as File | null;
+      const croppedCoverImage = formData.get('croppedCoverImage') as File | null;
+
+      if (coverImage) {
+        try {
+          // Create unique pathnames for both images
+          const timestamp = new Date().getTime();
+          const sanitizedFileName = coverImage.name.replace(/\s+/g, '-');
+          const originalBlobPathname = `appointments/${timestamp}-cover-${sanitizedFileName}`;
+          
+          // Upload original cover image
+          const arrayBuffer = await coverImage.arrayBuffer();
+          const blob = new Blob([arrayBuffer], { type: coverImage.type });
+          
+          const { url } = await put(originalBlobPathname, blob, {
+            access: 'public',
+            contentType: coverImage.type,
+            addRandomSuffix: false,
+            cacheControlMaxAge: 31536000, // Cache for 1 year
+          });
+          
+          console.log(`✅ Cover image uploaded successfully to: ${url}`);
+          coverImageUrl = url;
+          
+          // Upload cropped cover image if available
+          if (croppedCoverImage) {
+            const croppedArrayBuffer = await croppedCoverImage.arrayBuffer();
+            const croppedBlob = new Blob([croppedArrayBuffer], { type: croppedCoverImage.type });
+            
+            // Use _crop suffix to identify cropped versions
+            const croppedBlobPathname = `appointments/${timestamp}-cover-${sanitizedFileName.replace(/\.[^.]+$/, '')}_crop.jpg`;
+            
+            const { url: croppedUrl } = await put(croppedBlobPathname, croppedBlob, {
+              access: 'public',
+              contentType: 'image/jpeg',
+              addRandomSuffix: false,
+              cacheControlMaxAge: 31536000, // Cache for 1 year
+            });
+            
+            console.log(`✅ Cropped cover image uploaded successfully to: ${croppedUrl}`);
+            croppedCoverImageUrl = croppedUrl;
+          }
+        } catch (uploadError) {
+          console.error(`❌ Error uploading cover image to Blob Store:`, uploadError);
+          return NextResponse.json(
+            { error: 'Fehler beim Hochladen des Cover-Bildes. Bitte versuchen Sie es später erneut.' },
+            { status: 500 }
+          );
+        }
+      }
+    }
+
     // Save appointment to database
     try {
       // First check database connection
@@ -124,8 +181,16 @@ export async function POST(request: NextRequest) {
           firstName,
           lastName,
           recurringText,
-          // Use explicit type assertion to match Prisma schema
+          featured,
+          // Store file URLs as JSON strings
           fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
+          // Store cover image URLs in metadata field
+          ...(coverImageUrl && {
+            metadata: JSON.stringify({
+              coverImageUrl,
+              croppedCoverImageUrl
+            })
+          }),
         } as any // Use type assertion to bypass the type error
       });
       console.log('✅ Appointment successfully saved to database');

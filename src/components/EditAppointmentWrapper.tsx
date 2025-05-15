@@ -25,6 +25,7 @@ interface Appointment {
   processed: boolean;
   processingDate: string | null;
   status: 'pending' | 'accepted' | 'rejected';
+  metadata?: string | null;
 }
 
 interface FormInput {
@@ -42,6 +43,9 @@ interface FormInput {
   recurringText?: string;
   captchaToken?: string;
   files?: (File | Blob)[];
+  coverImage?: File | Blob;
+  croppedCoverImage?: File | Blob;
+  featured?: boolean;
 }
 
 interface EditAppointmentWrapperProps {
@@ -102,7 +106,18 @@ export default function EditAppointmentWrapper({
       formData.append('lastName', data.lastName || '');
       formData.append('recurringText', data.recurringText || '');
       formData.append('status', appointment.status);
-      formData.append('featured', appointment.featured.toString());
+      
+      // Add featured flag, preferring the one from the form data if available
+      const featured = data.featured !== undefined ? data.featured : appointment.featured;
+      formData.append('featured', featured.toString());
+      
+      // Handle cover images for featured appointments
+      if (featured && data.coverImage) {
+        formData.append('coverImage', data.coverImage);
+        if (data.croppedCoverImage) {
+          formData.append('croppedCoverImage', data.croppedCoverImage);
+        }
+      }
       
       // Append new files
       if (files.length > 0) {
@@ -124,10 +139,16 @@ export default function EditAppointmentWrapper({
       }
 
       // Exit edit mode and call completion handler
+      console.log("Edit completed successfully, refreshing view...");
       setIsEditing(false);
-      if (onEditComplete) {
-        onEditComplete();
-      }
+      
+      // Wait a short time before refreshing to allow database updates to complete
+      setTimeout(() => {
+        if (onEditComplete) {
+          console.log("Calling onEditComplete to refresh the view...");
+          onEditComplete();
+        }
+      }, 500);
     } catch (err) {
       console.error('Error updating appointment:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -157,23 +178,18 @@ export default function EditAppointmentWrapper({
     );
   }
 
-  // Otherwise show the regular appointment view with edit button
+  // Otherwise show the regular appointment view with a hidden edit button that can be triggered programmatically
   return (
     <Box>
       {/* Render the provided appointment component */}
       {appointmentComponent}
       
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-        <Button
-          variant="outlined"
-          color="primary"
-          startIcon={<EditIcon />}
-          onClick={handleEditToggle}
-          disabled={isSubmitting}
-        >
-          Bearbeiten
-        </Button>
-      </Box>
+      {/* Hidden button for programmatic access */}
+      <Button 
+        sx={{ display: 'none' }}
+        data-appointment-id={appointment.id}
+        onClick={handleEditToggle}
+      />
     </Box>
   );
 }

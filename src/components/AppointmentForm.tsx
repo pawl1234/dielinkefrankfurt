@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import RichTextEditor from './RichTextEditor';
 import FileUpload from './FileUpload';
+import CoverImageUpload from './CoverImageUpload';
 import DateTimePicker from './DateTimePicker';
 import AddressFields from './AddressFields';
 import RequesterFields from './RequesterFields';
@@ -61,6 +62,7 @@ interface AppointmentFormProps {
     recurringText?: string | null;
     fileUrls?: string | null;
     featured?: boolean;
+    metadata?: string | null;
   };
   mode?: 'create' | 'edit';
   submitButtonText?: string;
@@ -85,8 +87,11 @@ export default function AppointmentForm({
   const [isRecurring, setIsRecurring] = useState(!!initialValues?.recurringText);
   const [teaserLength, setTeaserLength] = useState(initialValues?.teaser?.length || 0);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(initialValues?.featured || false);
+  const [coverImage, setCoverImage] = useState<File | Blob | null>(null);
+  const [croppedCoverImage, setCroppedCoverImage] = useState<File | Blob | null>(null);
   
-  // Initialize existing file URLs if provided
+  // Initialize existing file URLs and metadata if provided
   useEffect(() => {
     if (initialValues?.fileUrls) {
       try {
@@ -97,7 +102,24 @@ export default function AppointmentForm({
         setExistingFileUrls([]);
       }
     }
-  }, [initialValues?.fileUrls]);
+    
+    // If this is an edit of a featured appointment with metadata, check for cover images
+    if (initialValues?.featured && initialValues?.metadata) {
+      try {
+        const metadata = JSON.parse(initialValues.metadata);
+        
+        if (metadata.coverImageUrl) {
+          // Just set the URLs for display, but don't load the actual files
+          // The user will need to select a new file if they want to change it
+          setIsFeatured(true);
+          console.log("Found cover image in metadata:", metadata.coverImageUrl);
+          console.log("Found cropped cover image in metadata:", metadata.croppedCoverImageUrl);
+        }
+      } catch (err) {
+        console.error('Error parsing appointment metadata:', err);
+      }
+    }
+  }, [initialValues?.fileUrls, initialValues?.metadata, initialValues?.featured]);
 
   // Prepare default values from initialValues if provided
   const defaultValues: Partial<FormInput> = {};
@@ -158,7 +180,14 @@ export default function AppointmentForm({
     try {
       // If custom submit handler is provided (edit mode), use it
       if (customSubmit) {
-        await customSubmit(data, fileList);
+        // Add cover image data to the form data
+        const dataWithCover = {
+          ...data,
+          featured: isFeatured,
+          coverImage: coverImage || undefined,
+          croppedCoverImage: croppedCoverImage || undefined
+        };
+        await customSubmit(dataWithCover, fileList);
         setSubmissionSuccess(true);
         return;
       }
@@ -193,6 +222,7 @@ export default function AppointmentForm({
       formData.append('firstName', data.firstName || '');
       formData.append('lastName', data.lastName || '');
       formData.append('recurringText', data.recurringText || '');
+      formData.append('featured', isFeatured.toString());
 
       // Append all files with index to identify them
       if (fileList.length > 0) {
@@ -205,6 +235,14 @@ export default function AppointmentForm({
       // For edit mode, include existing file URLs
       if (mode === 'edit' && existingFileUrls.length > 0) {
         formData.append('existingFileUrls', JSON.stringify(existingFileUrls));
+      }
+      
+      // Add cover image if available (for featured appointments)
+      if (isFeatured && coverImage) {
+        formData.append('coverImage', coverImage);
+        if (croppedCoverImage) {
+          formData.append('croppedCoverImage', croppedCoverImage);
+        }
       }
 
       if (showCaptcha && !data.captchaToken && mode === 'create') {
@@ -284,8 +322,8 @@ export default function AppointmentForm({
             helpTitle="Ihre Kontaktdaten"
             helpText={
               <Typography variant="body2">
-                Bitte geben Sie Ihren Namen an, damit wir Sie bei Rückfragen kontaktieren können.
-                Diese Informationen werden vertraulich behandelt und nur für die Veranstaltungsplanung verwendet.
+                Bitte geben Sie Ihren Namen an, damit wir die Anfrage intern zuordnen können. Die Informationen werden 
+                für die interne Freigabe verwendet und nicht nach außen gegeben. 
               </Typography>
             }
           />
@@ -309,9 +347,10 @@ export default function AppointmentForm({
                   In diesem Abschnitt können Sie Ihre Veranstaltung beschreiben:
                 </Typography>
                 <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-                  <li>Der <strong>Teaser</strong> erscheint als kurze Vorschau in Übersichten und sollte prägnant sein.</li>
-                  <li>Die <strong>Beschreibung</strong> ermöglicht eine detaillierte Darstellung mit Formatierungsoptionen.</li>
-                  <li>Optional können Sie ein <strong>Bild oder PDF</strong> hochladen für die visuelle Darstellung.</li>
+                  <li>Der <strong>Titel</strong> der Veranstaltung wird sowohl in der Mittwochsmail als auch auf der Webseite angezeigt. Er sollte sehr kurz und prägnant sein.</li>
+                  <li>Der <strong>Teaser</strong> erscheint als kurze Vorschau in Übersichten aller Termine und im Newsletter und sollte deshlba immer vorhanden, prägnant und kurz sein.</li>
+                  <li>Die <strong>Beschreibung</strong> ermöglicht eine detaillierte Beschreibung mit bis zu 1000 Zeichen. Diese Beschreibung wird angezeigt, wenn jemand die Termindetails öffnet. </li>
+                  <li>Ein <strong>Featured Termin</strong> erscheint hervorgehoben in der Mittwochsmail. Dafür benötigt immer es <strong>Cover-Bild</strong>. Dieses können sie im nächsten Schritt hochladen.</li>
                 </Box>
               </>
             }
@@ -398,9 +437,88 @@ export default function AppointmentForm({
             )}
           </Box>
 
-
+          <Box sx={{ mt: 3 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isFeatured}
+                  onChange={(e) => setIsFeatured(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label="Als Featured Termin markieren (wird im Newsletter hervorgehoben)"
+            />
+            
+            <Collapse in={helpOpen}>
+              <Paper sx={{ mt: 2, p: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  Featured Termine
+                </Typography>
+                <Typography variant="body2">
+                  Featured Termine werden im Newsletter besonders hervorgehoben. Sie erscheinen mit einem größeren Bild und mehr Platz.
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Wenn Sie diese Option aktivieren, können Sie ein Titelbild hochladen, welches im Newsletter verwendet wird.
+                </Typography>
+              </Paper>
+            </Collapse>
+          </Box>
         </CardContent>
       </Card>
+
+      {isFeatured && (
+        <Card variant="outlined" sx={{
+          mb: 3,
+          borderLeft: 4,
+          borderLeftColor: 'primary.main',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
+        }}>
+          <CardContent>
+            <SectionHeader
+              title="Cover-Bild für Newsletter"
+              helpTitle="Cover-Bild hochladen"
+              helpText={
+                <>
+                  <Typography variant="body2">
+                    Für einen Featured Termin <strong>muss</strong> stets ein Cover-Bild hochgeladen und 
+                    zugeschnitten werden, damit die Darstellung im Newsletter gewährleistet wird.
+                  </Typography>
+                </>
+              }
+            />
+            <CoverImageUpload 
+              onImageSelect={(originalImage, croppedImage) => {
+                setCoverImage(originalImage);
+                setCroppedCoverImage(croppedImage);
+              }}
+              initialCoverImageUrl={
+                initialValues?.metadata ? 
+                  (() => {
+                    try {
+                      const metadata = JSON.parse(initialValues.metadata || '{}');
+                      return metadata.coverImageUrl || undefined;
+                    } catch {
+                      return undefined;
+                    }
+                  })() : 
+                  undefined
+              }
+              initialCroppedCoverImageUrl={
+                initialValues?.metadata ? 
+                  (() => {
+                    try {
+                      const metadata = JSON.parse(initialValues.metadata || '{}');
+                      return metadata.croppedCoverImageUrl || undefined;
+                    } catch {
+                      return undefined;
+                    }
+                  })() : 
+                  undefined
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card variant="outlined" sx={{
         mb: 3,

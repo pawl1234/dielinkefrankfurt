@@ -40,6 +40,7 @@ model Appointment {
   recurringText  String?   // Information about recurring nature of event if applicable
   fileUrls       String?   // JSON string of file URLs for attached documents
   featured       Boolean   @default(false) // Flag for highlighting in newsletters
+  metadata       String?   // JSON string for additional metadata (cover images, etc.)
 
   // System fields
   createdAt      DateTime  @default(now())

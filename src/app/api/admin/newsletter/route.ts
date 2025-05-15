@@ -128,12 +128,28 @@ function generateEmailHtml({
   upcomingAppointments, 
   baseUrl 
 }: EmailTemplateParams): string {
-  // Helper function to get the first image from fileUrls
-  const getFirstImageUrl = (fileUrlsJson: string | null): string | null => {
-    if (!fileUrlsJson) return null;
+  // Helper function to get cover image from metadata or first image from fileUrls
+  const getCoverImageUrl = (appointment: Appointment): string | null => {
+    // First, try to get the cropped cover image from metadata if featured
+    if (appointment.featured && appointment.metadata) {
+      try {
+        const metadata = JSON.parse(appointment.metadata as string);
+        if (metadata.croppedCoverImageUrl) {
+          return metadata.croppedCoverImageUrl;
+        }
+        if (metadata.coverImageUrl) {
+          return metadata.coverImageUrl;
+        }
+      } catch (e) {
+        console.warn('Failed to parse metadata for appointment:', appointment.id);
+      }
+    }
+    
+    // Fallback to file URLs if no cover image in metadata
+    if (!appointment.fileUrls) return null;
     
     try {
-      const fileUrls = JSON.parse(fileUrlsJson) as string[];
+      const fileUrls = JSON.parse(appointment.fileUrls) as string[];
       // Find the first file that is an image
       const imageUrl = fileUrls.find((url: string) => 
         url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png') || url.endsWith('.gif')
@@ -160,34 +176,33 @@ function generateEmailHtml({
   if (featuredAppointments && featuredAppointments.length > 0) {
     featuredEventsHtml += '<tr><td colspan="100%"><h2 class="section-title">Featured</h2></td></tr>';
     
-    featuredAppointments.forEach((appointment: Appointment) => {
-      const imageUrl = getFirstImageUrl(appointment.fileUrls);
+    featuredAppointments.forEach((appointment: Appointment, index: number) => {
+      const imageUrl = getCoverImageUrl(appointment);
       const detailUrl = `${baseUrl}/termine/${appointment.id}`;
+      const isLastItem = index === featuredAppointments.length - 1;
       
       featuredEventsHtml += `
         <tr>
-          <td class="featured-event">
-            ${imageUrl ? `<img src="${imageUrl}" alt="${appointment.title}" class="featured-image" />` : ''}
+          <td class="featured-event ${!isLastItem ? 'has-border' : ''}">
             <table width="100%" cellPadding="0" cellSpacing="0" border="0">
               <tr>
-                <td class="featured-content">
+                <td class="featured-date" colspan="2">
+                  ${formatDate(appointment.startDateTime)}
+                  ${appointment.endDateTime ? ` - ${formatDate(appointment.endDateTime)}` : ''}
+                </td>
+              </tr>
+              <tr>
+                <td class="featured-image-cell" width="35%" valign="top">
+                  ${imageUrl ? `<img src="${imageUrl}" alt="${appointment.title}" class="featured-image" />` : ''}
+                </td>
+                <td class="featured-content" width="65%" valign="top">
                   <h3 class="event-title">${appointment.title}</h3>
                   <p class="event-teaser">${appointment.teaser}</p>
-                  <p class="event-date">
-                    ${formatDate(appointment.startDateTime)}
-                    ${appointment.endDateTime ? ` - ${formatDate(appointment.endDateTime)}` : ''}
-                  </p>
-                  
-                  ${appointment.street ? `
-                    <p class="event-location">
-                      ${appointment.street}<br />
-                      ${appointment.postalCode || ''} ${appointment.city || ''}
-                    </p>
-                  ` : ''}
-                  
-                  <a href="${detailUrl}" class="event-button">
-                    Mehr Informationen
-                  </a>
+                  <div class="button-container">
+                    <a href="${detailUrl}" class="event-button">
+                      Mehr Informationen
+                    </a>
+                  </div>
                 </td>
               </tr>
             </table>
@@ -310,8 +325,10 @@ return `
         .featured-image {
           width: 100%;
           height: auto;
-          max-height: 200px;
+          max-width: 600px;
+          max-height: 214px; /* Maintains 14:5 aspect ratio for featured images */
           object-fit: cover;
+          display: block;
         }
         
         .featured-content {

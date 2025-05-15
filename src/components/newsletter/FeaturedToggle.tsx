@@ -21,7 +21,8 @@ const FeaturedToggle: React.FC<FeaturedToggleProps> = ({ appointmentId, initialF
       const newValue = event.target.checked;
       setLoading(true);
       
-      const response = await fetch('/api/admin/newsletter/appointments', {
+      // Use the main appointments API endpoint so we can handle image cleanup
+      const response = await fetch('/api/admin/appointments', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

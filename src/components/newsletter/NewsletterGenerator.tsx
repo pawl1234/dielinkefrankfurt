@@ -19,6 +19,7 @@ import {
   Switch,
   Card,
   CardContent,
+  CardMedia,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
@@ -37,6 +38,15 @@ interface NewsletterSettings {
   testEmailRecipients?: string | null;
 }
 
+interface Appointment {
+  id: number;
+  title: string;
+  teaser: string;
+  startDateTime: string;
+  featured: boolean;
+  metadata?: string;
+}
+
 const NewsletterGenerator: React.FC = () => {
   const [settings, setSettings] = useState<NewsletterSettings>({});
   const [introductionText, setIntroductionText] = useState<string>('<p>Herzlich willkommen zum Newsletter der Linken Frankfurt!</p>');
@@ -46,6 +56,7 @@ const NewsletterGenerator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
+  const [featuredAppointments, setFeaturedAppointments] = useState<Appointment[]>([]);
   const [alert, setAlert] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -57,11 +68,23 @@ const NewsletterGenerator: React.FC = () => {
     const fetchSettings = async () => {
       try {
         setSettingsLoading(true);
-        const response = await fetch('/api/admin/newsletter/settings');
-        if (response.ok) {
-          const data = await response.json();
-          setSettings(data); // Add this line to update the state with fetched settings ✅
-          console.log("Settings loaded:", data); // Optional: log for debugging
+        
+        // Fetch settings from the API
+        const settingsResponse = await fetch('/api/admin/newsletter/settings');
+        if (settingsResponse.ok) {
+          const data = await settingsResponse.json();
+          setSettings(data);
+          console.log("Settings loaded:", data);
+        }
+        
+        // Fetch featured appointments to display their images
+        const appointmentsResponse = await fetch('/api/admin/newsletter/appointments');
+        if (appointmentsResponse.ok) {
+          const appointments = await appointmentsResponse.json();
+          // Filter for featured appointments
+          const featured = appointments.filter((app: Appointment) => app.featured);
+          setFeaturedAppointments(featured);
+          console.log("Featured appointments loaded:", featured);
         }
       } catch (error) {
         console.error('Error fetching newsletter settings:', error);
@@ -258,6 +281,70 @@ const NewsletterGenerator: React.FC = () => {
             </Typography>
           </CardContent>
         </Card>
+        
+        {/* Featured Appointments Preview */}
+        {featuredAppointments.length > 0 && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Featured Termine im Newsletter
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Diese Termine werden im Newsletter mit Titelbild hervorgehoben.
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                {featuredAppointments.map(appointment => {
+                  // Parse metadata to get cover image URLs
+                  let coverImageUrl = null;
+                  let croppedCoverImageUrl = null;
+                  
+                  if (appointment.metadata) {
+                    try {
+                      const metadata = JSON.parse(appointment.metadata);
+                      coverImageUrl = metadata.coverImageUrl;
+                      croppedCoverImageUrl = metadata.croppedCoverImageUrl;
+                    } catch (e) {
+                      console.error('Error parsing appointment metadata:', e);
+                    }
+                  }
+                  
+                  return (
+                    <Card key={appointment.id} sx={{ width: '100%', mb: 2 }}>
+                      {croppedCoverImageUrl && (
+                        <CardMedia
+                          component="img"
+                          height="150"
+                          image={croppedCoverImageUrl}
+                          alt={appointment.title}
+                          sx={{ objectFit: 'cover' }}
+                        />
+                      )}
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                          {appointment.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {appointment.teaser}
+                        </Typography>
+                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          {new Date(appointment.startDateTime).toLocaleDateString('de-DE', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </Box>
+            </CardContent>
+          </Card>
+        )}
 
       <Typography variant="subtitle1" gutterBottom>
         Einleitung des Newsletters
