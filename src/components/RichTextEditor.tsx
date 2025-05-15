@@ -26,6 +26,7 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   maxLength: number;
+  placeholder?: string;
 }
 
 // Styled component for the editor content
@@ -43,6 +44,17 @@ const StyledEditorContent = styled(EditorContent)(({ theme }) => ({
     '& ul': {
       marginLeft: theme.spacing(3),
       marginBottom: theme.spacing(1.5)
+    },
+    // Add placeholder styling
+    '&[data-placeholder]::before': {
+      content: 'attr(placeholder)',
+      color: theme.palette.text.secondary,
+      pointerEvents: 'none',
+      position: 'absolute',
+      opacity: 0.6,
+    },
+    '&:not(:empty)::before': {
+      display: 'none'
     }
   }
 }));
@@ -62,7 +74,7 @@ const EditorToggleButton = styled(IconButton, {
   },
 }));
 
-const RichTextEditor = ({ value, onChange, maxLength }: RichTextEditorProps) => {
+const RichTextEditor = ({ value, onChange, maxLength, placeholder }: RichTextEditorProps) => {
   const [charCount, setCharCount] = useState(0);
   const [showLimitMessage, setShowLimitMessage] = useState(false);
 
@@ -85,6 +97,11 @@ const RichTextEditor = ({ value, onChange, maxLength }: RichTextEditorProps) => 
       } else {
         setShowLimitMessage(true);
       }
+    },
+    editorProps: {
+      attributes: {
+        placeholder: placeholder || '',
+      },
     },
   });
 

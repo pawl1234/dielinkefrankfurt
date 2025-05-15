@@ -56,16 +56,38 @@ export const sendEmail = async ({
 // Send a test newsletter email
 export const sendTestEmail = async ({
   html,
+  testRecipients,
   subject = 'Test Newsletter - Die Linke Frankfurt',
 }: {
   html: string;
+  testRecipients?: string;
   subject?: string;
 }) => {
-  const recipient = process.env.TEST_EMAIL_RECIPIENT || 'buero@linke-frankfurt.de';
+  // Use provided test recipients or fallback to environment variable or default
+  const recipientsString = testRecipients || process.env.TEST_EMAIL_RECIPIENT || 'buero@linke-frankfurt.de';
   
-  return sendEmail({
-    to: recipient,
-    subject,
-    html,
-  });
+  // Split the recipients string by comma and trim whitespace
+  const recipientsList = recipientsString.split(',').map(email => email.trim()).filter(email => email);
+  
+  // Send individual emails to each recipient
+  const results = await Promise.all(
+    recipientsList.map(recipient => 
+      sendEmail({
+        to: recipient,
+        subject,
+        html,
+      })
+    )
+  );
+  
+  // Check if all emails were sent successfully
+  const allSuccessful = results.every(result => result.success);
+  const messageIds = results.map(result => result.messageId).filter(Boolean);
+  
+  return {
+    success: allSuccessful,
+    messageId: messageIds.length > 0 ? messageIds.join(', ') : undefined,
+    error: allSuccessful ? undefined : results.find(r => !r.success)?.error,
+    recipientCount: recipientsList.length
+  };
 };

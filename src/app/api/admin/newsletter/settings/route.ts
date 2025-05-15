@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         headerBanner: dbSettings.headerBanner ?? defaultSettings.headerBanner,
         footerText: dbSettings.footerText ?? defaultSettings.footerText,
         unsubscribeLink: dbSettings.unsubscribeLink ?? defaultSettings.unsubscribeLink,
+        testEmailRecipients: dbSettings.testEmailRecipients ?? 'buero@linke-frankfurt.de',
         id: dbSettings.id,
         createdAt: dbSettings.createdAt,
         updatedAt: dbSettings.updatedAt
@@ -89,7 +90,8 @@ export async function PUT(request: NextRequest) {
           headerLogo: data.headerLogo,
           headerBanner: data.headerBanner,
           footerText: data.footerText,
-          unsubscribeLink: data.unsubscribeLink
+          unsubscribeLink: data.unsubscribeLink,
+          testEmailRecipients: data.testEmailRecipients
         }
       });
     } else {
@@ -99,7 +101,8 @@ export async function PUT(request: NextRequest) {
           headerLogo: data.headerLogo || 'public/images/logo.png',
           headerBanner: data.headerBanner || 'public/images/header-bg.jpg',
           footerText: data.footerText || 'Die Linke Frankfurt am Main',
-          unsubscribeLink: data.unsubscribeLink || '#'
+          unsubscribeLink: data.unsubscribeLink || '#',
+          testEmailRecipients: data.testEmailRecipients || 'buero@linke-frankfurt.de'
         }
       });
     }

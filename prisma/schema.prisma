@@ -58,15 +58,16 @@ model Appointment {
 
 // Newsletter settings for email generation
 model Newsletter {
-  id              Int        @id @default(autoincrement())
-  headerLogo      String?    // URL for the header logo
-  headerBanner    String?    // URL for the header banner
-  footerText      String?    // Text for the newsletter footer
-  unsubscribeLink String?    // Link for unsubscribing (placeholder for now)
+  id                 Int        @id @default(autoincrement())
+  headerLogo         String?    // URL for the header logo
+  headerBanner       String?    // URL for the header banner
+  footerText         String?    // Text for the newsletter footer
+  unsubscribeLink    String?    // Link for unsubscribing (placeholder for now)
+  testEmailRecipients String?   // Comma-separated list of test email recipients
 
   // System fields
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   @@map("newsletter") // Lowercase table name for PostgreSQL convention
 }

@@ -34,6 +34,7 @@ interface NewsletterSettings {
   headerBanner?: string | null;
   footerText?: string | null;
   unsubscribeLink?: string | null;
+  testEmailRecipients?: string | null;
 }
 
 const NewsletterGenerator: React.FC = () => {
@@ -245,7 +246,7 @@ const NewsletterGenerator: React.FC = () => {
                   color="secondary"
                   startIcon={sendingTest ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
                   onClick={handleSendTestEmail}
-                  //disabled={sendingTest || !newsletterHtml}
+                  disabled={sendingTest}
                   size="small"
                 >
                   Test-Email senden
@@ -253,7 +254,7 @@ const NewsletterGenerator: React.FC = () => {
               </Box>
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Test-Emails werden an {process.env.NEXT_PUBLIC_TEST_EMAIL_RECIPIENT || 'buero@linke-frankfurt.de'} gesendet. Die Email enthält nur den Newsletter-Inhalt, ohne diesen Steuerungsbereich.
+              Test-Emails werden an die konfigurierten Empfänger gesendet, die in den Einstellungen festgelegt wurden. Die Email enthält nur den Newsletter-Inhalt, ohne diesen Steuerungsbereich.
             </Typography>
           </CardContent>
         </Card>
@@ -341,6 +342,14 @@ const NewsletterGenerator: React.FC = () => {
                 fullWidth
                 margin="normal"
                 helperText="Link zum Abmelden vom Newsletter (derzeit nur Platzhalter)"
+              />
+              <TextField
+                label="Test-Email Empfänger"
+                value={settings.testEmailRecipients || ''}
+                onChange={(e) => setSettings({ ...settings, testEmailRecipients: e.target.value })}
+                fullWidth
+                margin="normal"
+                helperText="Email-Adressen für Testemails (durch Komma getrennt: email1@beispiel.de, email2@beispiel.de)"
               />
             </Box>
           )}

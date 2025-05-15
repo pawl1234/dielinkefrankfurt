@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import RichTextEditor from './RichTextEditor';
 import FileUpload from './FileUpload';
@@ -21,8 +21,11 @@ import {
   Alert,
   Paper,
   Collapse,
+  CardMedia,
+  CardActions
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 interface FormInput {
   title: string;
@@ -41,16 +44,76 @@ interface FormInput {
   files?: (File | Blob)[];
 }
 
-export default function AppointmentForm() {
+interface AppointmentFormProps {
+  initialValues?: {
+    id?: number;
+    title?: string;
+    teaser?: string;
+    mainText?: string;
+    startDateTime?: string;
+    endDateTime?: string | null;
+    street?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    recurringText?: string | null;
+    fileUrls?: string | null;
+    featured?: boolean;
+  };
+  mode?: 'create' | 'edit';
+  submitButtonText?: string;
+  onSubmit?: (data: FormInput, files: (File | Blob)[]) => Promise<void>;
+  onCancel?: () => void;
+}
+
+export default function AppointmentForm({
+  initialValues,
+  mode = 'create',
+  submitButtonText = 'Termin einreichen',
+  onSubmit: customSubmit,
+  onCancel
+}: AppointmentFormProps) {
   const [submissionCount, setSubmissionCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
-  const [mainText, setMainText] = useState('');
+  const [mainText, setMainText] = useState(initialValues?.mainText || '');
   const [fileList, setFileList] = useState<(File | Blob)[]>([]);
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [teaserLength, setTeaserLength] = useState(0);
+  const [existingFileUrls, setExistingFileUrls] = useState<string[]>([]);
+  const [isRecurring, setIsRecurring] = useState(!!initialValues?.recurringText);
+  const [teaserLength, setTeaserLength] = useState(initialValues?.teaser?.length || 0);
   const [helpOpen, setHelpOpen] = useState(false);
+  
+  // Initialize existing file URLs if provided
+  useEffect(() => {
+    if (initialValues?.fileUrls) {
+      try {
+        const urls = JSON.parse(initialValues.fileUrls);
+        setExistingFileUrls(Array.isArray(urls) ? urls : []);
+      } catch (err) {
+        console.error('Error parsing file URLs:', err);
+        setExistingFileUrls([]);
+      }
+    }
+  }, [initialValues?.fileUrls]);
+
+  // Prepare default values from initialValues if provided
+  const defaultValues: Partial<FormInput> = {};
+  if (initialValues) {
+    if (initialValues.title) defaultValues.title = initialValues.title;
+    if (initialValues.teaser) defaultValues.teaser = initialValues.teaser;
+    if (initialValues.startDateTime) defaultValues.startDateTime = new Date(initialValues.startDateTime);
+    if (initialValues.endDateTime) defaultValues.endDateTime = new Date(initialValues.endDateTime);
+    if (initialValues.street) defaultValues.street = initialValues.street;
+    if (initialValues.city) defaultValues.city = initialValues.city;
+    if (initialValues.state) defaultValues.state = initialValues.state;
+    if (initialValues.postalCode) defaultValues.postalCode = initialValues.postalCode;
+    if (initialValues.firstName) defaultValues.firstName = initialValues.firstName;
+    if (initialValues.lastName) defaultValues.lastName = initialValues.lastName;
+    if (initialValues.recurringText) defaultValues.recurringText = initialValues.recurringText;
+  }
 
   const {
     register,
@@ -59,7 +122,9 @@ export default function AppointmentForm() {
     setValue,
     control,
     formState: { errors },
-  } = useForm<FormInput>();
+  } = useForm<FormInput>({
+    defaultValues
+  });
 
   const showCaptcha = submissionCount >= 3;
   const startDateTime = watch('startDateTime');
@@ -91,6 +156,14 @@ export default function AppointmentForm() {
     setSubmissionSuccess(false);
 
     try {
+      // If custom submit handler is provided (edit mode), use it
+      if (customSubmit) {
+        await customSubmit(data, fileList);
+        setSubmissionSuccess(true);
+        return;
+      }
+      
+      // Default create mode submission
       // Create form data
       const formData = new FormData();
       formData.append('title', data.title)
@@ -129,7 +202,12 @@ export default function AppointmentForm() {
         formData.append('fileCount', fileList.length.toString());
       }
 
-      if (showCaptcha && !data.captchaToken) {
+      // For edit mode, include existing file URLs
+      if (mode === 'edit' && existingFileUrls.length > 0) {
+        formData.append('existingFileUrls', JSON.stringify(existingFileUrls));
+      }
+
+      if (showCaptcha && !data.captchaToken && mode === 'create') {
         throw new Error('Bitte bestätigen Sie, dass Sie kein Roboter sind.');
       }
 
@@ -349,6 +427,69 @@ export default function AppointmentForm() {
               maxFiles={5}
             />
           </Box>
+          
+          {/* Show existing files in edit mode */}
+          {mode === 'edit' && existingFileUrls.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Vorhandene Anhänge
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                {existingFileUrls.map((fileUrl, index) => {
+                  const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');
+                  const isPdf = fileUrl.endsWith('.pdf');
+                  const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
+                  
+                  return (
+                    <Box key={fileUrl} sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', md: 'calc(33.333% - 11px)' } }}>
+                      <Card variant="outlined" sx={{ mb: 1 }}>
+                        {isImage && (
+                          <CardMedia
+                            component="img"
+                            height="140"
+                            image={fileUrl}
+                            alt={`Anhang ${index + 1}`}
+                            sx={{ objectFit: 'cover' }}
+                          />
+                        )}
+                        {isPdf && (
+                          <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+                            <PictureAsPdfIcon sx={{ fontSize: 40, color: 'error.main' }} />
+                          </Box>
+                        )}
+                        <CardContent sx={{ py: 1 }}>
+                          <Typography variant="caption" noWrap title={fileName}>
+                            {fileName}
+                          </Typography>
+                        </CardContent>
+                        <CardActions>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            href={fileUrl}
+                            target="_blank"
+                            sx={{ mr: 1 }}
+                          >
+                            Öffnen
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            onClick={() => {
+                              setExistingFileUrls(prev => prev.filter(url => url !== fileUrl));
+                            }}
+                          >
+                            Entfernen
+                          </Button>
+                        </CardActions>
+                      </Card>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
         </CardContent>
       </Card>
       <Card variant="outlined" sx={{
@@ -519,15 +660,25 @@ export default function AppointmentForm() {
         </Card>
       )}
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        {mode === 'edit' && onCancel && (
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Abbrechen
+          </Button>
+        )}
         <Button
           type="submit"
           variant="contained"
           color="primary"
           loading={isSubmitting}
-          endIcon={<SendIcon />}
+          endIcon={mode === 'create' ? <SendIcon /> : undefined}
         >
-          {isSubmitting ? 'Wird gesendet...' : 'Termin einreichen'}
+          {isSubmitting ? 'Wird gesendet...' : submitButtonText}
         </Button>
       </Box>
     </Box>
