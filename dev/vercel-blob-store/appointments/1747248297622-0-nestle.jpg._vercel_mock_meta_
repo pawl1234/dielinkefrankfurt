@@ -1,0 +1,10 @@
+{
+  "url": "http://localhost:9966/?pathname=appointments%2F1747248297622-0-nestle.jpg",
+  "downloadUrl": "http://localhost:9966/?download=1",
+  "pathname": "appointments/1747248297622-0-nestle.jpg",
+  "size": 140244,
+  "contentType": "text/plain;charset=utf-8",
+  "cacheControl": "max-age=31536000",
+  "uploadedAt": "2025-05-14T18:44:57.638Z",
+  "contentDisposition": "attachment"
+}

@@ -247,17 +247,18 @@ export default function AppointmentForm() {
           <Controller
             name="title"
             control={control}
+            defaultValue="" // Add a default value here
             rules={{ required: 'Titel ist erforderlich', maxLength: 100 }}
             render={({ field }) => (
               <TextField
                 {...field}
+                value={field.value || ''} // Ensure value is never undefined
                 fullWidth
                 placeholder="Titel der Veranstaltung..."
                 inputProps={{ maxLength: 100 }}
                 error={!!errors.title}
-                helperText={errors.title?.message || `${field.value?.length || 0}/100`}
+                helperText={errors.title?.message || `${(field.value || '').length}/100`}
                 margin="normal"
-                onChange={(e) => field.onChange(e)} // You can customize the onChange logic here if needed
               />
             )}
           />

@@ -13,7 +13,8 @@ import {
   Card,
   CardMedia,
 } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { use, useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Link from 'next/link';
@@ -42,17 +43,22 @@ type Params = {
   id: string;
 };
 
+
 // @ts-ignore - Suppressing Next.js PageProps error
-export default function AppointmentDetailPage({ params }: { params: Params }) {
+export default function AppointmentDetailPage() {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Get params using the useParams hook
+  const params = useParams();
+  const id = params?.id as string;
 
   useEffect(() => {
     const fetchAppointment = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/appointments?id=${params.id}`);
+        const response = await fetch(`/api/appointments?id=${id}`);
 
         if (!response.ok) {
           if (response.status === 404) {
@@ -74,10 +80,10 @@ export default function AppointmentDetailPage({ params }: { params: Params }) {
       }
     };
 
-    if (params.id) {
+    if (id) {
       fetchAppointment();
     }
-  }, [params.id]);
+  }, [id]);
 
   return (
     <MainLayout

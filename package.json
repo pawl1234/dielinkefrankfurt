@@ -23,6 +23,8 @@
     "db:validate": "prisma validate",
     "db:start": "docker run --name postgres-dev -e POSTGRES_USER=devuser -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=mydatabase -p 5432:5432 -d postgres",
     "db:stop": "docker stop postgres-dev && docker rm postgres-dev",
+    "blob:start": "docker run --name vercel-blob-server --restart unless-stopped -p 9966:3000 -v ./dev/vercel-blob-store:/var/vercel-blob-store vercel-blob-server",
+    "blob:stop": "docker stop vercel-blob-server && docker rm vercel-blob-server",
     "mail:dev": "maildev --web 1080 --smtp 1025"
   },
   "keywords": [],

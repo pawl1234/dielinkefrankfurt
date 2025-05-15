@@ -56,13 +56,19 @@ const NewsletterGenerator: React.FC = () => {
     const fetchSettings = async () => {
       try {
         setSettingsLoading(true);
-        const response = await fetch('/api/admin/newsletter');
+        const response = await fetch('/api/admin/newsletter/settings');
         if (response.ok) {
           const data = await response.json();
-          setSettings(data);
+          setSettings(data); // Add this line to update the state with fetched settings ✅
+          console.log("Settings loaded:", data); // Optional: log for debugging
         }
       } catch (error) {
         console.error('Error fetching newsletter settings:', error);
+        setAlert({
+          open: true,
+          message: 'Fehler beim Abrufen der Newsletter-Einstellungen',
+          severity: 'error',
+        });
       } finally {
         setSettingsLoading(false);
       }
@@ -75,7 +81,7 @@ const NewsletterGenerator: React.FC = () => {
   const handleSaveSettings = async () => {
     try {
       setSettingsLoading(true);
-      const response = await fetch('/api/admin/newsletter', {
+      const response = await fetch('/api/admin/newsletter/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -21,7 +21,7 @@ const FeaturedToggle: React.FC<FeaturedToggleProps> = ({ appointmentId, initialF
       const newValue = event.target.checked;
       setLoading(true);
       
-      const response = await fetch('/api/admin/newsletter', {
+      const response = await fetch('/api/admin/newsletter/appointments', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

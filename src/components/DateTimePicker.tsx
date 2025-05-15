@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import { DateTimePicker as MUIDateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -10,9 +10,9 @@ import 'dayjs/locale/de';
 import {
   FormControl,
   FormHelperText,
-  InputLabel,
   Box,
-  Typography
+  Typography,
+  Skeleton,
 } from '@mui/material';
 
 interface DateTimePickerProps {
@@ -23,6 +23,7 @@ interface DateTimePickerProps {
   setValue: UseFormSetValue<any>;
   error?: string;
   minDate?: Date;
+  defaultValue?: Date;
 }
 
 const DateTimePicker = ({
@@ -33,20 +34,37 @@ const DateTimePicker = ({
   setValue,
   error,
   minDate,
+  defaultValue,
 }: DateTimePickerProps) => {
-  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null);
+  // Initialize with default value if provided
+  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(
+    defaultValue ? dayjs(defaultValue) : null
+  );
+  // Track client-side mounting
+  const [isMounted, setIsMounted] = useState(false);
 
   // Register the field with react-hook-form
   useEffect(() => {
     register(name, { required: required ? `${label} ist erforderlich` : false });
   }, [register, name, required, label]);
 
-  // Update form value when date changes
+  // Set mounted state when component loads on client
   useEffect(() => {
-    if (selectedDate) {
-      setValue(name, selectedDate.toDate());
+    setIsMounted(true);
+  }, []);
+
+  // Optimize date change handler with useCallback
+  const handleDateChange = useCallback((date: dayjs.Dayjs | null) => {
+    setSelectedDate(date);
+    if (date) {
+      setValue(name, date.toDate(), { shouldValidate: true });
+    } else {
+      setValue(name, null, { shouldValidate: true });
     }
-  }, [selectedDate, setValue, name]);
+  }, [setValue, name]);
+
+  // Format for German locale
+  const dateTimeFormat = 'DD.MM.YYYY HH:mm';
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -54,38 +72,62 @@ const DateTimePicker = ({
         <Typography
           variant="subtitle2"
           component="label"
+          htmlFor={`${name}-datetime`}
+          id={`${name}-label`}
           sx={{
             mb: 1,
             display: 'block',
             fontWeight: 500
           }}
         >
-          {label} {required && <Box component="span" sx={{ color: 'primary.main' }}>*</Box>}
+          {label} {required && <Box component="span" sx={{ color: 'primary.main' }} aria-hidden="true">*</Box>}
         </Typography>
 
-        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="de">
-          <MUIDateTimePicker
-            value={selectedDate}
-            onChange={(date) => setSelectedDate(date)}
-            minDateTime={minDate ? dayjs(minDate) : undefined}
-            slotProps={{
-              textField: {
-                variant: 'outlined',
-                fullWidth: true,
-                error: !!error
-              }
-            }}
-            ampm={false}
-            format="DD.MM.YYYY HH:mm"
-          />
-        </LocalizationProvider>
+        {!isMounted ? (
+          // Better loading state with Skeleton
+          <Skeleton variant="rectangular" height={56} animation="wave" />
+        ) : (
+          // Client-side only rendering of DateTimePicker
+          <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="de">
+            <MUIDateTimePicker
+              value={selectedDate}
+              onChange={handleDateChange}
+              minDateTime={minDate ? dayjs(minDate) : undefined}
+             // clearable
+              ampm={false}
+              format={dateTimeFormat}
+              slotProps={{
+                textField: {
+                  variant: 'outlined',
+                  fullWidth: true,
+                  error: !!error,
+                  id: `${name}-datetime`,
+                  inputProps: {
+                    'aria-labelledby': `${name}-label`,
+                    'aria-required': required,
+                  }
+                },
+              }}
+            />
+          </LocalizationProvider>
+        )}
 
         {error && (
-          <FormHelperText error>{error}</FormHelperText>
+          <FormHelperText 
+            error 
+            sx={{
+              mt: 0.5,
+              ml: 1.75,
+              fontSize: '0.75rem'
+            }}
+          >
+            {error}
+          </FormHelperText>
         )}
       </FormControl>
     </Box>
   );
 };
 
-export default DateTimePicker;
+// Use memo to prevent unnecessary re-renders
+export default memo(DateTimePicker);

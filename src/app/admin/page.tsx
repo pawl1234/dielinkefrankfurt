@@ -185,9 +185,18 @@ export default function AdminPage() {
 
   if (status === 'loading' || status === 'unauthenticated') {
     return (
-      //<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      //</Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        {/* Simple static loading indicator that doesn't cause hydration mismatches */}
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #3498db',
+          }}
+        />
+      </Box>
     );
   }
 
@@ -256,6 +265,7 @@ export default function AdminPage() {
                           {currentView === 'pending' && (
                             <Box sx={{ display: 'flex', gap: 1 }}>
                               <IconButton
+                                component="span"
                                 color="success"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -278,6 +288,7 @@ export default function AdminPage() {
                               </IconButton>
 
                               <IconButton
+                                component="span"
                                 color="error"
                                 onClick={(e) => {
                                   e.stopPropagation();
