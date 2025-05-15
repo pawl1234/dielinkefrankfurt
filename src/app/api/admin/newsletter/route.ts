@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     let newsletterSettings: NewsletterSettings = {
       headerLogo: 'public/images/logo.png',
       headerBanner: 'public/images/header-bg.jpg',
-      footerText: 'Die Linke Frankfurt am Main<br/>Kommunalpolitische Vereinigung',
+      footerText: 'Die Linke Frankfurt am Main',
       unsubscribeLink: '#'
     };
     

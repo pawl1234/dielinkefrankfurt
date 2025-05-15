@@ -276,6 +276,7 @@ const NewsletterGenerator: React.FC = () => {
           value={introductionText}
           onChange={(introductionText) => setIntroductionText(introductionText)}
           maxLength={1000}
+          placeholder="Einleitungstext für Mittwochsmail"
         />
       </Box>
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
