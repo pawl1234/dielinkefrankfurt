@@ -15,28 +15,16 @@ import {
   Alert,
   Divider,
   LinearProgress,
-  FormControlLabel,
-  Switch,
   Card,
   CardContent,
   CardMedia,
 } from '@mui/material';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import RichTextEditor from '../RichTextEditor';
-import { htmlToText } from 'nodemailer-html-to-text';
-
-interface NewsletterSettings {
-  id?: number;
-  headerLogo?: string | null;
-  headerBanner?: string | null;
-  footerText?: string | null;
-  unsubscribeLink?: string | null;
-  testEmailRecipients?: string | null;
-}
+import { NewsletterSettings } from '@/lib/newsletter-template';
 
 interface Appointment {
   id: number;
@@ -48,11 +36,9 @@ interface Appointment {
 }
 
 const NewsletterGenerator: React.FC = () => {
-  const [settings, setSettings] = useState<NewsletterSettings>({});
+  const [settings, setSettings] = useState<NewsletterSettings>({} as NewsletterSettings);
   const [introductionText, setIntroductionText] = useState<string>('<p>Herzlich willkommen zum Newsletter der Linken Frankfurt!</p>');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [newsletterHtml, setNewsletterHtml] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -141,6 +127,7 @@ const NewsletterGenerator: React.FC = () => {
     }
   };
 
+  // Get and return newsletter HTML from the API
   const getNewsletter = async () => {
     try {
       setLoading(true);
@@ -153,8 +140,6 @@ const NewsletterGenerator: React.FC = () => {
 
       if (response.ok) {
         const html = await response.text();
-
-        // Store the HTML content
         return html;
       } else {
         setAlert({
@@ -173,26 +158,25 @@ const NewsletterGenerator: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }
+  };
+
   // Generate newsletter and open in new tab
   const handlePreviewNewsletter = async () => {
-    
     const newsletter = await getNewsletter();
-    const newTab = window.open('', '_blank');
-
-    if (newTab && newsletter) {
-      // The new tab/window was successfully opened
-      newTab.document.write(newsletter);
-      newTab.document.close();
-    } else {
-      // If popup blocked, fallback to modal
-      setPreviewOpen(true);
-      setAlert({
-        open: true,
-        message: 'Pop-up wurde blockiert. Bitte erlauben Sie Pop-ups für diese Seite.',
-        severity: 'error',
-      });
-    }
+    
+    // Create a blob with the HTML content
+    const blob = new Blob([newsletter || ''], { type: 'text/html' });
+    
+    // Create a URL for the blob
+    const blobUrl = URL.createObjectURL(blob);
+    
+    // Open the URL in a new tab
+    window.open(blobUrl, '_blank');
+    
+    // Clean up the URL object after a delay
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 30000); // Clean up after 30 seconds
   };
 
   // Send a test email
@@ -240,125 +224,53 @@ const NewsletterGenerator: React.FC = () => {
 
   return (
     <Paper sx={{ p: 3, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" component="h2">
-          <MailOutlineIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-          Newsletter Generator
-        </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<SettingsIcon />}
-          onClick={() => setSettingsOpen(true)}
-        >
-          Einstellungen
-        </Button>
-      </Box>
+<Box
+  sx={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    mb: 2
+  }}
+>
+  <Typography variant="h5" component="h2">
+    <MailOutlineIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+    Newsletter Generator
+  </Typography>
+  <Box sx={{ display: 'flex', marginLeft: 'auto', gap: 1 }}>
+      <Button
+        variant="outlined"
+        startIcon={<SettingsIcon />}
+        onClick={() => setSettingsOpen(true)}
+      >
+        Einstellungen
+      </Button>
+      <Button
+        variant="contained"
+        color="secondary"
+        startIcon={sendingTest ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+        onClick={handleSendTestEmail}
+        disabled={sendingTest}
+        size="small"
+      >
+        Test-Email senden
+      </Button>
+      <Button
+        variant="contained"
+        color="primary"
+        disabled={loading}
+        onClick={handlePreviewNewsletter}
+        startIcon={loading ? <CircularProgress size={20} /> : <MailOutlineIcon />}
+      >
+        Newsletter Preview
+      </Button>
+    </Box>
+  </Box>
 
       <Divider sx={{ mb: 3 }} />
-
-      {/* Preview & Testing Section */}
-        <Card sx={{ mb: 3, backgroundColor: '#f8f9fa' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Newsletter Vorschau & Test
-              </Typography>
-              <Box>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  startIcon={sendingTest ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-                  onClick={handleSendTestEmail}
-                  disabled={sendingTest}
-                  size="small"
-                >
-                  Test-Email senden
-                </Button>
-              </Box>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Test-Emails werden an die konfigurierten Empfänger gesendet, die in den Einstellungen festgelegt wurden. Die Email enthält nur den Newsletter-Inhalt, ohne diesen Steuerungsbereich.
-            </Typography>
-          </CardContent>
-        </Card>
-        
-        {/* Featured Appointments Preview */}
-        {featuredAppointments.length > 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                Featured Termine im Newsletter
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Diese Termine werden im Newsletter mit Titelbild hervorgehoben.
-              </Typography>
-              
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                {featuredAppointments.map(appointment => {
-                  // Parse metadata to get cover image URLs
-                  let coverImageUrl = null;
-                  let croppedCoverImageUrl = null;
-                  
-                  if (appointment.metadata) {
-                    try {
-                      const metadata = JSON.parse(appointment.metadata);
-                      coverImageUrl = metadata.coverImageUrl;
-                      croppedCoverImageUrl = metadata.croppedCoverImageUrl;
-                    } catch (e) {
-                      console.error('Error parsing appointment metadata:', e);
-                    }
-                  }
-                  
-                  return (
-                    <Card key={appointment.id} sx={{ width: '100%', mb: 2 }}>
-                      {croppedCoverImageUrl && (
-                        <CardMedia
-                          component="img"
-                          height="150"
-                          image={croppedCoverImageUrl}
-                          alt={appointment.title}
-                          sx={{ objectFit: 'cover' }}
-                        />
-                      )}
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>
-                          {appointment.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {appointment.teaser}
-                        </Typography>
-                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                          {new Date(appointment.startDateTime).toLocaleDateString('de-DE', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </Box>
-            </CardContent>
-          </Card>
-        )}
 
       <Typography variant="subtitle1" gutterBottom>
         Einleitung des Newsletters
       </Typography>
-     {/*  <TextField
-        label="Einleitungstext (HTML)"
-        multiline
-        rows={4}
-        value={introductionText}
-        onChange={(e) => setIntroductionText(e.target.value)}
-        fullWidth
-        margin="normal"
-        helperText="HTML-Tags können verwendet werden, z.B. <p>, <b>, <i>, etc."
-      />*/}
       <Box sx={{ mb: 3 }}>
         <RichTextEditor
           value={introductionText}
@@ -367,17 +279,69 @@ const NewsletterGenerator: React.FC = () => {
           placeholder="Einleitungstext für Mittwochsmail"
         />
       </Box>
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button
-          variant="contained"
-          color="primary"
-          disabled={loading}
-          onClick={handlePreviewNewsletter}
-          startIcon={loading ? <CircularProgress size={20} /> : <MailOutlineIcon />}
-        >
-          Newsletter Preview
-        </Button>
-      </Box>
+      {/* Featured Appointments Preview */}
+      {featuredAppointments.length > 0 && (
+        <Card sx={{ mt: 3, mb: 3 }}>
+          <CardContent>
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+              Featured Termine im Newsletter
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Diese Termine werden im Newsletter mit Titelbild hervorgehoben.
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              {featuredAppointments.map(appointment => {
+                // Parse metadata to get cover image URLs
+                let coverImageUrl = null;
+                let croppedCoverImageUrl = null;
+                
+                if (appointment.metadata) {
+                  try {
+                    const metadata = JSON.parse(appointment.metadata);
+                    coverImageUrl = metadata.coverImageUrl;
+                    croppedCoverImageUrl = metadata.croppedCoverImageUrl;
+                  } catch (e) {
+                    console.error('Error parsing appointment metadata:', e);
+                  }
+                }
+                
+                return (
+                  <Card key={appointment.id} sx={{ width: '100%', mb: 2 }}>
+                    {croppedCoverImageUrl && (
+                      <CardMedia
+                        component="img"
+                        height="150"
+                        image={croppedCoverImageUrl}
+                        alt={appointment.title}
+                        sx={{ objectFit: 'cover' }}
+                      />
+                    )}
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        {appointment.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {appointment.teaser}
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        {new Date(appointment.startDateTime).toLocaleDateString('de-DE', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="md" fullWidth>
@@ -454,41 +418,6 @@ const NewsletterGenerator: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Newsletter Preview Dialog not used at the moment 
-      <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          Newsletter-Vorschau
-          <IconButton
-            aria-label="close"
-            onClick={() => setPreviewOpen(false)}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              startIcon={<ContentCopyIcon />}
-              onClick={handleCopyHtml}
-            >
-              HTML kopieren
-            </Button>
-          </Box>
-          <Paper sx={{ p: 2, maxHeight: '500px', overflow: 'auto', border: '1px solid #ddd' }}>
-            <iframe
-              srcDoc={newsletterHtml}
-              style={{ width: '100%', height: '500px', border: 'none' }}
-              title="Newsletter-Vorschau"
-            />
-          </Paper>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPreviewOpen(false)}>Schließen</Button>
-        </DialogActions>
-      </Dialog>
-        */}
       {/* Alert Snackbar */}
       <Snackbar
         open={alert.open}
