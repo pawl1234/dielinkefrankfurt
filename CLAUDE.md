@@ -213,8 +213,16 @@ Optional:
 
 ## Documentation
 
-Additional documentation files:
-- `VERCEL_DEPLOYMENT.md`: Details on deployment to Vercel
-- `VERCEL_BLOB_STORAGE.md`: Information about the file storage system
-- `STYLING.md`: Styling guidelines and theme details
-- `NEWSLETTER_TESTING.md`: Guide to testing newsletter emails
+All documentation has been organized into the `/docs` directory:
+
+- `/docs/README.md`: General application features and purpose
+- `/docs/api/README.md`: Technical API documentation
+- `/docs/development/`: Development guides
+  - `vercel-deployment.md`: Details on deployment to Vercel
+  - `vercel-blob-storage.md`: Information about the file storage system
+  - `newsletter-testing.md`: Guide to testing newsletter emails
+- `/docs/styling/`: Styling guidelines
+  - `README.md`: Main styling guidelines
+  - `style-docs.md`: Detailed styling documentation
+
+**Important Note**: Documentation should be revisited and updated whenever changes are made to the application. Keeping documentation in sync with code changes is critical for maintainability.

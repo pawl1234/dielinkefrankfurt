@@ -1,3 +1,4 @@
+To be implemented Features in the future:
 * Images are missing in Details view
 * Newsletter which has been sent should be accessible via URL.
 * Unsubscribe Feature.
