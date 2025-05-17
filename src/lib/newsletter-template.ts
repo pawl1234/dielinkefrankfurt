@@ -1,4 +1,4 @@
-import { Appointment, Newsletter } from '@prisma/client';
+import { Appointment, Newsletter, Group, StatusReport } from '@prisma/client';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -14,12 +14,19 @@ export interface NewsletterSettings {
   testEmailRecipients?: string | null;
 }
 
+// Group with status reports type
+export interface GroupWithReports {
+  group: Group;
+  reports: StatusReport[];
+}
+
 // Parameters for email template generation
 export interface EmailTemplateParams {
   newsletterSettings: NewsletterSettings;
   introductionText: string;
   featuredAppointments: Appointment[];
   upcomingAppointments: Appointment[];
+  statusReportsByGroup?: GroupWithReports[];
   baseUrl: string;
 }
 
@@ -149,6 +156,101 @@ export const generateUpcomingEventsHtml = (
 };
 
 /**
+ * Helper function to truncate text to a certain length or number of lines
+ */
+export const truncateText = (text: string, maxLength: number = 300): string => {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  
+  // Find the last space within the maxLength
+  const lastSpace = text.substring(0, maxLength).lastIndexOf(' ');
+  
+  // If no space found, just cut at maxLength
+  const truncatedText = lastSpace !== -1 ? text.substring(0, lastSpace) : text.substring(0, maxLength);
+  
+  return truncatedText + '...';
+};
+
+/**
+ * Generate status reports HTML section
+ */
+export const generateStatusReportsHtml = (
+  statusReportsByGroup?: GroupWithReports[],
+  baseUrl: string
+): string => {
+  if (!statusReportsByGroup || statusReportsByGroup.length === 0) {
+    return '';
+  }
+  
+  let html = '<tr><td colspan="100%"><h2 class="section-title">Aktuelle Gruppenberichte</h2></td></tr>';
+  
+  statusReportsByGroup.forEach((groupWithReports, groupIndex) => {
+    const { group, reports } = groupWithReports;
+    const isLastGroup = groupIndex === statusReportsByGroup.length - 1;
+    
+    // Only include groups with reports
+    if (reports.length === 0) {
+      return;
+    }
+    
+    // Add group header
+    html += `
+      <tr>
+        <td class="group-header">
+          <table width="100%" cellPadding="0" cellSpacing="0" border="0">
+            <tr>
+              <td width="60" valign="middle" style="padding-right: 15px;">
+                ${group.logoUrl ? `<img src="${group.logoUrl}" alt="${group.name} Logo" class="group-logo" width="60" height="60" />` : `<div class="group-logo-placeholder">${group.name.charAt(0)}</div>`}
+              </td>
+              <td valign="middle">
+                <h3 class="group-name">${group.name}</h3>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `;
+    
+    // Add reports for this group
+    reports.forEach((report, reportIndex) => {
+      const reportUrl = `${baseUrl}/gruppen/${group.slug}/berichte/${report.id}`;
+      const truncatedContent = truncateText(report.content);
+      const isLastReport = reportIndex === reports.length - 1;
+      
+      html += `
+        <tr>
+          <td class="status-report">
+            <h4 class="report-title">${report.title}</h4>
+            <p class="report-date">
+              ${formatDate(report.createdAt)}
+              ${report.reporterFirstName && report.reporterLastName ? ` | ${report.reporterFirstName} ${report.reporterLastName}` : ''}
+            </p>
+            <div class="report-content">${truncatedContent}</div>
+            <a href="${reportUrl}" class="event-button">
+              Mehr Infos
+            </a>
+          </td>
+        </tr>
+      `;
+    });
+    
+    // Add a separator after the group (except for the last one)
+    if (!isLastGroup) {
+      html += `
+        <tr>
+          <td style="padding: 15px 0;">
+            <div class="group-separator"></div>
+          </td>
+        </tr>
+      `;
+    }
+  });
+  
+  return html;
+};
+
+/**
  * Generate complete newsletter HTML
  */
 export function generateNewsletterHtml(params: EmailTemplateParams): string {
@@ -156,13 +258,15 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
     newsletterSettings, 
     introductionText, 
     featuredAppointments, 
-    upcomingAppointments, 
+    upcomingAppointments,
+    statusReportsByGroup,
     baseUrl 
   } = params;
   
   // Generate HTML sections
   const featuredEventsHtml = generateFeaturedEventsHtml(featuredAppointments, baseUrl);
   const upcomingEventsHtml = generateUpcomingEventsHtml(upcomingAppointments, baseUrl);
+  const statusReportsHtml = generateStatusReportsHtml(statusReportsByGroup, baseUrl);
   
   // Default logo and banner if none provided
   const headerLogo = newsletterSettings.headerLogo;
@@ -173,7 +277,7 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
   // Build complete HTML
   return `
     <!DOCTYPE html>
-    <html>
+    <html lang="de">
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -188,6 +292,8 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
             line-height: 1.5;
             color: #000000;
             background-color: #F5F5F5;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
           }
           
           table {
@@ -207,6 +313,9 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
             outline: none;
             text-decoration: none;
             -ms-interpolation-mode: bicubic;
+            max-width: 100%;
+            height: auto;
+            display: block;
           }
           
           .container {
@@ -219,6 +328,7 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
             background-color: #FFFFFF;
             text-align: center;
             padding: 20px 0;
+            position: relative;
           }
           
           .logo {
@@ -245,8 +355,8 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
             color: #FF0000;
             font-size: 24px;
             font-weight: bold;
-            margin-top: 10px;
-            margin-bottom: -5px;
+            margin-top: 25px;
+            margin-bottom: 15px;
           }
           
           .featured-event {
@@ -292,7 +402,7 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
           
           .event-teaser {
             margin-bottom: 15px;
-            margin-top: -10px
+            margin-top: 10px;
             color: #333333;
           }
           
@@ -310,6 +420,7 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
             padding: 10px 20px;
             font-weight: bold;
             margin-top: 10px;
+            border: none;
           }
           
           .upcoming-event {
@@ -349,6 +460,71 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
             margin-top: 15px;
           }
           
+          /* Status Reports Styles */
+          .group-header {
+            padding: 15px 0;
+            margin-top: 10px;
+            border-bottom: 1px solid #E5E5E5;
+          }
+          
+          .group-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FF0000;
+            margin: 0;
+          }
+          
+          .group-logo {
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+          }
+          
+          .group-logo-placeholder {
+            border-radius: 50%;
+            background-color: #FF0000;
+            color: #FFFFFF;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+          }
+          
+          .status-report {
+            padding: 15px 0;
+            border-bottom: 1px dashed #E5E5E5;
+          }
+          
+          .report-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: #000000;
+          }
+          
+          .report-date {
+            font-weight: bold;
+            font-size: 14px;
+            color: #666666;
+            margin-top: 0;
+            margin-bottom: 10px;
+          }
+          
+          .report-content {
+            margin-bottom: 15px;
+            color: #333333;
+          }
+          
+          .group-separator {
+            border-bottom: 2px solid #ff0000;
+            width: 30%;
+            margin: 0 auto;
+          }
+          
           @media only screen and (max-width: 650px) {
             .container {
               width: 100% !important;
@@ -365,7 +541,67 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
             .featured-image {
               height: 150px !important;
             }
+            
+            .group-header table,
+            .group-header tr,
+            .group-header td {
+              display: block;
+              width: 100% !important;
+              text-align: center;
+              padding: 5px 0 !important;
+            }
+            
+            .group-logo,
+            .group-logo-placeholder {
+              margin: 0 auto 10px auto;
+            }
+            
+            .group-name {
+              font-size: 18px !important;
+              text-align: center;
+            }
+            
+            .report-title {
+              font-size: 16px !important;
+            }
+            
+            /* Stack featured event layout on mobile */
+            .featured-event table,
+            .featured-event tr {
+              display: block;
+              width: 100% !important;
+            }
+            
+            .featured-image-cell,
+            .featured-content {
+              display: block;
+              width: 100% !important;
+              padding: 0 !important;
+            }
+            
+            .featured-content {
+              padding-top: 15px !important;
+            }
           }
+          
+          /* Outlook-specific fixes */
+          <!--[if mso]>
+          <style>
+            .group-logo-placeholder {
+              background-color: #FF0000 !important;
+              -ms-border-radius: 50% !important;
+            }
+            
+            a.event-button {
+              background-color: #FF0000 !important;
+              color: #FFFFFF !important;
+              text-decoration: none !important;
+              padding: 10px 20px !important;
+              text-align: center !important;
+              display: inline-block !important;
+            }
+          </style>
+          <![endif]-->
         </style>
       </head>
       <body>
@@ -413,6 +649,9 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
 
                       <!-- Upcoming Events -->
                       ${upcomingEventsHtml}
+                      
+                      <!-- Status Reports -->
+                      ${statusReportsHtml}
                     </table>
                   </td>
                 </tr>

@@ -1,6 +1,6 @@
 'use client';
 
-import MainLayout from '@/components/MainLayout';
+import { MainLayout } from '@/components/MainLayout';
 import {
   Typography,
   Container,
@@ -23,6 +23,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AddIcon from '@mui/icons-material/Add';
+import GroupsSection from '@/components/GroupsSection';
 import { grey } from '@mui/material/colors';
 
 interface Appointment {
@@ -52,8 +53,34 @@ export default function Home() {
           throw new Error('Failed to fetch appointments');
         }
         
-        const data = await response.json();
-        setAppointments(data);
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.warn('Failed to parse JSON response, setting empty appointments');
+          setAppointments([]);
+          return;
+        }
+        
+        // Ensure that data is an array
+        if (Array.isArray(data)) {
+          setAppointments(data);
+        } else if (data && Array.isArray(data.appointments)) {
+          // In case the API returns an object with an appointments array
+          setAppointments(data.appointments);
+        } else if (data && Object.keys(data).length === 0) {
+          // Handle empty object response - treat as empty array
+          console.log('API returned empty object, treating as empty appointments array');
+          setAppointments([]);
+        } else if (!data) {
+          // Handle null or undefined response
+          console.log('API returned null or undefined, treating as empty array');
+          setAppointments([]);
+        } else {
+          // Only log as warning if it's really an unexpected format
+          console.warn('API returned unexpected format:', data);
+          setAppointments([]);
+        }
       } catch (err) {
         console.error('Error fetching appointments:', err);
         setError('Failed to load appointments. Please try again.');
@@ -152,8 +179,8 @@ export default function Home() {
             </Typography>
             
             <Grid container spacing={3}>
-              {appointments.map((appointment) => (
-                <Grid key={appointment.id} size={{xs: 12}}>
+              {Array.isArray(appointments) && appointments.map((appointment) => (
+                <Grid key={appointment.id} xs={12}>
                   <Card>
                     <CardContent>
                       <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
@@ -216,7 +243,32 @@ export default function Home() {
             </Grid>
           </>
         )}
-
+        {/* Gruppen */}
+        <Divider sx={{ mt: 5 }}> <b>Gruppen</b> </Divider>
+        
+        {/* Call to action button */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'left',
+            mb: 4,
+            mt: 2
+          }}
+        >
+          <Button 
+            href="/gruppen-bericht"
+            variant="outlined" 
+            size="large"
+            startIcon={<AddIcon />}
+            LinkComponent={Link}
+          >
+            Neuen Gruppenbericht senden
+          </Button>
+        </Box>
+        
+        {/* Active Groups Section */}
+        <GroupsSection />
+        
         <Box
           component="footer"
           sx={{
@@ -224,7 +276,7 @@ export default function Home() {
             textAlign: 'center',
             pb: 3
           }}
-        >
+        >          
           <Typography variant="body2" color="text.secondary">
             © {new Date().getFullYear()} Die Linke Frankfurt am Main
           </Typography>

@@ -72,3 +72,69 @@ model Newsletter {
 
   @@map("newsletter") // Lowercase table name for PostgreSQL convention
 }
+
+// Enum for Group status
+enum GroupStatus {
+  NEW
+  ACTIVE
+  ARCHIVED
+}
+
+// Enum for StatusReport status
+enum StatusReportStatus {
+  NEW
+  ACTIVE
+  ARCHIVED
+}
+
+// Group model for managing groups/organizations
+model Group {
+  id                  String               @id @default(cuid())
+  name                String               @db.VarChar(100)
+  slug                String               @unique
+  description         String               @db.Text
+  logoUrl             String?
+  metadata            String?              // JSON string for additional metadata (logo original URLs, etc.)
+  status              GroupStatus          @default(NEW)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  statusReports       StatusReport[]
+  responsiblePersons  ResponsiblePerson[]
+
+  @@index([status])
+  @@index([name])
+  @@map("group") // Lowercase table name for PostgreSQL convention
+}
+
+// ResponsiblePerson model for group contacts
+model ResponsiblePerson {
+  id        String   @id @default(cuid())
+  firstName String   @db.VarChar(50)
+  lastName  String   @db.VarChar(50)
+  email     String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId   String
+
+  @@index([groupId])
+  @@map("responsible_person") // Lowercase table name for PostgreSQL convention
+}
+
+// StatusReport model for group activity reports
+model StatusReport {
+  id                String              @id @default(cuid())
+  title             String              @db.VarChar(100)
+  content           String              @db.Text
+  reporterFirstName String              @db.VarChar(50)
+  reporterLastName  String              @db.VarChar(50)
+  fileUrls          String?             // JSON string array of file URLs
+  status            StatusReportStatus  @default(NEW)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  group             Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId           String
+
+  @@index([status])
+  @@index([groupId])
+  @@index([createdAt])
+  @@map("status_report") // Lowercase table name for PostgreSQL convention
+}

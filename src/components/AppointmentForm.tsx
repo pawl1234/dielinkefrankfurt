@@ -10,6 +10,8 @@ import AddressFields from './AddressFields';
 import RequesterFields from './RequesterFields';
 import CaptchaField from './CaptchaField';
 import SectionHeader from './SectionHeader';
+import ErrorFeedback from './ErrorFeedback';
+import { useApiError } from '@/lib/useApiError';
 import {
   Box,
   Typography,
@@ -23,7 +25,8 @@ import {
   Paper,
   Collapse,
   CardMedia,
-  CardActions
+  CardActions,
+  CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -78,8 +81,6 @@ export default function AppointmentForm({
   onCancel
 }: AppointmentFormProps) {
   const [submissionCount, setSubmissionCount] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [mainText, setMainText] = useState(initialValues?.mainText || '');
   const [fileList, setFileList] = useState<(File | Blob)[]>([]);
@@ -90,6 +91,9 @@ export default function AppointmentForm({
   const [isFeatured, setIsFeatured] = useState(initialValues?.featured || false);
   const [coverImage, setCoverImage] = useState<File | Blob | null>(null);
   const [croppedCoverImage, setCroppedCoverImage] = useState<File | Blob | null>(null);
+  
+  // Use the API error hook for better error handling
+  const { error: apiError, isLoading: isSubmitting, executeApiCall, clearError, getFieldError } = useApiError();
   
   // Initialize existing file URLs and metadata if provided
   useEffect(() => {
@@ -173,8 +177,8 @@ export default function AppointmentForm({
   };
 
   const onSubmit: SubmitHandler<FormInput> = async (data) => {
-    setIsSubmitting(true);
-    setSubmissionError(null);
+    // Clear previous errors and success state
+    clearError();
     setSubmissionSuccess(false);
 
     try {
@@ -249,42 +253,49 @@ export default function AppointmentForm({
         throw new Error('Bitte bestätigen Sie, dass Sie kein Roboter sind.');
       }
 
-      console.log('Submitting form data...');
-      const response = await fetch('/api/submit-appointment', {
-        method: 'POST',
-        body: formData,
-      });
+      // Use executeApiCall for better error handling
+      const result = await executeApiCall<{success: boolean; id: number; message?: string}>(() => 
+        fetch('/api/appointments/submit', {
+          method: 'POST',
+          body: formData,
+        })
+      );
 
-      const responseData = await response.json();
+      if (result) {
+        // Update submission count and show success
+        setSubmissionCount(submissionCount + 1);
+        setSubmissionSuccess(true);
 
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.');
+        // Reset form after successful submission
+        resetForm();
+
+        // Scroll to top of form to show success message
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-
-      // Update submission count and show success
-      setSubmissionCount(submissionCount + 1);
-      setSubmissionSuccess(true);
-
-      // Reset form after successful submission
-      resetForm();
-
-      // Scroll to top of form to show success message
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-
     } catch (error) {
       console.error('Form submission error:', error);
-      setSubmissionError(error instanceof Error ? error.message : 'Ein unbekannter Fehler ist aufgetreten.');
-    } finally {
-      setIsSubmitting(false);
+      // The useApiError hook already handles this error if it's from the API
+      // For other errors like client-side validation, we need to set the error manually
+      if (error instanceof Error) {
+        executeApiCall(() => Promise.reject(error));
+      }
     }
   };
 
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ '& > *': { mt: 3 } }}>
-            {submissionError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <strong>Fehler beim Absenden:</strong> {submissionError}
-        </Alert>
+      {apiError && (
+        <ErrorFeedback 
+          error={apiError.message}
+          details={{
+            type: apiError.details?.type,
+            fieldErrors: apiError.details?.fieldErrors,
+            context: apiError.details?.context
+          }}
+          variant="full" 
+          onDismiss={clearError}
+          onRetry={handleSubmit(onSubmit)}
+        />
       )}
 
       {submissionSuccess && (
@@ -365,7 +376,17 @@ export default function AppointmentForm({
             name="title"
             control={control}
             defaultValue="" // Add a default value here
-            rules={{ required: 'Titel ist erforderlich', maxLength: 100 }}
+            rules={{ 
+              required: 'Titel ist erforderlich', 
+              maxLength: {
+                value: 100,
+                message: 'Titel darf maximal 100 Zeichen lang sein'
+              },
+              minLength: {
+                value: 5,
+                message: 'Titel muss mindestens 5 Zeichen lang sein'
+              }
+            }}
             render={({ field }) => (
               <TextField
                 {...field}
@@ -373,8 +394,12 @@ export default function AppointmentForm({
                 fullWidth
                 placeholder="Titel der Veranstaltung..."
                 inputProps={{ maxLength: 100 }}
-                error={!!errors.title}
-                helperText={errors.title?.message || `${(field.value || '').length}/100`}
+                error={!!errors.title || !!getFieldError('title')}
+                helperText={
+                  errors.title?.message || 
+                  getFieldError('title') || 
+                  `${(field.value || '').length}/100`
+                }
                 margin="normal"
               />
             )}
@@ -396,7 +421,17 @@ export default function AppointmentForm({
             <Controller
               name="teaser"
               control={control}
-              rules={{ required: 'Teaser ist erforderlich', maxLength: 300 }}
+              rules={{ 
+                required: 'Teaser ist erforderlich', 
+                maxLength: {
+                  value: 300,
+                  message: 'Teaser darf maximal 300 Zeichen lang sein'
+                },
+                minLength: {
+                  value: 10,
+                  message: 'Teaser muss mindestens 10 Zeichen lang sein'
+                }
+              }}
               render={({ field }) => (
                 <TextField
                   {...field}
@@ -409,8 +444,12 @@ export default function AppointmentForm({
                     field.onChange(e);
                     setTeaserLength(e.target.value.length);
                   }}
-                  error={!!errors.teaser}
-                  helperText={errors.teaser?.message || `${teaserLength}/300`}
+                  error={!!errors.teaser || !!getFieldError('teaser')}
+                  helperText={
+                    errors.teaser?.message || 
+                    getFieldError('teaser') || 
+                    `${teaserLength}/300${teaserLength > 200 ? ' (bitte kurz halten)' : ''}`
+                  }
                   margin="normal"
                 />
               )}
@@ -793,8 +832,9 @@ export default function AppointmentForm({
           type="submit"
           variant="contained"
           color="primary"
-          loading={isSubmitting}
-          endIcon={mode === 'create' ? <SendIcon /> : undefined}
+          disabled={isSubmitting}
+          startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : undefined}
+          endIcon={!isSubmitting && mode === 'create' ? <SendIcon /> : undefined}
         >
           {isSubmitting ? 'Wird gesendet...' : submitButtonText}
         </Button>

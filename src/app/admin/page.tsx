@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import MainLayout from '@/components/MainLayout';
+import { MainLayout } from '@/components/MainLayout';
+import AdminNavigation from '@/components/AdminNavigation';
 import {
   Box,
   Typography,
@@ -37,7 +38,6 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LogoutIcon from '@mui/icons-material/Logout';
 import EventIcon from '@mui/icons-material/Event';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -45,6 +45,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import { signOut } from 'next-auth/react';
 import { format, parse } from 'date-fns';
 import { de } from 'date-fns/locale';
+import Link from 'next/link';
 import NewsletterGenerator from '@/components/newsletter/NewsletterGenerator';
 import FeaturedToggle from '@/components/newsletter/FeaturedToggle';
 import EditAppointmentWrapper from '@/components/EditAppointmentWrapper';
@@ -112,8 +113,35 @@ export default function AdminPage() {
         throw new Error('Failed to fetch appointments');
       }
 
-      const data = await response.json();
-      setAppointments(data);
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.warn('Failed to parse JSON response, setting empty appointments');
+        setAppointments([]);
+        return;
+      }
+      
+      // Ensure that data is an array
+      if (Array.isArray(data)) {
+        setAppointments(data);
+      } else if (data && Array.isArray(data.appointments)) {
+        // In case the API returns an object with an appointments array
+        setAppointments(data.appointments);
+      } else if (data && Object.keys(data).length === 0) {
+        // Handle empty object response - treat as empty array
+        console.log('API returned empty object, treating as empty appointments array');
+        setAppointments([]);
+      } else if (!data) {
+        // Handle null or undefined response
+        console.log('API returned null or undefined, treating as empty array');
+        setAppointments([]);
+      } else {
+        // Only log as error if it's really an unexpected format
+        console.warn('API returned unexpected format:', data);
+        setAppointments([]);
+      }
+      
       setError(null);
     } catch (err) {
       setError('Failed to load appointments. Please try again.');
@@ -221,11 +249,13 @@ export default function AdminPage() {
       breadcrumbs={[
         { label: 'Start', href: '/' },
         { label: 'Administration', href: '/admin', active: true },
-      ]}
-    >
+      ]}>
       <Box sx={{ flexGrow: 1 }}>
       
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 2 }}>
+          {/* Admin Navigation */}
+          <AdminNavigation />
+          
           <Paper sx={{ p: 0, mb: 4 }}>
             <Tabs
               value={tabValue}
@@ -256,8 +286,8 @@ export default function AdminPage() {
             </Paper>
           ) : (
             <Grid container spacing={3}>
-              {appointments.map((appointment) => (
-                <Grid size={{xs: 12}} key={appointment.id}>
+              {Array.isArray(appointments) && appointments.map((appointment) => (
+                <Grid xs={12} key={appointment.id}>
                   <Accordion>
                     <AccordionSummary
                       expandIcon={<ExpandMoreIcon />}
@@ -465,7 +495,7 @@ export default function AdminPage() {
                         appointmentComponent={
                           <>
                             <Grid container spacing={3}>
-                              <Grid size={{xs: 8}}>
+                              <Grid xs={8}>
                                 <Typography variant="h6" gutterBottom>
                                   Veranstaltungsdetails
                                 </Typography>
@@ -484,7 +514,7 @@ export default function AdminPage() {
                                 )}
                               </Grid>
                               
-                              <Grid size={{xs: 4}}>
+                              <Grid xs={4}>
                                 <Typography variant="h6" gutterBottom>
                                   Datum & Ort
                                 </Typography>
@@ -559,7 +589,7 @@ export default function AdminPage() {
                                   </Typography>
                                 </Box>
                               </Grid>
-                              <Grid size={{xs: 12}}>
+                              <Grid xs={12}>
                                 <Typography variant="h6" gutterBottom>
                                   Anhänge
                                 </Typography>
@@ -582,7 +612,7 @@ export default function AdminPage() {
                                           const originalKey = `original-cover-${urlKey}`;
                                           
                                           coverItems.push(
-                                            <Grid size={{xs: 12, sm: 6}} key={originalKey}>
+                                            <Grid xs={12} sm={6} key={originalKey}>
                                               <Card variant="outlined" sx={{ mb: 1 }}>
                                                 <CardMedia
                                                   component="img"
@@ -618,7 +648,7 @@ export default function AdminPage() {
                                           const croppedKey = `cropped-cover-${croppedUrlKey}`;
                                           
                                           coverItems.push(
-                                            <Grid size={{xs: 12, sm: 6}} key={croppedKey}>
+                                            <Grid xs={12} sm={6} key={croppedKey}>
                                               <Card variant="outlined" sx={{ mb: 1 }}>
                                                 <CardMedia
                                                   component="img"
@@ -649,7 +679,7 @@ export default function AdminPage() {
                                         }
                                         
                                         return coverItems.length > 0 ? coverItems : (
-                                          <Grid size={{xs: 12}}>
+                                          <Grid xs={12}>
                                             <Typography variant="body2" color="text.secondary">
                                               Kein Cover-Bild vorhanden.
                                             </Typography>
@@ -658,7 +688,7 @@ export default function AdminPage() {
                                       } catch (e) {
                                         console.error("Error parsing metadata:", e);
                                         return (
-                                          <Grid size={{xs: 12}}>
+                                          <Grid xs={12}>
                                             <Typography variant="body2" color="error">
                                               Fehler beim Laden der Cover-Bilder.
                                             </Typography>
@@ -683,7 +713,7 @@ export default function AdminPage() {
                                         const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
   
                                         return (
-                                          <Grid size={{xs: 12, sm: 6, md: 4}} key={fileUrl}>
+                                          <Grid xs={12} sm={6} md={4} key={fileUrl}>
                                             <Card variant="outlined" sx={{ mb: 1 }}>
                                               {isImage && (
                                                 <CardMedia

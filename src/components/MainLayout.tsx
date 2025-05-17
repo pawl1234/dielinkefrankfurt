@@ -40,7 +40,7 @@ interface MainLayoutProps {
   showHeader?: boolean;
 }
 
-export default function MainLayout({ children, breadcrumbs = [], showHeader = true }: MainLayoutProps) {
+export function MainLayout({ children, breadcrumbs = [], showHeader = true }: MainLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated';
@@ -108,6 +108,23 @@ export default function MainLayout({ children, breadcrumbs = [], showHeader = tr
         >
           <ListItemText 
             primary="Termin anfragen" 
+            primaryTypographyProps={{ 
+              fontWeight: 'fontWeightBold', 
+              color: 'text.primary' 
+            }} 
+          />
+        </ListItemButton>
+        <ListItemButton
+          component={Link}
+          href="/gruppen"
+          selected={breadcrumbs.some(b => b.href?.startsWith('/gruppen') && b.active)}
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+          }}
+        >
+          <ListItemText 
+            primary="Arbeitsgruppen" 
             primaryTypographyProps={{ 
               fontWeight: 'fontWeightBold', 
               color: 'text.primary' 

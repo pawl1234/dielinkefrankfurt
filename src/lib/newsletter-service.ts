@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
-import { Appointment } from '@prisma/client';
+import { Appointment, Group, StatusReport } from '@prisma/client';
 import { 
   NewsletterSettings, 
   generateNewsletterHtml, 
@@ -8,6 +8,7 @@ import {
 } from './newsletter-template';
 import { sendTestEmail } from './email';
 import { serverErrorResponse } from './api-auth';
+import { subWeeks } from 'date-fns';
 
 /**
  * Fetches newsletter settings from the database
@@ -145,7 +146,69 @@ export async function fetchNewsletterAppointments(): Promise<{
 }
 
 /**
- * Generates newsletter HTML based on settings and appointments
+ * Fetches status reports from the last 2 weeks for the newsletter
+ * Returns status reports with their associated groups
+ */
+export async function fetchNewsletterStatusReports(): Promise<{
+  statusReportsByGroup: {
+    group: Group,
+    reports: StatusReport[]
+  }[];
+}> {
+  try {
+    // Get the date 2 weeks ago
+    const twoWeeksAgo = subWeeks(new Date(), 2);
+    
+    // Get all active groups
+    const groups = await prisma.group.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      orderBy: {
+        name: 'asc' // Sort groups alphabetically
+      },
+      include: {
+        statusReports: {
+          where: {
+            status: 'ACTIVE',
+            createdAt: {
+              gte: twoWeeksAgo // Only reports from the last 2 weeks
+            }
+          },
+          orderBy: {
+            createdAt: 'desc' // Latest reports first
+          }
+        }
+      }
+    });
+    
+    // Filter out groups with no reports
+    const statusReportsByGroup = groups
+      .filter(group => group.statusReports.length > 0)
+      .map(group => ({
+        group: {
+          id: group.id,
+          name: group.name,
+          slug: group.slug,
+          description: group.description,
+          logoUrl: group.logoUrl,
+          metadata: group.metadata,
+          status: group.status,
+          createdAt: group.createdAt,
+          updatedAt: group.updatedAt
+        },
+        reports: group.statusReports
+      }));
+    
+    return { statusReportsByGroup };
+  } catch (error) {
+    console.error('Error fetching newsletter status reports:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generates newsletter HTML based on settings, appointments, and status reports
  */
 export async function generateNewsletter(introductionText: string): Promise<string> {
   try {
@@ -154,6 +217,9 @@ export async function generateNewsletter(introductionText: string): Promise<stri
     
     // Get appointments
     const { featuredAppointments, upcomingAppointments } = await fetchNewsletterAppointments();
+    
+    // Get status reports
+    const { statusReportsByGroup } = await fetchNewsletterStatusReports();
     
     // Base URL for links
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -164,6 +230,7 @@ export async function generateNewsletter(introductionText: string): Promise<stri
       introductionText,
       featuredAppointments,
       upcomingAppointments,
+      statusReportsByGroup,
       baseUrl
     });
   } catch (error) {

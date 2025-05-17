@@ -10,10 +10,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // Check authentication for admin paths
-  if (path.startsWith('/admin')) {
-    const session = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  // Get session token for authentication checks
+  const session = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  
+  // Handle API routes
+  if (path.startsWith('/api/admin')) {
+    // API authentication is handled by the withAdminAuth wrapper in each route
+    // This middleware just ensures consistent behavior for API and UI routes
+    if (!session || (session as any).role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
+    return NextResponse.next();
+  }
+  
+  // Check authentication for admin UI paths
+  if (path.startsWith('/admin')) {
     // Allow access to login page
     if (path === '/admin/login') {
       if (session) {
@@ -38,5 +50,8 @@ export async function middleware(request: NextRequest) {
 
 // Configure paths to match
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/api/admin/:path*' // Protect API admin routes
+  ],
 };

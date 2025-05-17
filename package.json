@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "node prisma/vercel-build.js && next build",
-    "build:local": "node prisma/vercel-build.js && next build --no-lint",
+    "build:local": "next build",
     "start": "next start",
     "lint:check": "next lint",
     "lint:fix": "next lint --fix",
@@ -48,6 +48,8 @@
     "@types/react": "^18.2.0",
     "@types/react-datepicker": "^7.0.0",
     "@types/react-dom": "^18.2.0",
+    "@types/react-virtualized-auto-sizer": "^1.0.3",
+    "@types/react-window": "^1.8.8",
     "@uppy/core": "^4.4.4",
     "@uppy/dashboard": "^4.3.3",
     "@uppy/drag-drop": "^4.1.2",
@@ -72,6 +74,9 @@
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.56.2",
     "react-image-crop": "^11.0.10",
+    "react-virtualized-auto-sizer": "^1.0.20",
+    "react-window": "^1.8.10",
+    "slugify": "^1.6.6",
     "tailwindcss": "^4.1.5",
     "tiptap": "^1.32.2",
     "typescript": "^5.8.3"

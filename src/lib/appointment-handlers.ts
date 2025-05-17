@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
 import { serverErrorResponse } from './api-auth';
 import { put, del } from '@vercel/blob';
+import { 
+  AppError, 
+  apiErrorResponse, 
+  validationErrorResponse, 
+  handleFileUploadError, 
+  handleDatabaseError, 
+  getLocalizedErrorMessage 
+} from './errors';
 
 /**
  * Types for appointment operations
@@ -44,7 +52,18 @@ export interface AppointmentCreateData {
 }
 
 /**
- * Get all appointments with optional filtering
+ * Interface for paginated responses
+ */
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Get all appointments with optional filtering and pagination
  */
 export async function getAppointments(request: NextRequest) {
   try {
@@ -53,7 +72,12 @@ export async function getAppointments(request: NextRequest) {
     const view = url.searchParams.get('view') || 'all';
     const status = url.searchParams.get('status');
     const id = url.searchParams.get('id');
-
+    
+    // Pagination parameters
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10', 10);
+    const skip = (page - 1) * pageSize;
+    
     // If ID is provided, return a single appointment
     if (id) {
       const appointment = await prisma.appointment.findUnique({
@@ -70,7 +94,11 @@ export async function getAppointments(request: NextRequest) {
         );
       }
       
-      return NextResponse.json(appointment);
+      return NextResponse.json(appointment, {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=30'
+        }
+      });
     }
 
     // Build filter based on parameters
@@ -100,7 +128,14 @@ export async function getAppointments(request: NextRequest) {
       filter.status = status;
     }
 
-    // Get appointments with filters
+    // Get total count for pagination
+    const totalItems = await prisma.appointment.count({
+      where: filter
+    });
+    
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    // Get appointments with filters and pagination
     const appointments = await prisma.appointment.findMany({
       where: filter,
       orderBy: [
@@ -109,9 +144,25 @@ export async function getAppointments(request: NextRequest) {
         // For all other views, newest first
         { createdAt: 'desc' as const }
       ],
+      skip,
+      take: pageSize,
     });
 
-    return NextResponse.json(appointments);
+    // Create paginated response
+    const response: PaginatedResponse<any> = {
+      items: appointments,
+      totalItems,
+      page,
+      pageSize,
+      totalPages
+    };
+
+    // Set cache headers (1 minute for admin data)
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=30'
+      }
+    });
   } catch (error) {
     console.error('Error fetching appointments:', error);
     return serverErrorResponse('Failed to fetch appointments');
@@ -119,12 +170,17 @@ export async function getAppointments(request: NextRequest) {
 }
 
 /**
- * Get public appointments (accepted status only)
+ * Get public appointments (accepted status only) with pagination
  */
 export async function getPublicAppointments(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
+    
+    // Pagination parameters
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10', 10);
+    const skip = (page - 1) * pageSize;
     
     // If ID is provided, return a single appointment
     if (id) {
@@ -142,22 +198,37 @@ export async function getPublicAppointments(request: NextRequest) {
         );
       }
       
-      return NextResponse.json(appointment);
+      // Cache for longer time (5 minutes) for public data
+      return NextResponse.json(appointment, {
+        headers: {
+          'Cache-Control': 'public, max-age=300, stale-while-revalidate=60'
+        }
+      });
     }
     
     // Otherwise, return filtered appointments
     const currentDate = new Date();
+    const filter = {
+      status: 'accepted',
+      startDateTime: {
+        gte: currentDate // Only future appointments
+      }
+    };
+    
+    // Get total count for pagination
+    const totalItems = await prisma.appointment.count({
+      where: filter
+    });
+    
+    const totalPages = Math.ceil(totalItems / pageSize);
     
     const appointments = await prisma.appointment.findMany({
-      where: {
-        status: 'accepted',
-        startDateTime: {
-          gte: currentDate // Only future appointments
-        }
-      },
+      where: filter,
       orderBy: {
         startDateTime: 'asc' // Chronological order
       },
+      skip,
+      take: pageSize,
       select: {
         id: true,
         title: true,
@@ -171,7 +242,21 @@ export async function getPublicAppointments(request: NextRequest) {
       }
     });
     
-    return NextResponse.json(appointments);
+    // Create paginated response
+    const response: PaginatedResponse<any> = {
+      items: appointments,
+      totalItems,
+      page,
+      pageSize,
+      totalPages
+    };
+    
+    // Cache for longer time (5 minutes) for public data
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=60'
+      }
+    });
   } catch (error) {
     console.error('Error fetching public appointments:', error);
     return serverErrorResponse('Failed to fetch appointments');
@@ -179,21 +264,39 @@ export async function getPublicAppointments(request: NextRequest) {
 }
 
 /**
- * Get newsletter ready appointments (accepted and future date)
+ * Get newsletter ready appointments (accepted and future date) with pagination
  */
 export async function getNewsletterAppointments(request: NextRequest) {
   try {
+    const url = new URL(request.url);
+    
+    // Pagination parameters
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10', 10);
+    const skip = (page - 1) * pageSize;
+    
+    const filter = {
+      status: 'accepted',
+      startDateTime: {
+        gte: new Date() // Only future events
+      }
+    };
+    
+    // Get total count for pagination
+    const totalItems = await prisma.appointment.count({
+      where: filter
+    });
+    
+    const totalPages = Math.ceil(totalItems / pageSize);
+    
     // Get all future accepted appointments
     const appointments = await prisma.appointment.findMany({
-      where: {
-        status: 'accepted',
-        startDateTime: {
-          gte: new Date() // Only future events
-        }
-      },
+      where: filter,
       orderBy: {
         startDateTime: 'asc'
       },
+      skip,
+      take: pageSize,
       select: {
         id: true,
         title: true,
@@ -203,7 +306,21 @@ export async function getNewsletterAppointments(request: NextRequest) {
       }
     });
     
-    return NextResponse.json(appointments);
+    // Create paginated response
+    const response: PaginatedResponse<any> = {
+      items: appointments,
+      totalItems,
+      page,
+      pageSize,
+      totalPages
+    };
+    
+    // Cache for 2 minutes for newsletter data
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'private, max-age=120, stale-while-revalidate=60'
+      }
+    });
   } catch (error) {
     console.error('Error fetching newsletter appointments:', error);
     return serverErrorResponse('Failed to fetch appointments');
@@ -271,12 +388,18 @@ export async function createAppointment(request: NextRequest) {
     const recurringText = formData.get('recurringText') as string || '';
     const featured = formData.get('featured') === 'true';
 
-    // Additional validation
-    if (!teaser || !mainText || !startDateTime) {
-      return NextResponse.json(
-        { error: 'Pflichtfelder fehlen' },
-        { status: 400 }
-      );
+    // Validation errors container
+    const validationErrors: Record<string, string> = {};
+
+    // Field validation
+    if (!title) validationErrors.title = 'Titel ist erforderlich';
+    if (!teaser) validationErrors.teaser = 'Teaser ist erforderlich';
+    if (!mainText) validationErrors.mainText = 'Beschreibung ist erforderlich';
+    if (!startDateTime) validationErrors.startDateTime = 'Startdatum und -uhrzeit sind erforderlich';
+    
+    // If we have validation errors, return them all at once
+    if (Object.keys(validationErrors).length > 0) {
+      return validationErrorResponse(validationErrors);
     }
 
     // Process multiple file uploads if present using Vercel Blob Store
@@ -295,18 +418,18 @@ export async function createAppointment(request: NextRequest) {
         if (file) {
           // Check file size (5MB)
           if (file.size > 5 * 1024 * 1024) {
-            return NextResponse.json(
-              { error: 'File size exceeds 5MB limit. Please upload smaller files.' },
-              { status: 400 }
+            throw AppError.validation(
+              getLocalizedErrorMessage('File size exceeds limit'),
+              { fileName: file.name, fileSize: file.size, maxSize: 5 * 1024 * 1024 }
             );
           }
 
           // Check file type
           const fileType = file.type;
           if (!['image/jpeg', 'image/png', 'application/pdf'].includes(fileType)) {
-            return NextResponse.json(
-              { error: 'Unsupported file type. Please upload only JPEG, PNG, or PDF files.' },
-              { status: 400 }
+            throw AppError.validation(
+              getLocalizedErrorMessage('Unsupported file type'),
+              { fileName: file.name, fileType, allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'] }
             );
           }
 
@@ -337,11 +460,12 @@ export async function createAppointment(request: NextRequest) {
             // Add the URL to the array for storing in the database
             fileUrls.push(url);
           } catch (uploadError) {
-            console.error(`❌ Error uploading file to Blob Store:`, uploadError);
-            return NextResponse.json(
-              { error: 'Fehler beim Hochladen der Datei. Bitte versuchen Sie es später erneut.' },
-              { status: 500 }
-            );
+            throw handleFileUploadError(uploadError, { 
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.type,
+              index: i
+            });
           }
         }
       }
@@ -351,6 +475,10 @@ export async function createAppointment(request: NextRequest) {
     if (featured) {
       const coverImage = formData.get('coverImage') as File | null;
       const croppedCoverImage = formData.get('croppedCoverImage') as File | null;
+
+      if (!coverImage && featured) {
+        throw AppError.validation('Cover-Bild ist für Featured-Termine erforderlich');
+      }
 
       if (coverImage) {
         try {
@@ -392,11 +520,12 @@ export async function createAppointment(request: NextRequest) {
             croppedCoverImageUrl = croppedUrl;
           }
         } catch (uploadError) {
-          console.error(`❌ Error uploading cover image to Blob Store:`, uploadError);
-          return NextResponse.json(
-            { error: 'Fehler beim Hochladen des Cover-Bildes. Bitte versuchen Sie es später erneut.' },
-            { status: 500 }
-          );
+          throw handleFileUploadError(uploadError, { 
+            fileName: coverImage.name,
+            fileSize: coverImage.size,
+            fileType: coverImage.type,
+            isCoverImage: true
+          });
         }
       }
     }
@@ -409,11 +538,8 @@ export async function createAppointment(request: NextRequest) {
         const result = await prisma.$queryRaw`SELECT 1 as connection_test`;
         console.log('✅ Database connection confirmed:', result);
       } catch (connectionError) {
-        console.error('❌ Database connection test failed:', connectionError);
-        return NextResponse.json(
-          { error: 'Database connection failed. Please try again later.' },
-          { status: 503 }
-        );
+        throw AppError.database('Database connection failed. Please try again later.', 
+          connectionError instanceof Error ? connectionError : undefined);
       }
 
       // Connection successful, proceed with creating appointment
@@ -443,27 +569,18 @@ export async function createAppointment(request: NextRequest) {
           }),
         } as any // Use type assertion to bypass the type error
       });
-      console.log('✅ Appointment successfully saved to database with ID:', newAppointment.id);
       
-      return NextResponse.json({ success: true, id: newAppointment.id });
+      console.log('✅ Appointment successfully saved to database with ID:', newAppointment.id);
+      return NextResponse.json({ 
+        success: true, 
+        id: newAppointment.id,
+        message: 'Terminanfrage erfolgreich eingereicht' 
+      });
     } catch (dbError) {
-      console.error('❌ Error saving to database:', dbError);
-      // Log more detailed error information
-      if (dbError instanceof Error) {
-        console.error('Error message:', dbError.message);
-        console.error('Error stack:', dbError.stack);
-      }
-      return NextResponse.json(
-        { error: 'Fehler beim Speichern der Terminanfrage in der Datenbank.' },
-        { status: 500 }
-      );
+      throw handleDatabaseError(dbError, 'appointment creation');
     }
   } catch (error) {
-    console.error('Error submitting appointment:', error);
-    return NextResponse.json(
-      { error: 'Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.' },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, 'Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.');
   }
 }
 
@@ -796,6 +913,7 @@ export async function updateAppointment(request: NextRequest) {
     
     console.log("✅ Appointment updated successfully with ID:", updatedAppointment.id);
 
+    // Clear cache for this appointment
     return NextResponse.json(updatedAppointment);
   } catch (error) {
     console.error('Error updating appointment:', error);

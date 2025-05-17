@@ -1,7 +1,7 @@
 'use client';
 
 import AppointmentForm from '@/components/AppointmentForm';
-import MainLayout from '@/components/MainLayout';
+import { MainLayout } from '@/components/MainLayout';
 import {
   Typography,
   Container,
