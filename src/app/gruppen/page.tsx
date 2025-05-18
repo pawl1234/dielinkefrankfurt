@@ -138,7 +138,7 @@ export default function GroupsPage() {
             
             <Grid container spacing={3}>
               {groups.map((group) => (
-                <Grid item key={group.id} xs={12} sm={6} md={4}>
+                <Grid key={group.id} size={{ xs: 12, sm: 6, md: 4 }}>
                   <Card sx={{ 
                     height: '100%', 
                     display: 'flex', 

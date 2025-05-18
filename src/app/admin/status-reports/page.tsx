@@ -477,7 +477,7 @@ export default function StatusReportsDashboard() {
               {/* Status reports grid */}
               <Grid container spacing={3}>
                 {statusReports.map((report) => (
-                  <Grid item xs={12} md={6} lg={4} key={report.id}>
+                  <Grid size={{ xs: 12, md: 6, lg: 4 }} key={report.id}>
                     <Card 
                       variant="outlined" 
                       sx={{ 
@@ -494,7 +494,7 @@ export default function StatusReportsDashboard() {
                           color={
                             report.status === 'NEW' ? 'warning' : 
                             report.status === 'ACTIVE' ? 'success' : 
-                            report.status === 'REJECTED' ? 'error' : 
+                           // report.status === 'REJECTED' ? 'error' : 
                             'default'
                           }
                           size="small"

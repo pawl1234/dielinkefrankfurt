@@ -28,8 +28,12 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 interface FileUploadProps {
-  onFilesSelect: (files: (File | Blob)[]) => void;
+  onFilesSelect?: (files: (File | Blob)[]) => void;
+  onFilesAdded?: (files: File[]) => void;
   maxFiles?: number;
+  maxFileSize?: number;
+  allowedFileTypes?: string[];
+  multiple?: boolean;
 }
 
 // Styled component for the upload box
@@ -58,7 +62,14 @@ interface FileItem {
   file: File | Blob;
 }
 
-const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
+const FileUpload = ({ 
+  onFilesSelect, 
+  onFilesAdded,
+  maxFiles = 5, 
+  maxFileSize = 5 * 1024 * 1024, // Default 5MB
+  allowedFileTypes = ['.jpg', '.jpeg', '.png', '.pdf'],
+  multiple = true
+}: FileUploadProps) => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,21 +87,36 @@ const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
 
     // Process each selected file
     const newFiles: FileItem[] = [];
-    const validFileTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const validMimeTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    // Helper function to check if file extension matches allowed types
+    const isValidFileType = (filename: string): boolean => {
+      const ext = '.' + filename.split('.').pop()?.toLowerCase();
+      return allowedFileTypes.some(type => type.toLowerCase() === ext);
+    };
+
+    const addedFiles: File[] = [];
 
     Array.from(selectedFiles).forEach(file => {
       // Validate file type
-      if (!validFileTypes.includes(file.type)) {
-        setError("Nicht unterstützter Dateityp. Bitte lade JPEG, PNG oder PDF hoch.");
+      if (!isValidFileType(file.name)) {
+        setError(`Nicht unterstützter Dateityp. Erlaubte Typen: ${allowedFileTypes.join(', ')}`);
         return;
       }
 
       // Validate file size
-      if (file.size > maxSize) {
-        setError("Dateigröße überschreitet 5MB Limit. Bitte lade eine kleinere Datei hoch.");
+      if (file.size > maxFileSize) {
+        const maxSizeMB = maxFileSize / (1024 * 1024);
+        setError(`Dateigröße überschreitet ${maxSizeMB}MB Limit. Bitte lade eine kleinere Datei hoch.`);
         return;
       }
+      
+      // Add to the list of added files for the callback
+      addedFiles.push(file);
 
       // Create a new file item
       const fileItem: FileItem = {
@@ -111,7 +137,7 @@ const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
             return f;
           });
           setFiles(updatedFiles);
-          onFilesSelect(updatedFiles.map(f => f.file));
+          onFilesSelect?.(updatedFiles.map(f => f.file));
         };
         reader.readAsDataURL(file);
       }
@@ -121,7 +147,15 @@ const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
 
     // Add new files to state
     setFiles(prev => [...prev, ...newFiles]);
-    onFilesSelect([...files, ...newFiles].map(f => f.file));
+    
+    // Call appropriate callbacks
+    if (onFilesSelect) {
+      onFilesSelect?.([...files, ...newFiles].map(f => f.file));
+    }
+    
+    if (onFilesAdded && addedFiles.length > 0) {
+      onFilesAdded(addedFiles);
+    }
     
     // Reset the file input
     if (fileInputRef.current) {
@@ -135,7 +169,12 @@ const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
   const handleRemoveFile = (id: string) => {
     const updatedFiles = files.filter(file => file.id !== id);
     setFiles(updatedFiles);
-    onFilesSelect(updatedFiles.map(f => f.file));
+    
+    if (onFilesSelect) {
+      onFilesSelect?.(updatedFiles.map(f => f.file));
+    }
+    
+    // For onFilesAdded we don't need to call it here as it's only for adding files
   };
 
   // Handle click on upload box
@@ -152,7 +191,7 @@ const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
         component="label"
         sx={{ display: 'block', mb: 1, fontWeight: 600 }}
       >
-        Dateien hochladen (JPEG, PNG, PDF, max. 5MB)
+        Dateien hochladen ({allowedFileTypes.join(', ')}, max. {maxFileSize / (1024 * 1024)}MB)
       </Typography>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -166,15 +205,15 @@ const FileUpload = ({ onFilesSelect, maxFiles = 5 }: FileUploadProps) => {
                   : 'Dateien auswählen oder hierher ziehen'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                JPEG, PNG, PDF (max. 5MB)
+                {allowedFileTypes.join(', ')} (max. {maxFileSize / (1024 * 1024)}MB)
               </Typography>
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 style={{ display: 'none' }} 
                 onChange={handleFileChange} 
-                accept=".jpg,.jpeg,.png,.pdf"
-                multiple={files.length < maxFiles - 1}
+                accept={allowedFileTypes.join(',')}
+                multiple={multiple && files.length < maxFiles - 1}
               />
             </UploadBox>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>

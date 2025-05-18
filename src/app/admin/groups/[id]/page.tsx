@@ -438,7 +438,7 @@ export default function GroupDetailPage() {
                   </Box>
                   
                   <Grid container spacing={3}>
-                    <Grid xs={12} md={8}>
+                    <Grid size={{ xs: 12, md: 8 }}>
                       <Typography variant="h6" gutterBottom>
                         Beschreibung
                       </Typography>
@@ -450,7 +450,7 @@ export default function GroupDetailPage() {
                       ))}
                     </Grid>
                     
-                    <Grid xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                       <Typography variant="h6" gutterBottom>
                         Gruppenlogo
                       </Typography>
@@ -491,7 +491,7 @@ export default function GroupDetailPage() {
                 </Paper>
                 
                 <Grid container spacing={3}>
-                  <Grid xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Paper sx={{ p: 3, height: '100%' }}>
                       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                         <PersonIcon sx={{ mr: 1 }} />
@@ -532,7 +532,7 @@ export default function GroupDetailPage() {
                     </Paper>
                   </Grid>
                   
-                  <Grid xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Paper sx={{ p: 3, height: '100%' }}>
                       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                         <GroupIcon sx={{ mr: 1 }} />

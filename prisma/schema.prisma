@@ -85,6 +85,7 @@ enum StatusReportStatus {
   NEW
   ACTIVE
   ARCHIVED
+  REJECTED
 }
 
 // Group model for managing groups/organizations

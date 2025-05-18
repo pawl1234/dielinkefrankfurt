@@ -142,7 +142,7 @@ const theme = createTheme({
 *   **Main Structure:** Use `<Box>` or standard HTML5 elements (`<header>`, `<main>`, `<footer>`) styled with the `sx` prop.
 *   **Container:** Wrap main page sections with `<Container maxWidth="lg">` (or `md`, `xl` depending on desired max width).
     *   `sx={{ py: 3 }}` for vertical padding.
-*   **Grid System:** Use `<Grid container spacing={2}>` for rows and `<Grid item xs={12} md={...}>` for columns. Since there's no sidebar in the screenshot's context, main content would be `<Grid item xs={12}>`.
+*   **Grid System:** Use `<Grid container spacing={2}>` for rows and `<Grid size={{ xs: 12 }}>` for columns. Since there's no sidebar in the screenshot's context, main content would be `<Grid size={{ xs: 12 }}>`.
 
 ### 3. Header Elements (MUI Implementation)
 

@@ -327,7 +327,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
               
               <Grid container spacing={3}>
                 {/* Title field */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     label="Report Title"
                     value={title}
@@ -340,7 +340,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Group select */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth required>
                     <InputLabel id="group-select-label">Group</InputLabel>
                     <Select
@@ -358,7 +358,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Status select */}
-                <Grid xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth required>
                     <InputLabel id="status-select-label">Status</InputLabel>
                     <Select
@@ -377,7 +377,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Reporter first name */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
                     label="Reporter First Name"
                     value={reporterFirstName}
@@ -390,7 +390,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Reporter last name */}
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
                     label="Reporter Last Name"
                     value={reporterLastName}
@@ -403,7 +403,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Report content */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Report Content
                   </Typography>
@@ -416,7 +416,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Existing file attachments */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Current Attachments
                   </Typography>
@@ -456,7 +456,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Upload new files */}
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Add New Attachments
                   </Typography>
@@ -493,7 +493,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                 </Grid>
                 
                 {/* Form buttons */}
-                <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Button
                     variant="contained"
                     color="error"

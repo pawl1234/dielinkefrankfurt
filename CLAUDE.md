@@ -210,7 +210,8 @@ Optional:
 - **Database connection issues**: Verify DATABASE_URL is correct
 - **File upload failures**: Check BLOB_READ_WRITE_TOKEN is set correctly
 - **Authentication problems**: Verify NEXTAUTH_SECRET and NEXTAUTH_URL are set
-- **MUI v7 Grid usage**: Material UI v7 uses a new Grid system. Do NOT use the `item` prop anymore with Grid components. Just use `<Grid xs={12} md={6}>` instead of `<Grid item xs={12} md={6}>`
+- **MUI v7 Grid usage**: Material UI v7 uses a new Grid system this code is wrong: `<Grid size={{ xs: 12, md: 6 }}>` use the new way instead: `<Grid size={{ xs: 12, md: 6 }}>`.
+- **Date handling**: When working with date fields, be aware that the Prisma client uses JavaScript `Date` objects for datetime fields, but our interface definitions sometimes expect `string`. In components, use `Date | string` as the type for date fields.
 
 ## Documentation
 

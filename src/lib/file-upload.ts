@@ -246,7 +246,7 @@ export async function uploadCroppedImagePair(
   if (croppedFile instanceof Blob) {
     croppedBlob = croppedFile;
   } else {
-    const croppedArrayBuffer = await croppedFile.arrayBuffer();
+    const croppedArrayBuffer = await (croppedFile as File).arrayBuffer();
     croppedBlob = new Blob([croppedArrayBuffer], { type: 'image/jpeg' });
   }
   

@@ -283,7 +283,7 @@ export async function getGroups(
 /**
  * Get a single group by ID
  */
-export async function getGroupById(id: string): Promise<Group | null> {
+export async function getGroupById(id: string): Promise<(Group & { responsiblePersons: ResponsiblePerson[]; statusReports: StatusReport[] }) | null> {
   try {
     const group = await prisma.group.findUnique({
       where: { id },
@@ -306,7 +306,7 @@ export async function getGroupById(id: string): Promise<Group | null> {
 /**
  * Get a single group by slug
  */
-export async function getGroupBySlug(slug: string): Promise<Group | null> {
+export async function getGroupBySlug(slug: string): Promise<(Group & { statusReports: StatusReport[] }) | null> {
   try {
     const group = await prisma.group.findUnique({
       where: { slug },
@@ -352,7 +352,10 @@ export async function getPublicGroups(page?: number, pageSize?: number): Promise
           slug: true,
           description: true,
           logoUrl: true,
-          createdAt: true
+          createdAt: true,
+          status: true,
+          metadata: true,
+          updatedAt: true
         },
         skip,
         take: pageSize
@@ -379,7 +382,10 @@ export async function getPublicGroups(page?: number, pageSize?: number): Promise
           slug: true,
           description: true,
           logoUrl: true,
-          createdAt: true
+          createdAt: true,
+          status: true,
+          metadata: true,
+          updatedAt: true
         }
       });
       
@@ -410,7 +416,7 @@ export async function updateGroupStatus(id: string, status: GroupStatus): Promis
       }
       
       // If status changed to REJECTED, send notification email
-      if (status === 'REJECTED') {
+      if (String(status) === 'REJECTED') {
         await sendGroupRejectionEmail(group);
       }
       

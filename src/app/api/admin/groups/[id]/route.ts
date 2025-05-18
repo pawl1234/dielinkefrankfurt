@@ -53,7 +53,12 @@ export const GET = withAdminAuth(async (request: NextRequest, context: { params:
       return NextResponse.json(response, { status: 404 });
     }
     
-    const response: GroupDetailResponse = { group };
+    const response: GroupDetailResponse = { 
+      group: group as (Group & {
+        responsiblePersons: ResponsiblePerson[];
+        statusReports: StatusReport[];
+      })
+    };
     return NextResponse.json(response);
   } catch (error) {
     console.error(`Error fetching group:`, error);
@@ -207,7 +212,9 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     
     const response: GroupUpdateResponse = {
       success: true,
-      group: updatedGroup
+      group: updatedGroup as Group & {
+        responsiblePersons: ResponsiblePerson[];
+      }
     };
     
     return NextResponse.json(response);

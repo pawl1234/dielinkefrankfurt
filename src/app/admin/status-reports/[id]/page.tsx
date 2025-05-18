@@ -168,7 +168,7 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
                   color={
                     statusReport.status === 'NEW' ? 'warning' : 
                     statusReport.status === 'ACTIVE' ? 'success' : 
-                    statusReport.status === 'REJECTED' ? 'error' : 
+                   // statusReport.status === 'REJECTED' ? 'error' : 
                     'default'
                   }
                 />
@@ -242,7 +242,7 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
               
               {/* Report metadata */}
               <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     <strong>Submitted By:</strong> {statusReport.reporterFirstName} {statusReport.reporterLastName}
                   </Typography>
@@ -254,13 +254,13 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
                   </Typography>
                 </Grid>
                 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     <strong>Last Updated:</strong> {formatDate(statusReport.updatedAt)}
                   </Typography>
                   {statusReport.status !== 'NEW' && (
                     <Typography variant="subtitle1" gutterBottom>
-                      <strong>Status Changed:</strong> {statusReport.processingDate ? formatDate(statusReport.processingDate) : 'N/A'}
+                      <strong>Status Changed:</strong> {statusReport.updatedAt ? formatDate(statusReport.updatedAt) : 'N/A'}
                     </Typography>
                   )}
                 </Grid>
@@ -291,7 +291,7 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
                       const { filename, isImage } = getFileInfo(url);
                       
                       return (
-                        <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
                           <Card variant="outlined">
                             {isImage ? (
                               <CardMedia

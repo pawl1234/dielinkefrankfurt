@@ -25,15 +25,18 @@ import LinkIcon from '@mui/icons-material/Link';
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
-  maxLength: number;
+  maxLength?: number;
   placeholder?: string;
+  minHeight?: number;
 }
 
 // Styled component for the editor content
-const StyledEditorContent = styled(EditorContent)(({ theme }) => ({
+const StyledEditorContent = styled(EditorContent, {
+  shouldForwardProp: (prop) => prop !== 'minHeight',
+})<{ minHeight?: number }>(({ theme, minHeight = 150 }) => ({
   '& .ProseMirror': {
     padding: theme.spacing(2),
-    minHeight: '150px',
+    minHeight: `${minHeight}px`,
     outline: 'none',
     '&:focus': {
       outline: 'none',
@@ -74,7 +77,7 @@ const EditorToggleButton = styled(IconButton, {
   },
 }));
 
-const RichTextEditor = ({ value, onChange, maxLength, placeholder }: RichTextEditorProps) => {
+const RichTextEditor = ({ value, onChange, maxLength = 10000, placeholder, minHeight = 150 }: RichTextEditorProps) => {
   const [charCount, setCharCount] = useState(0);
   const [showLimitMessage, setShowLimitMessage] = useState(false);
 
@@ -181,7 +184,7 @@ const RichTextEditor = ({ value, onChange, maxLength, placeholder }: RichTextEdi
         </Tooltip>
       </Box>
 
-      <StyledEditorContent editor={editor} />
+      <StyledEditorContent editor={editor} minHeight={minHeight} />
 
       <Divider />
 

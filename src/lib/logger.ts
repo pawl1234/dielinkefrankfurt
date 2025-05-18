@@ -72,7 +72,8 @@ function log(level: LogLevel, message: string | Error, options: LogOptions = {})
   // If in production, we might want to filter debug logs
   if (process.env.NODE_ENV === 'production' && level === 'debug') return;
 
-  const timestamp = options.timestamp !== false ? new Date().toISOString() : undefined;
+  const includeTimestamp = options.timestamp !== false;
+  const { timestamp: timestampOption, ...restOptions } = options;
   let errorInfo;
   let finalMessage = message;
 
@@ -94,8 +95,8 @@ function log(level: LogLevel, message: string | Error, options: LogOptions = {})
   const entry: LogEntry = {
     level,
     message: String(finalMessage),
-    timestamp: timestamp || new Date().toISOString(),
-    ...options,
+    timestamp: includeTimestamp ? new Date().toISOString() : '',
+    ...restOptions,  // Spread the rest of options without timestamp
     context: {
       ...stackInfo,
       ...options.context,
@@ -214,7 +215,7 @@ export function logError(
     error = new Error(String(error));
   }
   
-  logger.error(error, { 
+  logger.error(error as Error, { 
     module: 'api',
     context: {
       operation,

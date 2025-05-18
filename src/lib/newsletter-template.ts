@@ -176,7 +176,7 @@ export const truncateText = (text: string, maxLength: number = 300): string => {
  * Generate status reports HTML section
  */
 export const generateStatusReportsHtml = (
-  statusReportsByGroup?: GroupWithReports[],
+  statusReportsByGroup: GroupWithReports[],
   baseUrl: string
 ): string => {
   if (!statusReportsByGroup || statusReportsByGroup.length === 0) {
@@ -266,7 +266,7 @@ export function generateNewsletterHtml(params: EmailTemplateParams): string {
   // Generate HTML sections
   const featuredEventsHtml = generateFeaturedEventsHtml(featuredAppointments, baseUrl);
   const upcomingEventsHtml = generateUpcomingEventsHtml(upcomingAppointments, baseUrl);
-  const statusReportsHtml = generateStatusReportsHtml(statusReportsByGroup, baseUrl);
+  const statusReportsHtml = generateStatusReportsHtml(statusReportsByGroup || [], baseUrl);
   
   // Default logo and banner if none provided
   const headerLogo = newsletterSettings.headerLogo;

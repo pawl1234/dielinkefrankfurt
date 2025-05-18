@@ -27,7 +27,7 @@ interface Group {
   slug: string;
   description: string;
   logoUrl: string | null;
-  createdAt: string;
+  createdAt: Date | string;
 }
 
 const GroupsSection: React.FC = () => {
@@ -78,7 +78,7 @@ const GroupsSection: React.FC = () => {
         </Typography>
         <Grid container spacing={3}>
           {[1, 2, 3].map((item) => (
-            <Grid key={item} xs={12} md={6} lg={4}>
+            <Grid key={item} size={{ xs: 12, md: 6, lg: 4 }}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -129,7 +129,7 @@ const GroupsSection: React.FC = () => {
       
       <Grid container spacing={3}>
         {groups.map((group) => (
-          <Grid key={group.id} xs={12} md={6} lg={4}>
+          <Grid key={group.id} size={{ xs: 12, md: 6, lg: 4 }}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>

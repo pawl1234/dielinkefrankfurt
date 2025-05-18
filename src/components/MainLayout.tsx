@@ -38,9 +38,10 @@ interface MainLayoutProps {
   children: ReactNode;
   breadcrumbs?: BreadcrumbItem[];
   showHeader?: boolean;
+  title?: string;
 }
 
-export function MainLayout({ children, breadcrumbs = [], showHeader = true }: MainLayoutProps) {
+export function MainLayout({ children, breadcrumbs = [], showHeader = true, title }: MainLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated';
@@ -289,6 +290,15 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true }: Ma
             {drawer}
           </Drawer>
         </>
+      )}
+
+      {/* Page title if provided */}
+      {title && (
+        <Container maxWidth="lg" sx={{ mt: 3, mb: 0 }}>
+          <Typography variant="h4" component="h1" fontWeight="bold">
+            {title}
+          </Typography>
+        </Container>
       )}
 
       {/* Breadcrumbs if provided */}

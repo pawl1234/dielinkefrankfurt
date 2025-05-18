@@ -53,7 +53,7 @@ export const GroupCardSkeleton: React.FC = () => (
 export const GroupCardGridSkeleton: React.FC<LoaderProps> = ({ count = 6 }) => (
   <Grid container spacing={3}>
     {Array.from(new Array(count)).map((_, index) => (
-      <Grid key={index} item xs={12} sm={6} md={4}>
+      <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
         <GroupCardSkeleton />
       </Grid>
     ))}
@@ -106,7 +106,7 @@ export const StatusReportCardSkeleton: React.FC = () => (
 export const StatusReportCardGridSkeleton: React.FC<LoaderProps> = ({ count = 6 }) => (
   <Grid container spacing={3}>
     {Array.from(new Array(count)).map((_, index) => (
-      <Grid key={index} item xs={12} md={6} lg={4}>
+      <Grid key={index} size={{ xs: 12, md: 6, lg: 4 }}>
         <StatusReportCardSkeleton />
       </Grid>
     ))}
@@ -121,28 +121,28 @@ export const FormSkeleton: React.FC = () => (
     <Skeleton variant="text" width="50%" height={40} sx={{ mb: 3 }} />
     
     <Grid container spacing={3}>
-      <Grid item xs={12} sm={6}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <Skeleton variant="rounded" height={56} sx={{ mb: 2 }} />
       </Grid>
-      <Grid item xs={12} sm={6}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <Skeleton variant="rounded" height={56} sx={{ mb: 2 }} />
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <Skeleton variant="rounded" height={56} sx={{ mb: 2 }} />
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <Skeleton variant="rounded" height={150} sx={{ mb: 2 }} />
       </Grid>
-      <Grid item xs={12} sm={6}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <Skeleton variant="rounded" height={56} sx={{ mb: 2 }} />
       </Grid>
-      <Grid item xs={12} sm={6}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <Skeleton variant="rounded" height={56} sx={{ mb: 2 }} />
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={{ xs: 12, sm: 6 }}>
         <Skeleton variant="rounded" height={100} sx={{ mb: 2 }} />
       </Grid>
-      <Grid item xs={12} display="flex" justifyContent="flex-end">
+      <Grid size={{ xs: 12, sm: 6 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
         <Skeleton variant="rounded" width={120} height={40} />
       </Grid>
     </Grid>

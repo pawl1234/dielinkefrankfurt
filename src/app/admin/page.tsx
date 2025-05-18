@@ -287,7 +287,7 @@ export default function AdminPage() {
           ) : (
             <Grid container spacing={3}>
               {Array.isArray(appointments) && appointments.map((appointment) => (
-                <Grid xs={12} key={appointment.id}>
+                <Grid size={{ xs: 12}} key={appointment.id}>
                   <Accordion>
                     <AccordionSummary
                       expandIcon={<ExpandMoreIcon />}
@@ -495,7 +495,7 @@ export default function AdminPage() {
                         appointmentComponent={
                           <>
                             <Grid container spacing={3}>
-                              <Grid xs={8}>
+                              <Grid size={{ xs: 8}}>
                                 <Typography variant="h6" gutterBottom>
                                   Veranstaltungsdetails
                                 </Typography>
@@ -514,7 +514,7 @@ export default function AdminPage() {
                                 )}
                               </Grid>
                               
-                              <Grid xs={4}>
+                              <Grid size={{ xs: 4 }}>
                                 <Typography variant="h6" gutterBottom>
                                   Datum & Ort
                                 </Typography>
@@ -589,7 +589,7 @@ export default function AdminPage() {
                                   </Typography>
                                 </Box>
                               </Grid>
-                              <Grid xs={12}>
+                              <Grid size={{ xs: 12}}>
                                 <Typography variant="h6" gutterBottom>
                                   Anhänge
                                 </Typography>
@@ -612,7 +612,7 @@ export default function AdminPage() {
                                           const originalKey = `original-cover-${urlKey}`;
                                           
                                           coverItems.push(
-                                            <Grid xs={12} sm={6} key={originalKey}>
+                                            <Grid size={{ xs: 12, sm: 6}} key={originalKey}>
                                               <Card variant="outlined" sx={{ mb: 1 }}>
                                                 <CardMedia
                                                   component="img"
@@ -648,7 +648,7 @@ export default function AdminPage() {
                                           const croppedKey = `cropped-cover-${croppedUrlKey}`;
                                           
                                           coverItems.push(
-                                            <Grid xs={12} sm={6} key={croppedKey}>
+                                            <Grid size={{ xs: 12, sm: 6}} key={croppedKey}>
                                               <Card variant="outlined" sx={{ mb: 1 }}>
                                                 <CardMedia
                                                   component="img"
@@ -679,7 +679,7 @@ export default function AdminPage() {
                                         }
                                         
                                         return coverItems.length > 0 ? coverItems : (
-                                          <Grid xs={12}>
+                                          <Grid size={{ xs: 12}}>
                                             <Typography variant="body2" color="text.secondary">
                                               Kein Cover-Bild vorhanden.
                                             </Typography>
@@ -688,7 +688,7 @@ export default function AdminPage() {
                                       } catch (e) {
                                         console.error("Error parsing metadata:", e);
                                         return (
-                                          <Grid xs={12}>
+                                          <Grid size={{ xs: 12}}>
                                             <Typography variant="body2" color="error">
                                               Fehler beim Laden der Cover-Bilder.
                                             </Typography>
@@ -713,7 +713,7 @@ export default function AdminPage() {
                                         const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
   
                                         return (
-                                          <Grid xs={12} sm={6} md={4} key={fileUrl}>
+                                          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={fileUrl}>
                                             <Card variant="outlined" sx={{ mb: 1 }}>
                                               {isImage && (
                                                 <CardMedia

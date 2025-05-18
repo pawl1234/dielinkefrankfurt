@@ -180,7 +180,7 @@ export default function Home() {
             
             <Grid container spacing={3}>
               {Array.isArray(appointments) && appointments.map((appointment) => (
-                <Grid key={appointment.id} xs={12}>
+                <Grid key={appointment.id} size={{ xs: 12}}>
                   <Card>
                     <CardContent>
                       <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>

@@ -57,7 +57,9 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     
     const response: GroupStatusUpdateResponse = {
       success: true,
-      group: updatedGroup
+      group: updatedGroup as Group & {
+        responsiblePersons: ResponsiblePerson[];
+      }
     };
     
     return NextResponse.json(response);

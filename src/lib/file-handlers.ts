@@ -1,4 +1,4 @@
-import { put, del, list, PutOption } from '@vercel/blob';
+import { put, del, list, PutCommandOptions } from '@vercel/blob';
 import { createHash } from 'crypto';
 
 // Define maximum file sizes
@@ -86,7 +86,7 @@ export async function generateFileHash(file: File): Promise<string> {
 export async function uploadFile(
   file: File,
   pathPrefix: string,
-  options?: Partial<PutOption>
+  options?: Partial<PutCommandOptions>
 ): Promise<string> {
   try {
     // Validate file
@@ -114,11 +114,11 @@ export async function uploadFile(
     const blob = new Blob([arrayBuffer], { type: file.type });
     
     // Set default options
-    const defaultOptions: PutOption = {
-      access: 'public',
+    const defaultOptions = {
+      access: "public" as const,  // Use "as const" to specify exact type
       contentType: file.type,
       addRandomSuffix: false,
-      cacheControlMaxAge: 31536000, // Cache for 1 year (60 * 60 * 24 * 365)
+      cacheControlMaxAge: 31536000, // Cache for 1 year
     };
     
     // Upload to Vercel Blob Store
@@ -158,7 +158,7 @@ export async function uploadFile(
 export async function uploadMultipleFiles(
   files: File[],
   pathPrefix: string,
-  options?: Partial<PutOption>
+  options?: Partial<PutCommandOptions>
 ): Promise<string[]> {
   // Check total size first
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);

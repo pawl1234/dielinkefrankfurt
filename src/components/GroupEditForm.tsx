@@ -26,8 +26,8 @@ export interface Group {
   logoUrl: string | null;
   status: GroupStatus;
   slug: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
   metadata: string | null;
   responsiblePersons: ResponsiblePerson[];
 }
