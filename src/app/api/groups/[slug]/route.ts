@@ -19,9 +19,12 @@ export interface PublicGroupDetailResponse {
  * Public endpoint for retrieving a specific group by slug, including its active status reports.
  * Only returns groups with ACTIVE status.
  */
-export async function GET(request: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(
+    request: NextRequest, 
+    { params }: { params: { slug: string } }
+  ) {
   try {
-    const { slug } = params;
+    const { slug } = await params;
     
     if (!slug) {
       const response: PublicGroupDetailResponse = {
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
     };
     return NextResponse.json(response);
   } catch (error) {
-    console.error(`Error fetching group with slug ${params.slug}:`, error);
+    console.error(`Error fetching group:`, error);
     
     const response: PublicGroupDetailResponse = {
       success: false,

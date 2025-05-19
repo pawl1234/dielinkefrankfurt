@@ -13,7 +13,8 @@ import {
   Skeleton,
   Chip,
   CircularProgress,
-  Paper
+  Paper,
+  Pagination
 } from '@mui/material';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';
@@ -34,23 +35,40 @@ const GroupsSection: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Added pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(6); // Default page size for groups
 
   useEffect(() => {
     const fetchGroups = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/groups');
+        // Add pagination parameters to the API request
+        const response = await fetch(`/api/groups?page=${page}&pageSize=${pageSize}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch groups');
         }
         
         const data = await response.json();
+        console.log('API response data for groups:', data); // Debug log
         
+        // Handle different response formats
         if (data.success && data.groups) {
           setGroups(data.groups);
+          // If API includes pagination metadata
+          if (data.totalPages) {
+            setTotalPages(data.totalPages);
+          }
+        } else if (data && data.items) {
+          // Handle paginated format with items array
+          setGroups(data.items);
+          setTotalPages(data.totalPages || 1);
+          // Keep the page in sync with what the API returns
+          if (data.page) setPage(data.page);
         } else {
-          console.warn('API returned unsuccessful response:', data);
+          console.warn('API returned unexpected format:', data);
           setGroups([]);
         }
       } catch (err) {
@@ -62,12 +80,21 @@ const GroupsSection: React.FC = () => {
     };
     
     fetchGroups();
-  }, []);
+  }, [page, pageSize]); // Re-fetch when page or pageSize changes
+
+  // Handle page change
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+    // Smooth scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Helper function to truncate text
   const truncateText = (text: string, maxLength: number = 200) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+    // Remove HTML tags for cleaner display
+    const plainText = text.replace(/<[^>]+>/g, '');
+    if (plainText.length <= maxLength) return plainText;
+    return plainText.substring(0, maxLength) + '...';
   };
   
   if (loading) {
@@ -188,6 +215,20 @@ const GroupsSection: React.FC = () => {
           </Grid>
         ))}
       </Grid>
+      
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+          <Pagination 
+            count={totalPages} 
+            page={page} 
+            onChange={handlePageChange} 
+            color="primary"
+            size="large"
+            siblingCount={1}
+          />
+        </Box>
+      )}
     </Box>
   );
 };

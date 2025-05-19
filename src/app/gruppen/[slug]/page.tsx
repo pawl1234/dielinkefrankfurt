@@ -162,33 +162,24 @@ export default function GroupDetailPage() {
 
               {/* Group Info */}
               <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, justifyContent: 'space-between' }}>
+                <Typography variant="h4" component="h1" gutterBottom sx={{  fontWeight: 'bold', mr: 2 }}>
                   {group.name}
                 </Typography>
-                <Box sx={{ color: 'text.secondary', mb: 2 }}>
-                  <Typography variant="body2">
-                    Gruppe aktiv seit {format(new Date(group.createdAt), 'MMMM yyyy', { locale: de })}
+
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                    Aktiv seit {format(new Date(group.createdAt), 'MMMM yyyy', { locale: de })}
                   </Typography>
-                </Box>
+                                </Box>
+                  <Typography
+                    variant="body1"
+                    sx={{ mb: 3, lineHeight: 1.7, color: 'text.secondary' }}
+                    dangerouslySetInnerHTML={{ __html: group.description }}
+                  />
+
               </Box>
             </Box>
-            
-            <Divider sx={{ mb: 3 }} />
-            
-            {/* Group Description */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'medium' }}>
-                Über die Gruppe
-              </Typography>
-              <Typography
-                variant="body1"
-                sx={{ mb: 3, lineHeight: 1.7 }}
-                dangerouslySetInnerHTML={{ __html: group.description }}
-              />
-            </Box>
-            
-            <Divider sx={{ mb: 3 }} />
-            
+
             {/* Status Reports Section */}
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -232,9 +223,7 @@ export default function GroupDetailPage() {
                               variant="h6" 
                               sx={{ 
                                 fontWeight: 'bold',
-                                color: 'primary.main',
-                                borderBottom: '2px solid',
-                                borderColor: 'primary.main',
+                                //color: 'primary.main',
                                 pb: 0.5,
                                 display: 'inline-block'
                               }}
@@ -296,9 +285,9 @@ export default function GroupDetailPage() {
                                         gap: 1.5,
                                         p: 1.5,
                                         bgcolor: 'background.paper',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        borderRadius: 1
+                                       // border: '1px solid',
+                                       // borderColor: 'divider',
+                                       // borderRadius: 1
                                       }}
                                     >
                                       {fileUrls.map((fileUrl: string, index: number) => {
@@ -350,7 +339,7 @@ export default function GroupDetailPage() {
                                                 }
                                               }}
                                             >
-                                              <Box
+                                            {/*   <Box
                                                 component="span"
                                                 sx={{
                                                   maxWidth: { xs: '120px', sm: '180px', md: '220px' },
@@ -360,7 +349,7 @@ export default function GroupDetailPage() {
                                                 }}
                                               >
                                                 {fileName}
-                                              </Box>
+                                              </Box> */}
                                             </Button>
                                           </Tooltip>
                                         );

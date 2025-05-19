@@ -558,6 +558,7 @@ export async function createAppointment(request: NextRequest) {
           lastName,
           recurringText,
           featured,
+          status: 'pending',
           // Store file URLs as JSON strings
           fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
           // Store cover image URLs in metadata field

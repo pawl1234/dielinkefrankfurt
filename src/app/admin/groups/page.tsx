@@ -38,19 +38,15 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import SortIcon from '@mui/icons-material/Sort';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import GroupIcon from '@mui/icons-material/Group';
 import ArchiveIcon from '@mui/icons-material/Archive';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import EventIcon from '@mui/icons-material/Event';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import AdminNavigation from '@/components/AdminNavigation';
 import { Group as GroupType, GroupStatus } from '@prisma/client';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import Link from 'next/link';
 
 // Define response types
 interface GroupsResponse {
@@ -92,9 +88,9 @@ export default function AdminGroupsPage() {
   // Define status types
   const statusValues: GroupStatus[] = ['NEW', 'ACTIVE', 'ARCHIVED'];
   const statusLabels: Record<GroupStatus, string> = {
-    'NEW': 'Neue Anfragen',
+    'NEW': 'Neue Gruppen',
     'ACTIVE': 'Aktive Gruppen',
-    'ARCHIVED': 'Archiv'
+    'ARCHIVED': 'Archivierte Gruppen'
   };
 
   useEffect(() => {
@@ -105,7 +101,10 @@ export default function AdminGroupsPage() {
   }, [status, router]);
 
   // Add a timestamp state for cache busting
-  const [timestamp, setTimestamp] = useState(() => Date.now());
+  const [timestamp, setTimestamp] = useState(0);
+  useEffect(() => {
+    setTimestamp(Date.now());
+  }, []);
   
   useEffect(() => {
     // Fetch groups when authenticated
@@ -395,7 +394,7 @@ export default function AdminGroupsPage() {
 
   if (status === 'loading' || status === 'unauthenticated') {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Box component="div" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -412,41 +411,7 @@ export default function AdminGroupsPage() {
       <Box sx={{ flexGrow: 1 }}>
         <Container maxWidth="lg" sx={{ mt: 4, mb: 2 }}>
           {/* Admin Navigation */}
-          <Paper sx={{ p: 2, mb: 4 }}>
-            <Typography variant="h6" gutterBottom>
-              Admin Dashboard
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              <Button 
-                variant="outlined" 
-                color="primary"
-                startIcon={<EventIcon />}
-                component={Link}
-                href="/admin"
-              >
-                Termine
-              </Button>
-              <Button 
-                variant="contained" 
-                color="primary"
-                startIcon={<GroupIcon />}
-                component={Link}
-                href="/admin/groups"
-                sx={{ fontWeight: 'bold' }}
-              >
-                Gruppen
-              </Button>
-              <Button 
-                variant="outlined" 
-                color="primary"
-                startIcon={<MailOutlineIcon />}
-                component={Link}
-                href="/admin/status-reports"
-              >
-                Status Reports
-              </Button>
-            </Box>
-          </Paper>
+          <AdminNavigation />
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography variant="h4" component="h1" gutterBottom>
@@ -749,7 +714,7 @@ export default function AdminGroupsPage() {
                 </Box>
               </Box>
             )}
-          {'}'}
+          {''}
         </Container>
       </Box>
 

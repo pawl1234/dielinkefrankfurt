@@ -14,6 +14,7 @@ import {
   Chip,
   CircularProgress,
   CardActions,
+  Pagination, // Added import for pagination
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
@@ -42,12 +43,17 @@ export default function Home() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Added pagination state variables
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(5); // Default page size
 
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/appointments');
+        // Add page and pageSize to the request
+        const response = await fetch(`/api/appointments?page=${page}&pageSize=${pageSize}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch appointments');
@@ -56,6 +62,7 @@ export default function Home() {
         let data;
         try {
           data = await response.json();
+          console.log('API response data:', data); // Debug log to see the actual structure
         } catch (jsonError) {
           console.warn('Failed to parse JSON response, setting empty appointments');
           setAppointments([]);
@@ -65,6 +72,13 @@ export default function Home() {
         // Ensure that data is an array
         if (Array.isArray(data)) {
           setAppointments(data);
+        } else if (data && Array.isArray(data.items)) {
+          // Handle the paginated response format with items array
+          setAppointments(data.items);
+          // Store pagination metadata
+          setTotalPages(data.totalPages || 1);
+          // Keep the page in sync with what the API returns
+          if (data.page) setPage(data.page);
         } else if (data && Array.isArray(data.appointments)) {
           // In case the API returns an object with an appointments array
           setAppointments(data.appointments);
@@ -90,7 +104,14 @@ export default function Home() {
     };
     
     fetchAppointments();
-  }, []);
+  }, [page, pageSize]); // Re-fetch when page or pageSize changes
+
+  // Handle page change
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <MainLayout
@@ -133,7 +154,7 @@ export default function Home() {
           </Box>
         </Box>
 
-        <Divider> <b>Termine</b> </Divider>
+        <Divider id="appointments"> <b>Termine</b> </Divider>
         
         {/* Call to action button */}
         <Box
@@ -241,10 +262,24 @@ export default function Home() {
                 </Grid>
               ))}
             </Grid>
+            
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
+                <Pagination 
+                  count={totalPages} 
+                  page={page} 
+                  onChange={handlePageChange} 
+                  color="primary"
+                  size="large" 
+                  siblingCount={1}
+                />
+              </Box>
+            )}
           </>
         )}
         {/* Gruppen */}
-        <Divider sx={{ mt: 5 }}> <b>Gruppen</b> </Divider>
+        <Divider id="groups" sx={{ mt: 5 }}> <b>Gruppen</b> </Divider>
         
         {/* Call to action button */}
         <Box

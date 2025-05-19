@@ -87,6 +87,7 @@ const RichTextEditor = ({ value, onChange, maxLength = 10000, placeholder, minHe
       Link,
     ],
     content: value,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       const text = editor.getText();

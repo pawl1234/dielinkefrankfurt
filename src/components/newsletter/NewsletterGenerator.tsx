@@ -461,53 +461,44 @@ const NewsletterGenerator: React.FC = () => {
                           alignItems="flex-start"
                           sx={{ 
                             borderBottom: '1px dashed #e0e0e0',
-                            paddingY: 2
+                            paddingY: 2,
+                            flexDirection: 'column',
+                            alignItems: 'stretch'
                           }}
                         >
                           <ListItemText
-                            primary={
-                              <Typography
-                                variant="subtitle1"
-                                color="text.primary"
-                                fontWeight="medium"
-                              >
-                                {report.title}
-                              </Typography>
-                            }
-                            secondary={
-                              <React.Fragment>
-                                <Typography
-                                  variant="body2"
-                                  color="text.primary"
-                                  sx={{ 
-                                    display: 'inline',
-                                    mt: 1,
-                                    mb: 1
-                                  }}
-                                  component="span"
-                                >
-                                  {truncateText(report.content, 300)}
-                                </Typography>
-                                
-                                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <Chip 
-                                    label={format(new Date(report.createdAt), 'PPP', { locale: de })}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{ mr: 1 }}
-                                  />
-                                  <Button 
-                                    variant="contained" 
-                                    color="primary" 
-                                    size="small"
-                                    sx={{ minWidth: 'fit-content' }}
-                                  >
-                                    Mehr Infos
-                                  </Button>
-                                </Box>
-                              </React.Fragment>
-                            }
+                            primary={report.title}
+                            secondary={truncateText(report.content, 300)}
+                            slotProps={{
+                              primary: {
+                                variant: "subtitle1",
+                                color: "text.primary",
+                                fontWeight: "medium"
+                              },
+                              secondary: {
+                                variant: "body2",
+                                component: "div" // Critical fix - changes p to div
+                              }
+                            }}
                           />
+                          
+                          {/* Keep buttons and chips outside the ListItemText */}
+                          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Chip 
+                              label={format(new Date(report.createdAt), 'PPP', { locale: de })}
+                              size="small"
+                              variant="outlined"
+                              sx={{ mr: 1 }}
+                            />
+                            <Button 
+                              variant="contained" 
+                              color="primary" 
+                              size="small"
+                              sx={{ minWidth: 'fit-content' }}
+                            >
+                              Mehr Infos
+                            </Button>
+                          </Box>
                         </ListItem>
                       ))}
                     </List>
@@ -516,11 +507,11 @@ const NewsletterGenerator: React.FC = () => {
               ))}
             </Box>
           ) : !statusReportsLoading && (
-            <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#f9f9f9' }}>
+            <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#f9f9f9' }} component="div">
               <Typography variant="body1" color="text.secondary">
                 Keine aktuellen Gruppenberichte verfügbar.
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} component="div">
                 Es wurden keine Berichte von Gruppen in den letzten zwei Wochen veröffentlicht.
               </Typography>
             </Box>
