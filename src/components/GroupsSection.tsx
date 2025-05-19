@@ -38,7 +38,7 @@ const GroupsSection: React.FC = () => {
   // Added pagination state
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [pageSize] = useState(6); // Default page size for groups
+  const [pageSize] = useState(9); // Default page size for groups
 
   useEffect(() => {
     const fetchGroups = async () => {

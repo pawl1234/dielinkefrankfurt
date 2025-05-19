@@ -97,7 +97,7 @@ export default function GroupDetailPage() {
     >
       <Container maxWidth="lg" sx={{ py: 2 }}>
         <Button
-          href="/gruppen"
+          href="/?section=groups"
           startIcon={<ArrowBackIcon />}
           variant="outlined"
           sx={{ mb: 3 }}

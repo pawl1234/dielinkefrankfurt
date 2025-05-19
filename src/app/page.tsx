@@ -14,9 +14,10 @@ import {
   Chip,
   CircularProgress,
   CardActions,
-  Pagination, // Added import for pagination
+  Pagination, 
 } from '@mui/material';
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Link from 'next/link';
@@ -40,19 +41,46 @@ interface Appointment {
 }
 
 export default function Home() {
+  // Call all hooks at the top level of the component - NEVER inside another hook
+  const searchParams = useSearchParams();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Added pagination state variables
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize] = useState(5); // Default page size
 
+  // First useEffect: Handle scrolling to sections
+  useEffect(() => {
+    const scrollToSection = () => {
+      // First check for a query parameter
+      const scrollTarget = searchParams?.get('section');
+      
+      // Then check for URL hash (fragment identifier)
+      const hash = window.location.hash.replace('#', '');
+      
+      // Use whichever target is available
+      const targetId = scrollTarget || hash;
+      
+      if (targetId) {
+        const element = document.getElementById(targetId);
+        if (element) {
+          // Small delay to ensure all elements are rendered
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
+      }
+    };
+    
+    scrollToSection();
+  }, [searchParams]); // This useEffect depends on searchParams
+
+  // Second useEffect: Fetch appointments
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
         setLoading(true);
-        // Add page and pageSize to the request
         const response = await fetch(`/api/appointments?page=${page}&pageSize=${pageSize}`);
         
         if (!response.ok) {
@@ -62,7 +90,7 @@ export default function Home() {
         let data;
         try {
           data = await response.json();
-          console.log('API response data:', data); // Debug log to see the actual structure
+          console.log('API response data:', data);
         } catch (jsonError) {
           console.warn('Failed to parse JSON response, setting empty appointments');
           setAppointments([]);

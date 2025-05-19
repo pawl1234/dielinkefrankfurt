@@ -10,8 +10,6 @@ import {
   Container,
   Paper,
   Grid,
-  Card,
-  CardContent,
   Button,
   Chip,
   CircularProgress,
@@ -34,7 +32,6 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
