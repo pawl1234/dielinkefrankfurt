@@ -214,7 +214,7 @@ export const generateStatusReportsHtml = (
     
     // Add reports for this group
     reports.forEach((report, reportIndex) => {
-      const reportUrl = `${baseUrl}/gruppen/${group.slug}/berichte/${report.id}`;
+      const reportUrl = `${baseUrl}/gruppen/${group.slug}#report-${report.id}`;
       const truncatedContent = truncateText(report.content);
       const isLastReport = reportIndex === reports.length - 1;
       

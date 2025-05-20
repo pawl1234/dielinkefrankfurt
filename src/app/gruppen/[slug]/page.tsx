@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import {
   Typography,
@@ -11,9 +11,6 @@ import {
   Button,
   Divider,
   CircularProgress,
-  Card,
-  CardContent,
-  CardMedia,
   Grid,
   Alert,
   Tooltip,
@@ -50,6 +47,7 @@ export default function GroupDetailPage() {
   // Get params using the useParams hook
   const params = useParams();
   const slug = params?.slug as string;
+  const pathname = usePathname();
 
   useEffect(() => {
     const fetchGroup = async () => {
@@ -86,6 +84,31 @@ export default function GroupDetailPage() {
       fetchGroup();
     }
   }, [slug]);
+
+  // Fragment navigation effect
+  useEffect(() => {
+    if (!loading && group && typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      
+      if (hash) {
+        const elementId = hash.substring(1);
+        const element = document.getElementById(elementId);
+        
+        if (element) {
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            element.style.transition = 'box-shadow 0.3s ease-in-out';
+            element.style.boxShadow = '0 0 0 2px #e91e63';
+            
+            setTimeout(() => {
+              element.style.boxShadow = '';
+            }, 3000);
+          }, 200);
+        }
+      }
+    }
+  }, [loading, group, pathname]);
 
   return (
     <MainLayout
@@ -163,20 +186,19 @@ export default function GroupDetailPage() {
               {/* Group Info */}
               <Box sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, justifyContent: 'space-between' }}>
-                <Typography variant="h4" component="h1" gutterBottom sx={{  fontWeight: 'bold', mr: 2 }}>
-                  {group.name}
-                </Typography>
+                  <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', mr: 2 }}>
+                    {group.name}
+                  </Typography>
 
                   <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                     Aktiv seit {format(new Date(group.createdAt), 'MMMM yyyy', { locale: de })}
                   </Typography>
-                                </Box>
-                  <Typography
-                    variant="body1"
-                    sx={{ mb: 3, lineHeight: 1.7, color: 'text.secondary' }}
-                    dangerouslySetInnerHTML={{ __html: group.description }}
-                  />
-
+                </Box>
+                <Typography
+                  variant="body1"
+                  sx={{ mb: 3, lineHeight: 1.7, color: 'text.secondary' }}
+                  dangerouslySetInnerHTML={{ __html: group.description }}
+                />
               </Box>
             </Box>
 
@@ -196,203 +218,184 @@ export default function GroupDetailPage() {
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   {group.statusReports.map((report) => (
-                    <Box key={report.id}>
-                      <Card 
-                        variant="outlined" 
-                        id={`report-${report.id}`}
+                    <Paper 
+                      key={report.id}
+                      id={`report-${report.id}`}
+                      elevation={2}
+                      sx={{ 
+                        p: { xs: 2, sm: 3 },
+                        borderRadius: 2,
+                        transition: 'box-shadow 0.3s',
+                        '&:hover': {
+                          boxShadow: 4
+                        }
+                      }}
+                    >
+                      {/* Title and date header */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between', 
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        mb: 2,
+                        gap: 1
+                      }}>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            fontWeight: 'bold',
+                            pb: 0.5,
+                            display: 'inline-block'
+                          }}
+                        >
+                          {report.title}
+                        </Typography>
+                        <Chip
+                          icon={<EventIcon fontSize="small" />}
+                          label={format(new Date(report.createdAt), 'dd. MMMM yyyy', { locale: de })}
+                          size="small"
+                          variant="outlined"
+                          sx={{ borderRadius: 1 }}
+                        />
+                      </Box>
+                      
+                      {/* Report content */}
+                      <Box 
                         sx={{ 
-                          overflow: 'visible',
-                          boxShadow: 1,
-                          transition: 'box-shadow 0.3s',
-                          '&:hover': {
-                            boxShadow: 3
-                          }
+                          mb: 3,
+                          p: 2,
+                          bgcolor: 'grey.50',
+                          borderRadius: 1,
+                          '& p': { mt: 0, mb: 1.5 },
+                          '& p:last-child': { mb: 0 },
+                          '& ul, & ol': { mt: 0, mb: 1.5, pl: 2.5 },
+                          '& a': { color: 'primary.main' }
                         }}
                       >
-                        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                          {/* Title and date header */}
-                          <Box sx={{ 
-                            display: 'flex', 
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            justifyContent: 'space-between', 
-                            alignItems: { xs: 'flex-start', sm: 'center' },
-                            mb: 2,
-                            gap: 1
-                          }}>
-                            <Typography 
-                              variant="h6" 
-                              sx={{ 
-                                fontWeight: 'bold',
-                                //color: 'primary.main',
-                                pb: 0.5,
-                                display: 'inline-block'
-                              }}
-                            >
-                              {report.title}
-                            </Typography>
-                            <Chip
-                              icon={<EventIcon fontSize="small" />}
-                              label={format(new Date(report.createdAt), 'dd. MMMM yyyy', { locale: de })}
-                              size="small"
-                              variant="outlined"
-                              sx={{ borderRadius: 1 }}
-                            />
-                          </Box>
-                          
-                          {/* Report content */}
-                          <Box 
-                            sx={{ 
-                              mb: 3,
-                              p: 2,
-                              bgcolor: 'grey.50',
-                              borderRadius: 1,
-                              '& p': { mt: 0, mb: 1.5 },
-                              '& p:last-child': { mb: 0 },
-                              '& ul, & ol': { mt: 0, mb: 1.5, pl: 2.5 },
-                              '& a': { color: 'primary.main' }
-                            }}
-                          >
-                            <Typography 
-                              component="div"
-                              variant="body1"
-                              sx={{ lineHeight: 1.6 }}
-                              dangerouslySetInnerHTML={{ __html: report.content }}
-                            />
-                          </Box>
-                          
-                          {/* File attachments */}
-                          {report.fileUrls && (() => {
-                            try {
-                              const fileUrls = JSON.parse(report.fileUrls as string);
-                              if (Array.isArray(fileUrls) && fileUrls.length > 0) {
-                                return (
-                                  <Box sx={{ mb: 3 }}>
-                                    <Box sx={{ 
-                                      display: 'flex', 
-                                      alignItems: 'center', 
-                                      gap: 1, 
-                                      mb: 1.5 
-                                    }}>
-                                      <AttachmentIcon fontSize="small" color="primary" />
-                                      <Typography variant="subtitle2">
-                                        Dateianhänge ({fileUrls.length})
-                                      </Typography>
-                                    </Box>
-                                    <Box 
-                                      sx={{ 
-                                        display: 'flex', 
-                                        flexWrap: 'wrap', 
-                                        gap: 1.5,
-                                        p: 1.5,
-                                        bgcolor: 'background.paper',
-                                       // border: '1px solid',
-                                       // borderColor: 'divider',
-                                       // borderRadius: 1
-                                      }}
-                                    >
-                                      {fileUrls.map((fileUrl: string, index: number) => {
-                                        const fileName = fileUrl.split('/').pop() || `Datei ${index + 1}`;
-                                        const fileExt = fileName.split('.').pop()?.toUpperCase() || 'Datei';
-                                        const isImage = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
-                                        const isPdf = /\.pdf$/i.test(fileName);
-                                        
-                                        let icon;
-                                        if (isImage) {
-                                          icon = <Box 
-                                            component="img" 
-                                            src={fileUrl} 
-                                            alt="Thumbnail"
-                                            sx={{ 
-                                              width: 24, 
-                                              height: 24, 
-                                              objectFit: 'cover',
-                                              borderRadius: '2px' 
-                                            }} 
-                                          />;
-                                        } else if (isPdf) {
-                                          icon = <DownloadIcon sx={{ color: 'error.main' }} />;
-                                        } else {
-                                          icon = <DownloadIcon />;
-                                        }
-                                        
-                                        return (
-                                          <Tooltip 
-                                            key={index} 
-                                            title={`${fileExt}-Datei herunterladen`} 
-                                            arrow
-                                          >
-                                            <Button 
-                                              variant="outlined"
-                                              size="small"
-                                              href={fileUrl}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              download={fileName}
-                                              startIcon={icon}
-                                              sx={{ 
-                                                textTransform: 'none', 
-                                                borderRadius: 1,
-                                                borderColor: 'divider',
-                                                '&:hover': {
-                                                  borderColor: 'primary.main',
-                                                  bgcolor: 'rgba(0, 0, 0, 0.04)'
-                                                }
-                                              }}
-                                            >
-                                            {/*   <Box
-                                                component="span"
-                                                sx={{
-                                                  maxWidth: { xs: '120px', sm: '180px', md: '220px' },
-                                                  overflow: 'hidden',
-                                                  textOverflow: 'ellipsis',
-                                                  whiteSpace: 'nowrap'
-                                                }}
-                                              >
-                                                {fileName}
-                                              </Box> */}
-                                            </Button>
-                                          </Tooltip>
-                                        );
-                                      })}
-                                    </Box>
-                                  </Box>
-                                );
-                              }
-                              return null;
-                            } catch (error) {
-                              console.error('Error parsing fileUrls:', error);
-                              return (
-                                <Alert severity="error" sx={{ mb: 2 }}>
-                                  Fehler beim Laden der Dateianhänge
-                                </Alert>
-                              );
-                            }
-                          })()}
-                          
-                          {/* Reporter info */}
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            mt: 1 
-                          }}>
-                            <Avatar 
-                              sx={{ 
-                                width: 28, 
-                                height: 28, 
-                                bgcolor: 'secondary.main',
-                                fontSize: '0.9rem' 
-                              }}
-                            >
-                              {report.reporterFirstName[0]}{report.reporterLastName[0]}
-                            </Avatar>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              Berichtet von <strong>{report.reporterFirstName} {report.reporterLastName}</strong>
-                            </Typography>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </Box>
+                        <Typography 
+                          component="div"
+                          variant="body1"
+                          sx={{ lineHeight: 1.6 }}
+                          dangerouslySetInnerHTML={{ __html: report.content }}
+                        />
+                      </Box>
+                      
+                      {/* File attachments */}
+                      {report.fileUrls && (() => {
+                        try {
+                          const fileUrls = JSON.parse(report.fileUrls as string);
+                          if (Array.isArray(fileUrls) && fileUrls.length > 0) {
+                            return (
+                              <Box sx={{ mb: 3 }}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 1, 
+                                  mb: 1.5 
+                                }}>
+                                  <AttachmentIcon fontSize="small" color="primary" />
+                                  <Typography variant="subtitle2">
+                                    Dateianhänge ({fileUrls.length})
+                                  </Typography>
+                                </Box>
+                                <Box 
+                                  sx={{ 
+                                    display: 'flex', 
+                                    flexWrap: 'wrap', 
+                                    gap: 1.5,
+                                    p: 1.5,
+                                    bgcolor: 'background.paper',
+                                  }}
+                                >
+                                  {fileUrls.map((fileUrl: string, index: number) => {
+                                    const fileName = fileUrl.split('/').pop() || `Datei ${index + 1}`;
+                                    const fileExt = fileName.split('.').pop()?.toUpperCase() || 'Datei';
+                                    const isImage = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+                                    const isPdf = /\.pdf$/i.test(fileName);
+                                    
+                                    let icon;
+                                    if (isImage) {
+                                      icon = <Box 
+                                        component="img" 
+                                        src={fileUrl} 
+                                        alt="Thumbnail"
+                                        sx={{ 
+                                          width: 24, 
+                                          height: 24, 
+                                          objectFit: 'cover',
+                                          borderRadius: '2px' 
+                                        }} 
+                                      />;
+                                    } else if (isPdf) {
+                                      icon = <DownloadIcon sx={{ color: 'error.main' }} />;
+                                    } else {
+                                      icon = <DownloadIcon />;
+                                    }
+                                    
+                                    return (
+                                      <Tooltip 
+                                        key={index} 
+                                        title={`${fileExt}-Datei herunterladen`} 
+                                        arrow
+                                      >
+                                        <Button 
+                                          variant="outlined"
+                                          size="small"
+                                          href={fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          download={fileName}
+                                          startIcon={icon}
+                                          sx={{ 
+                                            textTransform: 'none', 
+                                            borderRadius: 1,
+                                            borderColor: 'divider',
+                                            '&:hover': {
+                                              borderColor: 'primary.main',
+                                              bgcolor: 'rgba(0, 0, 0, 0.04)'
+                                            }
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    );
+                                  })}
+                                </Box>
+                              </Box>
+                            );
+                          }
+                          return null;
+                        } catch (error) {
+                          console.error('Error parsing fileUrls:', error);
+                          return (
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                              Fehler beim Laden der Dateianhänge
+                            </Alert>
+                          );
+                        }
+                      })()}
+                      
+                      {/* Reporter info */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        mt: 1 
+                      }}>
+                        <Avatar 
+                          sx={{ 
+                            width: 28, 
+                            height: 28, 
+                            bgcolor: 'secondary.main',
+                            fontSize: '0.9rem' 
+                          }}
+                        >
+                          {report.reporterFirstName[0]}{report.reporterLastName[0]}
+                        </Avatar>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          Berichtet von <strong>{report.reporterFirstName} {report.reporterLastName}</strong>
+                        </Typography>
+                      </Box>
+                    </Paper>
                   ))}
                 </Box>
               )}
