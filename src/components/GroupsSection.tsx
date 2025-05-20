@@ -140,7 +140,7 @@ const GroupsSection: React.FC = () => {
   if (groups.length === 0) {
     return (
       <Paper sx={{ p: 3, mt: 2, mb: 4, textAlign: 'center' }}>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="h6" color="text.secondary" paragraph>
           Keine aktiven Gruppen gefunden.
         </Typography>
       </Paper>
