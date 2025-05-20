@@ -8,5 +8,6 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "crons": []
+  "crons": [],
+  "regions": ["fra1"]
 }
