@@ -7,33 +7,35 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient };
 // Create Prisma Client with logging
 export const prisma = globalForPrisma.prisma || new PrismaClient({
   log: [
-    {
+    // Remove the query logging or set conditions
+    /* {
       emit: 'event',
       level: 'query',
-    },
+    }, */
     {
       emit: 'stdout',
       level: 'error',
     },
     {
       emit: 'stdout',
-      level: 'info',
-    },
-    {
-      emit: 'stdout',
       level: 'warn',
     },
+    // Optionally remove info logs too if they're too verbose
+    // {
+    //   emit: 'stdout',
+    //   level: 'info',
+    // },
   ],
 });
 
 // Enhanced logging via middleware instead of events
-prisma.$use(async (params, next) => {
+/* prisma.$use(async (params, next) => {
   const before = Date.now();
   const result = await next(params);
   const after = Date.now();
   console.log(`Query: ${params.model}.${params.action} took ${after - before}ms`);
   return result;
-});
+}); */
 
 // Log database connection status at startup
 async function checkConnection() {

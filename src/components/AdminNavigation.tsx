@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import EventIcon from '@mui/icons-material/Event';
 import GroupsIcon from '@mui/icons-material/Groups';
+import PersonIcon from '@mui/icons-material/Groups';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import MailIcon from '@mui/icons-material/Mail';
 
@@ -23,6 +24,7 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
   const isAppointmentsActive = pathname === '/admin/appointments';
   const isGroupsActive = pathname.startsWith('/admin/groups');
   const isStatusReportsActive = pathname.startsWith('/admin/status-reports');
+  const isUsersActive = pathname.startsWith('/admin/users')
 
   const navItems = [
     {
@@ -48,7 +50,13 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
       icon: <AssignmentIcon />,
       href: '/admin/status-reports',
       isActive: isStatusReportsActive
-    }
+    },
+    {
+      label: 'Benutzerverwaltung',
+      icon: <PersonIcon />,
+      href: '/admin/users',
+      isActive: isUsersActive
+    }    
   ];
 
   return (
