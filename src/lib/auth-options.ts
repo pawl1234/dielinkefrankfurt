@@ -40,10 +40,13 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.user.role = token.role;
-      session.user.username = token.username;
-      session.user.isEnvironmentUser = token.isEnvironmentUser || false;
-      return session;
+        if (session.user) {
+            session.user.id = token.id;
+            session.user.role = token.role;
+            session.user.username = token.username;
+            session.user.isEnvironmentUser = token.isEnvironmentUser;
+        }
+        return session;
     }
   },
   pages: { signIn: '/admin/login' },

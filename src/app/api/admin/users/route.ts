@@ -27,7 +27,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     return NextResponse.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
-    return new AppError('Failed to fetch users', 'DATABASE_ERROR').toResponse();
+    return AppError.database('Failed to fetch users').toResponse();
+
   }
 });
 
@@ -41,7 +42,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     
     if (!username || !email || !password) {
       console.log('User creation failed: Missing required fields');
-      return new AppError('Username, email and password are required', 'VALIDATION_ERROR').toResponse();
+      return AppError.validation('Username, email and password are required').toResponse();
     }
     
     // Log hash generation
@@ -67,6 +68,6 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     return NextResponse.json(userToReturn, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
-    return new AppError('Failed to create user', 'DATABASE_ERROR').toResponse();
+    return AppError.database('Failed to create user').toResponse();
   }
 });

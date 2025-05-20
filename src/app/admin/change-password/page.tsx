@@ -83,7 +83,7 @@ export default function ChangePasswordPage() {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   }
   
-  const isEnvironmentUser = session?.user?.isEnvironmentUser;
+  const isEnvironmentUser = session?.user?.isEnvironmentUser as boolean | undefined;
 
   return (
     <MainLayout

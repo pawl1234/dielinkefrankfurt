@@ -14,28 +14,32 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     const body = await request.json();
     const { currentPassword, newPassword } = body;
     
-    if (!currentPassword || !newPassword || newPassword.length < 6) {
-      return new AppError('Invalid password data', 'VALIDATION_ERROR').toResponse();
+    if (!token) {
+      return AppError.authentication('Invalid or missing authentication token').toResponse();
     }
     
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return AppError.validation('Invalid password data').toResponse();
+    }
+        
     // Environment users can't change password
     if (token.isEnvironmentUser) {
-      return new AppError('Cannot change password for environment user', 'AUTHORIZATION_ERROR').toResponse();
+      return AppError.authorization('Cannot change user of root admin').toResponse();
     }
     
     // Find user
     const user = await prisma.user.findUnique({ 
       where: { username: token.username }
     });
-    
+
     if (!user) {
-      return new AppError('User not found', 'NOT_FOUND').toResponse();
+      return AppError.notFound('User not found').toResponse();
     }
-    
+
     // Verify current password
     const isPasswordValid = await comparePassword(currentPassword, user.passwordHash);
     if (!isPasswordValid) {
-      return new AppError('Current password is incorrect', 'VALIDATION_ERROR').toResponse();
+      return AppError.validation('Current password is incorrect').toResponse();
     }
     
     // Update password
@@ -47,6 +51,6 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    return new AppError('Failed to change password', 'DATABASE_ERROR').toResponse();
+    return AppError.database('Failed to change password').toResponse();    
   }
 });

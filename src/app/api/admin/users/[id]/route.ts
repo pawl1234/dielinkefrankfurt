@@ -27,12 +27,12 @@ export const GET = withAdminAuth(async (request: NextRequest, { params }: { para
     });
     
     if (!user) {
-      return new AppError('User not found', 'NOT_FOUND').toResponse();
+      return AppError.notFound('User not found').toResponse();      
     }
     
     return NextResponse.json(user);
   } catch (error) {
-    return new AppError('Failed to fetch user', 'DATABASE_ERROR').toResponse();
+    return AppError.database('Failed to fetch user').toResponse();          
   }
 });
 
@@ -45,7 +45,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, { params }: { para
     
     const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
-      return new AppError('User not found', 'NOT_FOUND').toResponse();
+      return AppError.notFound('User not found').toResponse();          
     }
     
     const updatedUser = await prisma.user.update({
@@ -62,7 +62,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, { params }: { para
     const { passwordHash: _, ...userToReturn } = updatedUser;
     return NextResponse.json(userToReturn);
   } catch (error) {
-    return new AppError('Failed to update user', 'DATABASE_ERROR').toResponse();
+    return AppError.database('Failed to update user').toResponse();              
   }
 });
 
@@ -73,13 +73,13 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { params }: { p
     
     const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
-      return new AppError('User not found', 'NOT_FOUND').toResponse();
+      return AppError.notFound('User not found').toResponse();              
     }
     
     await prisma.user.delete({ where: { id } });
     
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    return new AppError('Failed to delete user', 'DATABASE_ERROR').toResponse();
+    return AppError.database('Failed to delete user').toResponse();                  
   }
 });

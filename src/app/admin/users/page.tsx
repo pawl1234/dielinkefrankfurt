@@ -92,8 +92,7 @@ export default function UsersPage() {
     if (!validateForm(true) || !selectedUser) return;
     
     try {
-      const dataToSend = { ...formData };
-      delete dataToSend.password; // Don't update password on edit
+      const { password, ...dataToSend } = formData;
       
       const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
         method: 'PUT',

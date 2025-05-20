@@ -14,12 +14,12 @@ export const POST = withAdminAuth(async (request: NextRequest, { params }: { par
     const { newPassword } = body;
     
     if (!newPassword || newPassword.length < 6) {
-      return new AppError('Password must be at least 6 characters', 'VALIDATION_ERROR').toResponse();
+      return AppError.validation('Password must be at least 6 characters').toResponse();
     }
     
     const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
-      return new AppError('User not found', 'NOT_FOUND').toResponse();
+      return AppError.notFound('User not found').toResponse();
     }
     
     const passwordHash = await hashPassword(newPassword);
@@ -31,6 +31,6 @@ export const POST = withAdminAuth(async (request: NextRequest, { params }: { par
     
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    return new AppError('Failed to reset password', 'DATABASE_ERROR').toResponse();
+    return AppError.database('Failed to reset password').toResponse();
   }
 });
