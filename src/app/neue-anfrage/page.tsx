@@ -1,16 +1,14 @@
 'use client';
 
 import AppointmentForm from '@/components/AppointmentForm';
+import HomePageHeader from '@/components/HomePageHeader';
 import { MainLayout } from '@/components/MainLayout';
 import {
   Typography,
   Container,
   Box,
   Paper,
-  Button,
 } from '@mui/material';
-import Link from 'next/link';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 export default function NewAppointmentPage() {
   return (
@@ -21,39 +19,11 @@ export default function NewAppointmentPage() {
       ]}
     >
       <Container maxWidth="lg">
-      <Box sx={{ mb: 4 }}>
-          {/* Red primary title bar */}
-          <Box
-            sx={{
-              display: 'inline-block',
-              bgcolor: 'primary.main',
-              color: 'common.white',
-              p: { xs: 1.5, md: 2 },
-              borderRadius: 0
-            }}
-          >
-            <Typography variant="h4" component="h2" sx={{ fontWeight: 'fontWeightBold' }}>
-              Termin-Anmeldung
-            </Typography>
-          </Box>
-          <br></br>
-          {/* Secondary subtitle bar - indented from primary title */}
-          <Box
-            sx={{
-              display: 'inline-block',
-              bgcolor: 'secondary.main',
-              color: 'common.white',
-              p: { xs: 1.5, md: 1.5 },
-              ml: { xs: 3, md: 4 },
-              borderRadius: 0
-            }}
-          >
-            <Typography variant="body1" sx={{ fontWeight: 'fontWeightMedium' }}>
-            Online-Formular zur Einreichung von Veranstaltungen
-            </Typography>
-          </Box>
-        </Box>
-
+        <HomePageHeader 
+          mainTitle="Neuet Termin" 
+          subtitle="Online-Formular zur Einreichung von Veranstaltungen"
+          introText="Das nachfolgende Formular bietet die Möglichkeit neue Termine in den Kalender und den Newsletter aufnehmen zu lassen. Es erfolgt eine Freigabe durch den Kreisvorstand."
+        />      
         <Paper
           elevation={3}
           sx={{

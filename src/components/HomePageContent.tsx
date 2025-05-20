@@ -105,20 +105,6 @@ export default function HomePageContent() {
 
   return (
     <>
-      {/* Title section container - this could also be in the parent if it doesn't use searchParams */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'inline-block', bgcolor: 'primary.main', color: 'common.white', p: { xs: 1.5, md: 2 }}}>
-          <Typography variant="h4" component="h2" sx={{ fontWeight: 'fontWeightBold' }}>
-            Die Linke Frankfurt - Mitglieder Portal
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'inline-block', bgcolor: 'secondary.main', color: 'common.white', p: { xs: 1.5, md: 1.5 }, ml: { xs: 3, md: 4 }}}>
-          <Typography variant="body1" sx={{ fontWeight: 'fontWeightMedium' }}>
-            Willkommen auf unserer Seite. Hier finden Sie alle Termine der Partei in Frankfurt.
-          </Typography>
-        </Box>
-      </Box>
-
       <Divider id="appointments"> <b>Termine</b> </Divider>
       
       <Box sx={{ display: 'flex', justifyContent: 'left', mb: 4, mt: 2 }}>
@@ -167,12 +153,18 @@ export default function HomePageContent() {
           )}
         </>
       )}
-      <Divider id="groups" sx={{ mt: 5 }}> <b>Gruppen</b> </Divider>
-      <Box sx={{ display: 'flex', justifyContent: 'left', mb: 4, mt: 2 }}>
-        <Button href="/gruppen-bericht" variant="outlined" size="large" startIcon={<AddIcon />} LinkComponent={Link}>
-          Neuen Gruppenbericht senden
-        </Button>
-      </Box>
+        <Divider id="groups" sx={{ mt: 5 }}> <b>Gruppen</b> </Divider>
+        <Box sx={{ display: 'flex', justifyContent: 'left', mb: 4, mt: 2 }}>
+            <Box sx={{ mr: 2}}>
+                <Button href="/gruppen-bericht" variant="outlined" size="large" startIcon={<AddIcon />} LinkComponent={Link}>
+                Neuen Gruppenbericht senden
+                </Button>
+                </Box><Box>
+                <Button href="/neue-gruppe" variant="outlined" size="large" startIcon={<AddIcon />} LinkComponent={Link}>
+                Neue Gruppe eintragen
+                </Button>        
+            </Box>
+        </Box>
       <GroupsSection />
       <Box component="footer" sx={{ mt: 3, textAlign: 'center', pb: 3 }}>          
         <Typography variant="body2" color="text.secondary">

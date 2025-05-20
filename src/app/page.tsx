@@ -1,11 +1,10 @@
-// src/app/page.tsx
-'use client'; // Keep 'use client' if MainLayout or other top-level things need it,
-              // but HomePageContent itself is also a client component.
+'use client';
 
 import { MainLayout } from '@/components/MainLayout';
-import { Container, CircularProgress, Box } from '@mui/material'; // Added CircularProgress, Box
+import { Container, CircularProgress, Box } from '@mui/material';
 import { Suspense } from 'react'; // Import Suspense
-import HomePageContent from '@/components/HomePageContent'; // Import the new component
+import HomePageContent from '@/components/HomePageContent';
+import HomePageHeader from '@/components/HomePageHeader';
 
 export default function Home() {
   return (
@@ -15,7 +14,12 @@ export default function Home() {
       ]}
     >
       <Container maxWidth="lg">
-        <Suspense fallback={ // Wrap the component that uses useSearchParams
+        <HomePageHeader 
+          mainTitle="Die Linke Frankfurt" 
+          subtitle="Willkommen auf userem Mitgliederportal."
+          introText="Hier finden Sie alle Termine und wichtige Informationen für Mitglieder der Linken in Frankfurt."
+        />              
+        <Suspense fallback={ 
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 200px)' /* Adjust height as needed */ }}>
             <CircularProgress />
           </Box>

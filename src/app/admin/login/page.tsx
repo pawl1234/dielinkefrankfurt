@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { 
   Box, 
@@ -20,6 +20,13 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { status } = useSession();  
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.push('/admin');
+    }
+  }, [status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +43,6 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Ungültige Anmeldedaten. Bitte versuchen Sie es erneut.');
         setLoading(false);
-      } else {
-        router.push('/admin');
       }
     } catch (error) {
       setError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
