@@ -137,7 +137,7 @@ const mockNewsletterParams = {
   newsletterSettings: {
     headerLogo: 'https://example.com/logo.png',
     headerBanner: 'https://example.com/banner.jpg',
-    footerText: 'Die Linke Frankfurt am Main<br/>Kommunalpolitische Vereinigung',
+    footerText: 'Die Linke Frankfurt am Main',
     unsubscribeLink: 'https://example.com/unsubscribe',
   },
   introductionText: '<p>Willkommen zum Newsletter!</p>',

@@ -15,7 +15,10 @@ import {
   Chip,
   Breadcrumbs,
   Tooltip,
-  Divider
+  Divider,
+  ListItemIcon,
+  Collapse,
+  Link as MuiLink
 } from '@mui/material';
 import Link from 'next/link';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -25,8 +28,82 @@ import HomeIcon from '@mui/icons-material/Home';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import EventIcon from '@mui/icons-material/Event';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import GroupsIcon from '@mui/icons-material/Groups';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 import MuiSetup from './MuiSetup';
+
+// Menu item types for structured navigation
+type MenuItemType = 'link' | 'divider' | 'submenu';
+
+interface BaseMenuItem {
+  type: MenuItemType;
+  key: string;
+}
+
+interface LinkMenuItem extends BaseMenuItem {
+  type: 'link';
+  label: string;
+  href: string;
+  icon?: ReactNode;
+}
+
+interface DividerMenuItem extends BaseMenuItem {
+  type: 'divider';
+}
+
+interface SubmenuMenuItem extends BaseMenuItem {
+  type: 'submenu';
+  label: string;
+  icon?: ReactNode;
+  items: MenuItem[];
+}
+
+type MenuItem = LinkMenuItem | DividerMenuItem | SubmenuMenuItem;
+
+// Main navigation structure
+const mainNavigation: MenuItem[] = [
+  {
+    type: 'link',
+    key: 'home',
+    label: 'Startseite',
+    href: '/',
+    icon: <HomeIcon />
+  },
+  {
+    type: 'link',
+    key: 'new-appointment',
+    label: 'Termin anfragen',
+    href: '/neue-anfrage',
+    icon: <AddCircleOutlineIcon />    
+  },
+  {
+    type: 'link',
+    key: 'new-report',
+    label: 'Status Report',
+    href: '/gruppen-bericht',
+    icon: <AddCircleOutlineIcon />    
+  },
+  {
+    type: 'link',
+    key: 'new-group',
+    label: 'Neue Gruppe',
+    href: '/neue-gruppe',
+    icon: <AddCircleOutlineIcon />    
+  },
+  {
+    type: 'link',
+    key: 'admin-dashboard',
+    label: 'Administration',
+    href: '/admin',
+    icon: <AdminPanelSettingsIcon />
+  }
+];
 
 interface BreadcrumbItem {
   label: string;
@@ -45,6 +122,10 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated';
+  const pathname = usePathname();
+  
+  // Track open/closed state of submenus
+  const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -56,6 +137,109 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
     } else {
       signIn(undefined, { callbackUrl: '/admin' });
     }
+  };
+
+  const toggleSubmenu = (key: string) => {
+    setOpenSubmenus(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  // Check if a route is active, including parent paths for nested routes
+  const isRouteActive = (href: string): boolean => {
+    if (href === '/' && pathname === '/') return true;
+    if (href !== '/' && pathname.startsWith(href)) return true;
+    return breadcrumbs.some(b => b.href === href && b.active);
+  };
+
+  // Recursive menu renderer
+  const renderMenuItem = (item: MenuItem, depth = 0) => {
+    const paddingLeft = depth * 2;
+
+    if (item.type === 'divider') {
+      return <Divider key={item.key} sx={{ my: 1 }} />;
+    }
+
+    if (item.type === 'link') {
+      const isActive = isRouteActive(item.href);
+
+      return (
+        <ListItemButton
+          key={item.key}
+          component={Link}
+          href={item.href}
+          selected={isActive}
+          sx={{
+            pl: paddingLeft + 2,
+            '&.Mui-selected': {
+              color: 'primary.main',
+              '& .MuiListItemText-primary': {
+                fontWeight: 'fontWeightBold',
+                color: 'primary.main',
+              },
+            },
+            borderBottom: 1,
+            borderColor: 'divider',
+          }}
+        >
+          {item.icon && (
+            <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'inherit' }}>
+              {item.icon}
+            </ListItemIcon>
+          )}
+          <ListItemText
+            primary={item.label}
+            primaryTypographyProps={{ 
+              fontWeight: isActive ? 'fontWeightBold' : 'fontWeightMedium', 
+              color: 'inherit' 
+            }} 
+          />
+        </ListItemButton>
+      );
+    }
+
+    if (item.type === 'submenu') {
+      const isOpen = Boolean(openSubmenus[item.key]);
+      const hasActiveChild = item.items.some(
+        subItem => subItem.type === 'link' && isRouteActive(subItem.href)
+      );
+
+      return (
+        <Box key={item.key}>
+          <ListItemButton
+            onClick={() => toggleSubmenu(item.key)}
+            sx={{
+              pl: paddingLeft + 2,
+              color: hasActiveChild ? 'primary.main' : 'inherit',
+              borderBottom: 1,
+              borderColor: 'divider',
+            }}
+          >
+            {item.icon && (
+              <ListItemIcon sx={{ color: hasActiveChild ? 'primary.main' : 'inherit' }}>
+                {item.icon}
+              </ListItemIcon>
+            )}
+            <ListItemText
+              primary={item.label}
+              primaryTypographyProps={{ 
+                fontWeight: hasActiveChild ? 'fontWeightBold' : 'fontWeightMedium',
+                color: 'inherit'
+              }}
+            />
+            {isOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+          <Collapse in={isOpen} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {item.items.map(subItem => renderMenuItem(subItem, depth + 1))}
+            </List>
+          </Collapse>
+        </Box>
+      );
+    }
+
+    return null;
   };
 
   // Navigation drawer content
@@ -74,306 +258,282 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
         </IconButton>
       </Toolbar>
       <List component="nav">
-        <ListItemButton
-          component={Link}
-          href="/"
-          selected={breadcrumbs.some(b => b.href === '/' && b.active)}
-          sx={{
-            '&.Mui-selected': {
-              color: 'primary.main',
-              '& .MuiListItemText-primary': {
-                fontWeight: 'fontWeightBold',
-                color: 'primary.main',
-              },
-            },
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <ListItemText 
-            primary="Termine" 
-            primaryTypographyProps={{ 
-              fontWeight: 'fontWeightBold', 
-              color: 'inherit' 
-            }} 
-          />
-        </ListItemButton>
-        <ListItemButton
-          component={Link}
-          href="/neue-anfrage"
-          selected={breadcrumbs.some(b => b.href === '/neue-anfrage' && b.active)}
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <ListItemText 
-            primary="Termin anfragen" 
-            primaryTypographyProps={{ 
-              fontWeight: 'fontWeightBold', 
-              color: 'text.primary' 
-            }} 
-          />
-        </ListItemButton>
-        <ListItemButton
-          component={Link}
-          href="/gruppen"
-          selected={breadcrumbs.some(b => b.href?.startsWith('/gruppen') && b.active)}
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <ListItemText 
-            primary="Arbeitsgruppen" 
-            primaryTypographyProps={{ 
-              fontWeight: 'fontWeightBold', 
-              color: 'text.primary' 
-            }} 
-          />
-        </ListItemButton>
-        <ListItemButton
-          component={Link}
-          href="/admin"
-          selected={breadcrumbs.some(b => b.href?.startsWith('/admin') && b.active)}
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <ListItemText 
-            primary="Administration" 
-            primaryTypographyProps={{ 
-              fontWeight: 'fontWeightBold', 
-              color: 'text.primary' 
-            }} 
-          />
-        </ListItemButton>
+        {mainNavigation.map(item => renderMenuItem(item))}
       </List>
     </Box>
   );
 
+  // Get current year for copyright
+  const currentYear = new Date().getFullYear();
+
   return (
     <MuiSetup>
-      {showHeader && (
-        <>
-          {/* Main header with logo and background */}
-          <Box
-            sx={{
-              position: 'relative',
-              backgroundImage: 'url("/images/header-bg.jpg")',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              py: { xs: 3, md: 4 },
-              mb: 4
-            }}
-          >
-            {/* Header actions - positioned absolutely in top right */}
-            <Paper
-              elevation={2}
-              sx={{
-                p: 0.5,
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: 1,
-                bgcolor: 'common.white',
-                position: 'absolute',
-                top: 16,
-                right: 16,
-                zIndex: 10
-              }}
-            >
-              <Tooltip title={isAuthenticated ? "Abmelden" : "Anmelden"}>
-                <IconButton
-                  aria-label={isAuthenticated ? "logout" : "login"}
-                  onClick={handleAuth}
-                  sx={{
-                    mr: 0.5,
-                    color: isAuthenticated ? 'primary.main' : 'grey.700',
-                    fontSize: 'large',
-                    p: { xs: 1, md: 1.5 }
-                  }}
-                >
-                  {isAuthenticated ? (
-                    <LogoutIcon sx={{ fontSize: 24 }} />
-                  ) : (
-                    <LoginIcon sx={{ fontSize: 24 }} />
-                  )}
-                </IconButton>
-              </Tooltip>
-
-              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
-              <IconButton
-                aria-label="search"
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Box sx={{ flex: '1 0 auto' }}>
+          {showHeader && (
+            <>
+              {/* Main header with logo and background */}
+              <Box
                 sx={{
-                  mr: 0.5,
-                  color: 'grey.700',
-                  fontSize: 'large',
-                  p: { xs: 1, md: 1.5 }
+                  position: 'relative',
+                  backgroundImage: 'url("/images/header-bg.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  py: { xs: 3, md: 4 },
+                  mb: 4
                 }}
               >
-                <SearchIcon sx={{ fontSize: 24 }} />
-              </IconButton>
+                {/* Header actions - positioned absolutely in top right */}
+                <Paper
+                  elevation={2}
+                  sx={{
+                    p: 0.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderRadius: 1,
+                    bgcolor: 'common.white',
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    zIndex: 10
+                  }}
+                >
+                  <Tooltip title={isAuthenticated ? "Abmelden" : "Anmelden"}>
+                    <IconButton
+                      aria-label={isAuthenticated ? "logout" : "login"}
+                      onClick={handleAuth}
+                      sx={{
+                        mr: 0.5,
+                        color: isAuthenticated ? 'primary.main' : 'grey.700',
+                        fontSize: 'large',
+                        p: { xs: 1, md: 1.5 }
+                      }}
+                    >
+                      {isAuthenticated ? (
+                        <LogoutIcon sx={{ fontSize: 24 }} />
+                      ) : (
+                        <LoginIcon sx={{ fontSize: 24 }} />
+                      )}
+                    </IconButton>
+                  </Tooltip>
 
-              {!breadcrumbs.some(b => b.href === '/') ? (
-                <Link href="/" style={{ display: 'flex' }}>
+                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
                   <IconButton
-                    aria-label="home"
+                    aria-label="search"
                     sx={{
+                      mr: 0.5,
                       color: 'grey.700',
                       fontSize: 'large',
                       p: { xs: 1, md: 1.5 }
                     }}
                   >
-                    <HomeIcon sx={{ fontSize: 24 }} />
+                    <SearchIcon sx={{ fontSize: 24 }} />
                   </IconButton>
-                </Link>
-              ) : (
-                <IconButton
-                  aria-label="menu"
-                  onClick={handleDrawerToggle}
-                  sx={{
-                    color: 'grey.700',
-                    fontSize: 'large',
-                    p: { xs: 1, md: 1.5 }
-                  }}
-                >
-                  <MenuIcon sx={{ fontSize: 24 }} />
-                </IconButton>
-              )}
-            </Paper>
 
-            <Container maxWidth="lg">
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  justifyContent: 'flex-start',
-                  alignItems: 'center',
-                  width: '100%'
+                  {!breadcrumbs.some(b => b.href === '/') ? (
+                    <Link href="/" style={{ display: 'flex' }}>
+                      <IconButton
+                        aria-label="home"
+                        sx={{
+                          color: 'grey.700',
+                          fontSize: 'large',
+                          p: { xs: 1, md: 1.5 }
+                        }}
+                      >
+                        <HomeIcon sx={{ fontSize: 24 }} />
+                      </IconButton>
+                    </Link>
+                  ) : (
+                    <IconButton
+                      aria-label="menu"
+                      onClick={handleDrawerToggle}
+                      sx={{
+                        color: 'grey.700',
+                        fontSize: 'large',
+                        p: { xs: 1, md: 1.5 }
+                      }}
+                    >
+                      <MenuIcon sx={{ fontSize: 24 }} />
+                    </IconButton>
+                  )}
+                </Paper>
+
+                <Container maxWidth="lg">
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'row',
+                      justifyContent: 'flex-start',
+                      alignItems: 'center',
+                      width: '100%'
+                    }}
+                  >
+                    {/* Logo */}
+                    <Box
+                      component="div"
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: { xs: 'center', md: 'flex-start' }
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src="/images/logo.png"
+                        alt="Die Linke Kreisverband Frankfurt Logo"
+                        sx={{
+                          height: 'auto',
+                          width: { xs: '220px', md: '280px' },
+                          maxWidth: '100%',
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                </Container>
+              </Box>
+
+              {/* Mobile navigation drawer */}
+              <Drawer
+                anchor="right"
+                open={mobileOpen}
+                onClose={handleDrawerToggle}
+                ModalProps={{
+                  keepMounted: true, // Better mobile performance
                 }}
               >
-                {/* Logo */}
-                <Box
-                  component="div"
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: { xs: 'center', md: 'flex-start' }
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src="/images/logo.png"
-                    alt="Die Linke Kreisverband Frankfurt Logo"
-                    sx={{
-                      height: 'auto',
-                      width: { xs: '220px', md: '280px' },
-                      maxWidth: '100%',
-                    }}
-                  />
-                </Box>
-              </Box>
+                {drawer}
+              </Drawer>
+            </>
+          )}
+
+          {/* Page title if provided */}
+          {title && (
+            <Container maxWidth="lg" sx={{ mt: 3, mb: 0 }}>
+              <Typography variant="h4" component="h1" fontWeight="bold">
+                {title}
+              </Typography>
             </Container>
-          </Box>
+          )}
 
-          {/* Mobile navigation drawer */}
-          <Drawer
-            anchor="right"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{
-              keepMounted: true, // Better mobile performance
-            }}
-          >
-            {drawer}
-          </Drawer>
-        </>
-      )}
-
-      {/* Page title if provided */}
-      {title && (
-        <Container maxWidth="lg" sx={{ mt: 3, mb: 0 }}>
-          <Typography variant="h4" component="h1" fontWeight="bold">
-            {title}
-          </Typography>
-        </Container>
-      )}
-
-      {/* Breadcrumbs if provided */}
-      {breadcrumbs.length > 0 && (
-        <Container maxWidth="lg" sx={{ mb: 2 }}>
-          <Box
-            component="nav"
-            aria-label="breadcrumb"
-            sx={{ py: 2 }}
-          >
-            {breadcrumbs.length === 1 ? (
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
+          {/* Breadcrumbs if provided */}
+          {breadcrumbs.length > 0 && (
+            <Container maxWidth="lg" sx={{ mb: 2 }}>
+              <Box
+                component="nav"
                 aria-label="breadcrumb"
+                sx={{ py: 2 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontWeight: 'medium' }}
+                {breadcrumbs.length === 1 ? (
+                  <Breadcrumbs
+                    separator={<NavigateNextIcon fontSize="small" />}
+                    aria-label="breadcrumb"
                   >
-                    {breadcrumbs[0].label}
-                  </Typography>
-                </Box>
-              </Breadcrumbs>
-            ) : (
-              <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" color="action" />}
-                aria-label="breadcrumb"
-              >
-                {breadcrumbs.map((item, index) => {
-                  const isLast = index === breadcrumbs.length - 1;
-                  const isFirst = index === 0;
-
-                  if (isLast) {
-                    return (
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />
                       <Typography
-                        key={item.label}
                         variant="body2"
-                        color="text.primary"
+                        color="text.secondary"
                         sx={{ fontWeight: 'medium' }}
                       >
-                        {item.label}
+                        {breadcrumbs[0].label}
                       </Typography>
-                    );
-                  }
+                    </Box>
+                  </Breadcrumbs>
+                ) : (
+                  <Breadcrumbs
+                    separator={<NavigateNextIcon fontSize="small" color="action" />}
+                    aria-label="breadcrumb"
+                  >
+                    {breadcrumbs.map((item, index) => {
+                      const isLast = index === breadcrumbs.length - 1;
+                      const isFirst = index === 0;
 
-                  return (
-                    <Link
-                      key={item.label}
-                      href={item.href || '/'}
-                      style={{ textDecoration: 'none' }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        {isFirst && <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />}
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ '&:hover': { textDecoration: 'underline' } }}
+                      if (isLast) {
+                        return (
+                          <Typography
+                            key={item.label}
+                            variant="body2"
+                            color="text.primary"
+                            sx={{ fontWeight: 'medium' }}
+                          >
+                            {item.label}
+                          </Typography>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          key={item.label}
+                          href={item.href || '/'}
+                          style={{ textDecoration: 'none' }}
                         >
-                          {item.label}
-                        </Typography>
-                      </Box>
-                    </Link>
-                  );
-                })}
-              </Breadcrumbs>
-            )}
-          </Box>
-        </Container>
-      )}
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            {isFirst && <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />}
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ '&:hover': { textDecoration: 'underline' } }}
+                            >
+                              {item.label}
+                            </Typography>
+                          </Box>
+                        </Link>
+                      );
+                    })}
+                  </Breadcrumbs>
+                )}
+              </Box>
+            </Container>
+          )}
 
-      {/* Main content */}
-      {children}
+          {/* Main content */}
+          {children}
+        </Box>
+
+        {/* Footer */}
+        <Box 
+          component="footer" 
+          sx={{ 
+            py: 3, 
+            mt: 'auto',
+            backgroundColor: 'grey.500', 
+            color: 'common.white' 
+          }}
+        >
+          <Container maxWidth="lg">
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'column', md: 'row' }, 
+              justifyContent: 'space-between',
+              alignItems: { xs: 'center', md: 'flex-start' }
+            }}>
+              <Typography color='common.black' sx={{ mb: { xs: 2, md: 0 } }}>
+                © {currentYear} Die Linke Kreisverband Frankfurt
+              </Typography>
+              
+              <Box sx={{ display: 'flex', gap: 4 }}>
+                <MuiLink 
+                  href="https://www.die-linke-frankfurt.de/service/impressum-und-datenschutzerklaerung/" 
+                  color="common.black"
+                  underline="hover"
+                  sx={{ fontWeight: 'medium' }}
+                >
+                  Impressum
+                </MuiLink>
+                <MuiLink 
+                  href="https://www.die-linke-frankfurt.de/service/impressum-und-datenschutzerklaerung/" 
+                  color="common.black"
+                  underline="hover"
+                  sx={{ fontWeight: 'medium' }}
+                >
+                  Datenschutz
+                </MuiLink>
+              </Box>
+            </Box>
+          </Container>
+        </Box>
+      </Box>
     </MuiSetup>
   );
 }

@@ -54,19 +54,6 @@ export default function NewAppointmentPage() {
             <AppointmentForm />
           </Box>
         </Paper>
-
-        <Box
-          component="footer"
-          sx={{
-            mt: 3,
-            textAlign: 'center',
-            pb: 3
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            © {new Date().getFullYear()} Die Linke Frankfurt am Main
-          </Typography>
-        </Box>
       </Container>
     </MainLayout>
   );

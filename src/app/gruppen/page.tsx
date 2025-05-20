@@ -201,19 +201,6 @@ export default function GroupsPage() {
             </Grid>
           </>
         )}
-
-        <Box
-          component="footer"
-          sx={{
-            mt: 6,
-            textAlign: 'center',
-            pb: 3
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            © {new Date().getFullYear()} Die Linke Frankfurt am Main
-          </Typography>
-        </Box>
       </Container>
     </MainLayout>
   );

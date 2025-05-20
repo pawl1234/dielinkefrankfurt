@@ -19,6 +19,7 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import { User } from '@/types/user';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 export default function UsersPage() {
   const router = useRouter();
@@ -227,13 +228,9 @@ export default function UsersPage() {
     >
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <AdminNavigation />
-        
-        <Paper sx={{ p: 3, mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h5">
-              <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              User Management
-            </Typography>
+        <AdminPageHeader title="Benutzerverwaltung" icon={<PersonIcon />} />
+
+          <Box sx={{ display: 'flex', justifyContent: 'right', alignItems: 'right', mb: 3 }}>
             <Button
               variant="contained"
               color="primary"
@@ -248,7 +245,7 @@ export default function UsersPage() {
           </Box>
           
           {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-          
+        <Paper sx={{ p: 3, mb: 4 }}>
           <TableContainer>
             <Table>
               <TableHead>

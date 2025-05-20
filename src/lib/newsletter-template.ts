@@ -684,7 +684,7 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
   return {
     headerLogo: 'public/images/logo.png',
     headerBanner: 'public/images/header-bg.jpg',
-    footerText: 'Die Linke Frankfurt am Main<br/>Kommunalpolitische Vereinigung',
+    footerText: 'Die Linke Frankfurt am Main',
     unsubscribeLink: '#',
     testEmailRecipients: 'buero@linke-frankfurt.de'
   };
