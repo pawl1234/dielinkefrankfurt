@@ -1,784 +1,468 @@
+// src/app/admin/groups/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
-import {
-  Box,
-  Typography,
-  Container,
-  Paper,
-  Tabs,
-  Tab,
-  CircularProgress,
-  TextField,
-  IconButton,
-  InputAdornment,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Tooltip,
-  Divider,
-  Alert
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import ClearIcon from '@mui/icons-material/Clear';
-import SortIcon from '@mui/icons-material/Sort';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import GroupIcon from '@mui/icons-material/Group';
-import ArchiveIcon from '@mui/icons-material/Archive';
 import AdminNavigation from '@/components/AdminNavigation';
-import { Group as GroupType, GroupStatus } from '@prisma/client';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusTabs from '@/components/admin/AdminStatusTabs';
+import AdminPagination from '@/components/admin/AdminPagination';
+import AdminNotification from '@/components/admin/AdminNotification';
+import SearchFilterBar from '@/components/admin/SearchFilterBar';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
+import { useAdminState } from '@/hooks/useAdminState';
+
+// Import the EditGroupForm and its types
+import EditGroupForm, { InitialGroupData, EditGroupFormInput } from '@/components/EditGroupForm'; // Adjust path
+
+import {
+  Box, Typography, Paper, IconButton, Container, Button, CircularProgress, Grid, Chip,
+  Dialog, DialogActions, DialogContent, DialogTitle, TextField,
+  Accordion, AccordionSummary, AccordionDetails, Avatar, List, ListItem, ListItemText,
+  Divider, FormControl, InputLabel, Select, MenuItem,
+} from '@mui/material';
+
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import GroupsIcon from '@mui/icons-material/Groups';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ArchiveIcon from '@mui/icons-material/Archive';
+import UnarchiveIcon from '@mui/icons-material/Unarchive';
+
+import { Group, GroupStatus, ResponsiblePerson } from '@prisma/client';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
-// Define response types
-interface GroupsResponse {
-  groups: GroupType[];
-  totalItems?: number;
-  page?: number;
-  pageSize?: number;
-  totalPages?: number;
-  error?: string;
-}
-
-interface GroupStatusUpdateResponse {
-  success: boolean;
-  error?: string;
+interface AdminGroup extends Group {
+  responsiblePersons: ResponsiblePerson[];
+  _count?: { statusReports?: number; };
 }
 
 export default function AdminGroupsPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
-  const [groups, setGroups] = useState<GroupType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [tabValue, setTabValue] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<'name' | 'createdAt'>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const adminState = useAdminState<AdminGroup>();
+
+  const [expandedAccordionId, setExpandedAccordionId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+
+  const [createGroupDialogOpen, setCreateGroupDialogOpen] = useState(false);
+  interface NewGroupSimpleData {
+    name: string;
+    slug: string;
+    description: string;
+    status: GroupStatus; // Explicitly type status with the enum
+  }
+
+  const [newGroupSimpleData, setNewGroupSimpleData] = useState<NewGroupSimpleData>({ 
+    name: '', 
+    slug: '', 
+    description: '', 
+    status: GroupStatus.NEW 
+  });
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
-  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-  const [groupToChangeStatus, setGroupToChangeStatus] = useState<{ id: string, status: GroupStatus } | null>(null);
-  const [statusUpdateMessage, setStatusUpdateMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  
-  // Pagination state
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(9); // 9 items per page for 3x3 grid
-  const [totalItems, setTotalItems] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(0);
+  const [groupToDeleteId, setGroupToDeleteId] = useState<string | null>(null);
 
-  // Define status types
-  const statusValues: GroupStatus[] = ['NEW', 'ACTIVE', 'ARCHIVED'];
-  const statusLabels: Record<GroupStatus, string> = {
-    'NEW': 'Neue Gruppen',
-    'ACTIVE': 'Aktive Gruppen',
-    'ARCHIVED': 'Archivierte Gruppen'
-  };
+  type ViewType = GroupStatus | 'ALL';
+  const views: ViewType[] = [GroupStatus.NEW, GroupStatus.ACTIVE, GroupStatus.ARCHIVED, 'ALL'];
+  const currentView = views[adminState.tabValue];
 
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
+  const statusOptions = [
+    { value: GroupStatus.NEW, label: 'Neu', color: 'info' },
+    { value: GroupStatus.ACTIVE, label: 'Aktiv', color: 'success' },
+    { value: GroupStatus.ARCHIVED, label: 'Archiviert', color: 'default' },
+  ] as const;
 
-  // Add a timestamp state for cache busting
-  const [timestamp, setTimestamp] = useState(0);
-  useEffect(() => {
-    setTimestamp(Date.now());
-  }, []);
-  
-  useEffect(() => {
-    // Fetch groups when authenticated
-    if (status === 'authenticated') {
-      fetchGroups();
-    }
-  }, [status, tabValue, searchTerm, sortField, sortDirection, page, pageSize, timestamp]);
-  
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [tabValue, searchTerm, sortField, sortDirection]);
+  useEffect(() => { if (authStatus === 'unauthenticated') router.push('/admin/login'); }, [authStatus, router]);
+  useEffect(() => { if (authStatus === 'authenticated') fetchGroups(); },
+    [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp]);
 
   const fetchGroups = async () => {
     try {
-      setLoading(true);
-      // Build the query for groups based on filter criteria
-      const selectedStatus = statusValues[tabValue];
-      const params = new URLSearchParams();
-      
-      params.append('status', selectedStatus);
-      
-      if (searchTerm) {
-        params.append('search', searchTerm);
-      }
-      
-      params.append('orderBy', sortField);
-      params.append('orderDirection', sortDirection);
-      params.append('page', page.toString());
-      params.append('pageSize', pageSize.toString());
-      params.append('t', Date.now().toString()); // Cache busting
-      
-      const response = await fetch(`/api/admin/groups?${params.toString()}`);
-
+      adminState.setLoading(true);
+      const statusFilter = currentView !== 'ALL' ? `&status=${currentView}` : '';
+      const searchFilter = adminState.searchTerm ? `&search=${encodeURIComponent(adminState.searchTerm)}` : '';
+      const response = await fetch(
+        `/api/admin/groups?page=${adminState.page}&pageSize=${adminState.pageSize}${statusFilter}${searchFilter}&orderBy=name&orderDirection=asc&t=${adminState.timestamp}`
+      );
       if (!response.ok) {
-        throw new Error('Failed to fetch groups');
+        const errData = await response.json().catch(() => ({ message: 'Failed to fetch groups and parse error' }));
+        throw new Error(errData.error || errData.message || 'Failed to fetch groups');
       }
-
-      const data: GroupsResponse = await response.json();
+      const data = await response.json();
       
-      if (data.error) {
-        throw new Error(data.error);
+      if (data && Array.isArray(data.groups)) {
+        adminState.setItems(data.groups);
+        adminState.setPaginationData({
+          totalItems: data.totalItems || 0,
+          totalPages: data.totalPages || 1,
+        });
+      } else {
+        adminState.setItems([]);
+        adminState.setPaginationData({ totalItems: 0, totalPages: 1 });
       }
-      
-      setGroups(data.groups);
-      setTotalItems(data.totalItems || 0);
-      setTotalPages(data.totalPages || 1);
-      setError(null);
-      
-      // Adjust page if current page is higher than total pages
-      if (data.totalPages && data.totalPages > 0 && page > data.totalPages) {
-        setPage(data.totalPages);
-      }
-    } catch (err) {
-      setError('Failed to load groups. Please try again.');
-      console.error(err);
+      adminState.setError(null);
+    } catch (err: any) {
+      console.error('Error fetching groups:', err);
+      adminState.setError(err.message || 'Failed to load groups.');
     } finally {
-      setLoading(false);
+      adminState.setLoading(false);
     }
   };
 
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+  const handleOpenCreateGroupDialog = () => {
+    setNewGroupSimpleData({ name: '', slug: '', description: '', status: GroupStatus.NEW });
+    setCreateGroupDialogOpen(true);
   };
 
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
+  const handleCreateSimpleGroup = async () => {
+    // This should ideally also use FormData if logo/RPs are to be added on creation via EditGroupForm
+    // For now, it's a simple JSON create.
+    if (!newGroupSimpleData.name || !newGroupSimpleData.slug) {
+      adminState.showNotification('Name und Slug sind erforderlich.', 'error');
+      return;
+    }
+    try {
+      // Ensure you have a POST handler at /api/admin/groups/route.ts that calls createGroup
+      const response = await fetch('/api/admin/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newGroupSimpleData), 
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || errData.message || 'Failed to create group');
+      }
+      adminState.showNotification('Gruppe erfolgreich erstellt.', 'success');
+      setCreateGroupDialogOpen(false);
+      adminState.refreshTimestamp();
+    } catch (err: any) {
+      adminState.showNotification(`Fehler: ${err.message}`, 'error');
+    }
   };
 
-  const handleClearSearch = () => {
-    setSearchTerm('');
-  };
+  const handleEditGroupFormSubmit = async (
+    groupId: string,
+    formData: EditGroupFormInput, // Contains responsiblePersons array
+    newLogoFile: File | Blob | null,
+    newCroppedLogoFile: File | Blob | null
+  ) => {
+    const apiFormData = new FormData();
+    // ID is in the URL for PUT /api/admin/groups/[id]
+    apiFormData.append('name', formData.name);
+    apiFormData.append('slug', formData.slug);
+    apiFormData.append('description', formData.description);
+    apiFormData.append('status', formData.status);
 
-  const handleSortChange = (field: 'name' | 'createdAt') => {
-    // Toggle direction if same field, otherwise set to asc
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    if (newLogoFile) apiFormData.append('logo', newLogoFile);
+    if (newCroppedLogoFile) apiFormData.append('croppedLogo', newCroppedLogoFile);
+    
+    // Check if logo should be removed
+    const groupBeingEdited = adminState.items.find(g => g.id === groupId);
+    if (!newLogoFile && !newCroppedLogoFile && groupBeingEdited?.logoUrl) {
+      // This flag is checked by your backend PUT /api/admin/groups/[id]
+      apiFormData.append('removeLogo', 'true'); 
+    }
+
+    // Append responsible persons
+    // Your backend API PUT /api/admin/groups/[id] expects 'responsiblePersonsCount'
+    // and then indexed fields like 'responsiblePerson[0].firstName'.
+    if (formData.responsiblePersons && formData.responsiblePersons.length > 0) {
+      apiFormData.append('responsiblePersonsCount', formData.responsiblePersons.length.toString());
+      formData.responsiblePersons.forEach((person, index) => {
+        apiFormData.append(`responsiblePerson[${index}].firstName`, person.firstName);
+        apiFormData.append(`responsiblePerson[${index}].lastName`, person.lastName);
+        apiFormData.append(`responsiblePerson[${index}].email`, person.email);
+        // No ID needed here for responsible persons because your backend `updateGroup`
+        // deletes all existing RPs and recreates them from this list.
+      });
     } else {
-      setSortField(field);
-      setSortDirection('asc');
+      // If the array is empty, tell the backend to remove all RPs
+      apiFormData.append('responsiblePersonsCount', '0');
+    }
+
+    try {
+      const response = await fetch(`/api/admin/groups/${groupId}`, {
+        method: 'PUT',
+        body: apiFormData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Failed to update group');
+      }
+      adminState.showNotification('Gruppe erfolgreich aktualisiert.', 'success');
+      setEditingGroupId(null);
+      adminState.refreshTimestamp();
+    } catch (err: any) {
+      adminState.showNotification(`Fehler: ${err.message || 'Unbekannter Fehler.'}`, 'error');
+      throw err; // Re-throw for form's internal error handling
     }
   };
 
-  const handleGroupAction = (action: 'view' | 'edit' | 'delete' | 'activate' | 'archive', group: GroupType) => {
-    switch (action) {
-      case 'view':
-        router.push(`/admin/groups/${group.id}`);
-        break;
-      case 'edit':
-        router.push(`/admin/groups/${group.id}/edit`);
-        break;
-      case 'delete':
-        setGroupToDelete(group.id);
-        setDeleteDialogOpen(true);
-        break;
-      case 'activate':
-        setGroupToChangeStatus({ id: group.id, status: 'ACTIVE' });
-        setStatusDialogOpen(true);
-        break;
-      case 'archive':
-        setGroupToChangeStatus({ id: group.id, status: 'ARCHIVED' });
-        setStatusDialogOpen(true);
-        break;
+  const handleEditGroupFormCancel = () => {
+    setEditingGroupId(null);
+  };
+  
+  const handleUpdateGroupStatus = async (groupId: string, newStatus: GroupStatus) => {
+    try {
+      const response = await fetch(`/api/admin/groups/${groupId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || errData.message || 'Status-Update fehlgeschlagen');
+      }
+      adminState.showNotification('Gruppenstatus erfolgreich aktualisiert.', 'success');
+      adminState.refreshTimestamp();
+    } catch (err: any) {
+      adminState.showNotification(`Fehler beim Aktualisieren des Gruppenstatus: ${err.message}`, 'error');
     }
   };
 
+  const openDeleteGroupConfirm = (id: string) => { setGroupToDeleteId(id); setDeleteDialogOpen(true); };
   const handleDeleteGroup = async () => {
-    if (!groupToDelete) return;
-    
+    if (!groupToDeleteId) return;
     try {
-      setLoading(true);
-      const response = await fetch(`/api/admin/groups/${groupToDelete}`, {
-        method: 'DELETE',
-      });
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('Error parsing response JSON:', jsonError);
-        throw new Error('Failed to parse server response');
+      const response = await fetch(`/api/admin/groups/${groupToDeleteId}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || errData.message || 'Löschen fehlgeschlagen');
       }
-      
-      if (!response.ok || (data && !data.success)) {
-        const errorMessage = (data && data.error) ? data.error : 'Failed to delete group';
-        throw new Error(errorMessage);
-      }
-      
-      // Success - refresh groups and show message
-      setTimestamp(Date.now());
-      setStatusUpdateMessage({
-        type: 'success',
-        message: 'Gruppe wurde erfolgreich gelöscht.'
-      });
-      
-      setTimeout(() => {
-        setStatusUpdateMessage(null);
-      }, 5000);
-      
-    } catch (err) {
-      setStatusUpdateMessage({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Fehler beim Löschen der Gruppe.'
-      });
-      console.error('Error deleting group:', err);
-    } finally {
+      adminState.showNotification('Gruppe gelöscht.', 'success');
       setDeleteDialogOpen(false);
-      setGroupToDelete(null);
-      setLoading(false);
+      adminState.refreshTimestamp();
+    } catch (err: any) {
+      adminState.showNotification(`Fehler: ${err.message}`, 'error');
     }
   };
-
-  const handleUpdateGroupStatus = async () => {
-    if (!groupToChangeStatus) return;
-    
-    try {
-      setLoading(true);
-      console.log(`Updating group ${groupToChangeStatus.id} status to ${groupToChangeStatus.status}`);
-      
-      // Debug the request
-      const requestBody = JSON.stringify({ status: groupToChangeStatus.status });
-      console.log("Request body:", requestBody);
-      
-      try {
-        const response = await fetch(`/api/admin/groups/${groupToChangeStatus.id}/status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: requestBody,
-        });
   
-        // Log all response headers for debugging
-        console.log("Response headers:");
-        response.headers.forEach((value, key) => {
-          console.log(`${key}: ${value}`);
-        });
-  
-        // Log the HTTP status
-        console.log(`Response status: ${response.status} ${response.statusText}`);
-        
-        // Regardless of content type or response status, handle the response
-        let responseText = "";
-        try {
-          responseText = await response.text();
-          console.log("Raw response:", responseText);
-        } catch (textError) {
-          console.error("Failed to read response text:", textError);
-        }
-        
-        // Try to parse as JSON if there's content
-        let data: GroupStatusUpdateResponse | null = null;
-        
-        if (responseText && responseText.trim()) {
-          try {
-            data = JSON.parse(responseText) as GroupStatusUpdateResponse;
-            console.log("Parsed JSON data:", data);
-          } catch (jsonError) {
-            console.warn("Not valid JSON response:", jsonError);
-            // Not throwing error here, we'll handle it below
-          }
-        }
-        
-        // Response handling decision tree
-        if (response.ok) {
-          // Even if we couldn't parse JSON, treat 2xx status as success
-          console.log("Response OK, treating as success");
-          
-          // If we do have parsed data and it explicitly says not success, log warning
-          if (data && data.success === false) {
-            console.warn("API returned OK status but success=false in body");
-          }
-          
-          // Always continue with success flow for 2xx responses
-          // This is a workaround for API inconsistencies
-        } else {
-          // For non-2xx responses
-          let errorMessage = "Unknown server error";
-          
-          if (data && data.error) {
-            errorMessage = data.error;
-          } else if (responseText) {
-            // Try to extract error message from HTML response
-            const errorMatch = responseText.match(/<pre>(.*?)<\/pre>/s) || 
-                              responseText.match(/Error: (.*?)(?:<br|$)/);
-            if (errorMatch && errorMatch[1]) {
-              errorMessage = errorMatch[1].trim();
-            } else {
-              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-            }
-          }
-          
-          console.error("Error updating group status:", errorMessage);
-          throw new Error(errorMessage);
-        }
-      } catch (fetchError) {
-        if (fetchError instanceof Error) {
-          console.error("Fetch operation failed:", fetchError.message);
-          throw fetchError; // Re-throw to be caught by the outer catch
-        } else {
-          console.error("Unknown fetch error:", fetchError);
-          throw new Error("Network error occurred");
-        }
-      }
-      
-      // Success - refresh groups and show message
-      setTimestamp(Date.now());
-      
-      const statusAction = groupToChangeStatus.status === 'ACTIVE' 
-        ? 'aktiviert' 
-        : groupToChangeStatus.status === 'ARCHIVED' 
-        ? 'archiviert'
-        : 'abgelehnt';
-      
-      setStatusUpdateMessage({
-        type: 'success',
-        message: `Gruppe wurde erfolgreich ${statusAction}.`
-      });
-      
-      setTimeout(() => {
-        setStatusUpdateMessage(null);
-      }, 5000);
-      
-    } catch (err) {
-      setStatusUpdateMessage({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Fehler beim Aktualisieren des Gruppenstatus.'
-      });
-      console.error('Error updating group status:', err);
-    } finally {
-      setStatusDialogOpen(false);
-      setGroupToChangeStatus(null);
-      setLoading(false);
-    }
+  const handleSearch = (e: React.FormEvent) => { e.preventDefault(); adminState.setPage(1); fetchGroups(); };
+  const resetFilters = () => { adminState.setSearchTerm(''); adminState.setPage(1); adminState.refreshTimestamp();};
+
+  const getGroupStatusInfo = (statusValue: GroupStatus) => {
+    return statusOptions.find(s => s.value === statusValue) || { value: statusValue, label: String(statusValue), color: 'default' };
+  };
+  const getGroupTabLabel = (view: ViewType): string => {
+    if (view === 'ALL') return 'Alle Gruppen';
+    return getGroupStatusInfo(view).label || String(view);
+  };
+  const getGroupEmptyStateMessage = (view: ViewType): string => {
+    if (view === 'ALL') return 'Keine Gruppen gefunden.';
+    const statusLabel = getGroupStatusInfo(view).label.toLowerCase();
+    const pluralizedStatus = statusLabel.endsWith('e') ? statusLabel + 'n' : statusLabel + (statusLabel.endsWith('s') ? '' : 'e');
+    return `Keine ${pluralizedStatus} Gruppen gefunden.`;
   };
 
-  // Get the status name for the dialog
-  const getStatusAction = (status?: GroupStatus) => {
-    if (!status) return '';
-    
-    switch (status) {
-      case 'ACTIVE': return 'aktivieren';
-      case 'ARCHIVED': return 'archivieren';
-      default: return '';
-    }
-  };
-
-  if (status === 'loading' || status === 'unauthenticated') {
-    return (
-      <Box component="div" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (authStatus === 'loading' || authStatus === 'unauthenticated') return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
 
   return (
-    <MainLayout
-      breadcrumbs={[
-        { label: 'Start', href: '/' },
-        { label: 'Administration', href: '/admin' },
-        { label: 'Gruppen', href: '/admin/groups', active: true },
-      ]}
-    >
+    <MainLayout breadcrumbs={[ { label: 'Start', href: '/' }, { label: 'Administration', href: '/admin'}, { label: 'Gruppen', href: '/admin/groups', active: true } ]}>
       <Box sx={{ flexGrow: 1 }}>
         <Container maxWidth="lg" sx={{ mt: 4, mb: 2 }}>
-          {/* Admin Navigation */}
           <AdminNavigation />
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" component="h1" gutterBottom>
-              <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Gruppen verwalten
-            </Typography>
-          </Box>
-          
-          {statusUpdateMessage && (
-            <Alert 
-              severity={statusUpdateMessage.type} 
-              sx={{ mb: 3 }}
-              onClose={() => setStatusUpdateMessage(null)}
-            >
-              {statusUpdateMessage.message}
-            </Alert>
-          )}
+          <AdminPageHeader title="Gruppen verwalten" icon={<GroupsIcon />} />
+          <SearchFilterBar searchTerm={adminState.searchTerm} onSearchChange={(e) => adminState.setSearchTerm(e.target.value)} onClearSearch={() => adminState.setSearchTerm('')} onSearch={handleSearch}>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button variant="contained" startIcon={<GroupsIcon />} onClick={handleOpenCreateGroupDialog}>Neue Gruppe</Button>
+          </SearchFilterBar>
+          <AdminStatusTabs 
+            value={adminState.tabValue}
+            onChange={(_, newValue) => { adminState.setTabValue(newValue); setEditingGroupId(null); setExpandedAccordionId(null); }}
+            tabs={views.map(view => getGroupTabLabel(view))}
+          />
 
-          <Paper sx={{ p: 0, mb: 3 }}>
-            <Tabs
-              value={tabValue}
-              onChange={handleTabChange}
-              indicatorColor="primary"
-              textColor="primary"
-              variant="fullWidth"
-            >
-              {statusValues.map((status, index) => (
-                <Tab key={status} label={statusLabels[status]} />
-              ))}
-            </Tabs>
-          </Paper>
-
-          <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <TextField
-              label="Gruppen durchsuchen"
-              variant="outlined"
-              size="small"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              sx={{ flexGrow: 1, maxWidth: { xs: '100%', sm: '50%' } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-                endAdornment: searchTerm ? (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleClearSearch}>
-                      <ClearIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              }}
-            />
-
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="Nach Name sortieren">
-                <Button
-                  variant={sortField === 'name' ? 'contained' : 'outlined'}
-                  color="primary"
-                  size="small"
-                  startIcon={<SortIcon />}
-                  onClick={() => handleSortChange('name')}
-                  endIcon={sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-                >
-                  Name
-                </Button>
-              </Tooltip>
-              
-              <Tooltip title="Nach Erstellungsdatum sortieren">
-                <Button
-                  variant={sortField === 'createdAt' ? 'contained' : 'outlined'}
-                  color="primary"
-                  size="small"
-                  startIcon={<SortIcon />}
-                  onClick={() => handleSortChange('createdAt')}
-                  endIcon={sortField === 'createdAt' && (sortDirection === 'asc' ? '↑' : '↓')}
-                >
-                  Datum
-                </Button>
-              </Tooltip>
-            </Box>
-          </Box>
-
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-              <CircularProgress />
-            </Box>
-          ) : error ? (
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <Typography color="error">{error}</Typography>
-            </Paper>
-          ) : groups.length === 0 ? (
+          {adminState.loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress /></Box>
+          : adminState.error ? <Paper sx={{ p: 3, textAlign: 'center' }}><Typography color="error">{adminState.error}</Typography></Paper>
+          : adminState.items.length === 0 ? (
             <Paper sx={{ p: 5, textAlign: 'center' }}>
-              <Typography variant="h6" color="text.secondary">
-                Keine {statusLabels[statusValues[tabValue]].toLowerCase()} gefunden.
-              </Typography>
+              <Typography variant="h6" color="text.secondary">{getGroupEmptyStateMessage(currentView)}</Typography>
+              <Button variant="outlined" sx={{ mt: 2 }} startIcon={<GroupsIcon />} onClick={handleOpenCreateGroupDialog}>Gruppe erstellen</Button>
             </Paper>
-          ): (
-            <Grid container spacing={3}>
-              {groups.map((group) => (
-                <Grid key={group.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                  <Card variant="outlined" sx={{ 
-                    height: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    borderLeft: 3,
-                    borderLeftColor: () => {
-                      switch (group.status) {
-                        case 'NEW': return 'info.main';
-                        case 'ACTIVE': return 'success.main';
-                        case 'ARCHIVED': return 'text.disabled';
-                        default: return 'grey.500';
-                      }
-                    }
-                  }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Chip 
-                          label={(() => {
-                            switch (group.status) {
-                              case 'NEW': return 'Neu';
-                              case 'ACTIVE': return 'Aktiv';
-                              case 'ARCHIVED': return 'Archiviert';
-                              default: return group.status;
-                            }
-                          })()} 
-                          size="small"
-                          color={(() => {
-                            switch (group.status) {
-                              case 'NEW': return 'info';
-                              case 'ACTIVE': return 'success';
-                              case 'ARCHIVED': return 'default';
-                              default: return 'default';
-                            }
-                          })()}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          {format(new Date(group.createdAt), 'dd.MM.yyyy', { locale: de })}
-                        </Typography>
-                      </Box>
-                      
-                      <Typography variant="h6" component="h2" gutterBottom noWrap>
-                        {group.name}
-                      </Typography>
-                      
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        mb: 1, 
-                        height: 100, 
-                        overflow: 'hidden',
-                        position: 'relative'
-                      }}>
-                        {group.logoUrl ? (
-                          <Box 
-                            component="img" 
-                            src={group.logoUrl} 
-                            alt={group.name}
-                            sx={{ 
-                              width: '100%', 
-                              height: '100%', 
-                              objectFit: 'contain',
-                              borderRadius: 1
-                            }}
-                          />
-                        ) : (
-                          <Box 
-                            sx={{ 
-                              width: '100%', 
-                              height: '100%', 
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              bgcolor: 'grey.100',
-                              borderRadius: 1
-                            }}
-                          >
-                            <GroupIcon sx={{ fontSize: 40, color: 'grey.400' }} />
-                          </Box>
-                        )}
-                      </Box>
-                      
-                      <Typography variant="body2" color="text.secondary" sx={{ 
-                        mb: 2,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        lineHeight: 1.5
-                      }}>
-                        {group.description.length > 150 
-                          ? `${group.description.substring(0, 150)}...` 
-                          : group.description}
-                      </Typography>
-                    </CardContent>
-                    
-                    <Divider />
-                    
-                    <CardActions sx={{ p: 1.5, gap: 0.5, flexWrap: 'wrap' }}>
-                      <Button
-                        size="small"
-                        startIcon={<VisibilityIcon />}
-                        onClick={() => handleGroupAction('view', group)}
-                      >
-                        Details
-                      </Button>
-                      
-                      <Button
-                        size="small"
-                        startIcon={<EditIcon />}
-                        onClick={() => handleGroupAction('edit', group)}
-                      >
-                        Bearbeiten
-                      </Button>
-                      
-        
-                      {group.status === 'NEW' && (
-                        <Button
-                          size="small"
-                          color="success"
-                          startIcon={<CheckCircleIcon />}
-                          onClick={() => handleGroupAction('activate', group)}
-                        >
-                          Aktivieren
-                        </Button>
-                      )}
-                      
-                      
-                      {group.status === 'ACTIVE' && (
-                        <Button
-                          size="small"
-                          color="warning"
-                          startIcon={<ArchiveIcon />}
-                          onClick={() => handleGroupAction('archive', group)}
-                        >
-                          Archivieren
-                        </Button>
-                      )}
-                      
-                      {group.status === 'ARCHIVED' && (
-                        <Button
-                          size="small"
-                          color="error"
-                          startIcon={<DeleteIcon />}
-                          onClick={() => handleGroupAction('delete', group)}
-                        >
-                          Löschen
-                        </Button>
-                      )}
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-            
-          
-            )}{totalPages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Button
-                    disabled={page <= 1}
-                    onClick={ () => setPage(prev => Math.max(prev - 1, 1))}
-                    variant="outlined"
-                  >
-                    Vorherige
-                  </Button>
-                  
-                  <Typography variant="body1">
-                    Seite {page} von {totalPages}
-                  </Typography>
-                  
-                  <Button
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                    variant="outlined"
-                  >
-                    Nächste
-                  </Button>
-                  
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel id="page-size-label">Elemente pro Seite</InputLabel>
-                    <Select
-                      labelId="page-size-label"
-                      value={pageSize}
-                      label="Elemente pro Seite"
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setPage(1); // Reset to first page when changing page size
+          ) : (
+            <Grid container spacing={2} sx={{mt: 0}}>
+              {adminState.items.map((group) => {
+                const groupStatusInfo = getGroupStatusInfo(group.status);
+                const isEditingThisGroup = editingGroupId === group.id;
+
+                // Prepare data for EditGroupForm, ensuring responsiblePersons is an array
+                const initialFormDataForGroupEdit: InitialGroupData | null = isEditingThisGroup ? {
+                  id: group.id, name: group.name, slug: group.slug, description: group.description || '',
+                  logoUrl: group.logoUrl, metadata: group.metadata, status: group.status,
+                  responsiblePersons: group.responsiblePersons || [], // Ensure it's an array
+                } : null;
+
+                return (
+                  <Grid size={{ xs: 12 }} key={group.id}>
+                    <Accordion
+                      expanded={expandedAccordionId === group.id}
+                      onChange={(_, isExpanded) => {
+                        setExpandedAccordionId(isExpanded ? group.id : null);
+                        if (!isExpanded && editingGroupId === group.id) setEditingGroupId(null);
                       }}
                     >
-                      <MenuItem value={6}>6</MenuItem>
-                      <MenuItem value={9}>9</MenuItem>
-                      <MenuItem value={12}>12</MenuItem>
-                      <MenuItem value={24}>24</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-            )}
-          {''}
+                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, pr: 2, overflow: 'hidden' }}>
+                            <Avatar src={group.logoUrl || undefined} sx={{ mr: 2, width: 40, height: 40, bgcolor: 'primary.light' }}>
+                              {group.name ? group.name.charAt(0).toUpperCase() : <GroupsIcon />}
+                            </Avatar>
+                            <Box sx={{ overflow: 'hidden' }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} noWrap>{group.name}</Typography>
+                              <Typography variant="body2" color="text.secondary" noWrap>
+                                {group.description ? group.description.replace(/<[^>]+>/g, '').substring(0, 80) + (group.description.length > 80 ? '...' : '') : 'Keine Beschreibung'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
+                            {group.status === GroupStatus.NEW && currentView === GroupStatus.NEW && (
+                              <>
+                                <IconButton color="success" size="small" title="Gruppe aktivieren"
+                                  sx={{ borderRadius: 1, bgcolor: 'rgba(46, 125, 50, 0.08)', '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.12)'}, px:1}}
+                                  onClick={(e) => { e.stopPropagation(); handleUpdateGroupStatus(group.id, GroupStatus.ACTIVE); }}>
+                                  <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                  <Typography variant="button">Aktivieren</Typography>
+                                </IconButton>
+                                <IconButton color="warning" size="small" title="Gruppe archivieren"
+                                  sx={{ borderRadius: 1, bgcolor: 'rgba(237, 108, 0, 0.08)', '&:hover': { bgcolor: 'rgba(237, 108, 0, 0.12)'}, px:1}}
+                                  onClick={(e) => { e.stopPropagation(); handleUpdateGroupStatus(group.id, GroupStatus.ARCHIVED); }}>
+                                  <ArchiveIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                  <Typography variant="button">Archivieren</Typography>
+                                </IconButton>
+                              </>
+                            )}
+                            {!(group.status === GroupStatus.NEW && currentView === GroupStatus.NEW) && (
+                               <Chip label={groupStatusInfo.label} color={groupStatusInfo.color as any} size="small" variant="outlined" sx={{ mr: 0.5 }}/>
+                            )}
+                           
+                            <IconButton color="primary" size="small" 
+                              sx={{ borderRadius: 1, bgcolor: 'rgba(25, 118, 210, 0.08)', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.12)'}, px:1}}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isEditingThisGroup) setEditingGroupId(null);
+                                else { setEditingGroupId(group.id); setExpandedAccordionId(group.id); }
+                              }}
+                            >
+                              <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
+                              <Typography variant="button">{isEditingThisGroup ? "Abbrechen" : "Bearbeiten"}</Typography>
+                            </IconButton>
+                          </Box>
+                        </Box>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Divider sx={{ mb: 2 }} />
+                        {isEditingThisGroup && initialFormDataForGroupEdit ? (
+                          <EditGroupForm
+                            group={initialFormDataForGroupEdit}
+                            onSubmit={(data, logo, croppedLogo) => handleEditGroupFormSubmit(group.id, data, logo, croppedLogo)}
+                            onCancel={handleEditGroupFormCancel}
+                          />
+                        ) : (
+                          <Grid container spacing={3}>
+                            <Grid size={{ xs: 12, md: 8 }}>
+                              <Typography variant="h6" gutterBottom>Beschreibung</Typography>
+                              <Typography component="div" variant="body1" dangerouslySetInnerHTML={{ __html: group.description || "<em>Keine Beschreibung vorhanden.</em>" }} />
+                              
+                              {group.responsiblePersons && group.responsiblePersons.length > 0 && (
+                                <Box sx={{mt: 3}}>
+                                  <Typography variant="h6" gutterBottom>Verantwortliche Personen</Typography>
+                                  <List dense>
+                                    {group.responsiblePersons.map(rp => (
+                                      <ListItem key={rp.id} disableGutters>
+                                        <ListItemText primary={`${rp.firstName} ${rp.lastName}`} secondary={rp.email} />
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Box>
+                              )}
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                              <Typography variant="h6" gutterBottom>Details</Typography>
+                              <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>ID:</strong> {group.id}</Typography></Box>
+                              <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Slug:</strong> {group.slug}</Typography></Box>
+                              <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Status:</strong> <Chip component="span" label={groupStatusInfo.label} color={groupStatusInfo.color as any} size="small"/></Typography></Box>
+                              <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Erstellt:</strong> {format(new Date(group.createdAt), 'PPpp', {locale: de})}</Typography></Box>
+                              <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Aktualisiert:</strong> {format(new Date(group.updatedAt), 'PPpp', {locale: de})}</Typography></Box>
+                              {group.logoUrl && (
+                                <Box sx={{mt:2}}>
+                                  <Typography variant="subtitle2" gutterBottom>Logo:</Typography>
+                                  <img src={group.logoUrl} alt={`${group.name} Logo`} style={{maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #ddd'}}/>
+                                </Box>
+                              )}
+                            </Grid>
+                            <Grid size={{ xs: 12 }}>
+                              <Box sx={{ display: 'flex', gap: 2, mt: 3, flexWrap: 'wrap' }}>
+                                {currentView === GroupStatus.NEW && group.status === GroupStatus.NEW && (
+                                  <>
+                                    <Button variant="contained" color="success" startIcon={<CheckCircleIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ACTIVE)}>Aktivieren</Button>
+                                    <Button variant="outlined" color="warning" startIcon={<ArchiveIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ARCHIVED)}>Archivieren</Button>
+                                  </>
+                                )}
+                                {currentView === GroupStatus.ACTIVE && group.status === GroupStatus.ACTIVE && (
+                                  <Button variant="outlined" color="warning" startIcon={<ArchiveIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ARCHIVED)}>Archivieren</Button>
+                                )}
+                                {currentView === GroupStatus.ARCHIVED && group.status === GroupStatus.ARCHIVED && (
+                                  <>
+                                    <Button variant="outlined" color="success" startIcon={<UnarchiveIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ACTIVE)}>Reaktivieren</Button>
+                                    <Button variant="outlined" color="error" startIcon={<DeleteIcon/>} onClick={() => openDeleteGroupConfirm(group.id)}>Löschen</Button>
+                                  </>
+                                )}
+                                {currentView === 'ALL' && (
+                                  <>
+                                    {group.status === GroupStatus.NEW && (
+                                      <>
+                                        <Button variant="contained" color="success" startIcon={<CheckCircleIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ACTIVE)}>Aktivieren</Button>
+                                        <Button variant="outlined" color="warning" startIcon={<ArchiveIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ARCHIVED)}>Archivieren</Button>
+                                      </>
+                                    )}
+                                    {group.status === GroupStatus.ACTIVE && (
+                                      <Button variant="outlined" color="warning" startIcon={<ArchiveIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ARCHIVED)}>Archivieren</Button>
+                                    )}
+                                    {group.status === GroupStatus.ARCHIVED && (
+                                      <Button variant="outlined" color="success" startIcon={<UnarchiveIcon/>} onClick={() => handleUpdateGroupStatus(group.id, GroupStatus.ACTIVE)}>Reaktivieren</Button>
+                                    )}
+                                    <Button variant="outlined" color="error" startIcon={<DeleteIcon/>} onClick={() => openDeleteGroupConfirm(group.id)}>Löschen</Button>
+                                  </>
+                                )}
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        )}
+                      </AccordionDetails>
+                    </Accordion>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+          <AdminPagination page={adminState.page} totalPages={adminState.totalPages} pageSize={adminState.pageSize} onPageChange={(p) => adminState.setPage(p)} onPageSizeChange={(s) => adminState.setPageSize(s)} pageSizeOptions={[5,10,25,50]}/>
         </Container>
       </Box>
-
-      {/* Delete confirmation dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Gruppe löschen</DialogTitle>
+      <AdminNotification notification={adminState.notification} onClose={adminState.closeNotification} />
+      <Dialog open={createGroupDialogOpen} onClose={() => setCreateGroupDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Neue Gruppe erstellen</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Sind Sie sicher, dass Sie diese Gruppe löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
-          </DialogContentText>
+          <TextField autoFocus margin="dense" label="Gruppenname" fullWidth variant="outlined" value={newGroupSimpleData.name} onChange={e => setNewGroupSimpleData(s => ({...s, name: e.target.value}))} />
+          <TextField margin="dense" label="Slug" fullWidth variant="outlined" value={newGroupSimpleData.slug} onChange={e => setNewGroupSimpleData(s => ({...s, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}))} helperText="Wird für die URL verwendet (z.B. meine-tolle-gruppe)"/>
+          <TextField margin="dense" label="Beschreibung (Kurz)" fullWidth multiline rows={3} variant="outlined" value={newGroupSimpleData.description} onChange={e => setNewGroupSimpleData(s => ({...s, description: e.target.value}))} />
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Initialer Status</InputLabel>
+            <Select value={newGroupSimpleData.status} label="Initialer Status" onChange={e => setNewGroupSimpleData(s => ({...s, status: e.target.value as GroupStatus}))}>
+                {statusOptions.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Abbrechen</Button>
-          <Button 
-            onClick={handleDeleteGroup} 
-            color="error" 
-            variant="contained" 
-            startIcon={<DeleteIcon />}
-          >
-            Löschen
-          </Button>
+          <Button onClick={() => setCreateGroupDialogOpen(false)}>Abbrechen</Button>
+          <Button onClick={handleCreateSimpleGroup} variant="contained">Erstellen</Button>
         </DialogActions>
       </Dialog>
-
-      {/* Status change confirmation dialog */}
-      <Dialog
-        open={statusDialogOpen}
-        onClose={() => setStatusDialogOpen(false)}
-      >
-        <DialogTitle>Gruppenstatus ändern</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Sind Sie sicher, dass Sie diese Gruppe {getStatusAction(groupToChangeStatus?.status)} möchten?
-          </DialogContentText>
-          {groupToChangeStatus?.status === 'ACTIVE' && (
-            <Typography component="div" sx={{ mt: 2, fontWeight: 'bold' }}>
-              Bei Aktivierung wird eine Benachrichtigungs-E-Mail an die verantwortlichen Personen gesendet.
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setStatusDialogOpen(false)}>Abbrechen</Button>
-          <Button 
-            onClick={handleUpdateGroupStatus} 
-            color={
-              groupToChangeStatus?.status === 'ACTIVE' ? 'success' : 
-              'warning'
-            } 
-            variant="contained"
-            startIcon={
-              groupToChangeStatus?.status === 'ACTIVE' ? <CheckCircleIcon /> : 
-              <ArchiveIcon />
-            }
-          >
-            {groupToChangeStatus?.status === 'ACTIVE'
-              ? 'Aktivieren'
-              : 'Archivieren'
-            }
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog open={deleteDialogOpen} title="Gruppe löschen" message="Diese Gruppe wirklich löschen? Alle zugehörigen Daten (Statusberichte, etc.) gehen dabei verloren." confirmText="Löschen" cancelText="Abbrechen" confirmColor="error" confirmIcon={<DeleteIcon />} onConfirm={handleDeleteGroup} onCancel={() => setDeleteDialogOpen(false)} />
     </MainLayout>
   );
 }

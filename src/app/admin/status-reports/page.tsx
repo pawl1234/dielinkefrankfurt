@@ -1,702 +1,563 @@
+// AdminStatusReportsPage.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import {
-  Container,
-  Paper,
-  Typography,
-  Box,
-  Button,
-  Tabs,
-  Tab,
-  TextField,
-  CircularProgress,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
-  Chip,
-  FormGroup,
-  FormControlLabel,
-  Switch,
-  Snackbar,
-  Tooltip
-} from '@mui/material';
-import {
-  Visibility as VisibilityIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  CheckCircle as CheckCircleIcon,
-  Block as BlockIcon,
-  Archive as ArchiveIcon,
-  FilterAlt as FilterAltIcon,
-  Sort as SortIcon,
-  Search as SearchIcon,
-  Clear as ClearIcon,
-  SwapVert as SwapVertIcon
-} from '@mui/icons-material';
-import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import AdminNavigation from '@/components/AdminNavigation';
-import { StatusReport, Group } from '@prisma/client';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusTabs from '@/components/admin/AdminStatusTabs';
+import AdminPagination from '@/components/admin/AdminPagination';
+import AdminNotification from '@/components/admin/AdminNotification';
+import SearchFilterBar from '@/components/admin/SearchFilterBar';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
+import { useAdminState } from '@/hooks/useAdminState';
 
-// Status tab types
-type StatusTabValue = 'NEW' | 'ACTIVE' | 'ARCHIVED' | 'ALL';
+// Import the form and its types
+import EditStatusReportForm, {
+  InitialStatusReportData,
+  StatusReportFormInput
+} from '@/components/EditStatusReportForm'; // Adjust path if necessary
 
-export default function StatusReportsDashboard() {
-  const { data: session, status: sessionStatus } = useSession();
-  const router = useRouter();
+import {
+  Box, Typography, Paper, IconButton, Container, Button, CircularProgress, Grid, Chip,
+  Dialog, DialogActions, DialogContent, DialogTitle, TextField, MenuItem, Select,
+  FormControl, InputLabel, Divider, Tooltip, Accordion, AccordionSummary,
+  AccordionDetails, Card, CardMedia, CardContent, CardActions
+} from '@mui/material';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import CancelIcon from '@mui/icons-material/Cancel';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import { Attachment as AttachmentIcon } from '@mui/icons-material';
 
-  // State for status reports and filtering
-  const [statusReports, setStatusReports] = useState<(StatusReport & { group: Group })[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statusTab, setStatusTab] = useState<StatusTabValue>('NEW');
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [orderBy, setOrderBy] = useState<'createdAt' | 'title'>('createdAt');
-  const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc');
-  
-  // Pagination state
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [totalItems, setTotalItems] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(0);
 
-  // State for confirmation dialogs
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    title: string;
-    message: string;
-    action: () => Promise<void>;
-  }>({
-    open: false,
-    title: '',
-    message: '',
-    action: async () => {}
-  });
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
 
-  // State for notifications
-  const [notification, setNotification] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error' | 'info' | 'warning';
-  }>({
-    open: false,
-    message: '',
-    severity: 'info'
-  });
+// This is the main StatusReport type for this page, aligned with Prisma
+interface StatusReport {
+  id: string;
+  title: string;
+  content: string;
+  status: StatusReportStatus; // Enum
+  groupId: string;
+  reporterFirstName: string;
+  reporterLastName: string;
+  createdAt: string;
+  updatedAt: string;
+  fileUrls?: string | null;
+}
 
-  // State for selected report for actions
-  const [selectedReport, setSelectedReport] = useState<string | null>(null);
+enum StatusReportStatus {
+  NEW = "NEW",
+  ACTIVE = "ACTIVE",
+  ARCHIVED = "ARCHIVED",
+  REJECTED = "REJECTED"
+}
 
-  // Check authentication status
-  useEffect(() => {
-    if (sessionStatus === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [sessionStatus, router]);
-
-  // Fetch status reports when filters change
-  useEffect(() => {
-    if (sessionStatus === 'authenticated') {
-      fetchStatusReports();
-      fetchGroups();
-    }
-  }, [statusTab, selectedGroupId, orderBy, orderDirection, page, pageSize, sessionStatus]);
-  
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [statusTab, selectedGroupId, orderBy, orderDirection, searchQuery]);
-
-  // Function to fetch status reports with current filters
-  const fetchStatusReports = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Build query params
-      const params = new URLSearchParams();
-      params.append('status', statusTab);
-      if (selectedGroupId) params.append('groupId', selectedGroupId);
-      if (searchQuery) params.append('search', searchQuery);
-      params.append('orderBy', orderBy);
-      params.append('orderDirection', orderDirection);
-      params.append('page', page.toString());
-      params.append('pageSize', pageSize.toString());
-      
-      // Add timestamp to prevent caching
-      params.append('t', Date.now().toString());
-      
-      const res = await fetch(`/api/admin/status-reports?${params.toString()}`);
-      
-      if (!res.ok) {
-        throw new Error('Failed to fetch status reports');
-      }
-      
-      const data = await res.json();
-      setStatusReports(data.statusReports);
-      setTotalItems(data.totalItems);
-      setTotalPages(data.totalPages);
-      
-      // Adjust page if current page is higher than total pages
-      if (data.totalPages > 0 && page > data.totalPages) {
-        setPage(data.totalPages);
-      }
-    } catch (err) {
-      setError('Error loading status reports. Please try again.');
-      console.error('Error fetching status reports:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Function to fetch active groups for the filter
-  const fetchGroups = async () => {
-    try {
-      const res = await fetch('/api/admin/groups?status=ACTIVE');
-      
-      if (!res.ok) {
-        throw new Error('Failed to fetch groups');
-      }
-      
-      const data = await res.json();
-      // Extract groups array from the response
-      if (data && data.groups && Array.isArray(data.groups)) {
-        setGroups(data.groups);
-      } else {
-        console.error('Unexpected groups data format:', data);
-        setGroups([]);
-      }
-    } catch (err) {
-      console.error('Error fetching groups:', err);
-      setGroups([]);
-    }
-  };
-
-  // Handle tab change
-  const handleTabChange = (_: React.SyntheticEvent, newValue: StatusTabValue) => {
-    setStatusTab(newValue);
-  };
-
-  // Handle search submission
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchStatusReports();
-  };
-
-  // Handle search clear
-  const handleClearSearch = () => {
-    setSearchQuery('');
-    // Wait for state update and then fetch
-    setTimeout(() => {
-      fetchStatusReports();
-    }, 0);
-  };
-
-  // Handle status change
-  const handleStatusChange = async (reportId: string, newStatus: 'ACTIVE' | 'REJECTED' | 'ARCHIVED') => {
-    try {
-      const res = await fetch(`/api/admin/status-reports/${reportId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      
-      if (!res.ok) {
-        throw new Error('Failed to update status');
-      }
-      
-      // Update local state optimistically
-      setStatusReports(prev => 
-        prev.map(report => 
-          report.id === reportId 
-            ? { ...report, status: newStatus } 
-            : report
-        )
-      );
-      
-      // Show success notification
-      setNotification({
-        open: true,
-        message: `Status report ${newStatus === 'ACTIVE' ? 'activated' : newStatus === 'REJECTED' ? 'rejected' : 'archived'} successfully!`,
-        severity: 'success'
-      });
-      
-      // Refresh the list after a short delay
-      setTimeout(() => {
-        fetchStatusReports();
-      }, 1500);
-      
-    } catch (err) {
-      console.error('Error updating status:', err);
-      setNotification({
-        open: true,
-        message: 'Failed to update status report status',
-        severity: 'error'
-      });
-    }
-  };
-
-  // Handle report deletion
-  const handleDeleteReport = async (reportId: string) => {
-    try {
-      const res = await fetch(`/api/admin/status-reports/${reportId}`, {
-        method: 'DELETE',
-      });
-      
-      if (!res.ok) {
-        throw new Error('Failed to delete status report');
-      }
-      
-      // Remove from local state
-      setStatusReports(prev => prev.filter(report => report.id !== reportId));
-      
-      // Show success notification
-      setNotification({
-        open: true,
-        message: 'Status report deleted successfully!',
-        severity: 'success'
-      });
-      
-    } catch (err) {
-      console.error('Error deleting status report:', err);
-      setNotification({
-        open: true,
-        message: 'Failed to delete status report',
-        severity: 'error'
-      });
-    }
-  };
-
-  // Open confirmation dialog
-  const openConfirmDialog = (title: string, message: string, action: () => Promise<void>) => {
-    setConfirmDialog({
-      open: true,
-      title,
-      message,
-      action
-    });
-  };
-
-  // Handle confirm dialog close
-  const handleConfirmDialogClose = () => {
-    setConfirmDialog(prev => ({ ...prev, open: false }));
-  };
-
-  // Handle confirm dialog confirm
-  const handleConfirmDialogConfirm = async () => {
-    await confirmDialog.action();
-    handleConfirmDialogClose();
-  };
-
-  // Handle notification close
-  const handleNotificationClose = () => {
-    setNotification(prev => ({ ...prev, open: false }));
-  };
-
-  // Format date for display
-  const formatDate = (dateString: Date) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  };
-
-  // If not authenticated, show loading state
-  if (sessionStatus !== 'authenticated') {
-    return (
-      <MainLayout
-      >
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </MainLayout>
-    );
+// Helper to map page's enum status to form's literal status
+const mapToFormStatus = (status: StatusReportStatus): InitialStatusReportData['status'] => {
+  switch (status) {
+    case StatusReportStatus.NEW: return 'draft';
+    case StatusReportStatus.ACTIVE: return 'published';
+    case StatusReportStatus.ARCHIVED: return 'draft'; // Form might not have 'archived', map to 'draft' or preferred default
+    case StatusReportStatus.REJECTED: return 'rejected';
+    default: return 'draft';
   }
+};
+
+// Helper to map form's literal status back to page's enum status for API
+const mapToApiStatus = (status: InitialStatusReportData['status']): StatusReportStatus => {
+  switch (status) {
+    case 'draft': return StatusReportStatus.NEW; 
+    case 'published': return StatusReportStatus.ACTIVE;
+    case 'rejected': return StatusReportStatus.REJECTED;
+    default: return StatusReportStatus.NEW; // Fallback
+  }
+};
+
+
+export default function AdminStatusReportsPage() {
+  const { data: session, status: authStatus } = useSession();
+  const router = useRouter();
+  const adminState = useAdminState<StatusReport>();
+
+  const [expandedAccordionId, setExpandedAccordionId] = useState<string | null>(null);
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
+  
+  const [createReportDialogOpen, setCreateReportDialogOpen] = useState(false);
+  const [newReportData, setNewReportData] = useState<Partial<StatusReport>>({ 
+    title: '', content: '', status: StatusReportStatus.NEW, groupId: '', reporterFirstName: '', reporterLastName: '', fileUrls: null
+  });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<string | null>(null);
+  const [orderBy, setOrderBy] = useState<'title' | 'createdAt'>('createdAt');
+  const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc');
+
+  type ViewType = StatusReportStatus | 'ALL';
+  const views: ViewType[] = [ StatusReportStatus.NEW, StatusReportStatus.ACTIVE, StatusReportStatus.ARCHIVED, StatusReportStatus.REJECTED, 'ALL'];
+  const currentView = views[adminState.tabValue];
+
+  const statusOptions = [
+    { value: StatusReportStatus.NEW, label: 'Neu', color: 'warning' },
+    { value: StatusReportStatus.ACTIVE, label: 'Aktiv', color: 'success' },
+    { value: StatusReportStatus.ARCHIVED, label: 'Archiviert', color: 'default' },
+    { value: StatusReportStatus.REJECTED, label: 'Abgelehnt', color: 'error' },
+  ] as const;
+
+  useEffect(() => { if (authStatus === 'unauthenticated') router.push('/admin/login'); }, [authStatus, router]);
+  useEffect(() => { if (authStatus === 'authenticated') fetchStatusReports(); }, 
+    [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, orderBy, orderDirection, adminState.timestamp]);
+
+  const fetchStatusReports = async () => { 
+    try {
+      adminState.setLoading(true);
+      const statusFilter = currentView !== 'ALL' ? `&status=${currentView}` : '';
+      const search = adminState.searchTerm ? `&search=${encodeURIComponent(adminState.searchTerm)}` : '';
+      const response = await fetch(
+        `/api/admin/status-reports?page=${adminState.page}&pageSize=${adminState.pageSize}${statusFilter}${search}&orderBy=${orderBy}&orderDirection=${orderDirection}&t=${adminState.timestamp}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch status reports');
+      const data = await response.json();
+      if (data && Array.isArray(data.statusReports)) {
+        adminState.setItems(data.statusReports);
+        adminState.setPaginationData({ totalItems: data.totalItems || 0, totalPages: data.totalPages || 1 });
+      } else {
+        adminState.setItems([]);
+        adminState.setPaginationData({ totalItems: 0, totalPages: 1 });
+      }
+      adminState.setError(null);
+    } catch (err: any) {
+      console.error(err);
+      adminState.setError(err.message || 'Failed to load status reports. Please try again.');
+    } finally {
+      adminState.setLoading(false);
+    }
+  };
+
+  const handleOpenCreateReportDialog = () => { 
+    setNewReportData({ title: '', content: '', status: StatusReportStatus.NEW, groupId: '', reporterFirstName: '', reporterLastName: '', fileUrls: null }); 
+    setCreateReportDialogOpen(true);
+  };
+
+  const handleCreateNewReport = async () => { 
+    if (!newReportData.title || !newReportData.groupId || !newReportData.reporterFirstName || !newReportData.reporterLastName ) {
+        adminState.showNotification('Titel, Gruppe und Reporter-Name sind erforderlich.', 'error');
+        return;
+    }
+    try {
+      // For creation, if it might involve files, this should also use FormData.
+      // Assuming simple JSON for now.
+      const reportToSave = {
+        ...newReportData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as StatusReport; 
+
+      const response = await fetch(`/api/admin/status-reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(reportToSave),
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to create status report');
+      }
+      adminState.showNotification('Statusmeldung erfolgreich erstellt.', 'success');
+      setCreateReportDialogOpen(false);
+      adminState.refreshTimestamp();
+    } catch (err: any) {
+      console.error(err);
+      adminState.showNotification(err.message || 'Fehler beim Erstellen der Statusmeldung.', 'error');
+    }
+  };
+
+  const handleEditFormSubmit = async (
+    reportId: string, 
+    formDataFromForm: StatusReportFormInput, // Renamed to avoid confusion
+    newFiles: (File | Blob)[],
+    retainedExistingFileUrls: string[]
+  ) => {
+    const apiFormData = new FormData();
+    apiFormData.append('id', reportId);
+    apiFormData.append('groupId', formDataFromForm.groupId);
+    apiFormData.append('title', formDataFromForm.title);
+    apiFormData.append('content', formDataFromForm.content); 
+    apiFormData.append('reporterFirstName', formDataFromForm.reporterFirstName);
+    apiFormData.append('reporterLastName', formDataFromForm.reporterLastName);
+    apiFormData.append('status', mapToApiStatus(formDataFromForm.status)); 
+    apiFormData.append('existingFileUrls', JSON.stringify(retainedExistingFileUrls));
+
+    newFiles.forEach((file) => {
+      apiFormData.append(`files`, file); 
+    });
+    
+    try {
+      const response = await fetch('/api/admin/status-reports', { 
+        method: 'PATCH', 
+        body: apiFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update status report');
+      }
+
+      adminState.showNotification('Statusmeldung erfolgreich aktualisiert.', 'success');
+      setEditingReportId(null); 
+      adminState.refreshTimestamp(); 
+    } catch (err: any) {
+      console.error('Error updating status report:', err);
+      adminState.showNotification(`Fehler: ${err.message || 'Unbekannter Fehler beim Speichern.'}`, 'error');
+      throw err; // Re-throw so form's own error handling can catch it if it wants
+    }
+  };
+
+  const handleEditFormCancel = () => {
+    setEditingReportId(null);
+  };
+
+  const handleUpdateReportStatus = async (reportId: string, newStatus: StatusReportStatus) => { 
+     try {
+      const response = await fetch(`/api/admin/status-reports`, {
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: reportId, status: newStatus, updatedAt: new Date().toISOString() }),
+      });
+      if (!response.ok) {
+         const errorData = await response.json();
+         throw new Error(errorData.message || 'Failed to update status report status');
+      }
+      adminState.showNotification('Statusmeldung erfolgreich aktualisiert.', 'success');
+      adminState.refreshTimestamp();
+    } catch (err: any) {
+      console.error(err);
+      adminState.showNotification(err.message || 'Fehler beim Aktualisieren der Statusmeldung.', 'error');
+    }
+  };
+
+  const openDeleteConfirm = (id: string) => { setReportToDelete(id); setDeleteDialogOpen(true); };
+  const handleDeleteReport = async () => { 
+    if (reportToDelete === null) return;
+    try {
+      const response = await fetch(`/api/admin/status-reports?id=${reportToDelete}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to delete status report');
+      }
+      adminState.showNotification('Statusmeldung wurde erfolgreich gelöscht.', 'success');
+      setDeleteDialogOpen(false);
+      adminState.refreshTimestamp(); 
+    } catch (err: any) {
+      console.error(err);
+      adminState.showNotification(err.message || 'Fehler beim Löschen der Statusmeldung.', 'error');
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => { e.preventDefault(); adminState.setPage(1); fetchStatusReports(); };
+  const resetFilters = () => { adminState.setSearchTerm(''); adminState.setPage(1); setOrderBy('createdAt'); setOrderDirection('desc'); adminState.refreshTimestamp();};
+  
+  const getStatusInfo = (statusValue: StatusReportStatus) => { 
+      const info = statusOptions.find(s => s.value === statusValue);
+      return info || { value: statusValue, label: String(statusValue), color: 'default' }; 
+  };
+
+  const getTabLabel = (view: ViewType): string => { 
+    switch (view) {
+      case StatusReportStatus.NEW: return 'Neue Meldungen';
+      case StatusReportStatus.ACTIVE: return 'Aktive Meldungen';
+      case StatusReportStatus.ARCHIVED: return 'Archivierte Meldungen';
+      case StatusReportStatus.REJECTED: return 'Abgelehnte Meldungen';
+      case 'ALL': return 'Alle Meldungen';
+      default: return String(view);
+    }
+  };
+
+  const getEmptyStateMessage = (view: ViewType): string => { 
+    switch (view) {
+      case StatusReportStatus.NEW: return 'Keine neuen Meldungen vorhanden.';
+      case StatusReportStatus.ACTIVE: return 'Keine aktiven Meldungen vorhanden.';
+      case StatusReportStatus.ARCHIVED: return 'Keine archivierten Meldungen vorhanden.';
+      case StatusReportStatus.REJECTED: return 'Keine abgelehnten Meldungen vorhanden.';
+      case 'ALL': return 'Keine Meldungen gefunden.';
+      default: return 'Keine Meldungen gefunden.';
+    }
+  };
+
+  const getReporterName = (report: Pick<StatusReport, 'reporterFirstName' | 'reporterLastName'>): string => { 
+    if (report.reporterFirstName && report.reporterLastName) return `${report.reporterFirstName} ${report.reporterLastName}`;
+    if (report.reporterFirstName) return report.reporterFirstName; 
+    if (report.reporterLastName) return report.reporterLastName; 
+    return 'N/A'; 
+  };
+
+  const getImageUrls = (fileUrls: string | null | undefined): string[] => { 
+     if (!fileUrls) return [];
+    try {
+      const parsed = JSON.parse(fileUrls);
+      return Array.isArray(parsed) ? parsed.filter(url => typeof url === 'string') : [];
+    } catch (e) { console.error('Error parsing file URLs:', e); return []; }
+  };
+
+  if (authStatus === 'loading' || authStatus === 'unauthenticated') return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
 
   return (
-    <MainLayout 
+    <MainLayout
       breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Status Reports', href: '/admin/status-reports' }
-      ]}
-    >
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 2 }}>
-        {/* Admin Navigation */}
-        <AdminNavigation />
-      
-        <Paper sx={{ p: 3, mb: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Status Reports Dashboard
-          </Typography>
+        { label: 'Start', href: '/' },
+        { label: 'Administration', href: '/admin' },
+        { label: 'Statusberichte', href: '/admin/status-reports', active: true },
+      ]}>
+      <Box sx={{ flexGrow: 1 }}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 2 }}>
+          <AdminNavigation />
+          <AdminPageHeader title="Statusmeldungen verwalten" icon={<AssessmentIcon />} />
           
-          {/* Tabs for status filtering */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-            <Tabs 
-              value={statusTab} 
-              onChange={handleTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-            >
-              <Tab label="New" value="NEW" />
-              <Tab label="Active" value="ACTIVE" />
-              <Tab label="Archived" value="ARCHIVED" />
-              <Tab label="All" value="ALL" />
-            </Tabs>
-          </Box>
+          <SearchFilterBar searchTerm={adminState.searchTerm} onSearchChange={(e) => adminState.setSearchTerm(e.target.value)} onClearSearch={() => adminState.setSearchTerm('')} onSearch={handleSearch}>
+            <FormControl size="small" sx={{ minWidth: 120 }}><InputLabel>Sortieren nach</InputLabel><Select value={orderBy} label="Sortieren nach" onChange={(e) => setOrderBy(e.target.value as 'title' | 'createdAt')}><MenuItem value="title">Titel</MenuItem><MenuItem value="createdAt">Erstellungsdatum</MenuItem></Select></FormControl>
+            <FormControl size="small" sx={{ minWidth: 120 }}><InputLabel>Reihenfolge</InputLabel><Select value={orderDirection} label="Reihenfolge" onChange={(e) => setOrderDirection(e.target.value as 'asc' | 'desc')}><MenuItem value="asc">Aufsteigend</MenuItem><MenuItem value="desc">Absteigend</MenuItem></Select></FormControl>
+            <Button variant="outlined" onClick={resetFilters} sx={{ height: 40 }}>Filter zurücksetzen</Button>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button variant="contained" startIcon={<AssessmentIcon />} onClick={handleOpenCreateReportDialog}>Neue Meldung</Button>
+          </SearchFilterBar>
           
-          {/* Filter and search controls */}
-          <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-            {/* Group filter */}
-            <FormControl sx={{ minWidth: 200 }}>
-              <InputLabel id="group-filter-label">Filter by Group</InputLabel>
-              <Select
-                labelId="group-filter-label"
-                id="group-filter"
-                value={selectedGroupId}
-                label="Filter by Group"
-                onChange={(e) => setSelectedGroupId(e.target.value)}
-              >
-                <MenuItem value="">All Groups</MenuItem>
-                {groups.map((group) => (
-                  <MenuItem key={group.id} value={group.id}>{group.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            {/* Search box */}
-            <form onSubmit={handleSearch} style={{ display: 'flex', flexGrow: 1 }}>
-              <TextField
-                label="Search Reports"
-                variant="outlined"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                fullWidth
-                size="small"
-                InputProps={{
-                  endAdornment: searchQuery && (
-                    <IconButton 
-                      size="small" 
-                      onClick={handleClearSearch}
-                      title="Clear search"
-                    >
-                      <ClearIcon />
-                    </IconButton>
-                  )
-                }}
-              />
-              <Button 
-                type="submit" 
-                variant="contained" 
-                startIcon={<SearchIcon />}
-                sx={{ ml: 1 }}
-              >
-                Search
-              </Button>
-            </form>
-            
-            {/* Sort controls */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FormControl size="small">
-                <InputLabel id="sort-by-label">Sort By</InputLabel>
-                <Select
-                  labelId="sort-by-label"
-                  id="sort-by"
-                  value={orderBy}
-                  label="Sort By"
-                  onChange={(e) => setOrderBy(e.target.value as 'createdAt' | 'title')}
-                  size="small"
-                >
-                  <MenuItem value="createdAt">Date</MenuItem>
-                  <MenuItem value="title">Title</MenuItem>
-                </Select>
-              </FormControl>
-              
-              <Tooltip title={orderDirection === 'asc' ? 'Ascending' : 'Descending'}>
-                <IconButton 
-                  onClick={() => setOrderDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                  color="primary"
-                >
-                  <SwapVertIcon 
-                    sx={{ 
-                      transform: orderDirection === 'asc' ? 'rotate(0deg)' : 'rotate(180deg)',
-                      transition: 'transform 0.3s'
-                    }} 
-                  />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Box>
-          
-          {/* Error alert */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
-          )}
-          
-          {/* Loading indicator */}
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              {/* No results message */}
-              {statusReports.length === 0 ? (
-                <Alert severity="info" sx={{ my: 2 }}>
-                  No status reports found with the current filters.
-                </Alert>
-              ) : (
-                <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                  Showing {statusReports.length} of {totalItems} status report(s) found.
-                </Typography>
-              )}
-              
-              {/* Status reports grid */}
-              <Grid container spacing={3}>
-                {statusReports.map((report) => (
-                  <Grid size={{ xs: 12, md: 6, lg: 4 }} key={report.id}>
-                    <Card 
-                      variant="outlined" 
-                      sx={{ 
-                        height: '100%', 
-                        display: 'flex', 
-                        flexDirection: 'column',
-                        position: 'relative'
-                      }}
-                    >
-                      {/* Status chip */}
-                      <Box sx={{ position: 'absolute', top: 10, right: 10 }}>
-                        <Chip 
-                          label={report.status} 
-                          color={
-                            report.status === 'NEW' ? 'warning' : 
-                            report.status === 'ACTIVE' ? 'success' : 
-                           // report.status === 'REJECTED' ? 'error' : 
-                            'default'
-                          }
-                          size="small"
-                        />
-                      </Box>
-                      
-                      <CardContent sx={{ flexGrow: 1 }}>
-                        <Typography variant="h6" component="h2" gutterBottom noWrap title={report.title}>
-                          {report.title}
-                        </Typography>
-                        
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          <strong>Group:</strong> {report.group.name}
-                        </Typography>
-                        
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          <strong>Reporter:</strong> {report.reporterFirstName} {report.reporterLastName}
-                        </Typography>
-                        
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          <strong>Date:</strong> {formatDate(report.createdAt)}
-                        </Typography>
-                        
-                        <Typography variant="body2" sx={{ mt: 2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                          {report.content.replace(/<[^>]*>?/gm, '')}
-                        </Typography>
-                        
-                        {report.fileUrls && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            <strong>Attachments:</strong> {JSON.parse(report.fileUrls).length || 0} files
-                          </Typography>
-                        )}
-                      </CardContent>
-                      
-                      <CardActions sx={{ pt: 0, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {/* View button */}
-                        <Button
-                          size="small"
-                          startIcon={<VisibilityIcon />}
-                          component={Link}
-                          href={`/admin/status-reports/${report.id}`}
-                        >
-                          View
-                        </Button>
-                        
-                        {/* Status-specific action buttons */}
-                        {report.status === 'NEW' && (
-                          <>
-                            <Button
-                              size="small"
-                              color="success"
-                              startIcon={<CheckCircleIcon />}
-                              onClick={() => openConfirmDialog(
-                                'Aktivierung bestätigen',
-                                `Sind Sie sicher, dass sie "${report.title}" aktivieren wollen? Der Eintrag wird damit öffentlich sichtbar.`,
-                                async () => handleStatusChange(report.id, 'ACTIVE')
-                              )}
-                            >
-                              Annehmen
-                            </Button>
-                            
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<BlockIcon />}
-                              onClick={() => openConfirmDialog(
-                                'Confirm Rejection',
-                                `Are you sure you want to reject "${report.title}"? This will notify the reporter.`,
-                                async () => handleStatusChange(report.id, 'REJECTED')
-                              )}
-                            >
-                              Ablehnen
-                            </Button>
-                          </>
-                        )}
-                        
-                        {report.status === 'ACTIVE' && (
-                          <Button
-                            size="small"
-                            color="secondary"
-                            startIcon={<ArchiveIcon />}
-                            onClick={() => openConfirmDialog(
-                              'Confirm Archiving',
-                              `Are you sure you want to archive "${report.title}"? This will remove it from public view.`,
-                              async () => handleStatusChange(report.id, 'ARCHIVED')
-                            )}
-                          >
-                            Archivieren
-                          </Button>
-                        )}
-                        
-                        {/* Edit button - available for all statuses */}
-                        <Button
-                          size="small"
-                          color="primary"
-                          startIcon={<EditIcon />}
-                          component={Link}
-                          href={`/admin/status-reports/${report.id}/edit`}
-                        >
-                          Bearbeiten
-                        </Button>
-                        
-                        {/* Delete button - available for all statuses */}
-                        <Button
-                          size="small"
-                          color="error"
-                          startIcon={<DeleteIcon />}
-                          onClick={() => openConfirmDialog(
-                            'Confirm Deletion',
-                            `Are you sure you want to permanently delete "${report.title}"? This action cannot be undone.`,
-                            async () => handleDeleteReport(report.id)
-                          )}
-                        >
-                          Löschen
-                        </Button>
-                      </CardActions>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-              
-              {/* Pagination controls */}
-              {totalPages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Button
-                      disabled={page <= 1}
-                      onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                      variant="outlined"
-                    >
-                      Previous
-                    </Button>
-                    
-                    <Typography variant="body1">
-                      Page {page} of {totalPages}
-                    </Typography>
-                    
-                    <Button
-                      disabled={page >= totalPages}
-                      onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                      variant="outlined"
-                    >
-                      Next
-                    </Button>
-                    
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <InputLabel id="page-size-label">Items per page</InputLabel>
-                      <Select
-                        labelId="page-size-label"
-                        value={pageSize}
-                        label="Items per page"
-                        onChange={(e) => {
-                          setPageSize(Number(e.target.value));
-                          setPage(1); // Reset to first page when changing page size
+          <AdminStatusTabs 
+            value={adminState.tabValue}
+            onChange={(_, newValue) => {
+              adminState.setTabValue(newValue);
+              setEditingReportId(null); 
+              setExpandedAccordionId(null); 
+            }}
+            tabs={views.map(view => getTabLabel(view))}
+          />
+
+          {adminState.loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress /></Box>
+          : adminState.error ? <Paper sx={{ p: 3, textAlign: 'center' }}><Typography color="error">{adminState.error}</Typography></Paper>
+          : adminState.items.length === 0 ? ( 
+             <Paper sx={{ p: 5, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary">{getEmptyStateMessage(currentView)}</Typography>
+              <Button variant="outlined" sx={{ mt: 2 }} startIcon={<AssessmentIcon />} onClick={handleOpenCreateReportDialog}>Neue Meldung erstellen</Button>
+            </Paper>
+           )
+          : (
+            <Grid container spacing={2} sx={{mt: 0}}> 
+              {adminState.items.map((report) => {
+                const statusInfo = getStatusInfo(report.status);
+                const isEditingThisReport = editingReportId === report.id;
+
+                const initialFormDataForEdit: InitialStatusReportData | null = isEditingThisReport ? {
+                  id: report.id,
+                  groupId: report.groupId,
+                  title: report.title,
+                  content: report.content,
+                  reporterFirstName: report.reporterFirstName,
+                  reporterLastName: report.reporterLastName,
+                  status: mapToFormStatus(report.status),
+                  createdAt: report.createdAt,
+                  updatedAt: report.updatedAt,
+                  fileUrls: report.fileUrls || null,
+                } : null;
+
+                return (
+                  <Grid size={{ xs: 12 }} key={report.id}> 
+                    <Accordion 
+                        expanded={expandedAccordionId === report.id}
+                        onChange={(_event, isExpanded) => {
+                            setExpandedAccordionId(isExpanded ? report.id : null);
+                            if (!isExpanded && editingReportId === report.id) { 
+                                setEditingReportId(null);
+                            }
                         }}
+                    >
+                      <AccordionSummary
+                         expandIcon={<ExpandMoreIcon />}
+                        aria-controls={`report-${report.id}-content`}
+                        id={`report-${report.id}-header`}
                       >
-                        <MenuItem value={5}>5</MenuItem>
-                        <MenuItem value={10}>10</MenuItem>
-                        <MenuItem value={25}>25</MenuItem>
-                        <MenuItem value={50}>50</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Box>
-                </Box>
-              )}
-            </>
+                         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                          <Box sx={{ flexGrow: 1, pr: 2, overflow: 'hidden' }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} noWrap>{report.title}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {getReporterName(report)} • {format(new Date(report.createdAt), 'PPP', { locale: de })}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
+                             {currentView === StatusReportStatus.NEW && report.status === StatusReportStatus.NEW && (
+                              <>
+                                <IconButton color="success" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(46, 125, 50, 0.08)', '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE); }}>
+                                  <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} /><Typography variant="button">Aktivieren</Typography>
+                                </IconButton>
+                                <IconButton color="error" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(211, 47, 47, 0.08)', '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.REJECTED); }}>
+                                  <CancelIcon fontSize="small" sx={{ mr: 0.5 }} /><Typography variant="button">Ablehnen</Typography>
+                                </IconButton>
+                              </>
+                            )}
+                            {((currentView === StatusReportStatus.ACTIVE && report.status === StatusReportStatus.ACTIVE) ||
+                              (currentView === StatusReportStatus.ARCHIVED && report.status === StatusReportStatus.ARCHIVED) ||
+                              (currentView === StatusReportStatus.REJECTED && report.status === StatusReportStatus.REJECTED) ||
+                               currentView === 'ALL') 
+                              && <Chip label={statusInfo.label} color={statusInfo.color as any} variant="outlined" size="small" sx={{mr:0.5}}/>}
+                            
+                            <IconButton color="primary" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(25, 118, 210, 0.08)', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.12)'}, px:1}} 
+                              onClick={(e) => {
+                                e.stopPropagation(); 
+                                if (isEditingThisReport) {
+                                    setEditingReportId(null);
+                                } else {
+                                    setEditingReportId(report.id);
+                                    setExpandedAccordionId(report.id); 
+                                }
+                              }}
+                            >
+                              <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
+                              <Typography variant="button">{isEditingThisReport ? "Abbrechen" : "Bearbeiten"}</Typography>
+                            </IconButton>
+                          </Box>
+                        </Box>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Divider sx={{ mb: 2 }} />
+                        {isEditingThisReport && initialFormDataForEdit ? (
+                          <EditStatusReportForm
+                            statusReport={initialFormDataForEdit}
+                            onSubmit={(data, newFiles, retainedUrls) => 
+                              handleEditFormSubmit(report.id, data, newFiles, retainedUrls)
+                            }
+                            onCancel={handleEditFormCancel}
+                          />
+                        ) : (
+                          <Grid container spacing={3}>
+                            <Grid size={{ xs: 12, md: 8 }}>
+                              <Typography variant="h6" gutterBottom>Details zur Meldung</Typography>
+                              <Typography variant="body1" sx={{ mb: 1 }}
+                                dangerouslySetInnerHTML={{ __html: report.content || "<p><em>Keine Beschreibung vorhanden.</em></p>" }} />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                               <Typography variant="h6" gutterBottom>Informationen</Typography>
+                              <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Gruppe ID:</Typography><Typography variant="body1">{report.groupId}</Typography></Box>
+                              <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Gemeldet von:</Typography><Typography variant="body1">{getReporterName(report)}</Typography></Box>
+                              <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Erstellt am:</Typography><Typography variant="body1">{format(new Date(report.createdAt), 'PPPp', { locale: de })}</Typography></Box>
+                              {report.updatedAt && new Date(report.updatedAt).getTime() !== new Date(report.createdAt).getTime() && (
+                                <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Zuletzt aktualisiert:</Typography><Typography variant="body1">{format(new Date(report.updatedAt), 'PPPp', { locale: de })}</Typography></Box>
+                              )}
+                              <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Status:</Typography><Chip label={getStatusInfo(report.status).label} color={getStatusInfo(report.status).color as any} size="small"/></Box>
+                            </Grid>
+                            {getImageUrls(report.fileUrls).length > 0 && (
+                              <Grid size={{ xs: 12 }}>
+                                <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>Anhänge</Typography>
+                                <Grid container spacing={2}>
+                                  {getImageUrls(report.fileUrls).map((fileUrl, index) => {
+                                    const isImage = /\.(jpe?g|png|gif|webp)$/i.test(fileUrl);
+                                    const isPdf = /\.pdf$/i.test(fileUrl);
+                                    const fileName = fileUrl.split('/').pop()?.split('?')[0] || `Anhang ${index + 1}`;
+                                    return (
+                                      <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={fileUrl + index}>
+                                        <Card variant="outlined">
+                                          {isImage && <CardMedia component="img" height="140" image={fileUrl} alt={fileName} sx={{ objectFit: 'cover' }} />}
+                                          {isPdf && <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', height: 140 }}><PictureAsPdfIcon sx={{ fontSize: 40, color: 'error.main' }} /></Box>}
+                                          {!isImage && !isPdf && <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', height: 140 }}><AttachmentIcon sx={{ fontSize: 40, color: 'text.secondary' }} /></Box>}
+                                          <CardContent sx={{ py: 1 }}><Typography variant="caption" noWrap title={fileName}>{fileName}</Typography></CardContent>
+                                          <CardActions><Button variant="outlined" size="small" href={fileUrl} target="_blank" rel="noopener noreferrer" fullWidth>Öffnen</Button></CardActions>
+                                        </Card>
+                                      </Grid>
+                                    );
+                                  })}
+                                </Grid>
+                              </Grid>
+                            )}
+                            <Grid size={{ xs: 12 }}>
+                               <Box sx={{ display: 'flex', gap: 2, mt: 3, flexWrap: 'wrap' }}>
+                                    {report.status === StatusReportStatus.NEW && (
+                                        <>
+                                            <Button variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE)}>Aktivieren</Button>
+                                            <Button variant="outlined" color="error" startIcon={<CancelIcon />} onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.REJECTED)}>Ablehnen</Button>
+                                        </>
+                                    )}
+                                    {report.status === StatusReportStatus.ACTIVE && (
+                                        <Button variant="outlined" onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.ARCHIVED)}>Archivieren</Button>
+                                    )}
+                                    {report.status === StatusReportStatus.ARCHIVED && (
+                                        <Button variant="outlined" color="success" onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE)}>Wieder Aktivieren</Button>
+                                    )}
+                                    {report.status === StatusReportStatus.REJECTED && (
+                                        <Button variant="outlined" color="primary" onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.NEW)}>Als 'Neu' wiederherstellen</Button>
+                                    )}
+                                    <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => openDeleteConfirm(report.id)}>Löschen</Button>
+                                </Box>
+                            </Grid>
+                          </Grid>
+                        )}
+                      </AccordionDetails>
+                    </Accordion>
+                  </Grid>
+                );
+              })}
+            </Grid>
           )}
-        </Paper>
-      </Container>
-      
-      {/* Confirmation Dialog */}
-      <Dialog
-        open={confirmDialog.open}
-        onClose={handleConfirmDialogClose}
-      >
-        <DialogTitle>{confirmDialog.title}</DialogTitle>
+          <AdminPagination 
+            page={adminState.page} 
+            totalPages={adminState.totalPages} 
+            pageSize={adminState.pageSize} 
+            onPageChange={(page) => adminState.setPage(page)} 
+            onPageSizeChange={(size) => adminState.setPageSize(size)} 
+            pageSizeOptions={[5, 10, 25, 50]} 
+          />
+        </Container>
+      </Box>
+      <AdminNotification 
+        notification={adminState.notification} 
+        onClose={adminState.closeNotification} 
+      />
+      <Dialog open={createReportDialogOpen} onClose={() => setCreateReportDialogOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Neue Statusmeldung erstellen</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            {confirmDialog.message}
-          </DialogContentText>
+          <Box component="form" sx={{ mt: 1 }}>
+            <TextField margin="normal" required fullWidth label="Titel" value={newReportData.title || ''} onChange={(e) => setNewReportData(prev => ({...prev, title: e.target.value}))} />
+            <TextField margin="normal" required fullWidth label="Beschreibung" multiline rows={4} value={newReportData.content || ''} onChange={(e) => setNewReportData(prev => ({...prev, content: e.target.value}))} />
+            <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField margin="normal" required fullWidth label="Gruppe ID" value={newReportData.groupId || ''} onChange={(e) => setNewReportData(prev => ({...prev, groupId: e.target.value}))} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                    <FormControl fullWidth margin="normal" required>
+                        <InputLabel>Status</InputLabel>
+                        <Select value={newReportData.status || StatusReportStatus.NEW} label="Status" onChange={(e) => setNewReportData(prev => ({...prev, status: e.target.value as StatusReportStatus}))}>
+                        {statusOptions.map((opt) => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField margin="normal" required fullWidth label="Vorname Reporter" value={newReportData.reporterFirstName || ''} onChange={(e) => setNewReportData(prev => ({...prev, reporterFirstName: e.target.value}))} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField margin="normal" required fullWidth label="Nachname Reporter" value={newReportData.reporterLastName || ''} onChange={(e) => setNewReportData(prev => ({...prev, reporterLastName: e.target.value}))} />
+                </Grid>
+            </Grid>
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleConfirmDialogClose} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDialogConfirm} color="error" autoFocus>
-            Confirm
-          </Button>
+          <Button onClick={() => setCreateReportDialogOpen(false)}>Abbrechen</Button>
+          <Button onClick={handleCreateNewReport} variant="contained">Erstellen</Button>
         </DialogActions>
       </Dialog>
-      
-      {/* Notification Snackbar */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleNotificationClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={handleNotificationClose} severity={notification.severity}>
-          {notification.message}
-        </Alert>
-      </Snackbar>
+      <ConfirmDialog 
+        open={deleteDialogOpen} 
+        title="Statusmeldung löschen" 
+        message="Möchten Sie diese Statusmeldung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden." 
+        confirmText="Löschen" 
+        cancelText="Abbrechen" 
+        confirmColor="error" 
+        confirmIcon={<DeleteIcon />} 
+        onConfirm={handleDeleteReport} 
+        onCancel={() => setDeleteDialogOpen(false)} 
+      />
     </MainLayout>
   );
 }

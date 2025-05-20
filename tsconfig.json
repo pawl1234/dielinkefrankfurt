@@ -40,5 +40,6 @@
     ".next",
     "node_modules",
     "src/tests/*",
+    "scripts/*"
   ]
 }

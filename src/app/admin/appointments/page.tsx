@@ -5,26 +5,28 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import AdminNavigation from '@/components/AdminNavigation';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusTabs from '@/components/admin/AdminStatusTabs';
+import AdminPagination from '@/components/admin/AdminPagination';
+import AdminNotification from '@/components/admin/AdminNotification';
 import {
   Box,
   Typography,
   Paper,
-  Tabs,
-  Tab,
-  Divider,
   IconButton,
   Chip,
   Container,
   Button,
   CircularProgress,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  CardMedia
+  Divider,
+  Grid,
+  CardMedia,
+  CardContent,
+  CardActions,
+  Card
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -32,11 +34,11 @@ import EventIcon from '@mui/icons-material/Event';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import EditIcon from '@mui/icons-material/Edit';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { signOut } from 'next-auth/react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import FeaturedToggle from '@/components/newsletter/FeaturedToggle';
 import EditAppointmentWrapper from '@/components/EditAppointmentWrapper';
+import { useAdminState } from '@/hooks/useAdminState';
 
 // Define the Appointment type based on our Prisma schema
 interface Appointment {
@@ -62,65 +64,67 @@ interface Appointment {
   metadata?: string | null;
 }
 
-export default function AdminPage() {
+export default function AdminAppointmentsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [tabValue, setTabValue] = useState(0);
-
+  
+  // Use our custom hook for admin state management
+  const adminState = useAdminState<Appointment>();
+  
   // Define view types
   type ViewType = 'pending' | 'upcoming' | 'archive';
   const views: ViewType[] = ['pending', 'upcoming', 'archive'];
-
+  
+  // Get current view
+  const currentView = views[adminState.tabValue];
+  
   useEffect(() => {
     // Redirect if not authenticated
     if (status === 'unauthenticated') {
       router.push('/admin/login');
     }
   }, [status, router]);
-
-  // Add a timestamp state for cache busting
-  const [timestamp, setTimestamp] = useState(() => Date.now());
   
   useEffect(() => {
     // Fetch appointments when authenticated
     if (status === 'authenticated') {
-      fetchAppointments(views[tabValue]);
+      fetchAppointments(views[adminState.tabValue]);
     }
-  }, [status, tabValue]);
+  }, [status, adminState.tabValue, adminState.page, adminState.pageSize, adminState.timestamp]);
 
   const fetchAppointments = async (view: ViewType) => {
     try {
-      setLoading(true);
-      const response = await fetch(`/api/admin/appointments?view=${view}&t=${Date.now()}`);
+      adminState.setLoading(true);
+      const response = await fetch(`/api/admin/appointments?view=${view}&page=${adminState.page}&pageSize=${adminState.pageSize}&t=${adminState.timestamp}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch appointments');
       }
 
       const data = await response.json();
-      console.log('API response data:', data); // Helpful debug log
+      console.log('API response data:', data);
       
-      // Handle paginated response format correctly
       if (data && data.items && Array.isArray(data.items)) {
-        setAppointments(data.items);
+        adminState.setItems(data.items);
+        adminState.setPaginationData({
+          totalItems: data.totalItems || 0,
+          totalPages: data.totalPages || 1
+        });
       } else if (Array.isArray(data)) {
-        setAppointments(data);
+        adminState.setItems(data);
       } else if (data && Array.isArray(data.appointments)) {
-        setAppointments(data.appointments);
+        adminState.setItems(data.appointments);
       } else {
         console.warn('Unexpected API response format:', data);
-        setAppointments([]);
+        adminState.setItems([]);
       }
       
-      setError(null);
+      adminState.setError(null);
     } catch (err) {
-      setError('Failed to load appointments. Please try again.');
+      adminState.setError('Failed to load appointments. Please try again.');
       console.error(err);
     } finally {
-      setLoading(false);
+      adminState.setLoading(false);
     }
   };
 
@@ -138,11 +142,21 @@ export default function AdminPage() {
         throw new Error('Failed to update appointment');
       }
 
+      // Show success notification
+      adminState.showNotification(
+        'Termin wurde erfolgreich aktualisiert.',
+        'success'
+      );
+
       // Refresh appointments after update
-      fetchAppointments(views[tabValue]);
+      adminState.refreshTimestamp();
+      fetchAppointments(views[adminState.tabValue]);
     } catch (err) {
       console.error(err);
-      setError('Failed to update appointment status.');
+      adminState.showNotification(
+        'Fehler beim Aktualisieren des Termins.',
+        'error'
+      );
     }
   };
 
@@ -159,18 +173,6 @@ export default function AdminPage() {
   const handleRejectAppointment = async (id: number) => {
     await handleAppointmentUpdate(id, { status: 'rejected' });
   };
-
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
-  const handleLogout = () => {
-    signOut({ callbackUrl: '/admin/login' });
-  };
-
-  
-  // Get current view
-  const currentView = views[tabValue];
 
   // Define tab labels
   const getTabLabel = (view: ViewType) => {
@@ -203,16 +205,7 @@ export default function AdminPage() {
   if (status === 'loading' || status === 'unauthenticated') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        {/* Simple static loading indicator that doesn't cause hydration mismatches */}
-        <Box
-          sx={{
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #3498db',
-          }}
-        />
+        <CircularProgress />
       </Box>
     );
   }
@@ -229,35 +222,28 @@ export default function AdminPage() {
           {/* Admin Navigation */}
           <AdminNavigation />
           
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" component="h1" gutterBottom>
-              <EventIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Termine verwalten
-            </Typography>
-          </Box>
-          <Paper sx={{ p: 0, mb: 4 }}>
-            <Tabs
-              value={tabValue}
-              onChange={handleTabChange}
-              indicatorColor="primary"
-              textColor="primary"
-              variant="fullWidth"
-            >
-              {views.map((view, index) => (
-                <Tab key={view} label={getTabLabel(view)} />
-              ))}
-            </Tabs>
-          </Paper>
+          {/* Page Header */}
+          <AdminPageHeader 
+            title="Termine verwalten"
+            icon={<EventIcon />}
+          />
+          
+          {/* Status Tabs */}
+          <AdminStatusTabs 
+            value={adminState.tabValue}
+            onChange={(_, newValue) => adminState.setTabValue(newValue)}
+            tabs={views.map(view => getTabLabel(view))}
+          />
 
-          {loading ? (
+          {adminState.loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
               <CircularProgress />
             </Box>
-          ) : error ? (
+          ) : adminState.error ? (
             <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <Typography color="error">{error}</Typography>
+              <Typography color="error">{adminState.error}</Typography>
             </Paper>
-          ) : appointments.length === 0 ? (
+          ) : adminState.items.length === 0 ? (
             <Paper sx={{ p: 5, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary">
                 {getEmptyStateMessage(currentView)}
@@ -265,8 +251,8 @@ export default function AdminPage() {
             </Paper>
           ) : (
             <Grid container spacing={3}>
-              {Array.isArray(appointments) && appointments.map((appointment) => (
-                <Grid size={{ xs: 12}} key={appointment.id}>
+              {adminState.items.map((appointment) => (
+                <Grid size={{ xs: 12 }} key={appointment.id}>
                   <Accordion>
                     <AccordionSummary
                       expandIcon={<ExpandMoreIcon />}
@@ -468,13 +454,13 @@ export default function AdminPage() {
                         appointment={appointment}
                         onEditComplete={() => {
                           // Update timestamp to force refresh and break image cache
-                          setTimestamp(Date.now());
-                          fetchAppointments(views[tabValue]);
+                          adminState.refreshTimestamp();
+                          fetchAppointments(views[adminState.tabValue]);
                         }}
                         appointmentComponent={
                           <>
                             <Grid container spacing={3}>
-                              <Grid size={{ xs: 8}}>
+                              <Grid size={{ xs: 8 }}>
                                 <Typography variant="h6" gutterBottom>
                                   Veranstaltungsdetails
                                 </Typography>
@@ -504,11 +490,11 @@ export default function AdminPage() {
                                     <FeaturedToggle
                                       appointmentId={appointment.id}
                                       initialFeatured={appointment.featured}
-                                      onToggle={(featured) => {
+                                      onToggle={() => {
                                         // Add a small delay before refreshing
                                         setTimeout(() => {
-                                          setTimestamp(Date.now());
-                                          fetchAppointments(views[tabValue]);
+                                          adminState.refreshTimestamp();
+                                          fetchAppointments(views[adminState.tabValue]);
                                         }, 300);
                                       }}
                                     />
@@ -568,119 +554,117 @@ export default function AdminPage() {
                                   </Typography>
                                 </Box>
                               </Grid>
-                              <Grid size={{ xs: 12}}>
+                              <Grid size={{ xs: 12 }}>
                                 <Typography variant="h6" gutterBottom>
                                   Anhänge
                                 </Typography>
                               
-                              {/* Cover images from metadata if available */}
-                              {appointment.featured && appointment.metadata && (
-                                <Box sx={{ mt: 2, mb: 3 }} key={`cover-image-container-${timestamp}`}>
-                                  <Typography variant="subtitle2" gutterBottom>
-                                    Cover-Bilder (Featured Termin)
-                                  </Typography>
-                                  <Grid container spacing={2}>
-                                    {(() => {
-                                      try {
-                                        const metadata = JSON.parse(appointment.metadata);
-                                        const coverItems = [];
-                                        
-                                        if (metadata.coverImageUrl) {
-                                          // Generate a unique key for this cover image using the URL
-                                          const urlKey = metadata.coverImageUrl.split("?")[0]; // Remove any query params
-                                          const originalKey = `original-cover-${urlKey}`;
+                                {/* Cover images from metadata if available */}
+                                {appointment.featured && appointment.metadata && (
+                                  <Box sx={{ mt: 2, mb: 3 }} key={`cover-image-container-${adminState.timestamp}`}>
+                                    <Typography variant="subtitle2" gutterBottom>
+                                      Cover-Bilder (Featured Termin)
+                                    </Typography>
+                                    <Grid container spacing={2}>
+                                      {(() => {
+                                        try {
+                                          const metadata = JSON.parse(appointment.metadata);
+                                          const coverItems = [];
                                           
-                                          coverItems.push(
-                                            <Grid size={{ xs: 12, sm: 6}} key={originalKey}>
-                                              <Card variant="outlined" sx={{ mb: 1 }}>
-                                                <CardMedia
-                                                  component="img"
-                                                  height="140"
-                                                  image={metadata.coverImageUrl}
-                                                  alt="Original Cover-Bild"
-                                                  sx={{ objectFit: 'cover' }}
-                                                />
-                                                <CardContent sx={{ py: 1 }}>
-                                                  <Typography variant="caption" noWrap>
-                                                    Original Cover-Bild
-                                                  </Typography>
-                                                </CardContent>
-                                                <CardActions>
-                                                  <Button
-                                                    variant="outlined"
-                                                    size="small"
-                                                    href={metadata.coverImageUrl}
-                                                    target="_blank"
-                                                    fullWidth
-                                                  >
-                                                    Öffnen
-                                                  </Button>
-                                                </CardActions>
-                                              </Card>
+                                          if (metadata.coverImageUrl) {
+                                            const urlKey = metadata.coverImageUrl.split("?")[0];
+                                            const originalKey = `original-cover-${urlKey}`;
+                                            
+                                            coverItems.push(
+                                              <Grid size={{ xs: 12, sm: 6 }} key={originalKey}>
+                                                <Card variant="outlined" sx={{ mb: 1 }}>
+                                                  <CardMedia
+                                                    component="img"
+                                                    height="140"
+                                                    image={metadata.coverImageUrl}
+                                                    alt="Original Cover-Bild"
+                                                    sx={{ objectFit: 'cover' }}
+                                                  />
+                                                  <CardContent sx={{ py: 1 }}>
+                                                    <Typography variant="caption" noWrap>
+                                                      Original Cover-Bild
+                                                    </Typography>
+                                                  </CardContent>
+                                                  <CardActions>
+                                                    <Button
+                                                      variant="outlined"
+                                                      size="small"
+                                                      href={metadata.coverImageUrl}
+                                                      target="_blank"
+                                                      fullWidth
+                                                    >
+                                                      Öffnen
+                                                    </Button>
+                                                  </CardActions>
+                                                </Card>
+                                              </Grid>
+                                            );
+                                          }
+                                          
+                                          if (metadata.croppedCoverImageUrl) {
+                                            const croppedUrlKey = metadata.croppedCoverImageUrl.split("?")[0];
+                                            const croppedKey = `cropped-cover-${croppedUrlKey}`;
+                                            
+                                            coverItems.push(
+                                              <Grid size={{ xs: 12, sm: 6 }} key={croppedKey}>
+                                                <Card variant="outlined" sx={{ mb: 1 }}>
+                                                  <CardMedia
+                                                    component="img"
+                                                    height="140"
+                                                    image={metadata.croppedCoverImageUrl}
+                                                    alt="Zugeschnittenes Cover-Bild (14:5)"
+                                                    sx={{ objectFit: 'cover' }}
+                                                  />
+                                                  <CardContent sx={{ py: 1 }}>
+                                                    <Typography variant="caption" noWrap>
+                                                      Zugeschnittenes Cover-Bild (14:5)
+                                                    </Typography>
+                                                  </CardContent>
+                                                  <CardActions>
+                                                    <Button
+                                                      variant="outlined"
+                                                      size="small"
+                                                      href={metadata.croppedCoverImageUrl}
+                                                      target="_blank"
+                                                      fullWidth
+                                                    >
+                                                      Öffnen
+                                                    </Button>
+                                                  </CardActions>
+                                                </Card>
+                                              </Grid>
+                                            );
+                                          }
+                                          
+                                          return coverItems.length > 0 ? coverItems : (
+                                            <Grid size={{ xs: 12 }}>
+                                              <Typography variant="body2" color="text.secondary">
+                                                Kein Cover-Bild vorhanden.
+                                              </Typography>
+                                            </Grid>
+                                          );
+                                        } catch (e) {
+                                          console.error("Error parsing metadata:", e);
+                                          return (
+                                            <Grid size={{ xs: 12 }}>
+                                              <Typography variant="body2" color="error">
+                                                Fehler beim Laden der Cover-Bilder.
+                                              </Typography>
                                             </Grid>
                                           );
                                         }
-                                        
-                                        if (metadata.croppedCoverImageUrl) {
-                                          // Generate a unique key for this cropped cover image using the URL
-                                          const croppedUrlKey = metadata.croppedCoverImageUrl.split("?")[0]; // Remove any query params
-                                          const croppedKey = `cropped-cover-${croppedUrlKey}`;
-                                          
-                                          coverItems.push(
-                                            <Grid size={{ xs: 12, sm: 6}} key={croppedKey}>
-                                              <Card variant="outlined" sx={{ mb: 1 }}>
-                                                <CardMedia
-                                                  component="img"
-                                                  height="140"
-                                                  image={metadata.croppedCoverImageUrl}
-                                                  alt="Zugeschnittenes Cover-Bild (14:5)"
-                                                  sx={{ objectFit: 'cover' }}
-                                                />
-                                                <CardContent sx={{ py: 1 }}>
-                                                  <Typography variant="caption" noWrap>
-                                                    Zugeschnittenes Cover-Bild (14:5)
-                                                  </Typography>
-                                                </CardContent>
-                                                <CardActions>
-                                                  <Button
-                                                    variant="outlined"
-                                                    size="small"
-                                                    href={metadata.croppedCoverImageUrl}
-                                                    target="_blank"
-                                                    fullWidth
-                                                  >
-                                                    Öffnen
-                                                  </Button>
-                                                </CardActions>
-                                              </Card>
-                                            </Grid>
-                                          );
-                                        }
-                                        
-                                        return coverItems.length > 0 ? coverItems : (
-                                          <Grid size={{ xs: 12}}>
-                                            <Typography variant="body2" color="text.secondary">
-                                              Kein Cover-Bild vorhanden.
-                                            </Typography>
-                                          </Grid>
-                                        );
-                                      } catch (e) {
-                                        console.error("Error parsing metadata:", e);
-                                        return (
-                                          <Grid size={{ xs: 12}}>
-                                            <Typography variant="body2" color="error">
-                                              Fehler beim Laden der Cover-Bilder.
-                                            </Typography>
-                                          </Grid>
-                                        );
-                                      }
-                                    })()}
-                                  </Grid>
-                                </Box>
-                              )}
+                                      })()}
+                                    </Grid>
+                                  </Box>
+                                )}
                               
-                              {/* Regular attachments */}
-                              {appointment.fileUrls && (
+                                {/* Regular attachments */}
+                                {appointment.fileUrls && (
                                   <Box sx={{ mt: 2 }}>
                                     <Typography variant="subtitle2" gutterBottom>
                                       Weitere Anhänge
@@ -692,7 +676,7 @@ export default function AdminPage() {
                                         const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
   
                                         return (
-                                          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={fileUrl}>
+                                          <Grid size={{ xs: 12, sm: 6 }} key={fileUrl}>
                                             <Card variant="outlined" sx={{ mb: 1 }}>
                                               {isImage && (
                                                 <CardMedia
@@ -782,14 +766,26 @@ export default function AdminPage() {
                   </Accordion>
                 </Grid>
               ))}
-                     
             </Grid>
           )}
-
-        </Container>                         
+          
+          {/* Pagination */}
+          <AdminPagination 
+            page={adminState.page}
+            totalPages={adminState.totalPages}
+            pageSize={adminState.pageSize}
+            onPageChange={(page) => adminState.setPage(page)}
+            onPageSizeChange={(size) => adminState.setPageSize(size)}
+            pageSizeOptions={[5, 10, 25, 50]}
+          />
+        </Container>
       </Box>
 
-
+      {/* Notification */}
+      <AdminNotification 
+        notification={adminState.notification}
+        onClose={adminState.closeNotification}
+      />
     </MainLayout>
   );
 }

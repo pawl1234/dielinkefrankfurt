@@ -18,10 +18,11 @@ import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-im
 import 'react-image-crop/dist/ReactCrop.css';
 
 interface GroupLogoUploadProps {
-  onImageSelect: (originalImage: File | Blob, croppedImage: File | Blob) => void;
+  onImageSelect: (originalImage: File | Blob, croppedImage: File | Blob) => void;  
   aspectRatio?: number;
   initialLogoUrl?: string;
   initialCroppedLogoUrl?: string;
+  initialImageUrl?: string | null;
 }
 
 // Styled component for the upload box
