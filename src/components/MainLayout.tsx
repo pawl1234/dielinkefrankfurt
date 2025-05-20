@@ -12,7 +12,6 @@ import {
   ListItemText,
   Toolbar,
   Typography,
-  Chip,
   Breadcrumbs,
   Tooltip,
   Divider,
@@ -25,6 +24,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import HomeIcon from '@mui/icons-material/Home';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -283,81 +283,103 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
                   mb: 4
                 }}
               >
-                {/* Header actions - positioned absolutely in top right */}
-                <Paper
-                  elevation={2}
-                  sx={{
-                    p: 0.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderRadius: 1,
-                    bgcolor: 'common.white',
-                    position: 'absolute',
-                    top: 16,
-                    right: 16,
-                    zIndex: 10
-                  }}
-                >
-                  <Tooltip title={isAuthenticated ? "Abmelden" : "Anmelden"}>
-                    <IconButton
-                      aria-label={isAuthenticated ? "logout" : "login"}
-                      onClick={handleAuth}
-                      sx={{
-                        mr: 0.5,
-                        color: isAuthenticated ? 'primary.main' : 'grey.700',
-                        fontSize: 'large',
-                        p: { xs: 1, md: 1.5 }
-                      }}
-                    >
-                      {isAuthenticated ? (
-                        <LogoutIcon sx={{ fontSize: 24 }} />
-                      ) : (
-                        <LoginIcon sx={{ fontSize: 24 }} />
-                      )}
-                    </IconButton>
-                  </Tooltip>
-
-                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
+              {/* Header actions - positioned absolutely in top right */}
+              <Paper
+                elevation={2}
+                sx={{
+                  p: 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: 1,
+                  bgcolor: 'common.white',
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  zIndex: 10
+                }}
+              >
+                <Tooltip title={isAuthenticated ? "Abmelden" : "Anmelden"}>
                   <IconButton
-                    aria-label="search"
+                    aria-label={isAuthenticated ? "logout" : "login"}
+                    onClick={handleAuth}
                     sx={{
                       mr: 0.5,
-                      color: 'grey.700',
+                      color: isAuthenticated ? 'primary.main' : 'grey.700',
                       fontSize: 'large',
                       p: { xs: 1, md: 1.5 }
                     }}
                   >
-                    <SearchIcon sx={{ fontSize: 24 }} />
+                    {isAuthenticated ? (
+                      <LogoutIcon sx={{ fontSize: 24 }} />
+                    ) : (
+                      <LoginIcon sx={{ fontSize: 24 }} />
+                    )}
                   </IconButton>
+                </Tooltip>
 
-                  {!breadcrumbs.some(b => b.href === '/') ? (
-                    <Link href="/" style={{ display: 'flex' }}>
+                {/* Change Password Button - Only visible when authenticated */}
+                {isAuthenticated && (
+                  <>
+                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                    <Tooltip title="Passwort ändern">
                       <IconButton
-                        aria-label="home"
+                        component={Link}
+                        href="/admin/change-password"
+                        aria-label="change password"
                         sx={{
+                          mr: 0.5,
                           color: 'grey.700',
                           fontSize: 'large',
                           p: { xs: 1, md: 1.5 }
                         }}
                       >
-                        <HomeIcon sx={{ fontSize: 24 }} />
+                        <VpnKeyIcon sx={{ fontSize: 24 }} />
                       </IconButton>
-                    </Link>
-                  ) : (
+                    </Tooltip>
+                  </>
+                )}
+
+                <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+                <IconButton
+                  aria-label="search"
+                  sx={{
+                    mr: 0.5,
+                    color: 'grey.700',
+                    fontSize: 'large',
+                    p: { xs: 1, md: 1.5 }
+                  }}
+                >
+                  <SearchIcon sx={{ fontSize: 24 }} />
+                </IconButton>
+
+                {!breadcrumbs.some(b => b.href === '/') ? (
+                  <Link href="/" style={{ display: 'flex' }}>
                     <IconButton
-                      aria-label="menu"
-                      onClick={handleDrawerToggle}
+                      aria-label="home"
                       sx={{
                         color: 'grey.700',
                         fontSize: 'large',
                         p: { xs: 1, md: 1.5 }
                       }}
                     >
-                      <MenuIcon sx={{ fontSize: 24 }} />
+                      <HomeIcon sx={{ fontSize: 24 }} />
                     </IconButton>
-                  )}
-                </Paper>
+                  </Link>
+                ) : (
+                  <IconButton
+                    aria-label="menu"
+                    onClick={handleDrawerToggle}
+                    sx={{
+                      color: 'grey.700',
+                      fontSize: 'large',
+                      p: { xs: 1, md: 1.5 }
+                    }}
+                  >
+                    <MenuIcon sx={{ fontSize: 24 }} />
+                  </IconButton>
+                )}
+              </Paper>
 
                 <Container maxWidth="lg">
                   <Box

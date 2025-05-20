@@ -90,7 +90,7 @@ export default function ChangePasswordPage() {
       breadcrumbs={[
         { label: 'Start', href: '/' },
         { label: 'Administration', href: '/admin' },
-        { label: 'Change Password', href: '/admin/change-password', active: true },
+        { label: 'Passwort ändern', href: '/admin/change-password', active: true },
       ]}
     >
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -99,12 +99,12 @@ export default function ChangePasswordPage() {
         <Paper sx={{ p: 3, mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <LockIcon sx={{ mr: 1, color: 'primary.main' }} />
-            <Typography variant="h5">Change Password</Typography>
+            <Typography variant="h5">Passwort ändern</Typography>
           </Box>
           
           {isEnvironmentUser ? (
             <Alert severity="info">
-              You are logged in with the environment-based admin account. Password changes are not supported for this account.
+              Das Passwort vom lokalen admin lässt sich nicht ändern!
             </Alert>
           ) : (
             <Box component="form" onSubmit={handleSubmit} sx={{ maxWidth: 400 }}>
@@ -112,7 +112,7 @@ export default function ChangePasswordPage() {
               {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
               
               <TextField
-                label="Current Password"
+                label="Aktuelles Passwort"
                 type="password"
                 name="currentPassword"
                 value={formData.currentPassword}
@@ -123,7 +123,7 @@ export default function ChangePasswordPage() {
               />
               
               <TextField
-                label="New Password"
+                label="Neues Passwort"
                 type="password"
                 name="newPassword"
                 value={formData.newPassword}
@@ -134,7 +134,7 @@ export default function ChangePasswordPage() {
               />
               
               <TextField
-                label="Confirm New Password"
+                label="Passwort bestätigen"
                 type="password"
                 name="confirmPassword"
                 value={formData.confirmPassword}
@@ -151,7 +151,7 @@ export default function ChangePasswordPage() {
                 sx={{ mt: 3 }}
                 disabled={loading}
               >
-                {loading ? 'Changing...' : 'Change Password'}
+                {loading ? 'Ändere Passwort...' : 'Passwort ändern'}
               </Button>
             </Box>
           )}
