@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import RichTextEditor from './RichTextEditor';
 import FileUpload from './FileUpload';
@@ -80,6 +80,15 @@ export default function AppointmentForm({
   onSubmit: customSubmit,
   onCancel
 }: AppointmentFormProps) {
+  // Create refs for each section to allow scrolling to errors
+  const titleRef = useRef<HTMLDivElement>(null);
+  const mainTextRef = useRef<HTMLDivElement>(null);
+  const dateTimeRef = useRef<HTMLDivElement>(null);
+  const addressRef = useRef<HTMLDivElement>(null);
+  const requesterRef = useRef<HTMLDivElement>(null);
+  const captchaRef = useRef<HTMLDivElement>(null);
+
+  const [formResetKey, setFormResetKey] = useState(0);
   const [submissionCount, setSubmissionCount] = useState(0);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [mainText, setMainText] = useState(initialValues?.mainText || '');
@@ -127,7 +136,8 @@ export default function AppointmentForm({
 
   // Prepare default values from initialValues if provided
   const defaultValues: Partial<FormInput> = {
-    teaser: '' // Default empty teaser
+    teaser: '', // Default empty teaser
+    title: ''
   };
   
   if (initialValues) {
@@ -151,35 +161,102 @@ export default function AppointmentForm({
     setValue,
     control,
     formState: { errors },
+    reset
   } = useForm<FormInput>({
-    defaultValues
+    defaultValues,
+    mode: 'onSubmit'
   });
 
   const showCaptcha = submissionCount >= 3;
   const startDateTime = watch('startDateTime');
 
-  const resetForm = () => {
-    // Reset form fields
-    setValue('teaser', '');
-    setValue('startDateTime', undefined as any);
-    setValue('endDateTime', undefined as any);
-    setValue('street', '');
-    setValue('city', '');
-    setValue('state', '');
-    setValue('postalCode', '');
-    setValue('firstName', '');
-    setValue('lastName', '');
-    setValue('recurringText', '');
-    setValue('captchaToken', '');
-
-    // Reset other state
-    setMainText('');
-    setFileList([]);
-    setIsRecurring(false);
-    setTeaserLength(0);
+  // Function to scroll to the first error in the form
+  const scrollToFirstError = () => {
+    // Check each field and scroll to the first one with an error
+    if (errors.title) {
+      titleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    if (!mainText || mainText.trim() === '') {
+      mainTextRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    if (errors.startDateTime) {
+      dateTimeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    if (errors.street || errors.city || errors.state || errors.postalCode) {
+      addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    if (errors.firstName || errors.lastName) {
+      requesterRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    if (errors.captchaToken) {
+      captchaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    // If there are API errors, scroll to the top
+    if (apiError) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
+  // Enhanced reset function that properly clears all form fields
+  const resetForm = () => {
+    // Use React Hook Form's reset method for a complete reset
+    reset({
+      title: '',
+      teaser: '',
+      startDateTime: undefined as any,
+      endDateTime: undefined as any,
+      street: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      firstName: '',
+      lastName: '',
+      recurringText: '',
+      captchaToken: '',
+    });
+
+    // Reset all other state variables
+    setMainText('');
+    setFileList([]);
+    setExistingFileUrls([]);
+    setIsRecurring(false);
+    setTeaserLength(0);
+    setIsFeatured(false);
+    setCoverImage(null);
+    setCroppedCoverImage(null);
+    
+    // Force remount of the DateTimePicker components by changing the key
+    setFormResetKey(prevKey => prevKey + 1);
+  };
+
+  // Effect to scroll to errors when they appear
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      scrollToFirstError();
+    }
+  }, [errors]);
+
   const onSubmit: SubmitHandler<FormInput> = async (data) => {
+    // Validate mainText, which is not controlled by react-hook-form
+    if (!mainText || mainText.trim() === '') {
+      mainTextRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Set an error state for mainText
+      executeApiCall(() => Promise.reject(new Error('Beschreibung ist erforderlich')));
+      return;
+    }
+    
     // Clear previous errors and success state
     clearError();
     setSubmissionSuccess(false);
@@ -198,7 +275,8 @@ export default function AppointmentForm({
           ...dataWithTeaser,
           featured: isFeatured,
           coverImage: coverImage || undefined,
-          croppedCoverImage: croppedCoverImage || undefined
+          croppedCoverImage: croppedCoverImage || undefined,
+          mainText: mainText
         };
         await customSubmit(dataWithCover, fileList);
         setSubmissionSuccess(true);
@@ -275,7 +353,7 @@ export default function AppointmentForm({
         setSubmissionCount(submissionCount + 1);
         setSubmissionSuccess(true);
 
-        // Reset form after successful submission
+        // Reset form after successful submission - FIXED
         resetForm();
 
         // Scroll to top of form to show success message
@@ -288,6 +366,9 @@ export default function AppointmentForm({
       if (error instanceof Error) {
         executeApiCall(() => Promise.reject(error));
       }
+      
+      // Scroll to the first error
+      setTimeout(scrollToFirstError, 100);
     }
   };
 
@@ -335,7 +416,7 @@ export default function AppointmentForm({
         borderLeft: 4,
         borderLeftColor: 'primary.main',
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-      }}>
+      }} ref={requesterRef}>
         <CardContent>
           <SectionHeader
             title="Antragsteller"
@@ -375,7 +456,7 @@ export default function AppointmentForm({
             }
           />
 
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 3 }} ref={titleRef}>
           <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
             Titel <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
           </Typography>
@@ -412,49 +493,9 @@ export default function AppointmentForm({
               />
             )}
           />
-{/*
-            <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
-              Teaser <Box component="span" sx={{ color: 'text.secondary' }}>(Deaktiviert)</Box>
-            </Typography>
-
-            <Typography variant="body1" display="block" gutterBottom>
-              Kurze Zusammenfassung Ihrer Veranstaltung (aktuell deaktiviert).
-            </Typography>
-
-            <Controller
-              name="teaser"
-              control={control}
-              defaultValue="" // Default empty value
-              rules={{ 
-                // Remove required validation
-                maxLength: {
-                  value: 300,
-                  message: 'Teaser darf maximal 300 Zeichen lang sein'
-                }
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  multiline
-                  rows={2}
-                  fullWidth
-                  disabled={true} // Disable the field
-                  placeholder="Funktionalität aktuell deaktiviert..."
-                  inputProps={{ maxLength: 300 }}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    setTeaserLength(e.target.value.length);
-                  }}
-                  error={!!errors.teaser || !!getFieldError('teaser')}
-                  helperText="Diese Funktion ist aktuell deaktiviert."
-                  margin="normal"
-                  sx={{ opacity: 0.7 }} // Visual indication that it's disabled
-                />
-              )}
-            />*/}
           </Box>
 
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 3 }} ref={mainTextRef}>
             <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
               Beschreibung <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
             </Typography>
@@ -467,9 +508,9 @@ export default function AppointmentForm({
               onChange={setMainText}
               maxLength={5000}
             />
-            {errors.mainText && (
+            {(!mainText || mainText.trim() === '') && apiError && (
               <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                {errors.mainText.message}
+                Beschreibung ist erforderlich
               </Typography>
             )}
           </Box>
@@ -652,7 +693,7 @@ export default function AppointmentForm({
         borderLeft: 4,
         borderLeftColor: 'primary.main',
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-      }}>
+      }} ref={dateTimeRef}>
         <CardContent>
           <SectionHeader
             title="Datum und Uhrzeit"
@@ -674,6 +715,7 @@ export default function AppointmentForm({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
             <Box>
               <DateTimePicker
+                key={`start-date-${formResetKey}`}
                 label="Startdatum und -uhrzeit"
                 name="startDateTime"
                 register={register}
@@ -685,6 +727,7 @@ export default function AppointmentForm({
 
             <Box>
               <DateTimePicker
+                key={`end-date-${formResetKey}`}
                 label="Enddatum und -uhrzeit (optional)"
                 name="endDateTime"
                 register={register}
@@ -761,7 +804,7 @@ export default function AppointmentForm({
         borderLeft: 4,
         borderLeftColor: 'primary.main',
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-      }}>
+      }} ref={addressRef}>
         <CardContent>
           <SectionHeader
             title="Veranstaltungsort"
@@ -792,7 +835,7 @@ export default function AppointmentForm({
           borderLeft: 4,
           borderLeftColor: 'primary.main',
           boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-        }}>
+        }} ref={captchaRef}>
           <CardContent>
             <SectionHeader
               title="Sicherheitsverifizierung"

@@ -70,7 +70,7 @@ export function validateGroupData(data: Partial<GroupCreateData>): string | null
   if (data.name.length < 3 || data.name.length > 100) return 'Group name must be between 3 and 100 characters';
   
   if (!data.description) return 'Group description is required';
-  if (data.description.length < 50 || data.description.length > 5000) return 'Group description must be between 50 and 5000 characters';
+  if (data.description.length > 5000) return 'Group description must be below 5000 characters';
   
   if (!data.responsiblePersons || data.responsiblePersons.length === 0) {
     return 'At least one responsible person is required';
