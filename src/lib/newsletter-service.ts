@@ -10,6 +10,21 @@ import { sendTestEmail } from './email';
 import { serverErrorResponse } from './api-auth';
 import { subWeeks } from 'date-fns';
 
+const getBaseUrl = () => {
+  // If NEXT_PUBLIC_BASE_URL is provided
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    const url = process.env.NEXT_PUBLIC_BASE_URL.trim();
+
+    return `https://${url}`;
+  }
+  
+  if (typeof window === 'undefined') { // Only log on server side
+    console.error('Warning: NEXT_PUBLIC_BASE_URL environment variable is not set. Falling back to localhost:3000');
+  }
+  
+  return 'http://localhost:3000';
+};
+
 /**
  * Fetches newsletter settings from the database
  * Creates default settings if none exist
@@ -221,8 +236,7 @@ export async function generateNewsletter(introductionText: string): Promise<stri
     // Get status reports
     const { statusReportsByGroup } = await fetchNewsletterStatusReports();
     
-    // Base URL for links
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     
     // Generate HTML email
     return generateNewsletterHtml({
