@@ -360,7 +360,7 @@ export default function AppointmentForm({
                 <Box component="ul" sx={{ pl: 2, mt: 1 }}>
                   <li>Der <strong>Titel</strong> der Veranstaltung wird sowohl in der Mittwochsmail als auch auf der Webseite angezeigt. Er sollte sehr kurz und prägnant sein.</li>
                   <li>Der <strong>Teaser</strong> erscheint als kurze Vorschau in Übersichten aller Termine und im Newsletter und sollte deshlba immer vorhanden, prägnant und kurz sein.</li>
-                  <li>Die <strong>Beschreibung</strong> ermöglicht eine detaillierte Beschreibung mit bis zu 1000 Zeichen. Diese Beschreibung wird angezeigt, wenn jemand die Termindetails öffnet. </li>
+                  <li>Die <strong>Beschreibung</strong> ermöglicht eine detaillierte Beschreibung mit bis zu 5000 Zeichen. Diese Beschreibung wird angezeigt, wenn jemand die Termindetails öffnet. </li>
                   <li>Ein <strong>Featured Termin</strong> erscheint hervorgehoben in der Mittwochsmail. Dafür benötigt immer es <strong>Cover-Bild</strong>. Dieses können sie im nächsten Schritt hochladen.</li>
                 </Box>
               </>
@@ -467,7 +467,7 @@ export default function AppointmentForm({
             <RichTextEditor
               value={mainText}
               onChange={setMainText}
-              maxLength={1000}
+              maxLength={5000}
             />
             {errors.mainText && (
               <Typography variant="caption" color="error" sx={{ mt: 1 }}>

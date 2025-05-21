@@ -339,7 +339,7 @@ const NewsletterGenerator: React.FC = () => {
         <RichTextEditor
           value={introductionText}
           onChange={(introductionText) => setIntroductionText(introductionText)}
-          maxLength={1000}
+          maxLength={5000}
           placeholder="Einleitungstext für Mittwochsmail"
         />
       </Box>

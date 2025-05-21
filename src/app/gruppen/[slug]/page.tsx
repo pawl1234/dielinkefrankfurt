@@ -114,8 +114,7 @@ export default function GroupDetailPage() {
     <MainLayout
       breadcrumbs={[
         { label: 'Start', href: '/' },
-        { label: 'Arbeitsgruppen', href: '/gruppen' },
-        { label: group?.name || 'Details', href: `/gruppen/${slug}`, active: true },
+        { label: `Arbeitsgruppe: ${group?.name}`, href: `/gruppen/${slug}`, active: true },
       ]}
     >
       <Container maxWidth="lg" sx={{ py: 2 }}>
@@ -157,14 +156,18 @@ export default function GroupDetailPage() {
               {/* Group Logo */}
               <Box sx={{ 
                 width: { xs: '100%', md: '220px' },
-                height: { xs: '160px', md: '220px' },
+                minWidth: { md: '180px' },
+                maxWidth: { md: '220px' },
+                height: 'auto', // Allow height to be determined by content
+                aspectRatio: '1/1', // Maintain 5:4 ratio
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
                 bgcolor: 'grey.100',
                 borderRadius: 1,
                 mb: { xs: 2, md: 0 },
-                overflow: 'hidden'
+                overflow: 'hidden',
+                flexShrink: 0
               }}>
                 {group.logoUrl ? (
                   <Box
@@ -172,17 +175,16 @@ export default function GroupDetailPage() {
                     src={group.logoUrl}
                     alt={`Logo von ${group.name}`}
                     sx={{
-                      width: '100%',
-                      height: '100%',
+                      width: '90%', // Slightly smaller than container
+                      height: '90%', // Slightly smaller than container
                       objectFit: 'contain',
-                      p: 2
+                      p: 0 // Remove padding
                     }}
                   />
                 ) : (
                   <GroupIcon sx={{ fontSize: 80, color: 'primary.main' }} />
                 )}
               </Box>
-
               {/* Group Info */}
               <Box sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, justifyContent: 'space-between' }}>

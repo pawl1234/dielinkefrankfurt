@@ -77,7 +77,7 @@ const EditorToggleButton = styled(IconButton, {
   },
 }));
 
-const RichTextEditor = ({ value, onChange, maxLength = 10000, placeholder, minHeight = 150 }: RichTextEditorProps) => {
+const RichTextEditor = ({ value, onChange, maxLength = 50000, placeholder, minHeight = 150 }: RichTextEditorProps) => {
   const [charCount, setCharCount] = useState(0);
   const [showLimitMessage, setShowLimitMessage] = useState(false);
 

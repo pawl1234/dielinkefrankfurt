@@ -103,7 +103,7 @@ export function validateStatusReportData(data: Partial<StatusReportCreateData>):
   if (data.title.length < 3 || data.title.length > 100) return 'Report title must be between 3 and 100 characters';
   
   if (!data.content) return 'Report content is required';
-  if (data.content.length > 1000) return 'Report content must not exceed 1000 characters';
+  if (data.content.length > 5000) return 'Report content must not exceed 5000 characters';
   
   if (!data.reporterFirstName || data.reporterFirstName.length < 2 || data.reporterFirstName.length > 50) {
     return 'Reporter first name must be between 2 and 50 characters';

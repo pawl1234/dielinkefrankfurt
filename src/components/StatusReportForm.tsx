@@ -101,8 +101,8 @@ export default function StatusReportForm() {
     }
 
     // Validate that content is not too long
-    if (content.length > 1000) {
-      setSubmissionError('Inhalt darf maximal 1000 Zeichen lang sein');
+    if (content.length > 5000) {
+      setSubmissionError('Inhalt darf maximal 5000 Zeichen lang sein');
       setIsSubmitting(false);
       return;
     }
@@ -270,7 +270,7 @@ export default function StatusReportForm() {
                 </Typography>
                 <Box component="ul" sx={{ pl: 2, mt: 1 }}>
                   <li>Der <strong>Titel</strong> sollte kurz und prägnant sein (max. 100 Zeichen).</li>
-                  <li>Der <strong>Inhalt</strong> kann Text, Listen und Links enthalten (max. 1000 Zeichen).</li>
+                  <li>Der <strong>Inhalt</strong> kann Text, Listen und Links enthalten (max. 5000 Zeichen).</li>
                 </Box>
               </>
             }
@@ -321,7 +321,7 @@ export default function StatusReportForm() {
             <RichTextEditor
               value={content}
               onChange={setContent}
-              maxLength={1000}
+              maxLength={5000}
               placeholder="Inhalt des Berichts..."
             />
             {errors.content && (
