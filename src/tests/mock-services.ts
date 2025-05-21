@@ -62,7 +62,7 @@ export function setupMockEnvironment() {
   // Save original env variables
   beforeAll(() => {
     process.env = { ...originalEnv };
-    process.env.NEXTAUTH_URL = 'https://test.dielinke-frankfurt.de';
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.dielinke-frankfurt.de';
     process.env.BLOB_READ_WRITE_TOKEN = 'mock-blob-token';
     process.env.CONTACT_EMAIL = 'test@dielinke-frankfurt.de';
     process.env.ADMIN_USERNAME = 'admin';

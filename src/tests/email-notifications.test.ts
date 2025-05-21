@@ -6,7 +6,7 @@ jest.mock('../lib/email', () => ({
 }));
 
 // Mock the environment variables
-process.env.NEXTAUTH_URL = 'https://test.example.com';
+process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.example.com';
 process.env.CONTACT_EMAIL = 'test@example.com';
 
 // Types for our mocked functions
@@ -50,7 +50,7 @@ async function sendGroupAcceptanceEmail(group: Group): Promise<{ success: boolea
     }
     
     const recipients = group.responsiblePersons.map(person => person.email).join(',');
-    const statusReportFormUrl = `${process.env.NEXTAUTH_URL}/gruppen-bericht`;
+    const statusReportFormUrl = `${process.env.VERCEL_PROJECT_PRODUCTION_URL}/gruppen-bericht`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -176,7 +176,7 @@ async function sendStatusReportAcceptanceEmail(
     }
     
     const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
-    const reportUrl = `${process.env.NEXTAUTH_URL}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
+    const reportUrl = `${process.env.VERCEL_PROJECT_PRODUCTION_URL}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
     const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
     
     const html = `

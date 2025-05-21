@@ -161,7 +161,7 @@ The application uses two main database models:
   - `ADMIN_USERNAME`
   - `ADMIN_PASSWORD`
   - `NEXTAUTH_SECRET`
-  - `NEXTAUTH_URL`
+  - `VERCEL_PROJECT_PRODUCTION_URL`
 
 ## File Upload System
 
@@ -195,7 +195,7 @@ Required environment variables:
 
 - `DATABASE_URL`: PostgreSQL connection string
 - `NEXTAUTH_SECRET`: Secret for NextAuth authentication
-- `NEXTAUTH_URL`: Base URL of the application
+- `VERCEL_PROJECT_PRODUCTION_URL`: Base URL of the application
 - `ADMIN_USERNAME`: Admin login username
 - `ADMIN_PASSWORD`: Admin login password
 - `BLOB_READ_WRITE_TOKEN`: Token for Vercel Blob Storage
@@ -209,7 +209,7 @@ Optional:
 - **Build failures**: Check for TypeScript errors with `npm run typecheck`
 - **Database connection issues**: Verify DATABASE_URL is correct
 - **File upload failures**: Check BLOB_READ_WRITE_TOKEN is set correctly
-- **Authentication problems**: Verify NEXTAUTH_SECRET and NEXTAUTH_URL are set
+- **Authentication problems**: Verify NEXTAUTH_SECRET and VERCEL_PROJECT_PRODUCTION_URL are set
 - **MUI v7 Grid usage**: Material UI v7 uses a new Grid system this code is wrong: `<Grid size={{ xs: 12, md: 6 }}>` use the new way instead: `<Grid size={{ xs: 12, md: 6 }}>`.
 - **Date handling**: When working with date fields, be aware that the Prisma client uses JavaScript `Date` objects for datetime fields, but our interface definitions sometimes expect `string`. In components, use `Date | string` as the type for date fields.
 

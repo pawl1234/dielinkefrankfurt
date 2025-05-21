@@ -20,7 +20,7 @@ This document explains how to deploy this Next.js application to Vercel with a N
 Required environment variables for production:
 - `DATABASE_URL`: Your Neon PostgreSQL connection string
 - `NEXTAUTH_SECRET`: Secret for NextAuth authentication
-- `NEXTAUTH_URL`: Your production URL (e.g., https://your-site.vercel.app)
+- `VERCEL_PROJECT_PRODUCTION_URL`: Your production URL (e.g., https://your-site.vercel.app)
 - `ADMIN_USERNAME`: Admin login username
 - `ADMIN_PASSWORD`: Admin login password
 

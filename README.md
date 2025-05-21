@@ -95,7 +95,7 @@ In development mode:
 ## Environment Variables
 
 ### Authentication
-- `NEXTAUTH_URL`: Full URL of your application (e.g., https://your-domain.com)
+- `VERCEL_PROJECT_PRODUCTION_URL`: Full URL of your application (e.g., https://your-domain.com)
 - `NEXTAUTH_SECRET`: Secret key for session encryption (generate with `openssl rand -base64 32`)
 - `ADMIN_USERNAME`: Admin login username (default: admin)
 - `ADMIN_PASSWORD`: Admin login password (default: password123)
@@ -112,7 +112,7 @@ When you're ready to deploy the application to production, you'll need to:
 
 1. Set up authentication for the admin dashboard:
    ```
-   NEXTAUTH_URL=https://your-domain.com
+   VERCEL_PROJECT_PRODUCTION_URL=https://your-domain.com
    NEXTAUTH_SECRET=your-secure-random-secret-key
    ADMIN_USERNAME=your-admin-username
    ADMIN_PASSWORD=your-secure-admin-password

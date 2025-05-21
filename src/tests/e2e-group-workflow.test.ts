@@ -28,7 +28,7 @@ jest.mock('@vercel/blob', () => ({
 }));
 
 // Mock environmental context
-process.env.NEXTAUTH_URL = 'https://test.dielinke-frankfurt.de';
+process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.dielinke-frankfurt.de';
 process.env.CONTACT_EMAIL = 'test@dielinke-frankfurt.de';
 
 // Comprehensive end-to-end group workflow test

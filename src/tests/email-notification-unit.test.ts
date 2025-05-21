@@ -30,7 +30,7 @@ sendStatusReportAcceptanceEmail.mockImplementation((statusReport) => {
   }
 
   const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
-  const reportUrl = `${process.env.NEXTAUTH_URL}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
+  const reportUrl = `${process.env.VERCEL_PROJECT_PRODUCTION_URL}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
   const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
   
   const html = `
@@ -150,7 +150,7 @@ sendStatusReportArchivingEmail.mockImplementation((statusReport) => {
 });
 
 // Mock environment variables
-process.env.NEXTAUTH_URL = 'https://test.example.com';
+process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.example.com';
 process.env.CONTACT_EMAIL = 'test@example.com';
 
 describe('Status Report Email Notifications Unit Tests', () => {

@@ -25,7 +25,7 @@ export async function sendGroupAcceptanceEmail(
     }
     
     const recipients = group.responsiblePersons.map(person => person.email).join(',');
-    const statusReportFormUrl = `${process.env.NEXTAUTH_URL}/gruppen-bericht`;
+    const statusReportFormUrl = `${process.env.VERCEL_PROJECT_PRODUCTION_URL}/gruppen-bericht`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -170,7 +170,7 @@ export async function sendStatusReportAcceptanceEmail(
     }
     
     const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
-    const reportUrl = `${process.env.NEXTAUTH_URL}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
+    const reportUrl = `${process.env.VERCEL_PROJECT_PRODUCTION_URL}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
     const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
     
     // Parse file URLs if they exist

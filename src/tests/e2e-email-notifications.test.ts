@@ -10,7 +10,7 @@ jest.mock('../lib/email', () => ({
 }));
 
 // Set up test environment variables
-process.env.NEXTAUTH_URL = 'https://test.dielinke-frankfurt.de';
+process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.dielinke-frankfurt.de';
 process.env.CONTACT_EMAIL = 'test@dielinke-frankfurt.de';
 
 describe('Email Notification System', () => {

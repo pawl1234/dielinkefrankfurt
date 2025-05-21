@@ -15,7 +15,7 @@ jest.mock('../lib/prisma', () => ({
 }));
 
 // Mock environment variables
-process.env.NEXTAUTH_URL = 'https://test.example.com';
+process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.example.com';
 process.env.CONTACT_EMAIL = 'test@example.com';
 
 describe('Status Report Email Notifications', () => {
