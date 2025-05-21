@@ -323,7 +323,7 @@ export default function AdminStatusReportsPage() {
             <FormControl size="small" sx={{ minWidth: 120 }}><InputLabel>Reihenfolge</InputLabel><Select value={orderDirection} label="Reihenfolge" onChange={(e) => setOrderDirection(e.target.value as 'asc' | 'desc')}><MenuItem value="asc">Aufsteigend</MenuItem><MenuItem value="desc">Absteigend</MenuItem></Select></FormControl>
             <Button variant="outlined" onClick={resetFilters} sx={{ height: 40 }}>Filter zurücksetzen</Button>
             <Box sx={{ flexGrow: 1 }} />
-            <Button variant="contained" startIcon={<AssessmentIcon />} onClick={handleOpenCreateReportDialog}>Neue Meldung</Button>
+            <Button disabled={true} variant="contained" startIcon={<AssessmentIcon />} onClick={handleOpenCreateReportDialog}>Neue Meldung</Button>
           </SearchFilterBar>
           
           <AdminStatusTabs 

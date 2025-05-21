@@ -269,7 +269,7 @@ export default function AdminGroupsPage() {
           <AdminPageHeader title="Gruppen verwalten" icon={<GroupsIcon />} />
           <SearchFilterBar searchTerm={adminState.searchTerm} onSearchChange={(e) => adminState.setSearchTerm(e.target.value)} onClearSearch={() => adminState.setSearchTerm('')} onSearch={handleSearch}>
             <Box sx={{ flexGrow: 1 }} />
-            <Button variant="contained" startIcon={<GroupsIcon />} onClick={handleOpenCreateGroupDialog}>Neue Gruppe</Button>
+            <Button disabled={true} variant="contained" startIcon={<GroupsIcon />} onClick={handleOpenCreateGroupDialog}>Neue Gruppe</Button>
           </SearchFilterBar>
           <AdminStatusTabs 
             value={adminState.tabValue}
