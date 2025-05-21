@@ -126,7 +126,10 @@ export default function AppointmentForm({
   }, [initialValues?.fileUrls, initialValues?.metadata, initialValues?.featured]);
 
   // Prepare default values from initialValues if provided
-  const defaultValues: Partial<FormInput> = {};
+  const defaultValues: Partial<FormInput> = {
+    teaser: '' // Default empty teaser
+  };
+  
   if (initialValues) {
     if (initialValues.title) defaultValues.title = initialValues.title;
     if (initialValues.teaser) defaultValues.teaser = initialValues.teaser;
@@ -182,11 +185,17 @@ export default function AppointmentForm({
     setSubmissionSuccess(false);
 
     try {
+      // Always ensure teaser has a value (even if empty)
+      const dataWithTeaser = {
+        ...data,
+        teaser: data.teaser || ''
+      };
+      
       // If custom submit handler is provided (edit mode), use it
       if (customSubmit) {
         // Add cover image data to the form data
         const dataWithCover = {
-          ...data,
+          ...dataWithTeaser,
           featured: isFeatured,
           coverImage: coverImage || undefined,
           croppedCoverImage: croppedCoverImage || undefined
@@ -200,7 +209,7 @@ export default function AppointmentForm({
       // Create form data
       const formData = new FormData();
       formData.append('title', data.title)
-      formData.append('teaser', data.teaser || '');
+      formData.append('teaser', dataWithTeaser.teaser); // Always include teaser, but may be empty
       formData.append('mainText', mainText);
 
       // Handle date formatting
@@ -359,7 +368,6 @@ export default function AppointmentForm({
                 </Typography>
                 <Box component="ul" sx={{ pl: 2, mt: 1 }}>
                   <li>Der <strong>Titel</strong> der Veranstaltung wird sowohl in der Mittwochsmail als auch auf der Webseite angezeigt. Er sollte sehr kurz und prägnant sein.</li>
-                  <li>Der <strong>Teaser</strong> erscheint als kurze Vorschau in Übersichten aller Termine und im Newsletter und sollte deshlba immer vorhanden, prägnant und kurz sein.</li>
                   <li>Die <strong>Beschreibung</strong> ermöglicht eine detaillierte Beschreibung mit bis zu 5000 Zeichen. Diese Beschreibung wird angezeigt, wenn jemand die Termindetails öffnet. </li>
                   <li>Ein <strong>Featured Termin</strong> erscheint hervorgehoben in der Mittwochsmail. Dafür benötigt immer es <strong>Cover-Bild</strong>. Dieses können sie im nächsten Schritt hochladen.</li>
                 </Box>
@@ -404,32 +412,24 @@ export default function AppointmentForm({
               />
             )}
           />
-
+{/*
             <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
-              Teaser <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
+              Teaser <Box component="span" sx={{ color: 'text.secondary' }}>(Deaktiviert)</Box>
             </Typography>
 
             <Typography variant="body1" display="block" gutterBottom>
-              Kurze Zusammenfassung Ihrer Veranstaltung (max. 300 Zeichen).
-              {teaserLength > 100 && (
-                <Typography variant="caption" color="error.main" component="span">
-                  {' '}Bitte halten Sie den Teaser so kurz wie möglich.
-                </Typography>
-              )}
+              Kurze Zusammenfassung Ihrer Veranstaltung (aktuell deaktiviert).
             </Typography>
 
             <Controller
               name="teaser"
               control={control}
+              defaultValue="" // Default empty value
               rules={{ 
-                required: 'Teaser ist erforderlich', 
+                // Remove required validation
                 maxLength: {
                   value: 300,
                   message: 'Teaser darf maximal 300 Zeichen lang sein'
-                },
-                minLength: {
-                  value: 10,
-                  message: 'Teaser muss mindestens 10 Zeichen lang sein'
                 }
               }}
               render={({ field }) => (
@@ -438,22 +438,20 @@ export default function AppointmentForm({
                   multiline
                   rows={2}
                   fullWidth
-                  placeholder="Kurze Zusammenfassung der Veranstaltung..."
+                  disabled={true} // Disable the field
+                  placeholder="Funktionalität aktuell deaktiviert..."
                   inputProps={{ maxLength: 300 }}
                   onChange={(e) => {
                     field.onChange(e);
                     setTeaserLength(e.target.value.length);
                   }}
                   error={!!errors.teaser || !!getFieldError('teaser')}
-                  helperText={
-                    errors.teaser?.message || 
-                    getFieldError('teaser') || 
-                    `${teaserLength}/300${teaserLength > 200 ? ' (bitte kurz halten)' : ''}`
-                  }
+                  helperText="Diese Funktion ist aktuell deaktiviert."
                   margin="normal"
+                  sx={{ opacity: 0.7 }} // Visual indication that it's disabled
                 />
               )}
-            />
+            />*/}
           </Box>
 
           <Box sx={{ mb: 3 }}>
@@ -735,8 +733,6 @@ export default function AppointmentForm({
                   />
                 )}
               />
-
-
 
               <Collapse in={helpOpen}>
                 <Paper sx={{ mt: 2, p: 2, bgcolor: 'grey.50' }}>

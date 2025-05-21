@@ -89,6 +89,9 @@ export const generateFeaturedEventsHtml = (
     const detailUrl = `${baseUrl}/termine/${appointment.id}`;
     const isLastItem = index === featuredAppointments.length - 1;
     
+    // Use truncated mainText instead of teaser
+    const truncatedText = truncateText(appointment.mainText, 300);
+    
     html += `
       <tr>
         <td class="featured-event">
@@ -103,7 +106,7 @@ export const generateFeaturedEventsHtml = (
                   ${formatDate(appointment.startDateTime)}
                   ${appointment.endDateTime ? ` - ${formatDate(appointment.endDateTime)}` : ''}
                 </p>
-                <p class="event-teaser">${appointment.teaser}</p>
+                <p class="event-teaser">${truncatedText}</p>
                 <div class="button-container">
                   <a href="${detailUrl}" class="event-button">
                     Mehr Informationen
@@ -136,6 +139,9 @@ export const generateUpcomingEventsHtml = (
   upcomingAppointments.forEach((appointment: Appointment) => {
     const detailUrl = `${baseUrl}/termine/${appointment.id}`;
     
+    // Use truncated mainText instead of teaser
+    const truncatedText = truncateText(appointment.mainText, 200); // Slightly shorter for regular appointments
+    
     html += `
       <tr>
         <td class="upcoming-event">
@@ -143,7 +149,7 @@ export const generateUpcomingEventsHtml = (
           <p class="upcoming-date">
             ${formatDate(appointment.startDateTime)}
           </p>
-          <p class="event-teaser">${appointment.teaser}</p>
+          <p class="event-teaser">${truncatedText}</p>
           <a href="${detailUrl}" class="event-button">
             Mehr Informationen
           </a>

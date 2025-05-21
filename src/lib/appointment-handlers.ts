@@ -393,7 +393,7 @@ export async function createAppointment(request: NextRequest) {
 
     // Field validation
     if (!title) validationErrors.title = 'Titel ist erforderlich';
-    if (!teaser) validationErrors.teaser = 'Teaser ist erforderlich';
+    //if (!teaser) validationErrors.teaser = 'Teaser ist erforderlich';
     if (!mainText) validationErrors.mainText = 'Beschreibung ist erforderlich';
     if (!startDateTime) validationErrors.startDateTime = 'Startdatum und -uhrzeit sind erforderlich';
     
