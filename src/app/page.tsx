@@ -16,7 +16,7 @@ export default function Home() {
       <Container maxWidth="lg">
         <HomePageHeader 
           mainTitle="Die Linke Frankfurt" 
-          subtitle="Willkommen auf userem Mitgliederportal."
+          subtitle="Willkommen auf unserem Mitgliederportal."
           introText="Hier finden Sie alle Termine und wichtige Informationen für Mitglieder der Linken in Frankfurt."
         />              
         <Suspense fallback={ 

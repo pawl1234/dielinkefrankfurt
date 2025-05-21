@@ -20,7 +20,7 @@ export default function NewAppointmentPage() {
     >
       <Container maxWidth="lg">
         <HomePageHeader 
-          mainTitle="Neuet Termin" 
+          mainTitle="Neuer Termin" 
           subtitle="Online-Formular zur Einreichung von Veranstaltungen"
           introText="Das nachfolgende Formular bietet die Möglichkeit neue Termine in den Kalender und den Newsletter aufnehmen zu lassen. Es erfolgt eine Freigabe durch den Kreisvorstand."
         />      
