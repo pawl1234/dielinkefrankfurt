@@ -59,6 +59,7 @@ export interface StatusReportUpdateData {
   reporterLastName?: string;
   status?: StatusReportStatus;
   fileUrls?: string[];
+  groupId?: string;
 }
 
 /**
@@ -826,8 +827,15 @@ export async function updateStatusReport(data: StatusReportUpdateData): Promise<
     if (data.reporterFirstName) updateData.reporterFirstName = data.reporterFirstName;
     if (data.reporterLastName) updateData.reporterLastName = data.reporterLastName;
     if (data.status) updateData.status = data.status;
+    
     if (data.fileUrls !== undefined) {
       updateData.fileUrls = data.fileUrls.length > 0 ? JSON.stringify(data.fileUrls) : null;
+    }
+    
+    if (data.groupId) {
+      updateData.group = {
+        connect: { id: data.groupId }
+      };
     }
     
     // Update the status report
@@ -835,10 +843,14 @@ export async function updateStatusReport(data: StatusReportUpdateData): Promise<
       where: { id: data.id },
       data: updateData,
       include: {
-        group: true
+        group: {
+          include: {
+            responsiblePersons: true
+          }
+        }
       }
     });
-    
+       
     return statusReport;
   } catch (error) {
     console.error(`Error updating status report ${data.id}:`, error);
