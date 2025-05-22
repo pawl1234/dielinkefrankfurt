@@ -9,7 +9,8 @@
 * Unsubscribe Feature.
 * Archived Articles should be restorable and permanently removable
 
-
+- Newsletter Analysefunktion einbauen, dass man sieht wieviele clicks es gibt.
+- Let the whole system fail if Database is not available
 
 ## Technische Schulden
 

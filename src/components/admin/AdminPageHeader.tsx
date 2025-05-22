@@ -34,13 +34,14 @@ const AdminPageHeader: React.FC<AdminPageHeaderProps> = ({ title, icon }) => {
           fontSize: isMobile ? '1.5rem' : undefined
         }}
       >
-        {icon && React.cloneElement(icon as React.ReactElement, { 
-          sx: { 
-            mr: 1, 
-            verticalAlign: 'middle',
-            fontSize: isMobile ? '1.5rem' : '2rem' 
-          } 
-        })}
+        <Box sx={{ 
+          mr: 1, 
+          display: 'inline-flex', 
+          verticalAlign: 'middle',
+          fontSize: isMobile ? '1.5rem' : '2rem' 
+        }}>
+          {icon}
+        </Box>
         <span>{title}</span>
       </Typography>
     </Box>

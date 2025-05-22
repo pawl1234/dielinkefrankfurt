@@ -1,0 +1,85 @@
+/**
+ * Common types and interfaces for form components
+ */
+
+import { ReactNode } from 'react';
+
+/**
+ * Base properties shared by all form components
+ */
+export interface BaseFormProps {
+  /** Mode of the form (create or edit) */
+  mode?: 'create' | 'edit';
+  
+  /** Text to display on the submit button */
+  submitButtonText?: string;
+  
+  /** Callback function for when the form is submitted */
+  onSubmit?: (data: any, files?: (File | Blob)[]) => Promise<void>;
+  
+  /** Callback function for when the form is cancelled (edit mode) */
+  onCancel?: () => void;
+  
+  /** Initial values for the form fields (edit mode) */
+  initialValues?: Record<string, any>;
+}
+
+/**
+ * Properties for a form section
+ */
+export interface FormSectionProps {
+  /** Title of the section */
+  title: string;
+  
+  /** Title of the help text */
+  helpTitle?: string;
+  
+  /** Help text content */
+  helpText?: ReactNode;
+  
+  /** Children elements */
+  children: ReactNode;
+}
+
+/**
+ * Properties for a form success message
+ */
+export interface FormSuccessMessageProps {
+  /** Title of the success message */
+  title: string;
+  
+  /** Message content */
+  message: string | ReactNode;
+  
+  /** Function to reset the form */
+  resetForm?: () => void;
+  
+  /** Text for the reset button */
+  resetButtonText?: string;
+  
+  /** Whether to show the reset button */
+  showResetButton?: boolean;
+}
+
+/**
+ * Properties for form field components
+ */
+export interface FormFieldProps {
+  /** Label for the field */
+  label: string;
+  
+  /** Name of the field */
+  name: string;
+  
+  /** Whether the field is required */
+  required?: boolean;
+  
+  /** Error message for the field */
+  error?: string;
+  
+  /** Placeholder text */
+  placeholder?: string;
+  
+  /** Helper text */
+  helperText?: string;
+}

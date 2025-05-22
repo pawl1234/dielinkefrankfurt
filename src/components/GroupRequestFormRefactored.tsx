@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useForm, SubmitHandler, FormProvider } from 'react-hook-form';
 import {
   Box,
@@ -32,13 +32,7 @@ export interface GroupFormInput {
   croppedLogo?: File | Blob;
 }
 
-export default function GroupRequestForm() {
-  // Create refs for each section to allow scrolling to errors
-  const nameRef = useRef<HTMLDivElement>(null);
-  const descriptionRef = useRef<HTMLDivElement>(null);
-  const logoRef = useRef<HTMLDivElement>(null);
-  const responsiblePersonsRef = useRef<HTMLDivElement>(null);
-
+export default function GroupRequestFormRefactored() {
   const [description, setDescription] = useState('');
   const [logo, setLogo] = useState<File | Blob | null>(null);
   const [croppedLogo, setCroppedLogo] = useState<File | Blob | null>(null);
@@ -59,11 +53,6 @@ export default function GroupRequestForm() {
     setDescription('');
     setLogo(null);
     setCroppedLogo(null);
-    // Clear submission success to show form again
-    if (submissionSuccess) {
-      // We let the FormSuccessMessage handle the reload
-      return;
-    }
   };
 
   // Use our custom hook for form submission
@@ -71,36 +60,9 @@ export default function GroupRequestForm() {
     isSubmitting,
     submissionError,
     submissionSuccess,
-    fieldErrors,
     handleSubmit: handleFormSubmit
   } = useFormSubmission<GroupFormInput>({
     onSubmit: async (data) => {
-      // Validate required fields
-      if (!data.name || data.name.trim() === '') {
-        throw new Error('Gruppenname ist erforderlich');
-      }
-      
-      if (!description || description.trim() === '' || description.trim() === '<p></p>') {
-        throw new Error('Beschreibung ist erforderlich');
-      }
-      
-      // Validate responsible persons
-      if (!data.responsiblePersons || data.responsiblePersons.length === 0) {
-        throw new Error('Mindestens eine verantwortliche Person ist erforderlich');
-      }
-      
-      for (const person of data.responsiblePersons) {
-        if (!person.firstName || !person.lastName || !person.email) {
-          throw new Error('Alle Felder für verantwortliche Personen müssen ausgefüllt sein');
-        }
-        
-        // Simple email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(person.email)) {
-          throw new Error('Bitte geben Sie eine gültige E-Mail-Adresse ein');
-        }
-      }
-      
       // Create form data for file upload
       const formData = new FormData();
       formData.append('name', data.name);
@@ -132,13 +94,7 @@ export default function GroupRequestForm() {
         throw new Error(result.error || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
       }
     },
-    resetForm,
-    fieldRefs: {
-      'name': nameRef,
-      'description': descriptionRef,
-      'logo': logoRef,
-      'responsiblePersons': responsiblePersonsRef
-    }
+    resetForm
   });
 
   // Set description value in form when rich text editor changes
@@ -161,25 +117,6 @@ export default function GroupRequestForm() {
   };
 
   const onSubmit: SubmitHandler<GroupFormInput> = (data) => {
-    // Check for errors from react-hook-form
-    if (Object.keys(errors).length > 0) {
-      // Scroll to the first error field
-      if (errors.name) {
-        nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-      
-      if (errors.description) {
-        descriptionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-      
-      if (errors.responsiblePersons) {
-        responsiblePersonsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-    }
-    
     handleFormSubmit(data);
   };
 
@@ -218,7 +155,7 @@ export default function GroupRequestForm() {
                 </>
               }
             >
-              <Box sx={{ mb: 3 }} ref={nameRef}>
+              <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
                   Name der Gruppe <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
                 </Typography>
@@ -236,7 +173,7 @@ export default function GroupRequestForm() {
                 />
               </Box>
 
-              <Box sx={{ mb: 3 }} ref={descriptionRef}>
+              <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
                   Beschreibung <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
                 </Typography>
@@ -249,9 +186,9 @@ export default function GroupRequestForm() {
                   maxLength={5000}
                   placeholder="Beschreibung der Arbeitsgruppe..."
                 />
-                {(errors.description || (fieldErrors.find(e => e.fieldName === 'description'))) && (
+                {errors.description && (
                   <Typography variant="caption" color="error">
-                    {errors.description?.message || fieldErrors.find(e => e.fieldName === 'description')?.message || 'Beschreibung ist erforderlich'}
+                    {errors.description.message}
                   </Typography>
                 )}
               </Box>
@@ -273,9 +210,7 @@ export default function GroupRequestForm() {
                 </>
               }
             >
-              <Box ref={logoRef}>
-                <GroupLogoUpload onImageSelect={handleLogoSelect} />
-              </Box>
+              <GroupLogoUpload onImageSelect={handleLogoSelect} />
             </FormSection>
 
             <FormSection
@@ -294,9 +229,7 @@ export default function GroupRequestForm() {
                 </>
               }
             >
-              <Box ref={responsiblePersonsRef}>
-                <ResponsiblePersonFields form={methods} />
-              </Box>
+              <ResponsiblePersonFields form={methods} />
             </FormSection>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>

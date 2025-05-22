@@ -1,26 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm, SubmitHandler, Controller } from 'react-hook-form';
+import { useState, useRef, useEffect } from 'react';
+import { useForm, SubmitHandler, Controller, FormProvider } from 'react-hook-form';
 import {
   Box,
   Typography,
   TextField,
   Button,
-  Card,
-  CardContent,
-  Alert,
-  MenuItem,
   FormControl,
   InputLabel,
   Select,
+  MenuItem,
   FormHelperText,
   CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import RichTextEditor from './RichTextEditor';
 import FileUpload from './FileUpload';
-import SectionHeader from './SectionHeader';
+import FormSection from './FormSection';
+import FormSuccessMessage from './FormSuccessMessage';
+import { useFormSubmission } from '@/hooks/useFormSubmission';
 
 interface Group {
   id: string;
@@ -38,22 +37,29 @@ interface FormInput {
 }
 
 export default function StatusReportForm() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  // Create refs for each section to allow scrolling to errors
+  const groupRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const reporterRef = useRef<HTMLDivElement>(null);
+  const filesRef = useRef<HTMLDivElement>(null);
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState('');
   const [fileList, setFileList] = useState<(File | Blob)[]>([]);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    control,
-    reset,
-    formState: { errors }
-  } = useForm<FormInput>();
+  const methods = useForm<FormInput>({
+    defaultValues: {
+      groupId: '',
+      title: '',
+      content: '',
+      reporterFirstName: '',
+      reporterLastName: ''
+    }
+  });
+
+  const { register, handleSubmit, setValue, control, reset, formState: { errors } } = methods;
 
   // Fetch active groups for the dropdown
   useEffect(() => {
@@ -73,7 +79,7 @@ export default function StatusReportForm() {
         }
       } catch (error) {
         console.error('Error fetching groups:', error);
-        setSubmissionError('Es konnten keine Gruppen geladen werden. Bitte versuchen Sie es später erneut.');
+        // This will be handled by the useFormSubmission hook
       } finally {
         setLoading(false);
       }
@@ -82,33 +88,54 @@ export default function StatusReportForm() {
     fetchGroups();
   }, []);
 
+  // Reset function for form
   const resetForm = () => {
     reset();
     setContent('');
     setFileList([]);
+    
+    // If we're in the success state, let FormSuccessMessage handle the reset
+    if (submissionSuccess) {
+      // We let the FormSuccessMessage handle the reload
+      return;
+    }
   };
 
-  const onSubmit: SubmitHandler<FormInput> = async (data) => {
-    setIsSubmitting(true);
-    setSubmissionError(null);
-    setSubmissionSuccess(false);
+  // Use our custom hook for form submission
+  const {
+    isSubmitting,
+    submissionError,
+    submissionSuccess,
+    fieldErrors,
+    handleSubmit: handleFormSubmit
+  } = useFormSubmission<FormInput>({
+    onSubmit: async (data) => {
+      // Validate required fields
+      if (!data.groupId || data.groupId.trim() === '') {
+        throw new Error('Bitte wählen Sie eine Gruppe aus');
+      }
+      
+      if (!data.title || data.title.trim() === '') {
+        throw new Error('Titel ist erforderlich');
+      }
+      
+      if (!content || content.trim() === '<p></p>' || content.trim() === '') {
+        throw new Error('Inhalt ist erforderlich');
+      }
+      
+      if (content.length > 5000) {
+        throw new Error('Inhalt darf maximal 5000 Zeichen lang sein');
+      }
+      
+      if (!data.reporterFirstName || data.reporterFirstName.trim() === '') {
+        throw new Error('Vorname ist erforderlich');
+      }
+      
+      if (!data.reporterLastName || data.reporterLastName.trim() === '') {
+        throw new Error('Nachname ist erforderlich');
+      }
 
-    // Validate content before submission
-    if (!content || content.trim() === '<p></p>' || content.trim() === '') {
-      setSubmissionError('Bitte geben Sie einen Inhalt ein');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Validate that content is not too long
-    if (content.length > 5000) {
-      setSubmissionError('Inhalt darf maximal 5000 Zeichen lang sein');
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      // Create form data
+      // Create form data for submission
       const formData = new FormData();
       formData.append('groupId', data.groupId);
       formData.append('title', data.title);
@@ -124,328 +151,333 @@ export default function StatusReportForm() {
         formData.append('fileCount', fileList.length.toString());
       }
 
-      // Submit the form data
+      // Submit the form data to the API
       const response = await fetch('/api/status-reports/submit', {
         method: 'POST',
         body: formData,
       });
 
-      const responseData = await response.json();
-
+      const result = await response.json();
+      
       if (!response.ok) {
-        throw new Error(responseData.error || 'Ihr Bericht konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.');
+        throw new Error(result.error || 'Ihr Bericht konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.');
       }
-
-      // Show success and reset form
-      setSubmissionSuccess(true);
-      resetForm();
-
-      // Scroll to top of form to show success message
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (error) {
-      console.error('Form submission error:', error);
-      setSubmissionError(error instanceof Error ? error.message : 'Ein unbekannter Fehler ist aufgetreten.');
-    } finally {
-      setIsSubmitting(false);
+    },
+    resetForm,
+    fieldRefs: {
+      'groupId': groupRef,
+      'title': titleRef,
+      'content': contentRef,
+      'reporterFirstName': reporterRef,
+      'reporterLastName': reporterRef,
+      'files': filesRef
     }
+  });
+
+  const onSubmit: SubmitHandler<FormInput> = (data) => {
+    // Check for errors from react-hook-form
+    if (Object.keys(errors).length > 0) {
+      // Scroll to the first error field
+      if (errors.groupId) {
+        groupRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      
+      if (errors.title) {
+        titleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      
+      if (errors.reporterFirstName || errors.reporterLastName) {
+        reporterRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    
+    // Validate content, which is not controlled by react-hook-form
+    if (!content || content.trim() === '' || content.trim() === '<p></p>') {
+      contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    
+    handleFormSubmit(data);
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ '& > *': { mt: 3 } }}>
-      {submissionError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <strong>Fehler beim Absenden:</strong> {submissionError}
-        </Alert>
-      )}
-
-      {submissionSuccess && (
-        <Alert
-          severity="success"
-          sx={{
-            mb: 3,
-            p: 2,
-            borderLeft: 3,
-            borderColor: 'success.main',
-            '& .MuiAlert-icon': {
-              fontSize: '2rem',
-            }
-          }}
-        >
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="h6" component="div" gutterBottom>
-              Vielen Dank für Ihren Bericht!
-            </Typography>
-            <Typography variant="body1">
-              Ihr Bericht wurde erfolgreich übermittelt. Er wird nun geprüft und nach Freigabe auf der Seite Ihrer Gruppe veröffentlicht.
-            </Typography>
-          </Box>
-        </Alert>
-      )}
-
-      <Card variant="outlined" sx={{
-        mb: 3,
-        borderLeft: 4,
-        borderLeftColor: 'primary.main',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-      }}>
-        <CardContent>
-          <SectionHeader
-            title="Gruppe auswählen"
-            helpTitle="Gruppe auswählen"
-            helpText={
-              <Typography variant="body2">
-                Wählen Sie die Gruppe aus, für die Sie einen Bericht einreichen möchten.
-                Nur aktive Gruppen können ausgewählt werden.
-              </Typography>
-            }
-          />
-
+    <FormProvider {...methods}>
+      <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate sx={{ '& > *': { mt: 3 } }}>
+        {submissionError && (
           <Box sx={{ mb: 3 }}>
-            <FormControl 
-              fullWidth 
-              error={!!errors.groupId}
-              disabled={loading || groups.length === 0}
-            >
-              
-              <Controller
-                name="groupId"
-                control={control}
-                defaultValue=""
-                rules={{ required: 'Bitte wählen Sie eine Gruppe aus' }}
-                render={({ field }) => (
-                  <Select
-                    {...field}
-                    labelId="group-select-label"
-                    //label="Gruppe"
-                    displayEmpty
-                  >
-                    {loading ? (
-                      <MenuItem value="" disabled>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <CircularProgress size={20} sx={{ mr: 1 }} />
-                          Gruppen werden geladen...
-                        </Box>
-                      </MenuItem>
-                    ) : groups.length === 0 ? (
-                      <MenuItem value="" disabled>
-                        Keine aktiven Gruppen gefunden
-                      </MenuItem>
-                    ) : (
-                      [
-                        <MenuItem key="placeholder" value="" disabled>
-                          Bitte wählen Sie eine Gruppe
-                        </MenuItem>,
-                        ...groups.map((group) => (
-                          <MenuItem key={group.id} value={group.id}>
-                            {group.name}
-                          </MenuItem>
-                        ))
-                      ]
-                    )}
-                  </Select>
-                )}
-              />
-              {errors.groupId && (
-                <FormHelperText>{errors.groupId.message}</FormHelperText>
-              )}
-            </FormControl>
+            <Typography variant="subtitle1" color="error" component="div" fontWeight="bold">
+              Fehler beim Absenden:
+            </Typography>
+            <Typography variant="body2" color="error">
+              {submissionError}
+            </Typography>
           </Box>
-        </CardContent>
-      </Card>
+        )}
 
-      <Card variant="outlined" sx={{
-        mb: 3,
-        borderLeft: 4,
-        borderLeftColor: 'primary.main',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-      }}>
-        <CardContent>
-          <SectionHeader
-            title="Berichtsinformationen"
-            helpTitle="Berichtsinformationen"
-            helpText={
-              <>
+        {submissionSuccess && (
+          <FormSuccessMessage
+            title="Vielen Dank für Ihren Bericht!"
+            message="Ihr Bericht wurde erfolgreich übermittelt. Er wird nun geprüft und nach Freigabe auf der Seite Ihrer Gruppe veröffentlicht."
+            resetForm={resetForm}
+            resetButtonText="Neuen Bericht einreichen"
+          />
+        )}
+
+        {!submissionSuccess && (
+          <>
+            <FormSection
+              title="Gruppe auswählen"
+              helpTitle="Gruppe auswählen"
+              helpText={
                 <Typography variant="body2">
-                  In diesem Abschnitt können Sie Ihren Bericht beschreiben:
+                  Wählen Sie die Gruppe aus, für die Sie einen Bericht einreichen möchten.
+                  Nur aktive Gruppen können ausgewählt werden.
                 </Typography>
-                <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-                  <li>Der <strong>Titel</strong> sollte kurz und prägnant sein (max. 100 Zeichen).</li>
-                  <li>Der <strong>Inhalt</strong> kann Text, Listen und Links enthalten (max. 5000 Zeichen).</li>
-                </Box>
-              </>
-            }
-          />
+              }
+            >
+              <Box ref={groupRef}>
+                <FormControl 
+                  fullWidth 
+                  error={!!errors.groupId || !!fieldErrors.find(e => e.fieldName === 'groupId')}
+                  disabled={loading || groups.length === 0}
+                >
+                  <Controller
+                    name="groupId"
+                    control={control}
+                    defaultValue=""
+                    rules={{ required: 'Bitte wählen Sie eine Gruppe aus' }}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        labelId="group-select-label"
+                        displayEmpty
+                      >
+                        {loading ? (
+                          <MenuItem value="" disabled>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <CircularProgress size={20} sx={{ mr: 1 }} />
+                              Gruppen werden geladen...
+                            </Box>
+                          </MenuItem>
+                        ) : groups.length === 0 ? (
+                          <MenuItem value="" disabled>
+                            Keine aktiven Gruppen gefunden
+                          </MenuItem>
+                        ) : (
+                          [
+                            <MenuItem key="placeholder" value="" disabled>
+                              Bitte wählen Sie eine Gruppe
+                            </MenuItem>,
+                            ...groups.map((group) => (
+                              <MenuItem key={group.id} value={group.id}>
+                                {group.name}
+                              </MenuItem>
+                            ))
+                          ]
+                        )}
+                      </Select>
+                    )}
+                  />
+                  {(errors.groupId || fieldErrors.find(e => e.fieldName === 'groupId')) && (
+                    <FormHelperText>
+                      {errors.groupId?.message || fieldErrors.find(e => e.fieldName === 'groupId')?.message}
+                    </FormHelperText>
+                  )}
+                </FormControl>
+              </Box>
+            </FormSection>
 
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
-              Titel <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
-            </Typography>
+            <FormSection
+              title="Berichtsinformationen"
+              helpTitle="Berichtsinformationen"
+              helpText={
+                <>
+                  <Typography variant="body2">
+                    In diesem Abschnitt können Sie Ihren Bericht beschreiben:
+                  </Typography>
+                  <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+                    <li>Der <strong>Titel</strong> sollte kurz und prägnant sein (max. 100 Zeichen).</li>
+                    <li>Der <strong>Inhalt</strong> kann Text, Listen und Links enthalten (max. 5000 Zeichen).</li>
+                  </Box>
+                </>
+              }
+            >
+              <Box sx={{ mb: 3 }} ref={titleRef}>
+                <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
+                  Titel <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
+                </Typography>
 
-            <Controller
-              name="title"
-              control={control}
-              defaultValue=""
-              rules={{ 
-                required: 'Titel ist erforderlich', 
-                maxLength: { 
-                  value: 100, 
-                  message: 'Titel darf maximal 100 Zeichen lang sein' 
-                },
-                minLength: {
-                  value: 3,
-                  message: 'Titel muss mindestens 3 Zeichen lang sein'
-                }
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  placeholder="Titel des Berichts..."
-                  inputProps={{ maxLength: 100 }}
-                  error={!!errors.title}
-                  helperText={errors.title?.message || `${(field.value || '').length}/100`}
-                  margin="normal"
+                <Controller
+                  name="title"
+                  control={control}
+                  defaultValue=""
+                  rules={{ 
+                    required: 'Titel ist erforderlich', 
+                    maxLength: { 
+                      value: 100, 
+                      message: 'Titel darf maximal 100 Zeichen lang sein' 
+                    },
+                    minLength: {
+                      value: 3,
+                      message: 'Titel muss mindestens 3 Zeichen lang sein'
+                    }
+                  }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      placeholder="Titel des Berichts..."
+                      inputProps={{ maxLength: 100 }}
+                      error={!!errors.title || !!fieldErrors.find(e => e.fieldName === 'title')}
+                      helperText={
+                        errors.title?.message || 
+                        fieldErrors.find(e => e.fieldName === 'title')?.message || 
+                        `${(field.value || '').length}/100`
+                      }
+                      margin="normal"
+                    />
+                  )}
                 />
-              )}
-            />
-          </Box>
+              </Box>
 
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
-              Inhalt <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
-            </Typography>
+              <Box sx={{ mb: 3 }} ref={contentRef}>
+                <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
+                  Inhalt <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
+                </Typography>
 
-            <Typography variant="body1" display="block" mb={2} gutterBottom>
-              Beschreiben Sie die Aktivitäten, Erfolge oder Pläne Ihrer Gruppe. Text kann hier formatiert und mit Links versehen werden.
-            </Typography>
-            <RichTextEditor
-              value={content}
-              onChange={setContent}
-              maxLength={5000}
-              placeholder="Inhalt des Berichts..."
-            />
-            {errors.content && (
-              <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                {errors.content.message}
-              </Typography>
-            )}
-          </Box>
-        </CardContent>
-      </Card>
-
-      <Card variant="outlined" sx={{
-        mb: 3,
-        borderLeft: 4,
-        borderLeftColor: 'primary.main',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-      }}>
-        <CardContent>
-          <SectionHeader
-            title="Ansprechpartner"
-            helpTitle="Ansprechpartner"
-            helpText={
-              <Typography variant="body2">
-                Bitte geben Sie Ihre Kontaktdaten an. Diese Informationen werden nur intern verwendet und nicht veröffentlicht.
-              </Typography>
-            }
-          />
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-            <Controller
-              name="reporterFirstName"
-              control={control}
-              defaultValue=""
-              rules={{ 
-                required: 'Vorname ist erforderlich',
-                minLength: {
-                  value: 2,
-                  message: 'Vorname muss mindestens 2 Zeichen lang sein'
-                },
-                maxLength: {
-                  value: 50,
-                  message: 'Vorname darf maximal 50 Zeichen lang sein'
-                }
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Vorname"
-                  fullWidth
-                  error={!!errors.reporterFirstName}
-                  helperText={errors.reporterFirstName?.message}
-                  margin="normal"
+                <Typography variant="body1" display="block" mb={2} gutterBottom>
+                  Beschreiben Sie die Aktivitäten, Erfolge oder Pläne Ihrer Gruppe. Text kann hier formatiert und mit Links versehen werden.
+                </Typography>
+                <RichTextEditor
+                  value={content}
+                  onChange={setContent}
+                  maxLength={5000}
+                  placeholder="Inhalt des Berichts..."
                 />
-              )}
-            />
+                {(fieldErrors.find(e => e.fieldName === 'content') || (!content || content.trim() === '' || content.trim() === '<p></p>')) && (
+                  <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                    {fieldErrors.find(e => e.fieldName === 'content')?.message || 'Inhalt ist erforderlich'}
+                  </Typography>
+                )}
+              </Box>
+            </FormSection>
 
-            <Controller
-              name="reporterLastName"
-              control={control}
-              defaultValue=""
-              rules={{ 
-                required: 'Nachname ist erforderlich',
-                minLength: {
-                  value: 2,
-                  message: 'Nachname muss mindestens 2 Zeichen lang sein'
-                },
-                maxLength: {
-                  value: 50,
-                  message: 'Nachname darf maximal 50 Zeichen lang sein'
-                }
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nachname"
-                  fullWidth
-                  error={!!errors.reporterLastName}
-                  helperText={errors.reporterLastName?.message}
-                  margin="normal"
+            <FormSection
+              title="Ansprechpartner"
+              helpTitle="Ansprechpartner"
+              helpText={
+                <Typography variant="body2">
+                  Bitte geben Sie Ihre Kontaktdaten an. Diese Informationen werden nur intern verwendet und nicht veröffentlicht.
+                </Typography>
+              }
+            >
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }} ref={reporterRef}>
+                <Controller
+                  name="reporterFirstName"
+                  control={control}
+                  defaultValue=""
+                  rules={{ 
+                    required: 'Vorname ist erforderlich',
+                    minLength: {
+                      value: 2,
+                      message: 'Vorname muss mindestens 2 Zeichen lang sein'
+                    },
+                    maxLength: {
+                      value: 50,
+                      message: 'Vorname darf maximal 50 Zeichen lang sein'
+                    }
+                  }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Vorname"
+                      fullWidth
+                      error={!!errors.reporterFirstName || !!fieldErrors.find(e => e.fieldName === 'reporterFirstName')}
+                      helperText={
+                        errors.reporterFirstName?.message || 
+                        fieldErrors.find(e => e.fieldName === 'reporterFirstName')?.message
+                      }
+                      margin="normal"
+                    />
+                  )}
                 />
-              )}
-            />
-          </Box>
-        </CardContent>
-      </Card>
 
-      <Card variant="outlined" sx={{
-        mb: 3,
-        borderLeft: 4,
-        borderLeftColor: 'primary.main',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-      }}>
-        <CardContent>
-          <SectionHeader
-            title="Datei Anhänge"
-            helpTitle="Anhänge hochladen"
-            helpText={
-              <Typography variant="body2">
-                Hier können Sie Anhänge wie Bilder oder PDFs hochladen, die mit Ihrem Bericht veröffentlicht werden sollen.
-                Sie können maximal 5 Dateien hochladen (jeweils max. 5MB).
-              </Typography>
-            }
-          />
+                <Controller
+                  name="reporterLastName"
+                  control={control}
+                  defaultValue=""
+                  rules={{ 
+                    required: 'Nachname ist erforderlich',
+                    minLength: {
+                      value: 2,
+                      message: 'Nachname muss mindestens 2 Zeichen lang sein'
+                    },
+                    maxLength: {
+                      value: 50,
+                      message: 'Nachname darf maximal 50 Zeichen lang sein'
+                    }
+                  }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Nachname"
+                      fullWidth
+                      error={!!errors.reporterLastName || !!fieldErrors.find(e => e.fieldName === 'reporterLastName')}
+                      helperText={
+                        errors.reporterLastName?.message ||
+                        fieldErrors.find(e => e.fieldName === 'reporterLastName')?.message
+                      }
+                      margin="normal"
+                    />
+                  )}
+                />
+              </Box>
+            </FormSection>
 
-          <Box sx={{ mb: 2 }}>
-            <FileUpload
-              onFilesSelect={setFileList}
-              maxFiles={5}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+            <FormSection
+              title="Datei Anhänge"
+              helpTitle="Anhänge hochladen"
+              helpText={
+                <Typography variant="body2">
+                  Hier können Sie Anhänge wie Bilder oder PDFs hochladen, die mit Ihrem Bericht veröffentlicht werden sollen.
+                  Sie können maximal 5 Dateien hochladen (jeweils max. 5MB).
+                </Typography>
+              }
+            >
+              <Box sx={{ mb: 2 }} ref={filesRef}>
+                <FileUpload
+                  onFilesSelect={setFileList}
+                  maxFiles={5}
+                />
+              </Box>
+            </FormSection>
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          disabled={isSubmitting}
-          endIcon={<SendIcon />}
-        >
-          {isSubmitting ? 'Wird gesendet...' : 'Bericht einreichen'}
-        </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Button
+                type="button"
+                variant="outlined"
+                color="inherit"
+                onClick={resetForm}
+                disabled={isSubmitting}
+              >
+                Zurücksetzen
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={isSubmitting}
+                endIcon={isSubmitting ? <CircularProgress size={20} /> : <SendIcon />}
+              >
+                {isSubmitting ? 'Wird gesendet...' : 'Bericht einreichen'}
+              </Button>
+            </Box>
+          </>
+        )}
       </Box>
-    </Box>
+    </FormProvider>
   );
 }

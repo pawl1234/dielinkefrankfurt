@@ -1,6 +1,7 @@
+// src/components/MainLayout.tsx
 'use client';
 
-import { useState, ReactNode, useEffect } from 'react';
+import { useState, ReactNode /* useEffect - no longer needed */ } from 'react';
 import {
   Box,
   Container,
@@ -36,7 +37,7 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
-import MuiSetup from './MuiSetup';
+// import MuiSetup from './MuiSetup'; // REMOVE THIS LINE
 
 // Menu item types for structured navigation
 type MenuItemType = 'link' | 'divider' | 'submenu';
@@ -80,21 +81,21 @@ const mainNavigation: MenuItem[] = [
     key: 'new-appointment',
     label: 'Termin anfragen',
     href: '/neue-anfrage',
-    icon: <AddCircleOutlineIcon />    
+    icon: <AddCircleOutlineIcon />
   },
   {
     type: 'link',
     key: 'new-report',
     label: 'Status Report',
     href: '/gruppen-bericht',
-    icon: <AddCircleOutlineIcon />    
+    icon: <AddCircleOutlineIcon />
   },
   {
     type: 'link',
     key: 'new-group',
     label: 'Neue Gruppe',
     href: '/neue-gruppe',
-    icon: <AddCircleOutlineIcon />    
+    icon: <AddCircleOutlineIcon />
   },
   {
     type: 'link',
@@ -123,8 +124,7 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated';
   const pathname = usePathname();
-  
-  // Track open/closed state of submenus
+
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
 
   const handleDrawerToggle = () => {
@@ -146,14 +146,12 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
     }));
   };
 
-  // Check if a route is active, including parent paths for nested routes
   const isRouteActive = (href: string): boolean => {
     if (href === '/' && pathname === '/') return true;
-    if (href !== '/' && pathname.startsWith(href)) return true;
+    if (href !== '/' && pathname && pathname.startsWith(href)) return true;
     return breadcrumbs.some(b => b.href === href && b.active);
   };
 
-  // Recursive menu renderer
   const renderMenuItem = (item: MenuItem, depth = 0) => {
     const paddingLeft = depth * 2;
 
@@ -190,10 +188,10 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
           )}
           <ListItemText
             primary={item.label}
-            primaryTypographyProps={{ 
-              fontWeight: isActive ? 'fontWeightBold' : 'fontWeightMedium', 
-              color: 'inherit' 
-            }} 
+            primaryTypographyProps={{
+              fontWeight: isActive ? 'fontWeightBold' : 'fontWeightMedium',
+              color: 'inherit'
+            }}
           />
         </ListItemButton>
       );
@@ -223,7 +221,7 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
             )}
             <ListItemText
               primary={item.label}
-              primaryTypographyProps={{ 
+              primaryTypographyProps={{
                 fontWeight: hasActiveChild ? 'fontWeightBold' : 'fontWeightMedium',
                 color: 'inherit'
               }}
@@ -242,15 +240,14 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
     return null;
   };
 
-  // Navigation drawer content
   const drawer = (
     <Box sx={{ width: 300 }}>
       <Toolbar sx={{ justifyContent: 'space-between', borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 'fontWeightBold' }}>
           Die Linke Frankfurt
         </Typography>
-        <IconButton 
-          onClick={handleDrawerToggle} 
+        <IconButton
+          onClick={handleDrawerToggle}
           sx={{ color: 'text.primary' }}
           aria-label="close menu"
         >
@@ -263,27 +260,24 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
     </Box>
   );
 
-  // Get current year for copyright
   const currentYear = new Date().getFullYear();
 
   return (
-    <MuiSetup>
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Box sx={{ flex: '1 0 auto' }}>
-          {showHeader && (
-            <>
-              {/* Main header with logo and background */}
-              <Box
-                sx={{
-                  position: 'relative',
-                  backgroundImage: 'url("/images/header-bg.jpg")',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  py: { xs: 3, md: 4 },
-                  mb: 4
-                }}
-              >
-              {/* Header actions - positioned absolutely in top right */}
+    // <MuiSetup>  // REMOVE THIS WRAPPER
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ flex: '1 0 auto' }}>
+        {showHeader && (
+          <>
+            <Box
+              sx={{
+                position: 'relative',
+                backgroundImage: 'url("/images/header-bg.jpg")',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                py: { xs: 3, md: 4 },
+                mb: 4
+              }}
+            >
               <Paper
                 elevation={2}
                 sx={{
@@ -317,7 +311,6 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
                   </IconButton>
                 </Tooltip>
 
-                {/* Change Password Button - Only visible when authenticated */}
                 {isAuthenticated && (
                   <>
                     <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
@@ -381,181 +374,175 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
                 )}
               </Paper>
 
-                <Container maxWidth="lg">
+              <Container maxWidth="lg">
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                    width: '100%'
+                  }}
+                >
                   <Box
+                    component="div"
                     sx={{
                       display: 'flex',
-                      flexDirection: 'row',
-                      justifyContent: 'flex-start',
-                      alignItems: 'center',
-                      width: '100%'
+                      flexDirection: 'column',
+                      alignItems: { xs: 'center', md: 'flex-start' }
                     }}
                   >
-                    {/* Logo */}
                     <Box
-                      component="div"
+                      component="img"
+                      src="/images/logo.png"
+                      alt="Die Linke Kreisverband Frankfurt Logo"
                       sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: { xs: 'center', md: 'flex-start' }
+                        height: 'auto',
+                        width: { xs: '220px', md: '280px' },
+                        maxWidth: '100%',
                       }}
-                    >
-                      <Box
-                        component="img"
-                        src="/images/logo.png"
-                        alt="Die Linke Kreisverband Frankfurt Logo"
-                        sx={{
-                          height: 'auto',
-                          width: { xs: '220px', md: '280px' },
-                          maxWidth: '100%',
-                        }}
-                      />
-                    </Box>
+                    />
                   </Box>
-                </Container>
-              </Box>
+                </Box>
+              </Container>
+            </Box>
 
-              {/* Mobile navigation drawer */}
-              <Drawer
-                anchor="right"
-                open={mobileOpen}
-                onClose={handleDrawerToggle}
-                ModalProps={{
-                  keepMounted: true, // Better mobile performance
-                }}
-              >
-                {drawer}
-              </Drawer>
-            </>
-          )}
+            <Drawer
+              anchor="right"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{
+                keepMounted: true,
+              }}
+            >
+              {drawer}
+            </Drawer>
+          </>
+        )}
 
-          {/* Page title if provided */}
-          {title && (
-            <Container maxWidth="lg" sx={{ mt: 3, mb: 0 }}>
-              <Typography variant="h4" component="h1" fontWeight="bold">
-                {title}
-              </Typography>
-            </Container>
-          )}
+        {title && (
+          <Container maxWidth="lg" sx={{ mt: 3, mb: 0 }}>
+            <Typography variant="h4" component="h1" fontWeight="bold">
+              {title}
+            </Typography>
+          </Container>
+        )}
 
-          {/* Breadcrumbs if provided */}
-          {breadcrumbs.length > 0 && (
-            <Container maxWidth="lg" sx={{ mb: 2 }}>
-              <Box
-                component="nav"
-                aria-label="breadcrumb"
-                sx={{ py: 2 }}
-              >
-                {breadcrumbs.length === 1 ? (
-                  <Breadcrumbs
-                    separator={<NavigateNextIcon fontSize="small" />}
-                    aria-label="breadcrumb"
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontWeight: 'medium' }}
+        {breadcrumbs.length > 0 && (
+          <Container maxWidth="lg" sx={{ mb: 2 }}>
+            <Box
+              component="nav"
+              aria-label="breadcrumb"
+              sx={{ py: 2 }}
+            >
+              {breadcrumbs.length === 1 ? (
+                <Breadcrumbs
+                  separator={<NavigateNextIcon fontSize="small" />}
+                  aria-label="breadcrumb"
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontWeight: 'medium' }}
+                    >
+                      {breadcrumbs[0].label}
+                    </Typography>
+                  </Box>
+                </Breadcrumbs>
+              ) : (
+                <Breadcrumbs
+                  separator={<NavigateNextIcon fontSize="small" color="action" />}
+                  aria-label="breadcrumb"
+                >
+                  {breadcrumbs.map((item, index) => {
+                    const isLast = index === breadcrumbs.length - 1;
+                    const isFirst = index === 0;
+
+                    if (isLast) {
+                      return (
+                        <Typography
+                          key={item.label}
+                          variant="body2"
+                          color="text.primary"
+                          sx={{ fontWeight: 'medium' }}
+                        >
+                          {item.label}
+                        </Typography>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.href || '/'}
+                        style={{ textDecoration: 'none' }}
                       >
-                        {breadcrumbs[0].label}
-                      </Typography>
-                    </Box>
-                  </Breadcrumbs>
-                ) : (
-                  <Breadcrumbs
-                    separator={<NavigateNextIcon fontSize="small" color="action" />}
-                    aria-label="breadcrumb"
-                  >
-                    {breadcrumbs.map((item, index) => {
-                      const isLast = index === breadcrumbs.length - 1;
-                      const isFirst = index === 0;
-
-                      if (isLast) {
-                        return (
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          {isFirst && <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />}
                           <Typography
-                            key={item.label}
                             variant="body2"
-                            color="text.primary"
-                            sx={{ fontWeight: 'medium' }}
+                            color="text.secondary"
+                            sx={{ '&:hover': { textDecoration: 'underline' } }}
                           >
                             {item.label}
                           </Typography>
-                        );
-                      }
-
-                      return (
-                        <Link
-                          key={item.label}
-                          href={item.href || '/'}
-                          style={{ textDecoration: 'none' }}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {isFirst && <HomeIcon sx={{ mr: 0.5, fontSize: 18, color: 'text.secondary' }} />}
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ '&:hover': { textDecoration: 'underline' } }}
-                            >
-                              {item.label}
-                            </Typography>
-                          </Box>
-                        </Link>
-                      );
-                    })}
-                  </Breadcrumbs>
-                )}
-              </Box>
-            </Container>
-          )}
-
-          {/* Main content */}
-          {children}
-        </Box>
-
-        {/* Footer */}
-        <Box 
-          component="footer" 
-          sx={{ 
-            py: 3, 
-            mt: 'auto',
-            backgroundColor: 'grey.500', 
-            color: 'common.white' 
-          }}
-        >
-          <Container maxWidth="lg">
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: { xs: 'column', md: 'row' }, 
-              justifyContent: 'space-between',
-              alignItems: { xs: 'center', md: 'flex-start' }
-            }}>
-              <Typography color='common.black' sx={{ mb: { xs: 2, md: 0 } }}>
-                © {currentYear} Die Linke Kreisverband Frankfurt
-              </Typography>
-              
-              <Box sx={{ display: 'flex', gap: 4 }}>
-                <MuiLink 
-                  href="https://www.die-linke-frankfurt.de/service/impressum-und-datenschutzerklaerung/" 
-                  color="common.black"
-                  underline="hover"
-                  sx={{ fontWeight: 'medium' }}
-                >
-                  Impressum
-                </MuiLink>
-                <MuiLink 
-                  href="https://www.die-linke-frankfurt.de/service/impressum-und-datenschutzerklaerung/" 
-                  color="common.black"
-                  underline="hover"
-                  sx={{ fontWeight: 'medium' }}
-                >
-                  Datenschutz
-                </MuiLink>
-              </Box>
+                        </Box>
+                      </Link>
+                    );
+                  })}
+                </Breadcrumbs>
+              )}
             </Box>
           </Container>
-        </Box>
+        )}
+
+        {children}
       </Box>
-    </MuiSetup>
+
+      <Box
+        component="footer"
+        sx={{
+          py: 3,
+          mt: 'auto',
+          backgroundColor: 'grey.500', // MUI grey[500]
+          color: 'common.white'
+        }}
+      >
+        <Container maxWidth="lg">
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'center', md: 'flex-start' }
+          }}>
+            <Typography color='common.black' sx={{ mb: { xs: 2, md: 0 } }}>
+              © {currentYear} Die Linke Kreisverband Frankfurt
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 4 }}>
+              <MuiLink
+                href="https://www.die-linke-frankfurt.de/service/impressum-und-datenschutzerklaerung/"
+                color="common.black"
+                underline="hover"
+                sx={{ fontWeight: 'medium' }}
+              >
+                Impressum
+              </MuiLink>
+              <MuiLink
+                href="https://www.die-linke-frankfurt.de/service/impressum-und-datenschutzerklaerung/"
+                color="common.black"
+                underline="hover"
+                sx={{ fontWeight: 'medium' }}
+              >
+                Datenschutz
+              </MuiLink>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+    </Box>
+    // </MuiSetup> // REMOVE THIS WRAPPER
   );
 }

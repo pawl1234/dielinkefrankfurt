@@ -21,7 +21,7 @@ export default function GroupEditPage() {
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const params = useParams();
-  const groupId = params.id as string;
+  const groupId = params?.id as string;
   
   const [group, setGroup] = useState<Group & {
     responsiblePersons: ResponsiblePerson[];

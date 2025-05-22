@@ -89,7 +89,7 @@ export default function AppointmentDetailPage() {
     <MainLayout
       breadcrumbs={[
         { label: 'Termine', href: '/' },
-        { label: 'Termindetails', href: `/termine/${params.id}`, active: true },
+        { label: 'Termindetails', href: `/termine/${params?.id}`, active: true },
       ]}
     >
       <Container maxWidth="lg" sx={{ py: 2 }}>

@@ -22,9 +22,9 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
   // Determine which page is active
   const isNewsletterActive = pathname === '/admin';
   const isAppointmentsActive = pathname === '/admin/appointments';
-  const isGroupsActive = pathname.startsWith('/admin/groups');
-  const isStatusReportsActive = pathname.startsWith('/admin/status-reports');
-  const isUsersActive = pathname.startsWith('/admin/users')
+  const isGroupsActive = pathname?.startsWith('/admin/groups') || false;
+  const isStatusReportsActive = pathname?.startsWith('/admin/status-reports') || false;
+  const isUsersActive = pathname?.startsWith('/admin/users') || false
 
   const navItems = [
     {
@@ -87,9 +87,7 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
                   padding: 0
                 }}
               >
-                {React.cloneElement(item.icon as React.ReactElement, {
-                  fontSize: "small"
-                })}
+                {item.icon}
               </Button>
             </Tooltip>
           ) : (
