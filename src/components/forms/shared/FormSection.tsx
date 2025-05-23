@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import { Card, CardContent } from '@mui/material';
-import SectionHeader from './SectionHeader';
+import SectionHeader from '@/components/layout/SectionHeader';
 
 interface FormSectionProps {
   title: string;

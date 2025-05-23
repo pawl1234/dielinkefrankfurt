@@ -11,11 +11,11 @@ import {
   CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import RichTextEditor from './RichTextEditor';
-import GroupLogoUpload from './GroupLogoUpload';
-import ResponsiblePersonFields from './ResponsiblePersonFields';
-import FormSection from './FormSection';
-import FormSuccessMessage from './FormSuccessMessage';
+import RichTextEditor from '../../editor/RichTextEditor';
+import GroupLogoUpload from '../../upload/GroupLogoUpload';
+import ResponsiblePersonFields from '../shared/ResponsiblePersonFields';
+import FormSection from '../shared/FormSection';
+import FormSuccessMessage from '../shared/FormSuccessMessage';
 import { useFormSubmission } from '@/hooks/useFormSubmission';
 
 export interface ResponsiblePerson {

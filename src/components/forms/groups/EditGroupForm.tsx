@@ -7,9 +7,9 @@ import {
   Box, Typography, TextField, Button, Card, CardContent, Alert, MenuItem,
   FormControl, InputLabel, Select, FormHelperText, Grid, IconButton // Added IconButton
 } from '@mui/material';
-import RichTextEditor from './RichTextEditor';
-import GroupLogoUpload from './GroupLogoUpload';
-import SectionHeader from './SectionHeader';
+import RichTextEditor from '../../editor/RichTextEditor';
+import GroupLogoUpload from '../../upload/GroupLogoUpload';
+import SectionHeader from '../../layout/SectionHeader';
 import { GroupStatus, ResponsiblePerson as PrismaResponsiblePerson } from '@prisma/client'; // Import Prisma types
 import PersonAddIcon from '@mui/icons-material/PersonAdd'; // For adding persons
 import DeleteIcon from '@mui/icons-material/Delete';     // For removing persons

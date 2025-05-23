@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 import './globals.css';
 import type { Metadata } from 'next';
-import AuthProvider from '@/components/AuthProvider';
+import AuthProvider from '@/components/auth/AuthProvider';
 import { Dosis } from 'next/font/google';
 import ThemeRegistry from '@/theme/ThemeRegistry'; // Ensure this path is correct
 

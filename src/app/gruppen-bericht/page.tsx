@@ -1,7 +1,7 @@
 'use client';
 
-import StatusReportForm from '@/components/StatusReportForm';
-import FormPageLayout from '@/components/FormPageLayout';
+import StatusReportForm from '@/components/forms/status-reports/StatusReportForm';
+import FormPageLayout from '@/components/forms/shared/FormPageLayout';
 
 export default function GruppenBerichtPage() {
   return (

@@ -3,8 +3,8 @@
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react'; // Import useSession
 import { useRouter } from 'next/navigation';
-import { MainLayout } from '@/components/MainLayout';
-import AdminNavigation from '@/components/AdminNavigation';
+import { MainLayout } from '@/components/layout/MainLayout';
+import AdminNavigation from '@/components/admin/AdminNavigation';
 import {
   Box,
   Container,

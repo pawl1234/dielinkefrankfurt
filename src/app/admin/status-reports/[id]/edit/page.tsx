@@ -36,11 +36,11 @@ import {
   FileDownload as FileDownloadIcon
 } from '@mui/icons-material';
 import Link from 'next/link';
-import { MainLayout } from '@/components/MainLayout';
-import AdminNavigation from '@/components/AdminNavigation';
+import { MainLayout } from '@/components/layout/MainLayout';
+import AdminNavigation from '@/components/admin/AdminNavigation';
 import { StatusReport, Group, StatusReportStatus } from '@prisma/client';
-import RichTextEditor from '@/components/RichTextEditor';
-import FileUpload from '@/components/FileUpload';
+import RichTextEditor from '@/components/editor/RichTextEditor';
+import FileUpload from '@/components/upload/FileUpload';
 
 export default function EditStatusReport({ params }: { params: { id: string } }) {
   const { data: session, status: sessionStatus } = useSession();

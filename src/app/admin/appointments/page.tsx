@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { MainLayout } from '@/components/MainLayout';
-import AdminNavigation from '@/components/AdminNavigation';
+import { MainLayout } from '@/components/layout/MainLayout';
+import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminStatusTabs from '@/components/admin/AdminStatusTabs';
-import AdminPagination from '@/components/admin/AdminPagination';
+import AdminStatusTabs from '@/components/admin/tables/AdminStatusTabs';
+import AdminPagination from '@/components/admin/tables/AdminPagination';
 import AdminNotification from '@/components/admin/AdminNotification';
 import {
   Box,
@@ -37,7 +37,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import FeaturedToggle from '@/components/newsletter/FeaturedToggle';
-import EditAppointmentWrapper from '@/components/EditAppointmentWrapper';
+import EditAppointmentWrapper from '@/components/forms/appointments/EditAppointmentWrapper';
 import { useAdminState } from '@/hooks/useAdminState';
 
 // Define the Appointment type based on our Prisma schema

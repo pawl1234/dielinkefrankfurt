@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/MainLayout';
+import { MainLayout } from '@/components/layout/MainLayout';
 import {
   Typography,
   Container,
@@ -10,7 +10,6 @@ import {
   Card,
   CardContent,
   Grid,
-  Divider,
   CardMedia,
   CircularProgress,
   CardActions,

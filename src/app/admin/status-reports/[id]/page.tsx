@@ -31,8 +31,8 @@ import {
   Download as DownloadIcon
 } from '@mui/icons-material';
 import Link from 'next/link';
-import { MainLayout } from '@/components/MainLayout';
-import AdminNavigation from '@/components/AdminNavigation';
+import { MainLayout } from '@/components/layout/MainLayout';
+import AdminNavigation from '@/components/admin/AdminNavigation';
 import { StatusReport, Group } from '@prisma/client';
 
 export default function StatusReportDetail({ params }: { params: { id: string } }) {

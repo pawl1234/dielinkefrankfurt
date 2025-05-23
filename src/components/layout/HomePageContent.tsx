@@ -24,7 +24,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AddIcon from '@mui/icons-material/Add';
-import GroupsSection from '@/components/GroupsSection'; // Keep this if it doesn't use searchParams directly
+import GroupsSection from '@/components/layout/GroupsSection';
 
 interface Appointment {
   id: number;

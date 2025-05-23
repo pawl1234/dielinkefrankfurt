@@ -35,7 +35,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import GroupsIcon from '@mui/icons-material/Groups';
-import RichTextEditor from '../RichTextEditor';
+import RichTextEditor from '../editor/RichTextEditor';
 import { NewsletterSettings } from '@/lib/newsletter-template';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';

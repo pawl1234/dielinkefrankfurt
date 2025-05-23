@@ -2,8 +2,8 @@
 
 import { ReactNode } from 'react';
 import { Container } from '@mui/material';
-import { MainLayout } from '@/components/MainLayout';
-import HomePageHeader from '@/components/HomePageHeader';
+import { MainLayout } from '@/components/layout/MainLayout';
+import HomePageHeader from '@/components/layout/HomePageHeader';
 
 interface FormPageLayoutProps {
   title: string;

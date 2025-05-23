@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, usePathname } from 'next/navigation';
-import { MainLayout } from '@/components/MainLayout';
+import { MainLayout } from '@/components/layout/MainLayout';
 import {
   Typography,
   Container,
   Box,
   Paper,
   Button,
-  Divider,
   CircularProgress,
-  Grid,
   Alert,
   Tooltip,
   Chip,
@@ -23,7 +21,6 @@ import GroupIcon from '@mui/icons-material/Group';
 import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EventIcon from '@mui/icons-material/Event';
-import PersonIcon from '@mui/icons-material/Person';
 import AttachmentIcon from '@mui/icons-material/Attachment';
 import { Group, StatusReport } from '@prisma/client';
 import { format } from 'date-fns';

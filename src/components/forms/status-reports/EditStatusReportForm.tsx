@@ -18,14 +18,13 @@ import {
   FormHelperText,
   CardMedia,
   CardActions,
-  Grid // Import Grid
+  Grid 
 } from '@mui/material';
-// import SendIcon from '@mui/icons-material/Send'; // Not used
-import RichTextEditor from './RichTextEditor';
-import FileUpload from './FileUpload';
-import SectionHeader from './SectionHeader';
+import RichTextEditor from '../../editor/RichTextEditor';
+import FileUpload from '@/components/upload/FileUpload';
+import SectionHeader from '@/components/layout/SectionHeader';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import { Attachment as AttachmentIcon } from '@mui/icons-material'; // Generic attachment icon
+import { Attachment as AttachmentIcon } from '@mui/icons-material'; 
 
 interface Group {
   id: string;

@@ -15,7 +15,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { UseFormReturn, useFieldArray } from 'react-hook-form';
-import { GroupFormInput } from './GroupRequestForm';
+import { GroupFormInput } from '../groups/GroupRequestForm';
 
 interface ResponsiblePersonFieldsProps {
   form: UseFormReturn<GroupFormInput>;

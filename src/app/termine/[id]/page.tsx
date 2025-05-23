@@ -1,6 +1,6 @@
 'use client';
 
-import { MainLayout } from '@/components/MainLayout';
+import { MainLayout } from '@/components/layout/MainLayout';
 import {
   Typography,
   Container,
@@ -13,7 +13,7 @@ import {
   Card,
   CardMedia,
 } from '@mui/material';
-import { use, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';

@@ -1,9 +1,7 @@
 'use client';
 
-import AppointmentForm from '@/components/AppointmentForm';
-import FormPageLayout from '@/components/FormPageLayout';
-import FormSection from '@/components/FormSection';
-import { Typography } from '@mui/material';
+import AppointmentForm from '@/components/forms/appointments/AppointmentForm';
+import FormPageLayout from '@/components/forms/shared/FormPageLayout';
 
 export default function NewAppointmentPage() {
   return (

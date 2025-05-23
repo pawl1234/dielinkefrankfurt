@@ -15,10 +15,10 @@ import {
   CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import RichTextEditor from './RichTextEditor';
-import FileUpload from './FileUpload';
-import FormSection from './FormSection';
-import FormSuccessMessage from './FormSuccessMessage';
+import RichTextEditor from '../../editor/RichTextEditor';
+import FileUpload from '@/components/upload/FileUpload';
+import FormSection from '../shared/FormSection';
+import FormSuccessMessage from '../shared/FormSuccessMessage';
 import { useFormSubmission } from '@/hooks/useFormSubmission';
 
 interface Group {

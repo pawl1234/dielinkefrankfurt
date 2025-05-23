@@ -4,18 +4,18 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { MainLayout } from '@/components/MainLayout';
-import AdminNavigation from '@/components/AdminNavigation';
+import { MainLayout } from '@/components/layout/MainLayout';
+import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminStatusTabs from '@/components/admin/AdminStatusTabs';
-import AdminPagination from '@/components/admin/AdminPagination';
+import AdminStatusTabs from '@/components/admin/tables/AdminStatusTabs';
+import AdminPagination from '@/components/admin/tables/AdminPagination';
 import AdminNotification from '@/components/admin/AdminNotification';
-import SearchFilterBar from '@/components/admin/SearchFilterBar';
+import SearchFilterBar from '@/components/admin/tables/SearchFilterBar';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { useAdminState } from '@/hooks/useAdminState';
 
 // Import the EditGroupForm and its types
-import EditGroupForm, { InitialGroupData, EditGroupFormInput } from '@/components/EditGroupForm'; // Adjust path
+import EditGroupForm, { InitialGroupData, EditGroupFormInput } from '@/components/forms/groups/EditGroupForm'; // Adjust path
 
 import {
   Box, Typography, Paper, IconButton, Container, Button, CircularProgress, Grid, Chip,

@@ -1,7 +1,7 @@
 'use client';
 
-import GroupRequestForm from '@/components/GroupRequestForm';
-import FormPageLayout from '@/components/FormPageLayout';
+import GroupRequestForm from '@/components/forms/groups/GroupRequestForm';
+import FormPageLayout from '@/components/forms/shared/FormPageLayout';
 
 export default function NewGroupPage() {
   return (

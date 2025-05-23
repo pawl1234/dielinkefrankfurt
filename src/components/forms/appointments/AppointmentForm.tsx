@@ -2,15 +2,15 @@
 
 import { useState, useRef } from 'react';
 import { useForm, SubmitHandler, Controller, FormProvider } from 'react-hook-form';
-import RichTextEditor from './RichTextEditor';
-import FileUpload from './FileUpload';
-import CoverImageUpload from './CoverImageUpload';
-import DateTimePicker from './DateTimePicker';
-import AddressFields from './AddressFields';
-import RequesterFields from './RequesterFields';
-import CaptchaField from './CaptchaField';
-import FormSection from './FormSection';
-import FormSuccessMessage from './FormSuccessMessage';
+import RichTextEditor from '../../editor/RichTextEditor';
+import FileUpload from '@/components/upload/FileUpload';
+import CoverImageUpload from '@/components/upload/CoverImageUpload';
+import DateTimePicker from '@/components/ui/DateTimePicker';
+import AddressFields from '../shared/AddressFields';
+import RequesterFields from '../shared/RequesterFields';
+import CaptchaField from '../shared/CaptchaField';
+import FormSection from '../shared/FormSection';
+import FormSuccessMessage from '../shared/FormSuccessMessage';
 import { useFormSubmission } from '@/hooks/useFormSubmission';
 import {
   Box,

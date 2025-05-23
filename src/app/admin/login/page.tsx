@@ -12,7 +12,7 @@ import {
   Container,
   Alert
 } from '@mui/material';
-import MuiSetup from '@/components/MuiSetup';
+import MuiSetup from '@/components/ui/MuiSetup';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');

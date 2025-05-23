@@ -2,8 +2,8 @@
 'use client';
 
 import { useState } from 'react';
-import { MainLayout } from '@/components/MainLayout';
-import AdminNavigation from '@/components/AdminNavigation';
+import { MainLayout } from '@/components/layout/MainLayout';
+import AdminNavigation from '@/components/admin/AdminNavigation';
 import { useSession } from 'next-auth/react';
 import {
   Box, Container, Typography, Paper, TextField,

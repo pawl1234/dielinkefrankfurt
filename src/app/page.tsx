@@ -1,10 +1,10 @@
 'use client';
 
-import { MainLayout } from '@/components/MainLayout';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Container, CircularProgress, Box } from '@mui/material';
 import { Suspense } from 'react'; // Import Suspense
-import HomePageContent from '@/components/HomePageContent';
-import HomePageHeader from '@/components/HomePageHeader';
+import HomePageContent from '@/components/layout/HomePageContent';
+import HomePageHeader from '@/components/layout/HomePageHeader';
 
 export default function Home() {
   return (
