@@ -1,22 +1,17 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useForm, SubmitHandler, FormProvider } from 'react-hook-form';
+import { useState, useRef, useMemo } from 'react';
+import { useForm, useWatch } from 'react-hook-form'; // Added useWatch
 import {
   Box,
   Typography,
   TextField,
-  Button,
-  Alert,
-  CircularProgress
 } from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
 import RichTextEditor from '../../editor/RichTextEditor';
 import GroupLogoUpload from '../../upload/GroupLogoUpload';
 import ResponsiblePersonFields from '../shared/ResponsiblePersonFields';
 import FormSection from '../shared/FormSection';
-import FormSuccessMessage from '../shared/FormSuccessMessage';
-import { useFormSubmission } from '@/hooks/useFormSubmission';
+import FormBase, { FieldRefMap } from '../shared/FormBase';
 
 export interface ResponsiblePerson {
   firstName: string;
@@ -26,302 +21,282 @@ export interface ResponsiblePerson {
 
 export interface GroupFormInput {
   name: string;
-  description: string;
+  description: string; // Value from RichTextEditor, custom validated
   responsiblePersons: ResponsiblePerson[];
   logo?: File | Blob;
   croppedLogo?: File | Blob;
 }
 
 export default function GroupRequestForm() {
-  // Create refs for each section to allow scrolling to errors
   const nameRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
   const responsiblePersonsRef = useRef<HTMLDivElement>(null);
 
-  const [description, setDescription] = useState('');
-  const [logo, setLogo] = useState<File | Blob | null>(null);
-  const [croppedLogo, setCroppedLogo] = useState<File | Blob | null>(null);
+  // State for RichTextEditor content for custom validation
+  const [descriptionEditorContent, setDescriptionEditorContent] = useState('');
+  const [logoFile, setLogoFile] = useState<File | Blob | null>(null); // Renamed for clarity
+  const [croppedLogoFile, setCroppedLogoFile] = useState<File | Blob | null>(null); // Renamed
+  // State to track if the form has been submitted
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   const methods = useForm<GroupFormInput>({
     defaultValues: {
       name: '',
-      description: '',
+      description: '', // Will be set by editor's onChange
       responsiblePersons: [{ firstName: '', lastName: '', email: '' }]
-    }
-  });
-
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = methods;
-
-  // Reset function for form
-  const resetForm = () => {
-    reset();
-    setDescription('');
-    setLogo(null);
-    setCroppedLogo(null);
-    // Clear submission success to show form again
-    if (submissionSuccess) {
-      // We let the FormSuccessMessage handle the reload
-      return;
-    }
-  };
-
-  // Use our custom hook for form submission
-  const {
-    isSubmitting,
-    submissionError,
-    submissionSuccess,
-    fieldErrors,
-    handleSubmit: handleFormSubmit
-  } = useFormSubmission<GroupFormInput>({
-    onSubmit: async (data) => {
-      // Validate required fields
-      if (!data.name || data.name.trim() === '') {
-        throw new Error('Gruppenname ist erforderlich');
-      }
-      
-      if (!description || description.trim() === '' || description.trim() === '<p></p>') {
-        throw new Error('Beschreibung ist erforderlich');
-      }
-      
-      // Validate responsible persons
-      if (!data.responsiblePersons || data.responsiblePersons.length === 0) {
-        throw new Error('Mindestens eine verantwortliche Person ist erforderlich');
-      }
-      
-      for (const person of data.responsiblePersons) {
-        if (!person.firstName || !person.lastName || !person.email) {
-          throw new Error('Alle Felder für verantwortliche Personen müssen ausgefüllt sein');
-        }
-        
-        // Simple email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(person.email)) {
-          throw new Error('Bitte geben Sie eine gültige E-Mail-Adresse ein');
-        }
-      }
-      
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append('name', data.name);
-      formData.append('description', description);
-      
-      // Add responsible persons
-      formData.append('responsiblePersonsCount', data.responsiblePersons.length.toString());
-      data.responsiblePersons.forEach((person, index) => {
-        formData.append(`responsiblePerson[${index}].firstName`, person.firstName);
-        formData.append(`responsiblePerson[${index}].lastName`, person.lastName);
-        formData.append(`responsiblePerson[${index}].email`, person.email);
-      });
-      
-      // Add logo files if available
-      if (logo && croppedLogo) {
-        formData.append('logo', logo);
-        formData.append('croppedLogo', croppedLogo);
-      }
-      
-      // Submit the form data to the API
-      const response = await fetch('/api/groups/submit', {
-        method: 'POST',
-        body: formData
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
-      }
     },
-    resetForm,
-    fieldRefs: {
-      'name': nameRef,
-      'description': descriptionRef,
-      'logo': logoRef,
-      'responsiblePersons': responsiblePersonsRef
-    }
+    mode: 'onSubmit', // Only validate on submit
   });
 
-  // Set description value in form when rich text editor changes
+  const { register, setValue, control, formState: { errors } } = methods;
+
+  // Watch responsiblePersons array for real-time custom validation
+  const watchedResponsiblePersons = useWatch({
+    control,
+    name: 'responsiblePersons',
+    defaultValue: [{ firstName: '', lastName: '', email: '' }] // Ensure it has a default for initial check
+  });
+
+  const fieldRefs: FieldRefMap = useMemo(() => ({ // useMemo for stable ref object
+    'name': nameRef,
+    'description': descriptionRef,
+    'logo': logoRef, // Even if not strictly "required", it's a form section
+    'responsiblePersons': responsiblePersonsRef
+  }), []); // Refs themselves are stable
+
+  // Define the visual/logical order of fields for scrolling to errors
+  const fieldOrder = useMemo(() => ['name', 'description', 'responsiblePersons', 'logo'], []);
+
+
+  const customValidations = useMemo(() => [
+    {
+      field: 'description',
+      isValid: !!descriptionEditorContent && descriptionEditorContent.trim() !== '' && descriptionEditorContent.trim() !== '<p></p>',
+      message: 'Beschreibung ist erforderlich und muss Inhalt haben.'
+    },
+    {
+      field: 'responsiblePersons',
+      isValid:
+        watchedResponsiblePersons &&
+        watchedResponsiblePersons.length > 0 &&
+        watchedResponsiblePersons.every(person =>
+          person &&
+          person.firstName && person.firstName.trim() !== '' &&
+          person.lastName && person.lastName.trim() !== '' &&
+          person.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email.trim())
+        ),
+      message: 'Mindestens eine verantwortliche Person mit vollständigen und gültigen Angaben (Vorname, Nachname, E-Mail) ist erforderlich.'
+    }
+    // Add more custom validations here if needed, e.g., for logo if it becomes required
+  ], [descriptionEditorContent, watchedResponsiblePersons]);
+
+
   const handleDescriptionChange = (value: string) => {
-    setDescription(value);
-    setValue('description', value);
+    setDescriptionEditorContent(value); // Update state for custom validation
+    setValue('description', value, { shouldValidate: false, shouldDirty: true }); // Update RHF, optionally validate
   };
 
-  // Handle logo selection from the logo upload component
-  const handleLogoSelect = (originalLogo: File | Blob, croppedLogoFile: File | Blob) => {
-    // Check if they are empty blobs (which signals removal)
-    if (originalLogo.size === 0 || croppedLogoFile.size === 0) {
-      setLogo(null);
-      setCroppedLogo(null);
-      return;
+  const handleLogoSelect = (original: File | Blob, cropped: File | Blob) => {
+    if (original.size === 0 || cropped.size === 0) {
+      setLogoFile(null);
+      setCroppedLogoFile(null);
+      setValue('logo', undefined, { shouldDirty: true });
+      setValue('croppedLogo', undefined, { shouldDirty: true });
+    } else {
+      setLogoFile(original);
+      setCroppedLogoFile(cropped);
+      setValue('logo', original, { shouldDirty: true });
+      setValue('croppedLogo', cropped, { shouldDirty: true });
     }
-    
-    setLogo(originalLogo);
-    setCroppedLogo(croppedLogoFile);
   };
 
-  const onSubmit: SubmitHandler<GroupFormInput> = (data) => {
-    // Check for errors from react-hook-form
-    if (Object.keys(errors).length > 0) {
-      // Scroll to the first error field
-      if (errors.name) {
-        nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-      
-      if (errors.description) {
-        descriptionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-      
-      if (errors.responsiblePersons) {
-        responsiblePersonsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-    }
+  const handleFormSubmit = async (data: GroupFormInput) => {
+    // Set form as submitted to show validation errors
+    setFormSubmitted(true);
     
-    handleFormSubmit(data);
+    // Client-side RHF and custom validations are now handled by FormBase before this point.
+    // This function now primarily focuses on preparing and sending data.
+
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('description', data.description); // description from RHF (updated by editor)
+
+    if (data.responsiblePersons && data.responsiblePersons.length > 0) {
+        formData.append('responsiblePersonsCount', data.responsiblePersons.length.toString());
+        data.responsiblePersons.forEach((person, index) => {
+          formData.append(`responsiblePerson[${index}].firstName`, person.firstName);
+          formData.append(`responsiblePerson[${index}].lastName`, person.lastName);
+          formData.append(`responsiblePerson[${index}].email`, person.email);
+        });
+    }
+
+
+    if (logoFile && croppedLogoFile) { // Use state variables for files
+      formData.append('logo', logoFile);
+      formData.append('croppedLogo', croppedLogoFile);
+    }
+
+    const response = await fetch('/api/groups/submit', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      // This error will be caught by useFormSubmission hook and displayed
+      throw new Error(result.error || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+    }
+    // Success is handled by FormBase and useFormSubmission
   };
+
+  const handleReset = () => {
+    // FormBase calls RHF's reset(). This handles custom state.
+    setDescriptionEditorContent('');
+    setLogoFile(null);
+    setCroppedLogoFile(null);
+    // Reset the form submitted state
+    setFormSubmitted(false);
+    // Resetting responsiblePersons to one empty entry is handled by RHF's reset if defaultValues are set up
+  };
+
+  // Get specific custom error messages for display
+  const descriptionCustomError = customValidations.find(cv => cv.field === 'description' && !cv.isValid);
+  const responsiblePersonsCustomError = customValidations.find(cv => cv.field === 'responsiblePersons' && !cv.isValid);
 
   return (
-    <FormProvider {...methods}>
-      <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-        {submissionError && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            <strong>Fehler beim Absenden:</strong> {submissionError}
-          </Alert>
-        )}
-
-        {submissionSuccess && (
-          <FormSuccessMessage
-            title="Vielen Dank für Ihren Vorschlag!"
-            message="Ihre Anfrage für eine neue Arbeitsgruppe wurde erfolgreich übermittelt. Wir werden Ihren Vorschlag prüfen und Sie per E-Mail benachrichtigen, sobald die Gruppe freigeschaltet wurde."
-            resetForm={resetForm}
-            resetButtonText="Neuen Vorschlag einreichen"
-          />
-        )}
-
-        {!submissionSuccess && (
+    <FormBase
+      formMethods={methods}
+      onSubmit={handleFormSubmit}
+      onReset={handleReset}
+      submitButtonText="Gruppenvorschlag senden"
+      successTitle="Vielen Dank für Ihren Vorschlag!"
+      successMessage="Ihre Anfrage für eine neue Arbeitsgruppe wurde erfolgreich übermittelt. Wir werden Ihren Vorschlag prüfen und Sie per E-Mail benachrichtigen, sobald die Gruppe freigeschaltet wurde."
+      fieldRefs={fieldRefs}
+      customValidations={customValidations}
+      // validateBeforeSubmit removed as it's not in FormBaseProps
+      fieldOrder={fieldOrder} // Pass the defined field order
+    >
+      <FormSection
+        title="Gruppeninformationen"
+        helpTitle="Allgemeine Informationen"
+        helpText={
           <>
-            <FormSection
-              title="Gruppeninformationen"
-              helpTitle="Allgemeine Informationen"
-              helpText={
-                <>
-                  <Typography variant="body2">
-                    Bitte geben Sie grundlegende Informationen zu Ihrer Arbeitsgruppe an:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-                    <li>Der <strong>Name</strong> sollte kurz und prägnant sein.</li>
-                    <li>Die <strong>Beschreibung</strong> sollte die Ziele, Aktivitäten und Schwerpunkte der Gruppe erläutern.</li>
-                  </Box>
-                </>
-              }
-            >
-              <Box sx={{ mb: 3 }} ref={nameRef}>
-                <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
-                  Name der Gruppe <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
-                </Typography>
-                <TextField
-                  {...register('name', {
-                    required: 'Gruppenname ist erforderlich',
-                    minLength: { value: 3, message: 'Der Name muss mindestens 3 Zeichen lang sein' },
-                    maxLength: { value: 100, message: 'Der Name darf maximal 100 Zeichen lang sein' }
-                  })}
-                  placeholder="z.B. AG Klimagerechtigkeit"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.name}
-                  helperText={errors.name?.message}
-                />
-              </Box>
-
-              <Box sx={{ mb: 3 }} ref={descriptionRef}>
-                <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
-                  Beschreibung <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
-                </Typography>
-                <Typography variant="body2" display="block" gutterBottom sx={{ mb: 2 }}>
-                  Beschreiben Sie die Ziele, Aktivitäten und Schwerpunkte der Arbeitsgruppe (min. 50 Zeichen).
-                </Typography>
-                <RichTextEditor
-                  value={description}
-                  onChange={handleDescriptionChange}
-                  maxLength={5000}
-                  placeholder="Beschreibung der Arbeitsgruppe..."
-                />
-                {(errors.description || (fieldErrors.find(e => e.fieldName === 'description'))) && (
-                  <Typography variant="caption" color="error">
-                    {errors.description?.message || fieldErrors.find(e => e.fieldName === 'description')?.message || 'Beschreibung ist erforderlich'}
-                  </Typography>
-                )}
-              </Box>
-            </FormSection>
-
-            <FormSection
-              title="Gruppenlogo"
-              helpTitle="Logo hochladen"
-              helpText={
-                <>
-                  <Typography variant="body2">
-                    Ein Logo hilft, Ihre Gruppe auf der Website leichter erkennbar zu machen:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-                    <li>Laden Sie ein <strong>quadratisches Logo</strong> hoch für optimale Darstellung.</li>
-                    <li>Unterstützt werden <strong>JPEG, PNG und GIF</strong> Dateien bis 2MB.</li>
-                    <li>Das Logo wird auf der Gruppenseite angezeigt.</li>
-                  </Box>
-                </>
-              }
-            >
-              <Box ref={logoRef}>
-                <GroupLogoUpload onImageSelect={handleLogoSelect} />
-              </Box>
-            </FormSection>
-
-            <FormSection
-              title="Verantwortliche Personen"
-              helpTitle="Kontaktpersonen"
-              helpText={
-                <>
-                  <Typography variant="body2">
-                    Bitte geben Sie Kontaktdaten für die verantwortlichen Personen an:
-                  </Typography>
-                  <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-                    <li>Mindestens <strong>eine Person</strong> ist erforderlich.</li>
-                    <li>Diese Personen werden bei <strong>Änderungen des Gruppenstatus</strong> benachrichtigt.</li>
-                    <li>Die Kontaktdaten sind <strong>nicht öffentlich</strong> sichtbar.</li>
-                  </Box>
-                </>
-              }
-            >
-              <Box ref={responsiblePersonsRef}>
-                <ResponsiblePersonFields form={methods} />
-              </Box>
-            </FormSection>
-
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-              <Button
-                type="button"
-                variant="outlined"
-                color="inherit"
-                onClick={resetForm}
-                disabled={isSubmitting}
-              >
-                Zurücksetzen
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                disabled={isSubmitting}
-                endIcon={isSubmitting ? <CircularProgress size={20} /> : <SendIcon />}
-              >
-                {isSubmitting ? 'Wird gesendet...' : 'Gruppenvorschlag senden'}
-              </Button>
+            <Typography variant="body2">
+              Bitte geben Sie grundlegende Informationen zu Ihrer Arbeitsgruppe an:
+            </Typography>
+            <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+              <li>Der <strong>Name</strong> sollte kurz und prägnant sein.</li>
+              <li>Die <strong>Beschreibung</strong> sollte die Ziele, Aktivitäten und Schwerpunkte der Gruppe erläutern.</li>
             </Box>
           </>
-        )}
-      </Box>
-    </FormProvider>
+        }
+      >
+        <Box sx={{ mb: 3 }} ref={nameRef}>
+          <Typography variant="subtitle1" component="label" htmlFor="group-name-input" sx={{ fontWeight: 600 }}>
+            Name der Gruppe <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
+          </Typography>
+          <TextField
+            id="group-name-input"
+            {...register('name', {
+              required: 'Gruppenname ist erforderlich',
+              minLength: { value: 3, message: 'Der Name muss mindestens 3 Zeichen lang sein' },
+              maxLength: { value: 100, message: 'Der Name darf maximal 100 Zeichen lang sein' }
+            })}
+            placeholder="z.B. AG Klimagerechtigkeit"
+            fullWidth
+            margin="normal"
+            error={formSubmitted && !!errors.name}
+            helperText={formSubmitted ? (errors.name?.message as string) : undefined}
+          />
+        </Box>
+
+        <Box sx={{ mb: 3 }} ref={descriptionRef}>
+          <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>
+            Beschreibung <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
+          </Typography>
+          <Typography variant="body2" display="block" gutterBottom sx={{ mb: 2 }}>
+            Beschreiben Sie die Ziele, Aktivitäten und Schwerpunkte der Arbeitsgruppe (min. 50 Zeichen).
+          </Typography>
+          <RichTextEditor
+            value={descriptionEditorContent} // Controlled by local state
+            onChange={handleDescriptionChange}
+            maxLength={5000}
+            placeholder="Beschreibung der Arbeitsgruppe..."
+          />
+          {/* Display custom error for description if it exists and RHF hasn't put an error on 'description' field */}
+          {formSubmitted && descriptionCustomError && !errors.description && (
+            <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+              {descriptionCustomError.message}
+            </Typography>
+          )}
+          {/* Display RHF error for description (if any rules were added to RHF for it) */}
+          {formSubmitted && errors.description && (
+            <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+              {errors.description.message as string}
+            </Typography>
+          )}
+        </Box>
+      </FormSection>
+
+      <FormSection
+        title="Gruppenlogo (optional)"
+        helpTitle="Logo hochladen"
+        helpText={
+          <>
+            <Typography variant="body2">
+              Ein Logo hilft, Ihre Gruppe auf der Website leichter erkennbar zu machen:
+            </Typography>
+            <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+              <li>Laden Sie ein <strong>quadratisches Logo</strong> hoch für optimale Darstellung.</li>
+              <li>Unterstützt werden <strong>JPEG, PNG und GIF</strong> Dateien bis 2MB.</li>
+              <li>Das Logo wird auf der Gruppenseite angezeigt.</li>
+            </Box>
+          </>
+        }
+      >
+        <Box ref={logoRef}>
+          <GroupLogoUpload onImageSelect={handleLogoSelect} />
+          {/* If logo becomes required, add custom validation and error display here */}
+        </Box>
+      </FormSection>
+
+      <FormSection
+        title="Verantwortliche Personen"
+        helpTitle="Kontaktpersonen"
+        helpText={
+          <>
+            <Typography variant="body2">
+              Bitte geben Sie Kontaktdaten für die verantwortlichen Personen an:
+            </Typography>
+            <Box component="ul" sx={{ pl: 2, mt: 1 }}>
+              <li>Mindestens <strong>eine Person</strong> ist erforderlich.</li>
+              <li>Diese Personen werden bei <strong>Änderungen des Gruppenstatus</strong> benachrichtigt.</li>
+              <li>Die Kontaktdaten sind <strong>nicht öffentlich</strong> sichtbar.</li>
+            </Box>
+          </>
+        }
+      >
+        <Box ref={responsiblePersonsRef}>
+          {/* ResponsiblePersonFields should internally use RHF's useFieldArray for best integration */}
+          <ResponsiblePersonFields form={methods} showValidationErrors={formSubmitted} />
+          {/* Display custom error for responsiblePersons section */}
+          {formSubmitted && responsiblePersonsCustomError && !errors.responsiblePersons && (
+            <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+              {responsiblePersonsCustomError.message}
+            </Typography>
+          )}
+          {/* Display RHF error for responsiblePersons (e.g. if you add a top-level validate rule to RHF for the array) */}
+          {formSubmitted && errors.responsiblePersons && typeof errors.responsiblePersons.message === 'string' && (
+             <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+              {errors.responsiblePersons.message}
+            </Typography>
+          )}
+          {/* Individual errors within ResponsiblePersonFields (e.g., errors.responsiblePersons[0].firstName)
+              should ideally be handled and displayed *within* the ResponsiblePersonFields component itself. */}
+        </Box>
+      </FormSection>
+    </FormBase>
   );
 }

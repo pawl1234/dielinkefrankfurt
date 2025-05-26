@@ -19,9 +19,10 @@ import { GroupFormInput } from '../groups/GroupRequestForm';
 
 interface ResponsiblePersonFieldsProps {
   form: UseFormReturn<GroupFormInput>;
+  showValidationErrors?: boolean;
 }
 
-const ResponsiblePersonFields = ({ form }: ResponsiblePersonFieldsProps) => {
+const ResponsiblePersonFields = ({ form, showValidationErrors = true }: ResponsiblePersonFieldsProps) => {
   const { control, register, formState: { errors } } = form;
   
   // Use useFieldArray to manage the array of responsible persons
@@ -93,8 +94,8 @@ const ResponsiblePersonFields = ({ form }: ResponsiblePersonFieldsProps) => {
                   minLength: { value: 2, message: 'Mindestens 2 Zeichen' },
                   maxLength: { value: 50, message: 'Maximal 50 Zeichen' }
                 })}
-                error={!!errors.responsiblePersons?.[index]?.firstName}
-                helperText={errors.responsiblePersons?.[index]?.firstName?.message}
+                error={showValidationErrors && !!errors.responsiblePersons?.[index]?.firstName}
+                helperText={showValidationErrors ? errors.responsiblePersons?.[index]?.firstName?.message : undefined}
                 fullWidth
                 size="small"
               />
@@ -105,8 +106,8 @@ const ResponsiblePersonFields = ({ form }: ResponsiblePersonFieldsProps) => {
                   minLength: { value: 2, message: 'Mindestens 2 Zeichen' },
                   maxLength: { value: 50, message: 'Maximal 50 Zeichen' }
                 })}
-                error={!!errors.responsiblePersons?.[index]?.lastName}
-                helperText={errors.responsiblePersons?.[index]?.lastName?.message}
+                error={showValidationErrors && !!errors.responsiblePersons?.[index]?.lastName}
+                helperText={showValidationErrors ? errors.responsiblePersons?.[index]?.lastName?.message : undefined}
                 fullWidth
                 size="small"
               />
@@ -121,8 +122,8 @@ const ResponsiblePersonFields = ({ form }: ResponsiblePersonFieldsProps) => {
                   message: 'Bitte geben Sie eine gültige E-Mail-Adresse ein'
                 }
               })}
-              error={!!errors.responsiblePersons?.[index]?.email}
-              helperText={errors.responsiblePersons?.[index]?.email?.message}
+              error={showValidationErrors && !!errors.responsiblePersons?.[index]?.email}
+              helperText={showValidationErrors ? errors.responsiblePersons?.[index]?.email?.message : undefined}
               fullWidth
               size="small"
             />

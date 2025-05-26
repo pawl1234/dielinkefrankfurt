@@ -21,9 +21,10 @@ const RequesterFields = ({ register, errors, control }: RequesterFieldsProps) =>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
           <TextField
             fullWidth
-            label="Vorname"
+            label="Vorname *"
             placeholder="Vorname"
             {...register('firstName', {
+              required: 'Vorname ist erforderlich',
               pattern: {
                 value: /^[A-Za-zÀ-ÖØ-öø-ÿ\s-]+$/,
                 message: 'Bitte nur Buchstaben eingeben',
@@ -38,9 +39,10 @@ const RequesterFields = ({ register, errors, control }: RequesterFieldsProps) =>
 
           <TextField
             fullWidth
-            label="Nachname"
+            label="Nachname *"
             placeholder="Nachname"
             {...register('lastName', {
+              required: 'Nachname ist erforderlich',
               pattern: {
                 value: /^[A-Za-zÀ-ÖØ-öø-ÿ\s-]+$/,
                 message: 'Bitte nur Buchstaben eingeben',
