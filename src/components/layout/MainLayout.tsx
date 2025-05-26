@@ -31,9 +31,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import EventIcon from '@mui/icons-material/Event';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import GroupsIcon from '@mui/icons-material/Groups';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
@@ -101,7 +99,7 @@ const mainNavigation: MenuItem[] = [
     type: 'link',
     key: 'admin-dashboard',
     label: 'Administration',
-    href: '/admin',
+    href: '/admin/login?callbackUrl=https%3A%2F%2Fportal.die-linke-frankfurt.de%2Fadmin',
     icon: <AdminPanelSettingsIcon />
   }
 ];

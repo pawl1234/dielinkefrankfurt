@@ -11,6 +11,7 @@
 
 - Newsletter Analysefunktion einbauen, dass man sieht wieviele clicks es gibt.
 - Let the whole system fail if Database is not available
+- Log in Database when an users is logging in (e.g. admin).
 
 ## Technische Schulden
 
