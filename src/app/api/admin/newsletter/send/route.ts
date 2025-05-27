@@ -37,18 +37,20 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
 
     // Log recipient statistics
     logger.info('Newsletter recipient validation completed', {
-      valid: validationResult.valid,
-      invalid: validationResult.invalid,
-      new: validationResult.new,
-      existing: validationResult.existing
+      context: {
+        valid: validationResult.valid,
+        invalid: validationResult.invalid,
+        new: validationResult.new,
+        existing: validationResult.existing
+      }
     });
 
     // Parse the original email list to get the plain emails
     const plainEmails = emailText
       .split('\n')
-      .map(email => email.trim())
-      .filter(email => email.length > 0)
-      .filter(email => !validationResult.invalidEmails.includes(email));
+      .map((email: string) => email.trim())
+      .filter((email: string) => email.length > 0)
+      .filter((email: string) => !validationResult.invalidEmails.includes(email));
 
     // Prepare recipient IDs from validation results
     const recipientIds = validationResult.hashedEmails.map(recipient => recipient.id);
@@ -103,7 +105,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
         // Log a single summary message
         logger.info(`Newsletter sending completed: ${sendResult.sentCount} sent, ${sendResult.failedCount} failed`);
       } catch (error) {
-        logger.error('Background newsletter sending failed:', error);
+        logger.error('Background newsletter sending failed:', { context: { error } });
         
         // Update the newsletter record with the error
         await prisma.sentNewsletter.update({
@@ -128,7 +130,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       newsletterId: sentNewsletter.id
     });
   } catch (error) {
-    logger.error('Error sending newsletter:', error);
+    logger.error('Error sending newsletter:', { context: { error } });
     return apiErrorResponse(error, 'Failed to process and send newsletter');
   }
 }

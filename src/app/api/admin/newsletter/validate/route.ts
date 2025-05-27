@@ -31,7 +31,7 @@ async function handleValidateRecipients(request: NextRequest): Promise<NextRespo
       invalidEmails: validationResult.invalidEmails
     });
   } catch (error) {
-    logger.error('Error validating recipient list:', error);
+    logger.error('Error validating recipient list:', { context: { error } });
     return apiErrorResponse(error, 'Failed to validate recipient list');
   }
 }

@@ -68,9 +68,11 @@ export async function archiveNewsletter(params: ArchiveNewsletterParams): Promis
     });
 
     logger.info('Newsletter archived successfully', {
-      id: newsletter.id,
-      subject,
-      recipientCount
+      context: {
+        id: newsletter.id,
+        subject,
+        recipientCount
+      }
     });
 
     return newsletter.id;
@@ -105,8 +107,10 @@ export async function getSentNewsletter(id: string): Promise<SentNewsletterWithM
       }
     } catch (error) {
       logger.warn('Failed to parse newsletter settings JSON', {
-        id,
-        error: (error as Error).message
+        context: {
+          id,
+          error: (error as Error).message
+        }
       });
     }
 
@@ -170,8 +174,10 @@ export async function listSentNewsletters(params: ListNewslettersParams = {}): P
         }
       } catch (error) {
         logger.warn('Failed to parse newsletter settings JSON', {
-          id: newsletter.id,
-          error: (error as Error).message
+          context: {
+            id: newsletter.id,
+            error: (error as Error).message
+          }
         });
       }
       

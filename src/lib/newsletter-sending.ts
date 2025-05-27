@@ -1,6 +1,7 @@
 import { sendEmail } from './email';
 import { validateAndHashEmails, ValidationResult, updateLastSentTimestamp } from './email-hashing';
-import { getNewsletterSettings, NewsletterSettings } from './newsletter-service';
+import { getNewsletterSettings } from './newsletter-service';
+import { NewsletterSettings } from './newsletter-template';
 import prisma from './prisma';
 import { logger } from './logger';
 import { format } from 'date-fns';
@@ -45,7 +46,7 @@ export async function processRecipientList(emailText: string): Promise<Validatio
   try {
     return await validateAndHashEmails(emailText);
   } catch (error) {
-    logger.error('Error processing recipient list:', error);
+    logger.error('Error processing recipient list:', { context: { error } });
     throw new Error('Failed to process recipient list');
   }
 }
@@ -228,7 +229,7 @@ export async function sendNewsletter(params: {
           await delay(batchDelay);
         }
       } catch (error) {
-        logger.error(`Error processing batch ${batchStatus.batchNumber}:`, error);
+        logger.error(`Error processing batch ${batchStatus.batchNumber}:`, { context: { error } });
         
         batchStatus.failedCount = batch.length;
         result.failedCount += batch.length;
@@ -256,7 +257,7 @@ export async function sendNewsletter(params: {
     
     return result;
   } catch (error) {
-    logger.error('Error sending newsletter:', error);
+    logger.error('Error sending newsletter:', { context: { error } });
     
     // If we have a newsletter ID, update its status
     if (params.html && error instanceof Error) {
@@ -284,7 +285,7 @@ export async function sendNewsletter(params: {
           error: error
         };
       } catch (dbError) {
-        logger.error('Error creating failure record:', dbError);
+        logger.error('Error creating failure record:', { context: { error: dbError } });
       }
     }
     
@@ -369,7 +370,7 @@ async function sendBatch(
     
     return { sentCount, failedCount };
   } catch (error) {
-    logger.error('Error in sendBatch:', error);
+    logger.error('Error in sendBatch:', { context: { error } });
     return {
       sentCount,
       failedCount: recipientIds.length - sentCount
@@ -399,7 +400,7 @@ export async function getNewsletterStatus(newsletterId: string): Promise<any> {
       settings: JSON.parse(newsletter.settings)
     };
   } catch (error) {
-    logger.error('Error getting newsletter status:', error);
+    logger.error('Error getting newsletter status:', { context: { error } });
     throw new Error('Failed to get newsletter status');
   }
 }
@@ -438,7 +439,7 @@ export async function getSentNewsletters(page = 1, pageSize = 10): Promise<any> 
       }
     };
   } catch (error) {
-    logger.error('Error getting sent newsletters:', error);
+    logger.error('Error getting sent newsletters:', { context: { error } });
     throw new Error('Failed to get sent newsletters');
   }
 }

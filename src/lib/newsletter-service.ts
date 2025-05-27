@@ -52,7 +52,7 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         fromName: dbSettings.fromName ?? defaultSettings.fromName,
         replyToEmail: dbSettings.replyToEmail ?? defaultSettings.replyToEmail,
         subjectTemplate: dbSettings.subjectTemplate ?? defaultSettings.subjectTemplate,
-        emailSalt: dbSettings.emailSalt,
+        emailSalt: dbSettings.emailSalt || undefined,
         
         // System fields
         id: dbSettings.id,

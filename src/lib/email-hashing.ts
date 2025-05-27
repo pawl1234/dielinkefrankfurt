@@ -67,7 +67,7 @@ export async function initializeSalt(): Promise<string> {
     
     return newSalt;
   } catch (error) {
-    logger.error('Failed to initialize email salt:', error);
+    logger.error('Failed to initialize email salt:', { context: { error } });
     throw new Error('Failed to initialize email salt');
   }
 }
@@ -188,7 +188,7 @@ export async function validateAndHashEmails(emailList: string): Promise<Validati
     
     return result;
   } catch (error) {
-    logger.error('Error in validateAndHashEmails:', error);
+    logger.error('Error in validateAndHashEmails:', { context: { error } });
     throw new Error('Failed to process email list');
   }
 }
@@ -213,7 +213,7 @@ export async function updateLastSentTimestamp(recipientIds: string[]): Promise<v
       )
     );
   } catch (error) {
-    logger.error('Failed to update lastSent timestamps:', error);
+    logger.error('Failed to update lastSent timestamps:', { context: { error } });
     throw new Error('Failed to update recipient send timestamps');
   }
 }

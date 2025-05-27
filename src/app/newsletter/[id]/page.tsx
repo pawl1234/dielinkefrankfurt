@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: NewsletterPageParams): Promis
         title: newsletter.subject,
         description: `Newsletter von Die Linke Frankfurt vom ${formattedDate}`,
         type: 'article',
-        publishedTime: newsletter.sentAt,
+        publishedTime: newsletter.sentAt.toString(),
       }
     };
   } catch (error) {
