@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminNavigation from '@/components/admin/AdminNavigation';
@@ -6,10 +8,8 @@ import { Button } from '@mui/material';
 import Link from 'next/link';
 import NewsletterDetailContent from './NewsletterDetailContent';
 
-export const metadata = {
-  title: 'Newsletter Details - Admin Dashboard',
-  description: 'View sent newsletter details'
-};
+// Metadata must be defined in a separate layout file for client components
+// or using a Metadata API that supports client components
 
 /**
  * Admin page for viewing a single sent newsletter
