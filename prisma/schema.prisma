@@ -66,6 +66,15 @@ model Newsletter {
   unsubscribeLink    String?    // Link for unsubscribing (placeholder for now)
   testEmailRecipients String?   // Comma-separated list of test email recipients
 
+  // Email sending settings
+  batchSize          Int        @default(100)   // Number of emails per batch
+  batchDelay         Int        @default(1000)  // Milliseconds between batches
+  fromEmail          String?    // Sender email address
+  fromName           String?    // Sender name
+  replyToEmail       String?    // Reply-to email address
+  subjectTemplate    String?    // Template for subject line
+  emailSalt          String?    // Salt for email hashing
+
   // System fields
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
@@ -159,4 +168,30 @@ model User {
   @@index([username])
   @@index([isActive])
   @@map("users") // PostgreSQL convention
+}
+
+// HashedRecipient model for newsletter subscribers
+model HashedRecipient {
+  id          String    @id @default(cuid())
+  hashedEmail String    @unique
+  firstSeen   DateTime  @default(now())
+  lastSent    DateTime?
+
+  @@index([hashedEmail])
+  @@map("hashed_recipient") // Lowercase table name for PostgreSQL convention
+}
+
+// SentNewsletter model for tracking sent newsletters
+model SentNewsletter {
+  id             String   @id @default(cuid())
+  sentAt         DateTime @default(now())
+  subject        String
+  recipientCount Int
+  content        String   @db.Text
+  status         String   @default("completed")
+  settings       String   @db.Text // JSON of settings used
+
+  @@index([sentAt])
+  @@index([status])
+  @@map("sent_newsletter") // Lowercase table name for PostgreSQL convention
 }

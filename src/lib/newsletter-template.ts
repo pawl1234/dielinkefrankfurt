@@ -12,6 +12,15 @@ export interface NewsletterSettings {
   createdAt?: Date;
   updatedAt?: Date;
   testEmailRecipients?: string | null;
+  
+  // Email sending configuration
+  batchSize?: number;
+  batchDelay?: number;
+  fromEmail?: string;
+  fromName?: string;
+  replyToEmail?: string;
+  subjectTemplate?: string;
+  emailSalt?: string;
 }
 
 // Group with status reports type
@@ -692,6 +701,14 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
     headerBanner: 'public/images/header-bg.jpg',
     footerText: 'Die Linke Frankfurt am Main',
     unsubscribeLink: '#',
-    testEmailRecipients: 'buero@linke-frankfurt.de'
+    testEmailRecipients: 'buero@linke-frankfurt.de',
+    
+    // Default email sending configuration
+    batchSize: 100,
+    batchDelay: 1000,
+    fromEmail: 'newsletter@linke-frankfurt.de',
+    fromName: 'Die Linke Frankfurt',
+    replyToEmail: 'buero@linke-frankfurt.de',
+    subjectTemplate: 'Die Linke Frankfurt - Newsletter {date}'
   };
 }

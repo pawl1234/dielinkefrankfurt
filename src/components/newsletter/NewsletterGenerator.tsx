@@ -28,6 +28,8 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Tab,
+  Tabs,
 } from '@mui/material';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -35,10 +37,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import GroupsIcon from '@mui/icons-material/Groups';
+import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import RichTextEditor from '../editor/RichTextEditor';
 import { NewsletterSettings } from '@/lib/newsletter-template';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import NewsletterSendingForm from './NewsletterSendingForm';
 
 interface Appointment {
   id: number;
@@ -100,6 +104,14 @@ const NewsletterGenerator: React.FC = () => {
     message: '',
     severity: 'success',
   });
+  const [activeTab, setActiveTab] = useState<number>(0);
+  const [generatedNewsletter, setGeneratedNewsletter] = useState<string>('');
+  const [subject, setSubject] = useState<string>(`Die Linke Frankfurt Newsletter - ${format(new Date(), 'dd.MM.yyyy')}`);
+  
+  // Handle tab change
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
 
   // Fetch newsletter settings and content
   useEffect(() => {
@@ -228,19 +240,24 @@ const NewsletterGenerator: React.FC = () => {
   const handlePreviewNewsletter = async () => {
     const newsletter = await getNewsletter();
     
-    // Create a blob with the HTML content
-    const blob = new Blob([newsletter || ''], { type: 'text/html' });
-    
-    // Create a URL for the blob
-    const blobUrl = URL.createObjectURL(blob);
-    
-    // Open the URL in a new tab
-    window.open(blobUrl, '_blank');
-    
-    // Clean up the URL object after a delay
-    setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-    }, 30000); // Clean up after 30 seconds
+    if (newsletter) {
+      // Store the generated newsletter for the sending form
+      setGeneratedNewsletter(newsletter);
+      
+      // Create a blob with the HTML content
+      const blob = new Blob([newsletter], { type: 'text/html' });
+      
+      // Create a URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Open the URL in a new tab
+      window.open(blobUrl, '_blank');
+      
+      // Clean up the URL object after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 30000); // Clean up after 30 seconds
+    }
   };
 
   // Send a test email
@@ -288,236 +305,320 @@ const NewsletterGenerator: React.FC = () => {
 
   return (
     <Paper sx={{ p: 3, mb: 4 }}>
-<Box
-  sx={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    mb: 2
-  }}
->
-  <Typography variant="h5" component="h2">
-    <MailOutlineIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-    Newsletter Generator
-  </Typography>
-  <Box sx={{ display: 'flex', marginLeft: 'auto', gap: 1 }}>
-      <Button
-        variant="outlined"
-        startIcon={<SettingsIcon />}
-        onClick={() => setSettingsOpen(true)}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 2
+        }}
       >
-        Einstellungen
-      </Button>
-      <Button
-        variant="contained"
-        color="secondary"
-        startIcon={sendingTest ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-        onClick={handleSendTestEmail}
-        disabled={sendingTest}
-        size="small"
-      >
-        Test-Email senden
-      </Button>
-      <Button
-        variant="contained"
-        color="primary"
-        disabled={loading}
-        onClick={handlePreviewNewsletter}
-        startIcon={loading ? <CircularProgress size={20} /> : <MailOutlineIcon />}
-      >
-        Newsletter Preview
-      </Button>
-    </Box>
-  </Box>
+        <Typography variant="h5" component="h2">
+          <MailOutlineIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+          Newsletter Generator
+        </Typography>
+        <Box sx={{ display: 'flex', marginLeft: 'auto', gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<SettingsIcon />}
+            onClick={() => setSettingsOpen(true)}
+          >
+            Einstellungen
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={sendingTest ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+            onClick={handleSendTestEmail}
+            disabled={sendingTest}
+            size="small"
+          >
+            Test-Email senden
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={loading}
+            onClick={handlePreviewNewsletter}
+            startIcon={loading ? <CircularProgress size={20} /> : <MailOutlineIcon />}
+          >
+            Newsletter Preview
+          </Button>
+        </Box>
+      </Box>
 
       <Divider sx={{ mb: 3 }} />
-
-      <Typography variant="subtitle1" gutterBottom>
-        Einleitung des Newsletters
-      </Typography>
-      <Box sx={{ mb: 3 }}>
-        <RichTextEditor
-          value={introductionText}
-          onChange={(introductionText) => setIntroductionText(introductionText)}
-          maxLength={5000}
-          placeholder="Einleitungstext für Mittwochsmail"
+      
+      {/* Tabs for different sections */}
+      <Tabs 
+        value={activeTab} 
+        onChange={handleTabChange} 
+        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+      >
+        <Tab 
+          label="Inhalt erstellen" 
+          icon={<MailOutlineIcon />} 
+          iconPosition="start"
         />
-      </Box>
-      {/* Featured Appointments Preview */}
-      {featuredAppointments.length > 0 && (
-        <Card sx={{ mt: 3, mb: 3 }}>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Featured Termine im Newsletter
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Diese Termine werden im Newsletter mit Titelbild hervorgehoben.
-            </Typography>
-            
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              {featuredAppointments.map(appointment => {
-                // Parse metadata to get cover image URLs
-                let coverImageUrl = null;
-                let croppedCoverImageUrl = null;
+        <Tab 
+          label="Newsletter versenden" 
+          icon={<ForwardToInboxIcon />} 
+          iconPosition="start"
+          disabled={!generatedNewsletter}
+        />
+      </Tabs>
+      
+      {/* Content Tab */}
+      {activeTab === 0 && (
+        <>
+          {/* Email Subject */}
+          <TextField
+            label="Newsletter Betreff"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            fullWidth
+            margin="normal"
+            sx={{ mb: 2 }}
+          />
+          
+          <Typography variant="subtitle1" gutterBottom>
+            Einleitung des Newsletters
+          </Typography>
+          <Box sx={{ mb: 3 }}>
+            <RichTextEditor
+              value={introductionText}
+              onChange={(introductionText) => setIntroductionText(introductionText)}
+              maxLength={5000}
+              placeholder="Einleitungstext für Mittwochsmail"
+            />
+          </Box>
+          {/*
+         
+          {featuredAppointments.length > 0 && (
+            <Card sx={{ mt: 3, mb: 3 }}>
+              <CardContent>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  Featured Termine im Newsletter
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Diese Termine werden im Newsletter mit Titelbild hervorgehoben.
+                </Typography>
                 
-                if (appointment.metadata) {
-                  try {
-                    const metadata = JSON.parse(appointment.metadata);
-                    coverImageUrl = metadata.coverImageUrl;
-                    croppedCoverImageUrl = metadata.croppedCoverImageUrl;
-                  } catch (e) {
-                    console.error('Error parsing appointment metadata:', e);
-                  }
-                }
-                
-                return (
-                  <Card key={appointment.id} sx={{ width: '100%', mb: 2 }}>
-                    {croppedCoverImageUrl && (
-                      <CardMedia
-                        component="img"
-                        height="150"
-                        image={croppedCoverImageUrl}
-                        alt={appointment.title}
-                        sx={{ objectFit: 'cover' }}
-                      />
-                    )}
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        {appointment.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {appointment.teaser}
-                      </Typography>
-                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                        {new Date(appointment.startDateTime).toLocaleDateString('de-DE', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </Box>
-          </CardContent>
-        </Card>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  {featuredAppointments.map(appointment => {
+                    // Parse metadata to get cover image URLs
+                    let coverImageUrl = null;
+                    let croppedCoverImageUrl = null;
+                    
+                    if (appointment.metadata) {
+                      try {
+                        const metadata = JSON.parse(appointment.metadata);
+                        coverImageUrl = metadata.coverImageUrl;
+                        croppedCoverImageUrl = metadata.croppedCoverImageUrl;
+                      } catch (e) {
+                        console.error('Error parsing appointment metadata:', e);
+                      }
+                    }
+                    
+                    return (
+                      <Card key={appointment.id} sx={{ width: '100%', mb: 2 }}>
+                        {croppedCoverImageUrl && (
+                          <CardMedia
+                            component="img"
+                            height="150"
+                            image={croppedCoverImageUrl}
+                            alt={appointment.title}
+                            sx={{ objectFit: 'cover' }}
+                          />
+                        )}
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom>
+                            {appointment.title}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {appointment.teaser}
+                          </Typography>
+                          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                            {new Date(appointment.startDateTime).toLocaleDateString('de-DE', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+          
+         
+          <Card sx={{ mt: 3, mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <GroupsIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Gruppenberichte im Newsletter
+                </Typography>
+                {statusReportsLoading && <CircularProgress size={20} sx={{ ml: 2 }} />}
+              </Box>
+              
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Berichte der letzten zwei Wochen von Gruppen, alphabetisch sortiert.
+              </Typography>
+              
+              {statusReportsByGroup && statusReportsByGroup.length > 0 ? (
+                <Box sx={{ mt: 2 }}>
+                  {statusReportsByGroup.map((groupWithReports) => (
+                    <Accordion key={groupWithReports.group.id} sx={{ mb: 2 }}>
+                      <AccordionSummary
+                        expandIcon={<ExpandMoreIcon />}
+                        aria-controls={`group-${groupWithReports.group.id}-content`}
+                        id={`group-${groupWithReports.group.id}-header`}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          {groupWithReports.group.logoUrl ? (
+                            <Avatar 
+                              src={groupWithReports.group.logoUrl} 
+                              alt={groupWithReports.group.name}
+                              sx={{ mr: 2, width: 40, height: 40 }}
+                            />
+                          ) : (
+                            <Avatar sx={{ mr: 2, width: 40, height: 40, bgcolor: 'primary.main' }}>
+                              {groupWithReports.group.name.substring(0, 1)}
+                            </Avatar>
+                          )}
+                          <Box>
+                            <Typography variant="subtitle1">
+                              {groupWithReports.group.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {groupWithReports.reports.length} Bericht(e)
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <List sx={{ width: '100%', bgcolor: 'background.paper', padding: 0 }}>
+                          {groupWithReports.reports.map((report) => (
+                            <ListItem
+                              key={report.id}
+                              alignItems="flex-start"
+                              sx={{ 
+                                borderBottom: '1px dashed #e0e0e0',
+                                paddingY: 2,
+                                flexDirection: 'column',
+                                alignItems: 'stretch'
+                              }}
+                            >
+                              <ListItemText
+                                primary={report.title}
+                                secondary={truncateText(report.content, 300)}
+                                slotProps={{
+                                  primary: {
+                                    variant: "subtitle1",
+                                    color: "text.primary",
+                                    fontWeight: "medium"
+                                  },
+                                  secondary: {
+                                    variant: "body2",
+                                    component: "div" // Critical fix - changes p to div
+                                  }
+                                }}
+                              />
+                              
+               
+                              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Chip 
+                                  label={format(new Date(report.createdAt), 'PPP', { locale: de })}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ mr: 1 }}
+                                />
+                                <Button 
+                                  variant="contained" 
+                                  color="primary" 
+                                  size="small"
+                                  sx={{ minWidth: 'fit-content' }}
+                                >
+                                  Mehr Infos
+                                </Button>
+                              </Box>
+                            </ListItem>
+                          ))}
+                        </List>
+                      </AccordionDetails>
+                    </Accordion>
+                  ))}
+                </Box>
+              ) : !statusReportsLoading && (
+                <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#f9f9f9' }} component="div">
+                  <Typography variant="body1" color="text.secondary">
+                    Keine aktuellen Gruppenberichte verfügbar.
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} component="div">
+                    Es wurden keine Berichte von Gruppen in den letzten zwei Wochen veröffentlicht.
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>  */}
+          
+          {/* Action buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={loading}
+              onClick={handlePreviewNewsletter}
+              startIcon={loading ? <CircularProgress size={20} /> : <MailOutlineIcon />}
+            >
+              Newsletter generieren & anzeigen
+            </Button>
+            {generatedNewsletter && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => setActiveTab(1)}
+                startIcon={<ForwardToInboxIcon />}
+              >
+                Weiter zur Versand-Seite
+              </Button>
+            )}
+          </Box>
+        </>
       )}
       
-      {/* Status Reports Preview */}
-      <Card sx={{ mt: 3, mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <GroupsIcon sx={{ mr: 1, color: 'primary.main' }} />
-            <Typography variant="subtitle1" fontWeight="bold">
-              Gruppenberichte im Newsletter
-            </Typography>
-            {statusReportsLoading && <CircularProgress size={20} sx={{ ml: 2 }} />}
-          </Box>
-          
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Berichte der letzten zwei Wochen von Gruppen, alphabetisch sortiert.
+      {/* Sending Tab */}
+      {activeTab === 1 && generatedNewsletter && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Newsletter versenden
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Senden Sie den generierten Newsletter an Ihre Empfänger.
           </Typography>
           
-          {statusReportsByGroup && statusReportsByGroup.length > 0 ? (
-            <Box sx={{ mt: 2 }}>
-              {statusReportsByGroup.map((groupWithReports) => (
-                <Accordion key={groupWithReports.group.id} sx={{ mb: 2 }}>
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    aria-controls={`group-${groupWithReports.group.id}-content`}
-                    id={`group-${groupWithReports.group.id}-header`}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      {groupWithReports.group.logoUrl ? (
-                        <Avatar 
-                          src={groupWithReports.group.logoUrl} 
-                          alt={groupWithReports.group.name}
-                          sx={{ mr: 2, width: 40, height: 40 }}
-                        />
-                      ) : (
-                        <Avatar sx={{ mr: 2, width: 40, height: 40, bgcolor: 'primary.main' }}>
-                          {groupWithReports.group.name.substring(0, 1)}
-                        </Avatar>
-                      )}
-                      <Box>
-                        <Typography variant="subtitle1">
-                          {groupWithReports.group.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {groupWithReports.reports.length} Bericht(e)
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <List sx={{ width: '100%', bgcolor: 'background.paper', padding: 0 }}>
-                      {groupWithReports.reports.map((report) => (
-                        <ListItem
-                          key={report.id}
-                          alignItems="flex-start"
-                          sx={{ 
-                            borderBottom: '1px dashed #e0e0e0',
-                            paddingY: 2,
-                            flexDirection: 'column',
-                            alignItems: 'stretch'
-                          }}
-                        >
-                          <ListItemText
-                            primary={report.title}
-                            secondary={truncateText(report.content, 300)}
-                            slotProps={{
-                              primary: {
-                                variant: "subtitle1",
-                                color: "text.primary",
-                                fontWeight: "medium"
-                              },
-                              secondary: {
-                                variant: "body2",
-                                component: "div" // Critical fix - changes p to div
-                              }
-                            }}
-                          />
-                          
-                          {/* Keep buttons and chips outside the ListItemText */}
-                          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Chip 
-                              label={format(new Date(report.createdAt), 'PPP', { locale: de })}
-                              size="small"
-                              variant="outlined"
-                              sx={{ mr: 1 }}
-                            />
-                            <Button 
-                              variant="contained" 
-                              color="primary" 
-                              size="small"
-                              sx={{ minWidth: 'fit-content' }}
-                            >
-                              Mehr Infos
-                            </Button>
-                          </Box>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </AccordionDetails>
-                </Accordion>
-              ))}
-            </Box>
-          ) : !statusReportsLoading && (
-            <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#f9f9f9' }} component="div">
-              <Typography variant="body1" color="text.secondary">
-                Keine aktuellen Gruppenberichte verfügbar.
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} component="div">
-                Es wurden keine Berichte von Gruppen in den letzten zwei Wochen veröffentlicht.
-              </Typography>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+          <NewsletterSendingForm 
+            newsletterHtml={generatedNewsletter} 
+            subject={subject}
+          />
+          
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start' }}>
+            <Button
+              variant="outlined"
+              onClick={() => setActiveTab(0)}
+            >
+              Zurück zur Bearbeitung
+            </Button>
+          </Box>
+        </Box>
+      )}
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="md" fullWidth>
@@ -577,6 +678,70 @@ const NewsletterGenerator: React.FC = () => {
                 fullWidth
                 margin="normal"
                 helperText="Email-Adressen für Testemails (durch Komma getrennt: email1@beispiel.de, email2@beispiel.de)"
+              />
+              
+              <Divider sx={{ my: 3 }} />
+              
+              <Typography variant="h6" gutterBottom>
+                E-Mail-Versand Einstellungen
+              </Typography>
+              
+              <TextField
+                label="Absender Name"
+                value={settings.fromName || ''}
+                onChange={(e) => setSettings({ ...settings, fromName: e.target.value })}
+                fullWidth
+                margin="normal"
+                helperText="Name des Absenders (z.B. Die Linke Frankfurt)"
+              />
+              
+              <TextField
+                label="Absender E-Mail"
+                value={settings.fromEmail || ''}
+                onChange={(e) => setSettings({ ...settings, fromEmail: e.target.value })}
+                fullWidth
+                margin="normal"
+                helperText="E-Mail-Adresse des Absenders (z.B. newsletter@die-linke-frankfurt.de)"
+              />
+              
+              <TextField
+                label="Antwort-E-Mail"
+                value={settings.replyToEmail || ''}
+                onChange={(e) => setSettings({ ...settings, replyToEmail: e.target.value })}
+                fullWidth
+                margin="normal"
+                helperText="E-Mail-Adresse für Antworten (falls abweichend vom Absender)"
+              />
+              
+              <TextField
+                label="Betreff-Vorlage"
+                value={settings.subjectTemplate || ''}
+                onChange={(e) => setSettings({ ...settings, subjectTemplate: e.target.value })}
+                fullWidth
+                margin="normal"
+                helperText="Vorlage für den E-Mail-Betreff. Verwende {date} für das aktuelle Datum."
+              />
+              
+              <TextField
+                label="Batch-Größe"
+                value={settings.batchSize || 100}
+                onChange={(e) => setSettings({ ...settings, batchSize: parseInt(e.target.value) || 100 })}
+                type="number"
+                InputProps={{ inputProps: { min: 1, max: 500 } }}
+                fullWidth
+                margin="normal"
+                helperText="Anzahl der E-Mails pro Batch (1-500, empfohlen: 100)"
+              />
+              
+              <TextField
+                label="Batch-Verzögerung (ms)"
+                value={settings.batchDelay || 1000}
+                onChange={(e) => setSettings({ ...settings, batchDelay: parseInt(e.target.value) || 1000 })}
+                type="number"
+                InputProps={{ inputProps: { min: 100, max: 10000 } }}
+                fullWidth
+                margin="normal"
+                helperText="Verzögerung zwischen Batches in Millisekunden (100-10000, empfohlen: 1000)"
               />
             </Box>
           )}

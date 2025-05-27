@@ -44,6 +44,17 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         footerText: dbSettings.footerText ?? defaultSettings.footerText,
         unsubscribeLink: dbSettings.unsubscribeLink ?? defaultSettings.unsubscribeLink,
         testEmailRecipients: dbSettings.testEmailRecipients ?? defaultSettings.testEmailRecipients,
+        
+        // Email sending configuration
+        batchSize: dbSettings.batchSize ?? defaultSettings.batchSize,
+        batchDelay: dbSettings.batchDelay ?? defaultSettings.batchDelay,
+        fromEmail: dbSettings.fromEmail ?? defaultSettings.fromEmail,
+        fromName: dbSettings.fromName ?? defaultSettings.fromName,
+        replyToEmail: dbSettings.replyToEmail ?? defaultSettings.replyToEmail,
+        subjectTemplate: dbSettings.subjectTemplate ?? defaultSettings.subjectTemplate,
+        emailSalt: dbSettings.emailSalt,
+        
+        // System fields
         id: dbSettings.id,
         createdAt: dbSettings.createdAt,
         updatedAt: dbSettings.updatedAt
@@ -88,11 +99,21 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
       updatedSettings = await prisma.newsletter.update({
         where: { id: newsletterSettings.id },
         data: {
+          // Display settings
           headerLogo: data.headerLogo,
           headerBanner: data.headerBanner,
           footerText: data.footerText,
           unsubscribeLink: data.unsubscribeLink,
-          testEmailRecipients: data.testEmailRecipients
+          testEmailRecipients: data.testEmailRecipients,
+          
+          // Email sending configuration
+          batchSize: data.batchSize,
+          batchDelay: data.batchDelay,
+          fromEmail: data.fromEmail,
+          fromName: data.fromName,
+          replyToEmail: data.replyToEmail,
+          subjectTemplate: data.subjectTemplate,
+          emailSalt: data.emailSalt
         }
       });
     } else {
@@ -100,11 +121,20 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
       const defaultSettings = getDefaultNewsletterSettings();
       updatedSettings = await prisma.newsletter.create({
         data: {
+          // Display settings
           headerLogo: data.headerLogo || defaultSettings.headerLogo,
           headerBanner: data.headerBanner || defaultSettings.headerBanner,
           footerText: data.footerText || defaultSettings.footerText,
           unsubscribeLink: data.unsubscribeLink || defaultSettings.unsubscribeLink,
-          testEmailRecipients: data.testEmailRecipients || defaultSettings.testEmailRecipients
+          testEmailRecipients: data.testEmailRecipients || defaultSettings.testEmailRecipients,
+          
+          // Email sending configuration
+          batchSize: data.batchSize || defaultSettings.batchSize,
+          batchDelay: data.batchDelay || defaultSettings.batchDelay,
+          fromEmail: data.fromEmail || defaultSettings.fromEmail,
+          fromName: data.fromName || defaultSettings.fromName,
+          replyToEmail: data.replyToEmail || defaultSettings.replyToEmail,
+          subjectTemplate: data.subjectTemplate || defaultSettings.subjectTemplate
         }
       });
     }

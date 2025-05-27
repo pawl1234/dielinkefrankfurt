@@ -17,9 +17,6 @@ const createTransporter = () => {
     },
   });
 
-  // Add plugin to convert HTML to text for email clients that need it
-  transporter.use('compile', htmlToText.htmlToText());
-
   return transporter;
 };
 
@@ -29,23 +26,29 @@ export const sendEmail = async ({
   subject,
   html,
   from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
+  replyTo,
 }: {
   to: string;
   subject: string;
   html: string;
   from?: string;
+  replyTo?: string;
 }) => {
   try {
     const transporter = createTransporter();
 
+    // Send email with proper MIME structure
     const info = await transporter.sendMail({
-      from,
-      to,
-      subject,
-      html,
+      from: from,
+      to: to,
+      subject: subject,
+      html: html,
+      replyTo: replyTo || from,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8'
+      }
     });
 
-    console.log(`Email sent: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Error sending email:', error);
@@ -58,10 +61,12 @@ export const sendTestEmail = async ({
   html,
   testRecipients,
   subject = 'Test Newsletter - Die Linke Frankfurt',
+  replyTo,
 }: {
   html: string;
   testRecipients?: string;
   subject?: string;
+  replyTo?: string;
 }) => {
   // Use provided test recipients or fallback to environment variable or default
   const recipientsString = testRecipients || process.env.TEST_EMAIL_RECIPIENT || 'buero@linke-frankfurt.de';
@@ -76,6 +81,7 @@ export const sendTestEmail = async ({
         to: recipient,
         subject,
         html,
+        replyTo,
       })
     )
   );

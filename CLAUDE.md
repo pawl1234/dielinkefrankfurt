@@ -271,6 +271,7 @@ Optional:
 - **Authentication problems**: Verify NEXTAUTH_SECRET and VERCEL_PROJECT_PRODUCTION_URL are set
 - **MUI v7 Grid usage**: Material UI v7 uses a new Grid system this code is wrong: `<Grid item xs={{12}}>` use the new correct way instead: `<Grid size={{ xs: 12, md: 6 }}>`.
 - **Date handling**: When working with date fields, be aware that the Prisma client uses JavaScript `Date` objects for datetime fields, but our interface definitions sometimes expect `string`. In components, use `Date | string` as the type for date fields.
+- **Form validation**: Forms should only show validation errors after submission. Use a `formSubmitted` state variable to conditionally display error messages. For component reuse, validation controls can accept a `showValidationErrors` prop.
 - **TypeScript**: While development make sure type safety is always ensured. 
 
 ## Documentation
