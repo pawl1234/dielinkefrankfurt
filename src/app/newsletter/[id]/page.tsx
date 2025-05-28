@@ -5,16 +5,16 @@ import { Box, Container, Typography, Link } from '@mui/material';
 import Image from 'next/image';
 
 interface NewsletterPageParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
  * Generate metadata for the newsletter page
  */
 export async function generateMetadata({ params }: NewsletterPageParams): Promise<Metadata> {
-  const { id } = params;
+  const { id } = await params;
   
   try {
     // Fetch newsletter to get the subject for metadata
@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: NewsletterPageParams): Promis
  * Public newsletter page accessible via unique URL
  */
 export default async function NewsletterPage({ params }: NewsletterPageParams) {
-  const { id } = params;
+  const { id } = await params;
   
   try {
     // Fetch newsletter

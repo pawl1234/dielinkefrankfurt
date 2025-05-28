@@ -58,11 +58,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch appointments and status reports for newsletter generation
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    
     const [appointments, statusReports] = await Promise.all([
-      // Get featured appointments first, then other accepted appointments
+      // Get featured appointments first, then other accepted appointments (only today or future)
       prisma.appointment.findMany({
         where: {
-          status: 'accepted'
+          status: 'accepted',
+          startDateTime: {
+            gte: today // Only appointments from today onwards
+          }
         },
         orderBy: [
           { featured: 'desc' }, // Featured first

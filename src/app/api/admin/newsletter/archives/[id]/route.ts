@@ -9,10 +9,10 @@ import prisma from '@/lib/prisma';
  */
 async function handleGetNewsletter(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return AppError.validation('Newsletter ID is required').toResponse();
@@ -55,10 +55,10 @@ export const GET = withAdminAuth(handleGetNewsletter);
  */
 async function handleDeleteNewsletter(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return AppError.validation('Newsletter ID is required').toResponse();

@@ -36,14 +36,17 @@ interface GroupDetailResponse {
   error?: string;
 }
 
-export default function GroupDetailPage() {
+export default function GroupDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const [group, setGroup] = useState<GroupWithReports | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Get params using the useParams hook
-  const params = useParams();
-  const slug = params?.slug as string;
+  // Extract params
+  const [slug, setSlug] = useState<string | null>(null);
+  
+  useEffect(() => {
+    params.then(p => setSlug(p.slug));
+  }, [params]);
   const pathname = usePathname();
 
   useEffect(() => {

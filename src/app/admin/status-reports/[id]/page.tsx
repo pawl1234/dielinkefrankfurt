@@ -35,7 +35,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import { StatusReport, Group } from '@prisma/client';
 
-export default function StatusReportDetail({ params }: { params: { id: string } }) {
+export default function StatusReportDetail({ params }: { params: Promise<{ id: string }> }) {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
 
@@ -52,12 +52,19 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
     }
   }, [sessionStatus, router]);
 
+  // Extract params
+  const [paramsId, setParamsId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    params.then(p => setParamsId(p.id));
+  }, [params]);
+  
   // Fetch status report when page loads
   useEffect(() => {
-    if (sessionStatus === 'authenticated' && params.id) {
+    if (sessionStatus === 'authenticated' && paramsId) {
       fetchStatusReport();
     }
-  }, [params.id, sessionStatus]);
+  }, [paramsId, sessionStatus]);
 
   // Function to fetch status report details
   const fetchStatusReport = async () => {
@@ -66,7 +73,7 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
     try {
       // Add timestamp to prevent caching
       const timestamp = Date.now();
-      const res = await fetch(`/api/admin/status-reports/${params.id}?t=${timestamp}`);
+      const res = await fetch(`/api/admin/status-reports/${paramsId}?t=${timestamp}`);
       
       if (!res.ok) {
         throw new Error('Failed to fetch status report');
@@ -130,7 +137,7 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
     <MainLayout title={statusReport?.title || 'Status Report Details'} breadcrumbs={[
       { label: 'Admin', href: '/admin' },
       { label: 'Status Reports', href: '/admin/status-reports' },
-      { label: statusReport?.title || 'Details', href: `/admin/status-reports/${params.id}` }
+      { label: statusReport?.title || 'Details', href: `/admin/status-reports/${paramsId}` }
     ]}>
       <Container maxWidth="lg">
         {/* Admin Navigation */}
@@ -221,7 +228,7 @@ export default function StatusReportDetail({ params }: { params: { id: string } 
                   color="primary"
                   startIcon={<EditIcon />}
                   component={Link}
-                  href={`/admin/status-reports/${params.id}/edit`}
+                  href={`/admin/status-reports/${paramsId}/edit`}
                 >
                   Edit
                 </Button>

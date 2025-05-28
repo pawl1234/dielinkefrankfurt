@@ -44,15 +44,17 @@ type Params = {
 };
 
 
-// @ts-ignore - Suppressing Next.js PageProps error
-export default function AppointmentDetailPage() {
+export default function AppointmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Get params using the useParams hook
-  const params = useParams();
-  const id = params?.id as string;
+  // Extract params
+  const [id, setId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    params.then(p => setId(p.id));
+  }, [params]);
 
   useEffect(() => {
     const fetchAppointment = async () => {
@@ -89,7 +91,7 @@ export default function AppointmentDetailPage() {
     <MainLayout
       breadcrumbs={[
         { label: 'Termine', href: '/' },
-        { label: 'Termindetails', href: `/termine/${params?.id}`, active: true },
+        { label: 'Termindetails', href: `/termine/${id}`, active: true },
       ]}
     >
       <Container maxWidth="lg" sx={{ py: 2 }}>

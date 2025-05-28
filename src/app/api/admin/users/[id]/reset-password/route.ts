@@ -7,9 +7,9 @@ import { AppError } from '@/lib/errors';
 
 const prisma = new PrismaClient();
 
-export const POST = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const POST = withAdminAuth(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { newPassword } = body;
     

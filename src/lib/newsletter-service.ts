@@ -155,13 +155,16 @@ export async function fetchNewsletterAppointments(): Promise<{
   upcomingAppointments: Appointment[];
 }> {
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    
     // Get featured appointments
     const featuredAppointments = await prisma.appointment.findMany({
       where: {
         featured: true,
         status: 'accepted',
         startDateTime: {
-          gte: new Date() // Only future events
+          gte: today // Only appointments from today onwards
         }
       },
       orderBy: {
@@ -175,7 +178,7 @@ export async function fetchNewsletterAppointments(): Promise<{
         featured: false,
         status: 'accepted',
         startDateTime: {
-          gte: new Date() // Only future events
+          gte: today // Only appointments from today onwards
         }
       },
       orderBy: {

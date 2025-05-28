@@ -45,6 +45,7 @@ import FileUpload from '@/components/upload/FileUpload';
 export default function EditStatusReport({ params }: { params: { id: string } }) {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
+  const id = params.id;
 
   // Form state
   const [title, setTitle] = useState<string>('');
@@ -167,7 +168,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
       formData.append('retainExistingFiles', 'true');
       
       // Make API request to update the status report
-      const res = await fetch(`/api/admin/status-reports/${params.id}`, {
+      const res = await fetch(`/api/admin/status-reports/${id}`, {
         method: 'PUT',
         body: formData,
       });
@@ -240,7 +241,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
   // Handle delete status report
   const handleDelete = async () => {
     try {
-      const res = await fetch(`/api/admin/status-reports/${params.id}`, {
+      const res = await fetch(`/api/admin/status-reports/${id}`, {
         method: 'DELETE',
       });
       

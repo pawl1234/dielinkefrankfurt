@@ -7,9 +7,9 @@ import { AppError } from '@/lib/errors';
 const prisma = new PrismaClient();
 
 // Get single user
-export const GET = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = withAdminAuth(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     const user = await prisma.user.findUnique({
       where: { id },
@@ -37,9 +37,9 @@ export const GET = withAdminAuth(async (request: NextRequest, { params }: { para
 });
 
 // Update user
-export const PUT = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = withAdminAuth(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { username, email, firstName, lastName, role, isActive } = body;
     
@@ -67,9 +67,9 @@ export const PUT = withAdminAuth(async (request: NextRequest, { params }: { para
 });
 
 // Delete user
-export const DELETE = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = withAdminAuth(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
