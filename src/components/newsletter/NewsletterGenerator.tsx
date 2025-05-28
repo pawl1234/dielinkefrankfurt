@@ -38,11 +38,13 @@ import SendIcon from '@mui/icons-material/Send';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import GroupsIcon from '@mui/icons-material/Groups';
 import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
+import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import RichTextEditor from '../editor/RichTextEditor';
 import { NewsletterSettings } from '@/lib/newsletter-template';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import NewsletterSendingForm from './NewsletterSendingForm';
+import NewsletterArchives from './NewsletterArchives';
 
 interface Appointment {
   id: number;
@@ -108,9 +110,39 @@ const NewsletterGenerator: React.FC = () => {
   const [generatedNewsletter, setGeneratedNewsletter] = useState<string>('');
   const [subject, setSubject] = useState<string>(`Die Linke Frankfurt Newsletter - ${format(new Date(), 'dd.MM.yyyy')}`);
   
+  // Check for tab and newsletterId query parameters on initial load
+  useEffect(() => {
+    // Get the query parameters from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const newsletterId = urlParams.get('newsletterId');
+    
+    // Set the active tab based on the query parameter
+    if (tabParam === 'archives') {
+      setActiveTab(2); // Archives tab
+    }
+    
+    // Update the URL to remove the newsletterId parameter (to avoid state issues on refresh)
+    if (newsletterId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('newsletterId');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
   // Handle tab change
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+    
+    // Update the URL with the tab parameter without refreshing the page
+    const url = new URL(window.location.href);
+    if (newValue === 2) {
+      url.searchParams.set('tab', 'archives');
+    } else {
+      url.searchParams.delete('tab');
+    }
+    
+    window.history.pushState({}, '', url.toString());
   };
 
   // Fetch newsletter settings and content
@@ -366,6 +398,11 @@ const NewsletterGenerator: React.FC = () => {
           iconPosition="start"
           disabled={!generatedNewsletter}
         />
+        <Tab 
+          label="Archiv" 
+          icon={<ArchiveOutlinedIcon />} 
+          iconPosition="start"
+        />
       </Tabs>
       
       {/* Content Tab */}
@@ -617,6 +654,20 @@ const NewsletterGenerator: React.FC = () => {
               Zurück zur Bearbeitung
             </Button>
           </Box>
+        </Box>
+      )}
+      
+      {/* Archives Tab */}
+      {activeTab === 2 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Newsletter-Archiv
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Übersicht aller gesendeten Newsletter.
+          </Typography>
+          
+          <NewsletterArchives />
         </Box>
       )}
 

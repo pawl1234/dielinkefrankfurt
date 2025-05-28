@@ -1,43 +1,31 @@
 'use client';
 
-import React from 'react';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminNavigation from '@/components/admin/AdminNavigation';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
-import { Button } from '@mui/material';
-import Link from 'next/link';
-import NewsletterDetailContent from './NewsletterDetailContent';
-
-// Metadata must be defined in a separate layout file for client components
-// or using a Metadata API that supports client components
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
 /**
- * Admin page for viewing a single sent newsletter
+ * Redirect to integrated newsletter detail view in main admin interface
  */
-export default function AdminNewsletterDetailPage({
+export default function AdminNewsletterDetailRedirect({
   params
 }: {
   params: { id: string }
 }) {
+  const router = useRouter();
+  const { id } = params;
+
+  useEffect(() => {
+    // Redirect to the main newsletter page with query params for archives tab and selected ID
+    router.replace(`/admin/newsletter?tab=archives&newsletterId=${id}`);
+  }, [router, id]);
+
   return (
-    <>
-      <AdminPageHeader 
-        title="Newsletter Details" 
-        icon={<MailOutlineIcon />} 
-      />
-      
-      <AdminNavigation title="Newsletter-Verwaltung" />
-      
-      <Button
-        component={Link}
-        href="/admin/newsletter/archives"
-        variant="outlined"
-        sx={{ mb: 3 }}
-      >
-        Zurück zum Newsletter-Archiv
-      </Button>
-      
-      <NewsletterDetailContent id={params.id} />
-    </>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <CircularProgress size={60} />
+      <Typography variant="h6" sx={{ mt: 3 }}>
+        Weiterleitung zum Newsletter-Detail...
+      </Typography>
+    </Box>
   );
 }

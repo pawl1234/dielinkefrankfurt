@@ -66,10 +66,10 @@ const RecipientInputForm: React.FC<RecipientInputFormProps> = ({
           {/* Form header */}
           <Grid size={{ xs: 12 }}>
             <Typography variant="h5" component="h1" gutterBottom>
-              Step 1: Add Newsletter Recipients
+              Schritt 1: Newsletter Empfänger
             </Typography>
             <Typography variant="body1" color="text.secondary" gutterBottom>
-              Paste email addresses below, one per line. The system will validate and process these emails.
+              Füge eine Liste mit einer EMail-Adresse pro Zeile ein. Das System wird im nächsten Schritt die eingegebenen Email Adressen überprüfen, bevor der Newsletter verschickt wird.
             </Typography>
           </Grid>
 
@@ -79,9 +79,9 @@ const RecipientInputForm: React.FC<RecipientInputFormProps> = ({
               name="emailList"
               control={control}
               rules={{
-                required: "Please enter at least one email address",
+                required: "Mindestens eine Email-Adresse eingeben.",
                 validate: value => 
-                  value.trim().length > 0 || "Email list cannot be empty"
+                  value.trim().length > 0 || "Email List kann nicht leer sein. "
               }}
               render={({ field }) => (
                 <TextField
@@ -91,9 +91,9 @@ const RecipientInputForm: React.FC<RecipientInputFormProps> = ({
                   minRows={10}
                   maxRows={20}
                   label="Email Addresses"
-                  placeholder="email1@example.com&#10;email2@example.com&#10;email3@example.com"
+                  placeholder=""
                   error={!!errors.emailList}
-                  helperText={errors.emailList?.message || "Enter email addresses, one per line"}
+                  helperText={errors.emailList?.message || "Eine Email-Adresse pro Zeile!"}
                   disabled={isSubmitting}
                   InputProps={{
                     sx: { 
@@ -106,21 +106,6 @@ const RecipientInputForm: React.FC<RecipientInputFormProps> = ({
             />
           </Grid>
 
-          {/* Instructions and notes */}
-          <Grid size={{ xs: 12 }}>
-            <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
-              <Typography variant="body2">
-                <strong>Instructions:</strong>
-                <ul>
-                  <li>Each email address should be on a separate line</li>
-                  <li>Up to approximately 1,500 recipients are supported per newsletter</li>
-                  <li>Emails will be validated in the next step</li>
-                  <li>For privacy, emails are stored as secure hashes, not in plain text</li>
-                </ul>
-              </Typography>
-            </Alert>
-          </Grid>
-
           {/* Action buttons */}
           <Grid size={{ xs: 12 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
@@ -130,7 +115,7 @@ const RecipientInputForm: React.FC<RecipientInputFormProps> = ({
                 onClick={onBack}
                 disabled={!onBack || isSubmitting}
               >
-                Back
+                Zurück
               </Button>
               <Button
                 type="submit"
@@ -138,7 +123,7 @@ const RecipientInputForm: React.FC<RecipientInputFormProps> = ({
                 color="primary"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Processing...' : 'Next: Validate Emails'}
+                {isSubmitting ? 'Prüfen...' : 'Weiter'}
               </Button>
             </Box>
           </Grid>
