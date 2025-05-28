@@ -80,7 +80,6 @@
     "react-image-crop": "^11.0.10",
     "react-virtualized-auto-sizer": "^1.0.26",
     "react-window": "^1.8.11",
-    "tiptap": "^1.32.2",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
