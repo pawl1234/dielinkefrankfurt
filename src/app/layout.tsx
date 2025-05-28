@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import AuthProvider from '@/components/auth/AuthProvider';
 import { Dosis } from 'next/font/google';
 import ThemeRegistry from '@/theme/ThemeRegistry'; // Ensure this path is correct
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: 'Termin-Anmeldung | DIE LINKE Frankfurt',
@@ -32,12 +34,14 @@ export default function RootLayout({
     <html lang="de">
       <head>
       </head>
-      <body>
+      <body className={dosis.variable}>
         <AuthProvider>
           <ThemeRegistry>
             {children}
           </ThemeRegistry>
         </AuthProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

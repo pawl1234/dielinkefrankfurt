@@ -151,6 +151,19 @@ export async function sendNewsletter(params: {
       completed: false
     };
     
+    logger.info('Starting newsletter sending process', {
+      context: {
+        totalRecipients: recipientIds.length,
+        totalBatches: recipientBatches.length,
+        batchSize,
+        batchDelay,
+        subjectLength: subject.length,
+        htmlLength: html.length,
+        from,
+        hasReplyTo: !!replyTo
+      }
+    });
+    
     // Process each batch
     for (let i = 0; i < recipientBatches.length; i++) {
       const batch = recipientBatches[i];
@@ -206,18 +219,44 @@ export async function sendNewsletter(params: {
         batchStatus.completed = true;
         batchStatus.endTime = new Date();
         
+        const batchDuration = batchStatus.endTime.getTime() - batchStatus.startTime!.getTime();
+        
+        logger.info(`Batch ${batchStatus.batchNumber} completed`, {
+          context: {
+            sent: sendResult.sentCount,
+            failed: sendResult.failedCount,
+            duration: `${batchDuration}ms`,
+            totalSentSoFar: result.sentCount,
+            totalFailedSoFar: result.failedCount
+          }
+        });
+        
         // Delay before next batch
         if (i < recipientBatches.length - 1) {
           await delay(batchDelay);
         }
       } catch (error) {
-        logger.error(`Error processing batch ${batchStatus.batchNumber}:`, { context: { error } });
+        const batchEndTime = new Date();
+        const batchDuration = batchEndTime.getTime() - batchStatus.startTime!.getTime();
+        
+        logger.error(`Error processing batch ${batchStatus.batchNumber}`, {
+          context: {
+            error: error instanceof Error ? {
+              message: error.message,
+              stack: error.stack
+            } : error,
+            batchSize: batch.length,
+            duration: `${batchDuration}ms`,
+            totalSentSoFar: result.sentCount,
+            totalFailedSoFar: result.failedCount
+          }
+        });
         
         batchStatus.failedCount = batch.length;
         result.failedCount += batch.length;
         batchStatus.inProgress = false;
         batchStatus.completed = true;
-        batchStatus.endTime = new Date();
+        batchStatus.endTime = batchEndTime;
         
         // Continue with next batch
       }
@@ -226,6 +265,15 @@ export async function sendNewsletter(params: {
     // Newsletter record status is managed by the calling API route
     const completedAt = new Date();
     result.completedAt = completedAt;
+    
+    logger.info('Newsletter sending process completed', {
+      context: {
+        totalSent: result.sentCount,
+        totalFailed: result.failedCount,
+        successRate: `${((result.sentCount / (result.sentCount + result.failedCount)) * 100).toFixed(1)}%`,
+        overallSuccess: result.success
+      }
+    });
     
     const success = result.failedCount === 0;
     result.success = success;
@@ -261,6 +309,7 @@ async function sendBatch(
   // Initialize counters
   let sentCount = 0;
   let failedCount = 0;
+  const batchStartTime = Date.now();
   
   try {
     // Use the plain emails if provided
@@ -269,11 +318,22 @@ async function sendBatch(
     if (plainEmails && plainEmails.length > 0) {
       // Use the actual email addresses passed from the API
       recipientEmails = plainEmails;
+      logger.info(`Batch using provided email addresses`, {
+        context: {
+          emailCount: recipientEmails.length,
+          domains: [...new Set(recipientEmails.map(email => email.split('@')[1]))]
+        }
+      });
     } else {
       // Fallback to test emails if no plain emails provided
       const testRecipients = process.env.TEST_EMAIL_RECIPIENT || 'test@example.com';
       recipientEmails = testRecipients.split(',').map(email => email.trim());
-      logger.info(`Using test recipients: ${recipientEmails.length} emails`);
+      logger.info(`Batch using test recipients`, {
+        context: {
+          emailCount: recipientEmails.length,
+          testMode: true
+        }
+      });
     }
     
     // Collect error information without logging each one
@@ -311,14 +371,58 @@ async function sendBatch(
     sentCount = results.filter(success => success).length;
     failedCount = results.filter(success => !success).length;
     
-    // Log summary instead of individual emails
+    const batchDuration = Date.now() - batchStartTime;
+    
+    // Log detailed summary of batch results
     if (errors.length > 0) {
-      logger.error(`Failed to send ${errors.length} emails out of ${recipientEmails.length}`);
+      const errorSummary = errors.reduce((acc, { error }) => {
+        const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+        const errorCode = error?.code || 'NO_CODE';
+        const key = `${errorType}_${errorCode}`;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      logger.error(`Batch completed with failures`, {
+        context: {
+          sent: sentCount,
+          failed: failedCount,
+          total: recipientEmails.length,
+          duration: `${batchDuration}ms`,
+          errorTypes: errorSummary,
+          sampleError: errors[0]?.error instanceof Error ? {
+            message: errors[0].error.message,
+            code: (errors[0].error as any).code
+          } : errors[0]?.error
+        }
+      });
+    } else {
+      logger.info(`Batch completed successfully`, {
+        context: {
+          sent: sentCount,
+          total: recipientEmails.length,
+          duration: `${batchDuration}ms`
+        }
+      });
     }
     
     return { sentCount, failedCount };
   } catch (error) {
-    logger.error('Error in sendBatch:', { context: { error } });
+    const batchDuration = Date.now() - batchStartTime;
+    
+    logger.error('Critical error in sendBatch', {
+      context: {
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : error,
+        duration: `${batchDuration}ms`,
+        recipientCount: recipientIds.length,
+        sentBeforeError: sentCount
+      }
+    });
+    
     return {
       sentCount,
       failedCount: recipientIds.length - sentCount

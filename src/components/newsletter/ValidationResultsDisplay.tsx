@@ -63,10 +63,10 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
         {/* Header */}
         <Grid size={{ xs: 12 }}>
           <Typography variant="h5" component="h1" gutterBottom>
-            Step 2: Validate Recipients
+             Schritt 2: Empfänger überprüfen
           </Typography>
           <Typography variant="body1" color="text.secondary" gutterBottom>
-            Review the validation results below before proceeding to the next step.
+            Überprüfe die gesammelten Email-Adressen auf offensichtliche Fehler.
           </Typography>
         </Grid>
 
@@ -84,14 +84,14 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <CheckCircleOutlineIcon color="success" sx={{ mr: 1 }} />
                       <Typography variant="subtitle1" color="text.secondary">
-                        Valid Emails
+                        Gültige Email Adressen
                       </Typography>
                     </Box>
                     <Typography variant="h4" component="div" color="success.main">
                       {totalValid}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {Math.round((totalValid / totalRecipients) * 100)}% of total
+                      {Math.round((totalValid / totalRecipients) * 100)}% von allen
                     </Typography>
                   </CardContent>
                 </Card>
@@ -104,7 +104,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <AddCircleOutlineIcon color="primary" sx={{ mr: 1 }} />
                       <Typography variant="subtitle1" color="text.secondary">
-                        New Recipients
+                        Neue Empfänger
                       </Typography>
                     </Box>
                     <Typography variant="h4" component="div" color="primary.main">
@@ -124,7 +124,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <PersonOutlineIcon color="info" sx={{ mr: 1 }} />
                       <Typography variant="subtitle1" color="text.secondary">
-                        Existing Recipients
+                        Existierende Empfänger
                       </Typography>
                     </Box>
                     <Typography variant="h4" component="div" color="info.main">
@@ -144,7 +144,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <ErrorOutlineIcon color={hasInvalidEmails ? "error" : "disabled"} sx={{ mr: 1 }} />
                       <Typography variant="subtitle1" color="text.secondary">
-                        Invalid Emails
+                        Ungültige Email Adressen
                       </Typography>
                     </Box>
                     <Typography 
@@ -156,8 +156,8 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {hasInvalidEmails 
-                        ? `${Math.round((totalInvalid / totalRecipients) * 100)}% of total` 
-                        : "All emails are valid"}
+                        ? `${Math.round((totalInvalid / totalRecipients) * 100)}% von allen` 
+                        : "Alle Email Adressen sind gültig"}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -182,7 +182,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
               }
             >
               <Typography variant="subtitle1" component="div" sx={{ mb: 1 }}>
-                The following email addresses are invalid and will be skipped:
+                Die folgenden Email Adressen sind nicht gültig und werden übersprungen:
               </Typography>
               <List dense sx={{ bgcolor: 'background.paper', maxHeight: '200px', overflow: 'auto' }}>
                 {invalidEmails.map((email, index) => (
@@ -204,7 +204,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
           </Grid>
         )}
 
-        {/* Additional information */}
+        {/* Additional information 
         <Grid size={{ xs: 12 }}>
           <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
             <Typography variant="body2">
@@ -217,7 +217,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
               </ul>
             </Typography>
           </Alert>
-        </Grid>
+        </Grid>*/}
 
         {/* Action buttons */}
         <Grid size={{ xs: 12 }}>
@@ -228,7 +228,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
               onClick={onBack}
               disabled={isSubmitting}
             >
-              Back: Edit Recipients
+              Zurück
             </Button>
             <Button
               variant="contained"
@@ -236,12 +236,12 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
               onClick={onNext}
               disabled={isSubmitting || totalValid === 0}
             >
-              {isSubmitting ? 'Processing...' : 'Next: Customize Newsletter'}
+              {isSubmitting ? 'Bearbeite...' : 'Weiter'}
             </Button>
           </Box>
           {totalValid === 0 && (
             <Typography variant="body2" color="error" sx={{ mt: 1, textAlign: 'right' }}>
-              At least one valid recipient is required to proceed
+              Mindestens ein gültiger Empfänger muss angegeben werden!
             </Typography>
           )}
         </Grid>

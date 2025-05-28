@@ -86,6 +86,9 @@ export default function NewsletterArchives({
   // View state (list or detail)
   const [selectedNewsletterId, setSelectedNewsletterId] = useState<string | null>(null);
   
+  // Auto-refresh state for newsletters in 'sending' status
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  
   // Check for newsletterId in URL on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -138,6 +141,32 @@ export default function NewsletterArchives({
       fetchNewsletters();
     }
   }, [fetchNewsletters, selectedNewsletterId]);
+  
+  // Auto-refresh effect for newsletters with 'sending' status
+  useEffect(() => {
+    const hasSendingNewsletters = newsletters.some(newsletter => newsletter.status === 'sending');
+    
+    if (hasSendingNewsletters && !autoRefreshInterval) {
+      // Start auto-refresh every 5 seconds if there are sending newsletters
+      const interval = setInterval(() => {
+        console.log('Auto-refreshing newsletters due to sending status');
+        fetchNewsletters();
+      }, 5000);
+      
+      setAutoRefreshInterval(interval);
+    } else if (!hasSendingNewsletters && autoRefreshInterval) {
+      // Stop auto-refresh if no newsletters are sending
+      clearInterval(autoRefreshInterval);
+      setAutoRefreshInterval(null);
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+      }
+    };
+  }, [newsletters, autoRefreshInterval, fetchNewsletters]);
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
@@ -178,7 +207,7 @@ export default function NewsletterArchives({
   /**
    * Get status chip based on newsletter status
    */
-  const getStatusChip = (status: string, type: 'draft' | 'sent') => {
+  const getStatusChip = (status: string, type: 'draft' | 'sent', sentAt?: string) => {
     switch (status) {
       case 'draft':
         return <Chip label="Entwurf" color="default" size="small" />;
@@ -308,7 +337,7 @@ export default function NewsletterArchives({
                       {newsletter.recipientCount || '-'}
                     </TableCell>
                     <TableCell align="center">
-                      {getStatusChip(newsletter.status, newsletter.type)}
+                      {getStatusChip(newsletter.status, newsletter.type, newsletter.sentAt)}
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ 

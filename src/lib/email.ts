@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import htmlToText from 'nodemailer-html-to-text';
+import { logger } from './logger';
 
 // Create a reusable transporter object using SMTP transport
 const createTransporter = () => {
@@ -34,8 +35,39 @@ export const sendEmail = async ({
   from?: string;
   replyTo?: string;
 }) => {
+  const startTime = Date.now();
+  
   try {
+    // Log email attempt (without recipient email for privacy)
+    logger.info('Attempting to send email', {
+      context: {
+        recipientDomain: to.split('@')[1] || 'unknown',
+        subjectLength: subject.length,
+        htmlLength: html.length,
+        fromDomain: from.split('@')[1] || 'unknown',
+        hasReplyTo: !!replyTo
+      }
+    });
+    
     const transporter = createTransporter();
+    
+    // Verify transporter configuration in production
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        await transporter.verify();
+        logger.info('SMTP transporter verified successfully');
+      } catch (verifyError) {
+        logger.error('SMTP transporter verification failed', {
+          context: {
+            error: verifyError,
+            host: process.env.EMAIL_SERVER_HOST,
+            port: process.env.EMAIL_SERVER_PORT,
+            hasAuth: !!(process.env.EMAIL_SERVER_USER && process.env.EMAIL_SERVER_PASSWORD)
+          }
+        });
+        throw verifyError;
+      }
+    }
 
     // Send email with proper MIME structure
     const info = await transporter.sendMail({
@@ -48,10 +80,41 @@ export const sendEmail = async ({
         'Content-Type': 'text/html; charset=utf-8'
       }
     });
+    
+    const duration = Date.now() - startTime;
+    
+    logger.info('Email sent successfully', {
+      context: {
+        messageId: info.messageId,
+        recipientDomain: to.split('@')[1] || 'unknown',
+        duration: `${duration}ms`,
+        response: info.response
+      }
+    });
 
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending email:', error);
+    const duration = Date.now() - startTime;
+    
+    logger.error('Failed to send email', {
+      context: {
+        recipientDomain: to.split('@')[1] || 'unknown',
+        duration: `${duration}ms`,
+        error: error instanceof Error ? {
+          message: error.message,
+          code: (error as any).code,
+          errno: (error as any).errno,
+          syscall: (error as any).syscall
+        } : error,
+        smtpConfig: {
+          host: process.env.EMAIL_SERVER_HOST,
+          port: process.env.EMAIL_SERVER_PORT,
+          hasAuth: !!(process.env.EMAIL_SERVER_USER && process.env.EMAIL_SERVER_PASSWORD),
+          nodeEnv: process.env.NODE_ENV
+        }
+      }
+    });
+    
     return { success: false, error };
   }
 };

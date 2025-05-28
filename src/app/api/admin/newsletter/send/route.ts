@@ -92,16 +92,36 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
     // Start background processing without awaiting it
     // This allows the API to respond immediately
     (async () => {
+      const startTime = Date.now();
+      const timeoutMs = 10 * 60 * 1000; // 10 minutes timeout
+      
       try {
-        logger.info(`Background job started for newsletter ${newsletterId}`);
-        
-        const sendResult = await sendNewsletter({
-          html,
-          subject,
-          validatedRecipientIds: recipientIds,
-          plainEmails, // Pass the plain emails for sending
-          settings
+        logger.info(`Background job started for newsletter ${newsletterId}`, {
+          context: {
+            recipientCount: recipientIds.length,
+            timeoutMs,
+            startTime: new Date(startTime).toISOString()
+          }
         });
+        
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Newsletter sending timed out after ${timeoutMs/1000} seconds`));
+          }, timeoutMs);
+        });
+        
+        // Race between sending and timeout
+        const sendResult = await Promise.race([
+          sendNewsletter({
+            html,
+            subject,
+            validatedRecipientIds: recipientIds,
+            plainEmails, // Pass the plain emails for sending
+            settings
+          }),
+          timeoutPromise
+        ]) as any;
         
         // Update the newsletter record with the results
         const finalStatus = sendResult.success ? 
@@ -121,10 +141,33 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
           }
         });
         
+        const duration = Date.now() - startTime;
+        
         // Log a single summary message
-        logger.info(`Newsletter sending completed: ${sendResult.sentCount} sent, ${sendResult.failedCount} failed`);
+        logger.info(`Newsletter sending completed`, {
+          context: {
+            sent: sendResult.sentCount,
+            failed: sendResult.failedCount,
+            duration: `${duration}ms`,
+            success: sendResult.success
+          }
+        });
       } catch (error) {
-        logger.error('Background newsletter sending failed:', { context: { error } });
+        const duration = Date.now() - startTime;
+        const isTimeout = error instanceof Error && error.message.includes('timed out');
+        
+        logger.error('Background newsletter sending failed', {
+          context: {
+            error: error instanceof Error ? {
+              message: error.message,
+              name: error.name,
+              stack: error.stack
+            } : error,
+            duration: `${duration}ms`,
+            isTimeout,
+            recipientCount: recipientIds.length
+          }
+        });
         
         // Update the newsletter record with the error
         await prisma.newsletterItem.update({
@@ -133,6 +176,8 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
             status: 'failed',
             settings: JSON.stringify({
               error: error instanceof Error ? error.message : String(error),
+              isTimeout,
+              duration: `${duration}ms`,
               ...settings
             })
           }
