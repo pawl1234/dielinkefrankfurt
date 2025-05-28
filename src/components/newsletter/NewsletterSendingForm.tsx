@@ -25,6 +25,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 interface NewsletterSendingFormProps {
   newsletterHtml: string; // The generated newsletter HTML
   subject: string; // Email subject
+  newsletterId?: string; // The newsletter ID for updating existing draft
 }
 
 /**
@@ -52,7 +53,7 @@ interface SendResult {
 /**
  * Multi-step form for newsletter sending workflow
  */
-export default function NewsletterSendingForm({ newsletterHtml, subject }: NewsletterSendingFormProps) {
+export default function NewsletterSendingForm({ newsletterHtml, subject, newsletterId }: NewsletterSendingFormProps) {
   // Step management state
   const [currentStep, setCurrentStep] = useState<'input' | 'validation' | 'sending' | 'complete'>('input');
   
@@ -161,6 +162,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject }: Newsl
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          newsletterId,
           html: newsletterHtml,
           subject,
           emailText,
@@ -188,7 +190,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject }: Newsl
         message: data.message,
         sentCount: data.sentCount || 0,
         failedCount: data.failedCount || 0,
-        newsletterId: data.newsletterId
+        newsletterId: newsletterId
       });
 
       // Close modal and move to complete step

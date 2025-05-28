@@ -365,16 +365,34 @@ export async function handleGenerateNewsletter(request: NextRequest): Promise<Ne
  */
 export async function handleSendTestNewsletter(request: NextRequest): Promise<NextResponse> {
   try {
-    const { html } = await request.json();
+    const { html, newsletterId, subject } = await request.json();
     
-    if (!html) {
+    let newsletterHtml = html;
+    
+    // If newsletterId is provided, fetch the newsletter content
+    if (newsletterId && !html) {
+      const newsletter = await prisma.newsletterItem.findUnique({
+        where: { id: newsletterId }
+      });
+      
+      if (!newsletter) {
+        return NextResponse.json(
+          { error: 'Newsletter not found' },
+          { status: 404 }
+        );
+      }
+      
+      newsletterHtml = newsletter.content;
+    }
+    
+    if (!newsletterHtml) {
       return NextResponse.json(
         { error: 'Newsletter HTML content is required' },
         { status: 400 }
       );
     }
     
-    const result = await sendNewsletterTestEmail(html);
+    const result = await sendNewsletterTestEmail(newsletterHtml);
     
     if (result.success) {
       return NextResponse.json({

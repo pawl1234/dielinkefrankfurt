@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
-import { getSentNewsletter, deleteNewsletter } from '@/lib/newsletter-archive';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
+import prisma from '@/lib/prisma';
 
 /**
  * Handler for fetching a single newsletter
@@ -18,15 +18,27 @@ async function handleGetNewsletter(
       return AppError.validation('Newsletter ID is required').toResponse();
     }
 
-    // Fetch the newsletter
-    const newsletter = await getSentNewsletter(id);
+    // Fetch the newsletter from unified table
+    const newsletter = await prisma.newsletterItem.findUnique({
+      where: { id },
+    });
 
     if (!newsletter) {
       return AppError.notFound('Newsletter not found').toResponse();
     }
 
     // Return the newsletter
-    return NextResponse.json(newsletter);
+    return NextResponse.json({
+      id: newsletter.id,
+      subject: newsletter.subject,
+      sentAt: newsletter.sentAt?.toISOString(),
+      createdAt: newsletter.createdAt.toISOString(),
+      status: newsletter.status,
+      introductionText: newsletter.introductionText,
+      content: newsletter.content,
+      recipientCount: newsletter.recipientCount,
+      settings: newsletter.settings,
+    });
   } catch (error) {
     return apiErrorResponse(error, 'Failed to fetch newsletter');
   }
@@ -53,23 +65,27 @@ async function handleDeleteNewsletter(
     }
 
     // Check if newsletter exists
-    const newsletter = await getSentNewsletter(id);
+    const newsletter = await prisma.newsletterItem.findUnique({
+      where: { id }
+    });
 
     if (!newsletter) {
       return AppError.notFound('Newsletter not found').toResponse();
     }
 
     // Delete the newsletter
-    await deleteNewsletter(id);
+    await prisma.newsletterItem.delete({
+      where: { id }
+    });
 
     logger.info('Newsletter deleted successfully', {
       context: {
         id,
-        subject: newsletter.subject
+        subject: newsletter.subject,
+        status: newsletter.status
       }
     });
 
-    // Return success
     return NextResponse.json({ success: true, message: 'Newsletter deleted successfully' });
   } catch (error) {
     return apiErrorResponse(error, 'Failed to delete newsletter');

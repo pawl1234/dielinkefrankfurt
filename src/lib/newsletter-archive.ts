@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { SentNewsletter } from '@prisma/client';
+import { NewsletterItem } from '@prisma/client';
 import { logger } from './logger';
 import { handleDatabaseError } from './errors';
 
@@ -37,7 +37,7 @@ export interface ListNewslettersParams {
 /**
  * Interface for sent newsletter with formatted data
  */
-export interface SentNewsletterWithMeta extends SentNewsletter {
+export interface SentNewsletterWithMeta extends NewsletterItem {
   settingsData?: Record<string, any>;
 }
 
@@ -56,14 +56,15 @@ export async function archiveNewsletter(params: ArchiveNewsletterParams): Promis
       : JSON.stringify(settings);
 
     // Create the newsletter record
-    const newsletter = await prisma.sentNewsletter.create({
+    const newsletter = await prisma.newsletterItem.create({
       data: {
         sentAt: new Date(),
         subject,
         recipientCount,
         content,
         status,
-        settings: settingsJson
+        settings: settingsJson,
+        introductionText: '' // Default empty intro for archived newsletters
       }
     });
 
@@ -88,7 +89,7 @@ export async function archiveNewsletter(params: ArchiveNewsletterParams): Promis
  */
 export async function getSentNewsletter(id: string): Promise<SentNewsletterWithMeta | null> {
   try {
-    const newsletter = await prisma.sentNewsletter.findUnique({
+    const newsletter = await prisma.newsletterItem.findUnique({
       where: { id }
     });
 
@@ -150,15 +151,23 @@ export async function listSentNewsletters(params: ListNewslettersParams = {}): P
 
     // Fetch records and total count in parallel
     const [newsletters, total] = await Promise.all([
-      prisma.sentNewsletter.findMany({
-        where,
+      prisma.newsletterItem.findMany({
+        where: {
+          ...where,
+          status: { not: 'draft' } // Only get sent newsletters
+        },
         orderBy: {
           sentAt: 'desc'
         },
         skip,
         take: validLimit
       }),
-      prisma.sentNewsletter.count({ where })
+      prisma.newsletterItem.count({ 
+        where: {
+          ...where,
+          status: { not: 'draft' }
+        }
+      })
     ]);
 
     // Calculate total pages
@@ -202,9 +211,9 @@ export async function listSentNewsletters(params: ListNewslettersParams = {}): P
  * @param status New status
  * @returns Promise resolving to the updated newsletter
  */
-export async function updateNewsletterStatus(id: string, status: string): Promise<SentNewsletter> {
+export async function updateNewsletterStatus(id: string, status: string): Promise<NewsletterItem> {
   try {
-    return await prisma.sentNewsletter.update({
+    return await prisma.newsletterItem.update({
       where: { id },
       data: { status }
     });
@@ -219,9 +228,9 @@ export async function updateNewsletterStatus(id: string, status: string): Promis
  * @param id Newsletter ID
  * @returns Promise resolving to the deleted newsletter
  */
-export async function deleteNewsletter(id: string): Promise<SentNewsletter> {
+export async function deleteNewsletter(id: string): Promise<NewsletterItem> {
   try {
-    return await prisma.sentNewsletter.delete({
+    return await prisma.newsletterItem.delete({
       where: { id }
     });
   } catch (error) {
@@ -240,16 +249,16 @@ export async function getNewsletterStats(): Promise<{
 }> {
   try {
     // Get total count
-    const total = await prisma.sentNewsletter.count({
+    const total = await prisma.newsletterItem.count({
       where: {
-        status: 'completed'
+        status: 'sent'
       }
     });
 
     // Get the most recently sent newsletter
-    const lastNewsletter = await prisma.sentNewsletter.findFirst({
+    const lastNewsletter = await prisma.newsletterItem.findFirst({
       where: {
-        status: 'completed'
+        status: 'sent'
       },
       orderBy: {
         sentAt: 'desc'
@@ -260,9 +269,9 @@ export async function getNewsletterStats(): Promise<{
     });
 
     // Get total recipients
-    const recipientsResult = await prisma.sentNewsletter.aggregate({
+    const recipientsResult = await prisma.newsletterItem.aggregate({
       where: {
-        status: 'completed'
+        status: 'sent'
       },
       _sum: {
         recipientCount: true
@@ -271,7 +280,7 @@ export async function getNewsletterStats(): Promise<{
 
     return {
       total,
-      lastSent: lastNewsletter?.sentAt,
+      lastSent: lastNewsletter?.sentAt || undefined,
       totalRecipients: recipientsResult._sum.recipientCount || 0
     };
   } catch (error) {

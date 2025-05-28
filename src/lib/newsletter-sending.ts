@@ -14,7 +14,6 @@ export interface SendResult {
   sentCount: number;
   failedCount: number;
   batchCount: number;
-  newsletterId?: string;
   error?: Error | string;
   completedAt?: Date;
 }
@@ -139,25 +138,8 @@ export async function sendNewsletter(params: {
       completedAt: undefined
     };
     
-    // Create SentNewsletter record to track this send
-    const sentNewsletter = await prisma.sentNewsletter.create({
-      data: {
-        sentAt: new Date(),
-        subject,
-        recipientCount: recipients.length,
-        content: html,
-        status: 'processing',
-        settings: JSON.stringify({
-          batchSize,
-          batchDelay,
-          fromEmail,
-          fromName,
-          replyTo
-        })
-      }
-    });
-    
-    result.newsletterId = sentNewsletter.id;
+    // Newsletter record is managed by the calling API route
+    // We just handle the sending process here
     
     // Track batch status
     const batchStatus: BatchStatus = {
@@ -241,53 +223,19 @@ export async function sendNewsletter(params: {
       }
     }
     
-    // Update SentNewsletter record with completion status
+    // Newsletter record status is managed by the calling API route
     const completedAt = new Date();
     result.completedAt = completedAt;
     
     const success = result.failedCount === 0;
     result.success = success;
     
-    await prisma.sentNewsletter.update({
-      where: { id: sentNewsletter.id },
-      data: {
-        status: success ? 'completed' : 'completed_with_errors'
-      }
-    });
-    
     return result;
   } catch (error) {
     logger.error('Error sending newsletter:', { context: { error } });
     
-    // If we have a newsletter ID, update its status
-    if (params.html && error instanceof Error) {
-      try {
-        // Create error newsletter record if none exists
-        const errorNewsletter = await prisma.sentNewsletter.create({
-          data: {
-            sentAt: new Date(),
-            subject: params.subject || 'Failed Newsletter',
-            recipientCount: validatedRecipientIds?.length || 0,
-            content: params.html,
-            status: 'failed',
-            settings: JSON.stringify({
-              error: error.message
-            })
-          }
-        });
-        
-        return {
-          success: false,
-          sentCount: 0,
-          failedCount: validatedRecipientIds?.length || 0,
-          batchCount: 0,
-          newsletterId: errorNewsletter.id,
-          error: error
-        };
-      } catch (dbError) {
-        logger.error('Error creating failure record:', { context: { error: dbError } });
-      }
-    }
+    // Error handling is managed by the calling API route
+    // We just return the error result
     
     return {
       success: false,
@@ -379,11 +327,11 @@ async function sendBatch(
 }
 
 /**
- * Get status of a sent newsletter
+ * Get status of a newsletter
  */
 export async function getNewsletterStatus(newsletterId: string): Promise<any> {
   try {
-    const newsletter = await prisma.sentNewsletter.findUnique({
+    const newsletter = await prisma.newsletterItem.findUnique({
       where: { id: newsletterId }
     });
     
@@ -397,7 +345,7 @@ export async function getNewsletterStatus(newsletterId: string): Promise<any> {
       subject: newsletter.subject,
       recipientCount: newsletter.recipientCount,
       status: newsletter.status,
-      settings: JSON.parse(newsletter.settings)
+      settings: newsletter.settings ? JSON.parse(newsletter.settings) : {}
     };
   } catch (error) {
     logger.error('Error getting newsletter status:', { context: { error } });
@@ -413,14 +361,21 @@ export async function getSentNewsletters(page = 1, pageSize = 10): Promise<any> 
     const skip = (page - 1) * pageSize;
     
     const [newsletters, total] = await Promise.all([
-      prisma.sentNewsletter.findMany({
+      prisma.newsletterItem.findMany({
+        where: {
+          status: { not: 'draft' } // Exclude drafts to match the original function behavior
+        },
         skip,
         take: pageSize,
         orderBy: {
           sentAt: 'desc'
         }
       }),
-      prisma.sentNewsletter.count()
+      prisma.newsletterItem.count({
+        where: {
+          status: { not: 'draft' }
+        }
+      })
     ]);
     
     return {

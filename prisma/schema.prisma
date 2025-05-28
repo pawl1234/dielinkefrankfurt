@@ -181,17 +181,21 @@ model HashedRecipient {
   @@map("hashed_recipient") // Lowercase table name for PostgreSQL convention
 }
 
-// SentNewsletter model for tracking sent newsletters
-model SentNewsletter {
-  id             String   @id @default(cuid())
-  sentAt         DateTime @default(now())
-  subject        String
-  recipientCount Int
-  content        String   @db.Text
-  status         String   @default("completed")
-  settings       String   @db.Text // JSON of settings used
+// Unified Newsletter model for the complete lifecycle
+model NewsletterItem {
+  id               String    @id @default(cuid())
+  subject          String
+  introductionText String    @db.Text
+  content          String?   @db.Text // Generated HTML content
+  status           String    @default("draft") // draft, sending, sent, failed, partially_failed
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  sentAt           DateTime?
+  recipientCount   Int?
+  settings         String?   @db.Text // JSON of settings used for sending
 
-  @@index([sentAt])
   @@index([status])
-  @@map("sent_newsletter") // Lowercase table name for PostgreSQL convention
+  @@index([createdAt])
+  @@index([sentAt])
+  @@map("newsletter_item") // Lowercase table name for PostgreSQL convention
 }

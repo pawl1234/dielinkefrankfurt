@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: NewsletterPageParams): Promis
     }
     
     // Format date for the description
-    const sentDate = new Date(newsletter.sentAt);
+    const sentDate = newsletter.sentAt ? new Date(newsletter.sentAt) : new Date(newsletter.createdAt);
     const formattedDate = new Intl.DateTimeFormat('de-DE', {
       year: 'numeric',
       month: 'long',
@@ -37,12 +37,12 @@ export async function generateMetadata({ params }: NewsletterPageParams): Promis
     
     return {
       title: `${newsletter.subject} - Die Linke Frankfurt Newsletter`,
-      description: `Newsletter von Die Linke Frankfurt vom ${formattedDate}. ${newsletter.recipientCount} Empfänger.`,
+      description: `Newsletter von Die Linke Frankfurt vom ${formattedDate}. ${newsletter.recipientCount || 0} Empfänger.`,
       openGraph: {
         title: newsletter.subject,
         description: `Newsletter von Die Linke Frankfurt vom ${formattedDate}`,
         type: 'article',
-        publishedTime: newsletter.sentAt.toString(),
+        publishedTime: newsletter.sentAt ? newsletter.sentAt.toString() : newsletter.createdAt.toString(),
       }
     };
   } catch (error) {
@@ -74,7 +74,7 @@ export default async function NewsletterPage({ params }: NewsletterPageParams) {
     const { content } = newsletter;
     
     // Format date
-    const sentDate = new Date(newsletter.sentAt);
+    const sentDate = newsletter.sentAt ? new Date(newsletter.sentAt) : new Date(newsletter.createdAt);
     const formattedDate = new Intl.DateTimeFormat('de-DE', {
       year: 'numeric',
       month: 'long',
@@ -115,7 +115,7 @@ export default async function NewsletterPage({ params }: NewsletterPageParams) {
                 {newsletter.subject}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Gesendet am {formattedDate}
+                {newsletter.sentAt ? 'Gesendet' : 'Erstellt'} am {formattedDate}
               </Typography>
             </Box>
           </Box>
@@ -143,7 +143,7 @@ export default async function NewsletterPage({ params }: NewsletterPageParams) {
               '& img': { maxWidth: '100%', height: 'auto' },
               '& a': { color: '#FF0000' }
             }}
-            dangerouslySetInnerHTML={{ __html: content }} 
+            dangerouslySetInnerHTML={{ __html: content || '' }} 
           />
         </Container>
         

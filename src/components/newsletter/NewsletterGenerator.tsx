@@ -76,6 +76,12 @@ interface GroupWithReports {
   reports: StatusReport[];
 }
 
+interface NewsletterGeneratorProps {
+  isPreviewMode?: boolean;
+  introductionText?: string;
+  onGenerated?: (html: string) => void;
+}
+
 // Helper function to truncate text for display
 const truncateText = (text: string, maxLength: number = 300): string => {
   if (!text || text.length <= maxLength) {
@@ -91,9 +97,15 @@ const truncateText = (text: string, maxLength: number = 300): string => {
   return truncatedText + '...';
 };
 
-const NewsletterGenerator: React.FC = () => {
+const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({ 
+  isPreviewMode = false, 
+  introductionText: externalIntroductionText,
+  onGenerated
+}) => {
   const [settings, setSettings] = useState<NewsletterSettings>({} as NewsletterSettings);
-  const [introductionText, setIntroductionText] = useState<string>('<p>Herzlich willkommen zum Newsletter der Linken Frankfurt!</p>');
+  const [introductionText, setIntroductionText] = useState<string>(
+    externalIntroductionText || '<p>Herzlich willkommen zum Newsletter der Linken Frankfurt!</p>'
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);

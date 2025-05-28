@@ -12,15 +12,32 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
   try {
     // Parse request body
     const body = await request.json();
-    const { html, subject, emailText, settings } = body;
+    const { newsletterId, html, subject, emailText, settings } = body;
 
     // Validate required fields
+    if (!newsletterId) {
+      return AppError.validation('Newsletter ID is required').toResponse();
+    }
+
     if (!html) {
       return AppError.validation('Newsletter HTML content is required').toResponse();
     }
 
     if (!emailText) {
       return AppError.validation('Email recipient list is required').toResponse();
+    }
+
+    // Check if newsletter exists and is in draft status
+    const newsletter = await prisma.newsletterItem.findUnique({
+      where: { id: newsletterId }
+    });
+
+    if (!newsletter) {
+      return AppError.validation('Newsletter not found').toResponse();
+    }
+
+    if (newsletter.status !== 'draft') {
+      return AppError.validation('Only draft newsletters can be sent').toResponse();
     }
 
     // Process recipient list
@@ -55,18 +72,16 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
     // Prepare recipient IDs from validation results
     const recipientIds = validationResult.hashedEmails.map(recipient => recipient.id);
 
-    // Create a newsletter record first
+    // Update newsletter to sending status
     logger.info(`Starting newsletter sending process to ${recipientIds.length} recipients`);
     
-    // Start the email sending process in the background
-    // Create a pending newsletter record
-    const sentNewsletter = await prisma.sentNewsletter.create({
+    await prisma.newsletterItem.update({
+      where: { id: newsletterId },
       data: {
-        sentAt: new Date(),
-        subject: subject || 'Newsletter - Die Linke Frankfurt',
-        recipientCount: recipientIds.length,
+        status: 'sending',
         content: html,
-        status: 'processing',
+        recipientCount: recipientIds.length,
+        sentAt: new Date(),
         settings: JSON.stringify({
           recipientCount: recipientIds.length,
           ...settings
@@ -78,7 +93,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
     // This allows the API to respond immediately
     (async () => {
       try {
-        logger.info(`Background job started for newsletter ${sentNewsletter.id}`);
+        logger.info(`Background job started for newsletter ${newsletterId}`);
         
         const sendResult = await sendNewsletter({
           html,
@@ -89,10 +104,14 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
         });
         
         // Update the newsletter record with the results
-        await prisma.sentNewsletter.update({
-          where: { id: sentNewsletter.id },
+        const finalStatus = sendResult.success ? 
+          (sendResult.failedCount > 0 ? 'partially_failed' : 'sent') : 
+          'failed';
+          
+        await prisma.newsletterItem.update({
+          where: { id: newsletterId },
           data: {
-            status: sendResult.success ? 'completed' : 'failed',
+            status: finalStatus,
             settings: JSON.stringify({
               recipientCount: recipientIds.length,
               sentCount: sendResult.sentCount,
@@ -108,8 +127,8 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
         logger.error('Background newsletter sending failed:', { context: { error } });
         
         // Update the newsletter record with the error
-        await prisma.sentNewsletter.update({
-          where: { id: sentNewsletter.id },
+        await prisma.newsletterItem.update({
+          where: { id: newsletterId },
           data: {
             status: 'failed',
             settings: JSON.stringify({
@@ -127,7 +146,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       message: 'Newsletter sending started in background',
       validRecipients: validationResult.valid,
       invalidRecipients: validationResult.invalid,
-      newsletterId: sentNewsletter.id
+      newsletterId: newsletterId
     });
   } catch (error) {
     logger.error('Error sending newsletter:', { context: { error } });

@@ -23,16 +23,24 @@ import AdminPagination from '@/components/admin/tables/AdminPagination';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import SendIcon from '@mui/icons-material/Send';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EmailIcon from '@mui/icons-material/Email';
+import PreviewIcon from '@mui/icons-material/Preview';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import NewsletterDetail from './NewsletterDetail';
 
 // Interface for newsletter item
 interface NewsletterItem {
   id: string;
-  sentAt: string;
+  sentAt?: string;
+  createdAt?: string;
   subject: string;
-  recipientCount: number;
+  recipientCount?: number;
   status: string;
+  type: 'draft' | 'sent';
+  introductionText?: string;
 }
 
 // Interface for paginated response
@@ -44,10 +52,22 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
+interface NewsletterArchivesProps {
+  onSendNewsletter?: (newsletter: NewsletterItem) => void;
+  onEditDraft?: (newsletter: NewsletterItem) => void;
+  onTestEmail?: (newsletter: NewsletterItem) => void;
+  onPreview?: (newsletter: NewsletterItem) => void;
+}
+
 /**
  * Component for displaying newsletter archives and details
  */
-export default function NewsletterArchives() {
+export default function NewsletterArchives({ 
+  onSendNewsletter,
+  onEditDraft,
+  onTestEmail,
+  onPreview
+}: NewsletterArchivesProps) {
   // State for newsletters data
   const [newsletters, setNewsletters] = useState<NewsletterItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,16 +178,18 @@ export default function NewsletterArchives() {
   /**
    * Get status chip based on newsletter status
    */
-  const getStatusChip = (status: string) => {
+  const getStatusChip = (status: string, type: 'draft' | 'sent') => {
     switch (status) {
-      case 'completed':
-        return <Chip label="Abgeschlossen" color="success" size="small" />;
-      case 'processing':
-        return <Chip label="In Bearbeitung" color="primary" size="small" />;
+      case 'draft':
+        return <Chip label="Entwurf" color="default" size="small" />;
+      case 'sending':
+        return <Chip label="Wird versendet" color="primary" size="small" />;
+      case 'sent':
+        return <Chip label="Versendet" color="success" size="small" />;
       case 'failed':
         return <Chip label="Fehlgeschlagen" color="error" size="small" />;
-      case 'completed_with_errors':
-        return <Chip label="Teilweise Fehlgeschlagen" color="warning" size="small" />;
+      case 'partially_failed':
+        return <Chip label="Teilweise fehlgeschlagen" color="warning" size="small" />;
       default:
         return <Chip label={status} size="small" />;
     }
@@ -176,11 +198,34 @@ export default function NewsletterArchives() {
   /**
    * Format date string
    */
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return '-';
     try {
       return format(new Date(dateString), 'dd.MM.yyyy HH:mm', { locale: de });
     } catch (error) {
       return 'Ungültiges Datum';
+    }
+  };
+  
+  const handleDelete = async (newsletter: NewsletterItem) => {
+    if (!confirm('Möchten Sie diesen Newsletter wirklich löschen?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/newsletter/archives/${newsletter.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete newsletter');
+      }
+      
+      // Refresh the list
+      fetchNewsletters();
+    } catch (error) {
+      console.error('Error deleting newsletter:', error);
+      setError('Beim Löschen des Newsletters ist ein Fehler aufgetreten.');
     }
   };
 
@@ -245,14 +290,14 @@ export default function NewsletterArchives() {
                   <TableCell>Betreff</TableCell>
                   <TableCell align="center">Empfänger</TableCell>
                   <TableCell align="center">Status</TableCell>
-                  <TableCell align="right">Aktionen</TableCell>
+                  <TableCell align="center">Aktionen</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {newsletters.map((newsletter) => (
                   <TableRow key={newsletter.id}>
                     <TableCell>
-                      {formatDate(newsletter.sentAt)}
+                      {formatDate(newsletter.sentAt || newsletter.createdAt)}
                     </TableCell>
                     <TableCell>
                       <Typography noWrap sx={{ maxWidth: { xs: 150, sm: 250, md: 400 } }}>
@@ -260,20 +305,91 @@ export default function NewsletterArchives() {
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      {newsletter.recipientCount}
+                      {newsletter.recipientCount || '-'}
                     </TableCell>
                     <TableCell align="center">
-                      {getStatusChip(newsletter.status)}
+                      {getStatusChip(newsletter.status, newsletter.type)}
                     </TableCell>
-                    <TableCell align="right">
-                      <Button
-                        onClick={() => handleViewNewsletter(newsletter.id)}
-                        variant="outlined"
-                        size="small"
-                        startIcon={<VisibilityIcon />}
-                      >
-                        Anzeigen
-                      </Button>
+                    <TableCell align="center">
+                      <Box sx={{ 
+                        display: 'flex', 
+                        gap: 0.5, 
+                        justifyContent: 'center', 
+                        flexWrap: 'wrap',
+                        '& .MuiButton-root': {
+                          minWidth: 'auto',
+                          px: 1,
+                          py: 0.5,
+                          fontSize: '0.75rem'
+                        }
+                      }}>
+                        {newsletter.type === 'draft' ? (
+                          <>
+                            <Button
+                              onClick={() => onEditDraft?.(newsletter)}
+                              variant="outlined"
+                              size="small"
+                              title="Bearbeiten"
+                            >
+                              <EditIcon fontSize="small" />
+                            </Button>
+                            <Button
+                              onClick={() => onPreview?.(newsletter)}
+                              variant="outlined"
+                              size="small"
+                              title="Anzeigen"
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </Button>
+                            <Button
+                              onClick={() => onSendNewsletter?.(newsletter)}
+                              variant="outlined"
+                              size="small"
+                              color="primary"
+                              title="Senden"
+                            >
+                              <SendIcon fontSize="small" />
+                            </Button>
+                            <Button
+                              onClick={() => onTestEmail?.(newsletter)}
+                              variant="outlined"
+                              size="small"
+                              title="Test-Email"
+                            >
+                              <EmailIcon fontSize="small" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(newsletter)}
+                              variant="outlined"
+                              size="small"
+                              color="error"
+                              title="Löschen"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              onClick={() => handleViewNewsletter(newsletter.id)}
+                              variant="outlined"
+                              size="small"
+                              title="Anzeigen"
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(newsletter)}
+                              variant="outlined"
+                              size="small"
+                              color="error"
+                              title="Löschen"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </Button>
+                          </>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
