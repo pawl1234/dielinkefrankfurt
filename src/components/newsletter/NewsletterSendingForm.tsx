@@ -9,6 +9,7 @@ import {
   Alert, 
   AlertTitle, 
   CircularProgress,
+  LinearProgress,
   Stepper,
   Step,
   StepLabel
@@ -48,6 +49,9 @@ interface SendResult {
   sentCount: number;
   failedCount: number;
   newsletterId?: string;
+  totalChunks?: number;
+  completedChunks?: number;
+  isComplete?: boolean;
 }
 
 /**
@@ -56,6 +60,15 @@ interface SendResult {
 export default function NewsletterSendingForm({ newsletterHtml, subject, newsletterId }: NewsletterSendingFormProps) {
   // Step management state
   const [currentStep, setCurrentStep] = useState<'input' | 'validation' | 'sending' | 'complete'>('input');
+  
+  // Chunked sending state
+  const [emailChunks, setEmailChunks] = useState<string[][]>([]);
+  const [sendingProgress, setSendingProgress] = useState({
+    completedChunks: 0,
+    totalChunks: 0,
+    totalSent: 0,
+    totalFailed: 0
+  });
   
   // Form data state
   const [emailText, setEmailText] = useState('');
@@ -153,10 +166,12 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   const handleConfirmSend = async () => {
     setIsSubmitting(true);
     setError('');
+    setIsModalOpen(false);
+    setCurrentStep('sending');
 
     try {
-      // Call API to send newsletter
-      const response = await fetch('/api/admin/newsletter/send', {
+      // Step 1: Prepare newsletter for chunked sending
+      const prepareResponse = await fetch('/api/admin/newsletter/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +182,6 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           subject,
           emailText,
           settings: {
-            // Include email sending settings
             fromEmail: settings.fromEmail,
             fromName: settings.fromName,
             replyToEmail: settings.replyToEmail,
@@ -177,32 +191,121 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Fehler beim Versenden des Newsletters');
+      if (!prepareResponse.ok) {
+        const errorData = await prepareResponse.json();
+        throw new Error(errorData.error || 'Fehler beim Vorbereiten des Newsletters');
       }
 
-      const data = await response.json();
+      const prepareData = await prepareResponse.json();
       
-      // Set send result
-      setSendResult({
-        success: data.success,
-        message: data.message,
-        sentCount: data.sentCount || 0,
-        failedCount: data.failedCount || 0,
-        newsletterId: newsletterId
+      if (!prepareData.success) {
+        throw new Error(prepareData.message || 'Fehler beim Vorbereiten des Newsletters');
+      }
+
+      // Store email chunks and initialize progress
+      const chunks = prepareData.emailChunks;
+      setEmailChunks(chunks);
+      setSendingProgress({
+        completedChunks: 0,
+        totalChunks: chunks.length,
+        totalSent: 0,
+        totalFailed: 0
       });
 
-      // Close modal and move to complete step
-      setIsModalOpen(false);
-      setCurrentStep('complete');
+      // Step 2: Process each chunk
+      await processEmailChunks(chunks, prepareData);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ein unerwarteter Fehler ist aufgetreten');
       console.error('Sending error:', err);
-      setIsModalOpen(false);
+      setCurrentStep('validation');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  /**
+   * Process email chunks one by one
+   */
+  const processEmailChunks = async (chunks: string[][], prepareData: any) => {
+    let totalSent = 0;
+    let totalFailed = 0;
+    let hasError = false;
+
+    for (let i = 0; i < chunks.length; i++) {
+      try {
+        // Send current chunk
+        const chunkResponse = await fetch('/api/admin/newsletter/send-chunk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            newsletterId,
+            html: prepareData.html,
+            subject: prepareData.subject,
+            emails: chunks[i],
+            chunkIndex: i,
+            totalChunks: chunks.length,
+            settings: prepareData.settings
+          }),
+        });
+
+        if (!chunkResponse.ok) {
+          const errorData = await chunkResponse.json();
+          throw new Error(errorData.error || `Fehler beim Senden von Chunk ${i + 1}`);
+        }
+
+        const chunkData = await chunkResponse.json();
+        
+        if (!chunkData.success) {
+          throw new Error(chunkData.error || `Fehler beim Senden von Chunk ${i + 1}`);
+        }
+
+        // Update progress
+        totalSent += chunkData.sentCount;
+        totalFailed += chunkData.failedCount;
+        
+        setSendingProgress({
+          completedChunks: i + 1,
+          totalChunks: chunks.length,
+          totalSent,
+          totalFailed
+        });
+
+        // Small delay between chunks to prevent overwhelming the server
+        if (i < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+      } catch (err) {
+        console.error(`Error processing chunk ${i + 1}:`, err);
+        hasError = true;
+        totalFailed += chunks[i].length; // Count all emails in failed chunk as failed
+        
+        // Update progress even for failed chunks
+        setSendingProgress({
+          completedChunks: i + 1,
+          totalChunks: chunks.length,
+          totalSent,
+          totalFailed
+        });
+      }
+    }
+
+    // Set final results
+    setSendResult({
+      success: !hasError && totalFailed === 0,
+      message: hasError ? 'Newsletter mit Fehlern versendet' : 'Newsletter erfolgreich versendet',
+      sentCount: totalSent,
+      failedCount: totalFailed,
+      newsletterId: newsletterId,
+      totalChunks: chunks.length,
+      completedChunks: chunks.length,
+      isComplete: true
+    });
+
+    setCurrentStep('complete');
   };
 
   /**
@@ -215,6 +318,13 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     setIsModalOpen(false);
     setError('');
     setSendResult(null);
+    setEmailChunks([]);
+    setSendingProgress({
+      completedChunks: 0,
+      totalChunks: 0,
+      totalSent: 0,
+      totalFailed: 0
+    });
   };
 
   /**
@@ -270,12 +380,67 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           />
         ) : null;
       
+      case 'sending':
+        return renderSendingStep();
+      
       case 'complete':
         return renderCompleteStep();
       
       default:
         return null;
     }
+  };
+
+  /**
+   * Render sending progress step
+   */
+  const renderSendingStep = () => {
+    const progress = sendingProgress.totalChunks > 0 
+      ? (sendingProgress.completedChunks / sendingProgress.totalChunks) * 100 
+      : 0;
+
+    return (
+      <Paper sx={{ p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 0 }}>
+        <Typography variant="h6" gutterBottom>
+          Newsletter wird versendet...
+        </Typography>
+        
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="body2">
+              Fortschritt: {sendingProgress.completedChunks} / {sendingProgress.totalChunks} Pakete
+            </Typography>
+            <Typography variant="body2">
+              {Math.round(progress)}%
+            </Typography>
+          </Box>
+          
+          <LinearProgress 
+            variant="determinate" 
+            value={progress} 
+            sx={{ height: 8, borderRadius: 4 }}
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="body2" color="success.main">
+            ✓ Versendet: {sendingProgress.totalSent}
+          </Typography>
+          {sendingProgress.totalFailed > 0 && (
+            <Typography variant="body2" color="error.main">
+              ✗ Fehler: {sendingProgress.totalFailed}
+            </Typography>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 3 }}>
+          <CircularProgress size={20} sx={{ mr: 2 }} />
+          <Typography variant="body2" color="text.secondary">
+            Bitte schließen Sie dieses Fenster nicht. Der Versand läuft automatisch weiter.
+          </Typography>
+        </Box>
+      </Paper>
+    );
   };
 
   /**
