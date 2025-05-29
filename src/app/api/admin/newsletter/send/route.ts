@@ -89,39 +89,41 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       }
     });
     
-    // Start background processing without awaiting it
-    // This allows the API to respond immediately
+    // For Vercel serverless environment, we need to handle timeouts differently
+    // Start background processing with proper error handling
     (async () => {
       const startTime = Date.now();
-      const timeoutMs = 10 * 60 * 1000; // 10 minutes timeout
+      const maxExecutionTime = 4 * 60 * 1000; // 4 minutes (well under Vercel's 5min limit)
       
       try {
         logger.info(`Background job started for newsletter ${newsletterId}`, {
           context: {
             recipientCount: recipientIds.length,
-            timeoutMs,
-            startTime: new Date(startTime).toISOString()
+            maxExecutionTime,
+            startTime: new Date(startTime).toISOString(),
+            environment: process.env.NODE_ENV,
+            isVercel: !!process.env.VERCEL
           }
         });
         
-        // Create a timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            reject(new Error(`Newsletter sending timed out after ${timeoutMs/1000} seconds`));
-          }, timeoutMs);
-        });
+        // Check if we're running out of time periodically
+        const checkTimeout = () => {
+          const elapsed = Date.now() - startTime;
+          if (elapsed > maxExecutionTime) {
+            throw new Error(`Newsletter sending exceeded maximum execution time (${elapsed}ms)`);
+          }
+          return elapsed;
+        };
         
-        // Race between sending and timeout
-        const sendResult = await Promise.race([
-          sendNewsletter({
-            html,
-            subject,
-            validatedRecipientIds: recipientIds,
-            plainEmails, // Pass the plain emails for sending
-            settings
-          }),
-          timeoutPromise
-        ]) as any;
+        // Send newsletter with timeout monitoring
+        const sendResult = await sendNewsletter({
+          html,
+          subject,
+          validatedRecipientIds: recipientIds,
+          plainEmails, // Pass the plain emails for sending
+          settings,
+          timeoutCheck: checkTimeout // Pass timeout check function
+        });
         
         // Update the newsletter record with the results
         const finalStatus = sendResult.success ? 
@@ -154,34 +156,52 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
         });
       } catch (error) {
         const duration = Date.now() - startTime;
-        const isTimeout = error instanceof Error && error.message.includes('timed out');
+        const isTimeout = error instanceof Error && 
+          (error.message.includes('timed out') || error.message.includes('exceeded maximum execution time'));
+        const isConnectionError = error instanceof Error &&
+          (error.message.includes('connection pool') || error.message.includes('ECONNREFUSED'));
         
         logger.error('Background newsletter sending failed', {
           context: {
             error: error instanceof Error ? {
               message: error.message,
               name: error.name,
-              stack: error.stack
+              code: (error as any).code,
+              errno: (error as any).errno
             } : error,
             duration: `${duration}ms`,
             isTimeout,
-            recipientCount: recipientIds.length
+            isConnectionError,
+            recipientCount: recipientIds.length,
+            environment: process.env.NODE_ENV,
+            smtpHost: process.env.EMAIL_SERVER_HOST,
+            smtpPort: process.env.EMAIL_SERVER_PORT
           }
         });
         
-        // Update the newsletter record with the error
-        await prisma.newsletterItem.update({
-          where: { id: newsletterId },
-          data: {
-            status: 'failed',
-            settings: JSON.stringify({
-              error: error instanceof Error ? error.message : String(error),
-              isTimeout,
-              duration: `${duration}ms`,
-              ...settings
-            })
-          }
-        });
+        // Update the newsletter record with detailed error info
+        try {
+          await prisma.newsletterItem.update({
+            where: { id: newsletterId },
+            data: {
+              status: 'failed',
+              settings: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+                errorType: isTimeout ? 'timeout' : isConnectionError ? 'connection' : 'unknown',
+                duration: `${duration}ms`,
+                timestamp: new Date().toISOString(),
+                ...settings
+              })
+            }
+          });
+        } catch (dbError) {
+          logger.error('Failed to update newsletter status after error', {
+            context: {
+              originalError: error instanceof Error ? error.message : String(error),
+              dbError: dbError instanceof Error ? dbError.message : String(dbError)
+            }
+          });
+        }
       }
     })();
     

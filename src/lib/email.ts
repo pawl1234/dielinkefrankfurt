@@ -4,7 +4,7 @@ import { logger } from './logger';
 
 // Create a reusable transporter object using SMTP transport
 const createTransporter = () => {
-  const transporter = nodemailer.createTransport({
+  const config = {
     host: process.env.EMAIL_SERVER_HOST,
     port: Number(process.env.EMAIL_SERVER_PORT) || 1025, // Default to MailDev
     secure: false, // true for 465, false for other ports
@@ -16,8 +16,24 @@ const createTransporter = () => {
     tls: {
       rejectUnauthorized: process.env.NODE_ENV === 'production',
     },
+    // Add timeouts for Vercel environment
+    connectionTimeout: 30000, // 30 seconds
+    greetingTimeout: 30000, // 30 seconds
+    socketTimeout: 45000, // 45 seconds
+  };
+  
+  logger.info('Creating SMTP transporter', {
+    context: {
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      hasAuth: !!(config.auth.user && config.auth.pass),
+      environment: process.env.NODE_ENV,
+      rejectUnauthorized: config.tls.rejectUnauthorized
+    }
   });
-
+  
+  const transporter = nodemailer.createTransport(config);
   return transporter;
 };
 
@@ -69,8 +85,17 @@ export const sendEmail = async ({
       }
     }
 
-    // Send email with proper MIME structure
-    const info = await transporter.sendMail({
+    // Send email with proper MIME structure and timeout
+    logger.info('Attempting to send email via SMTP...');
+    
+    // Create a timeout promise for the sendMail operation
+    const sendMailTimeout = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Email sending timed out after 60 seconds'));
+      }, 60000); // 60 seconds timeout
+    });
+    
+    const sendMailPromise = transporter.sendMail({
       from: from,
       to: to,
       subject: subject,
@@ -81,18 +106,23 @@ export const sendEmail = async ({
       }
     });
     
+    const info = await Promise.race([sendMailPromise, sendMailTimeout]);
+    
     const duration = Date.now() - startTime;
     
     logger.info('Email sent successfully', {
       context: {
-        messageId: info.messageId,
+        messageId: (info as any).messageId,
         recipientDomain: to.split('@')[1] || 'unknown',
         duration: `${duration}ms`,
-        response: info.response
+        response: (info as any).response,
+        accepted: (info as any).accepted?.length || 0,
+        rejected: (info as any).rejected?.length || 0,
+        envelope: (info as any).envelope
       }
     });
 
-    return { success: true, messageId: info.messageId };
+    return { success: true, messageId: (info as any).messageId };
   } catch (error) {
     const duration = Date.now() - startTime;
     

@@ -76,9 +76,10 @@ export async function sendNewsletter(params: {
   subject?: string, 
   validatedRecipientIds: string[],
   plainEmails?: string[], // Add plainEmails parameter
-  settings?: Partial<NewsletterSettings>
+  settings?: Partial<NewsletterSettings>,
+  timeoutCheck?: () => number // Function to check if we're running out of time
 }): Promise<SendResult> {
-  const { html, validatedRecipientIds, plainEmails, settings: overrideSettings } = params;
+  const { html, validatedRecipientIds, plainEmails, settings: overrideSettings, timeoutCheck } = params;
   
   try {
     if (!html) {
@@ -168,6 +169,12 @@ export async function sendNewsletter(params: {
     for (let i = 0; i < recipientBatches.length; i++) {
       const batch = recipientBatches[i];
       
+      // Check timeout before processing each batch
+      if (timeoutCheck) {
+        const elapsed = timeoutCheck();
+        logger.info(`Batch ${i + 1} starting after ${elapsed}ms`);
+      }
+      
       // Update batch status
       batchStatus.batchNumber = i + 1;
       batchStatus.inProgress = true;
@@ -206,7 +213,8 @@ export async function sendNewsletter(params: {
           subject,
           from,
           replyTo,
-          batchPlainEmails
+          batchPlainEmails,
+          timeoutCheck
         );
         
         batchStatus.sentCount = sendResult.sentCount;
@@ -304,7 +312,8 @@ async function sendBatch(
   subject: string,
   from: string,
   replyTo: string,
-  plainEmails?: string[]
+  plainEmails?: string[],
+  timeoutCheck?: () => number
 ): Promise<{ sentCount: number; failedCount: number }> {
   // Initialize counters
   let sentCount = 0;
@@ -339,9 +348,14 @@ async function sendBatch(
     // Collect error information without logging each one
     const errors: Array<{index: number, error: any}> = [];
     
-    // Send emails to each recipient
+    // Send emails to each recipient with timeout checking
     const promises = recipientEmails.map(async (email, index) => {
       try {
+        // Check timeout before sending each email
+        if (timeoutCheck) {
+          timeoutCheck();
+        }
+        
         // Send the email using the email module
         const result = await sendEmail({
           to: email,
