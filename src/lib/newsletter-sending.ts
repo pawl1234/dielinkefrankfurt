@@ -1,4 +1,5 @@
 import { sendEmail } from './email';
+import nodemailer from 'nodemailer';
 import { validateAndHashEmails, ValidationResult, updateLastSentTimestamp } from './email-hashing';
 import { getNewsletterSettings } from './newsletter-service';
 import { NewsletterSettings } from './newsletter-template';
@@ -304,7 +305,113 @@ export async function sendNewsletter(params: {
 }
 
 /**
- * Implement sending logic for a single batch
+ * Send email using a fresh SMTP connection for batch processing
+ */
+async function sendEmailBatch({
+  to,
+  subject,
+  html,
+  from,
+  replyTo,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  from: string;
+  replyTo: string;
+}) {
+  const startTime = Date.now();
+  let transporter: nodemailer.Transporter | null = null;
+  
+  try {
+    // Create fresh transporter for this email
+    const config = {
+      host: process.env.EMAIL_SERVER_HOST,
+      port: Number(process.env.EMAIL_SERVER_PORT) || 1025,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_SERVER_USER || '',
+        pass: process.env.EMAIL_SERVER_PASSWORD || '',
+      },
+      tls: {
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
+      },
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 45000,
+      pool: false, // No pooling for batch operations
+    };
+    
+    transporter = nodemailer.createTransport(config);
+    
+    // Verify connection only in production
+    if (process.env.NODE_ENV === 'production') {
+      await transporter.verify();
+    }
+    
+    // Create timeout for email sending
+    const sendMailTimeout = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Email sending timed out after 60 seconds'));
+      }, 60000);
+    });
+    
+    const sendMailPromise = transporter.sendMail({
+      from,
+      to,
+      subject,
+      html,
+      replyTo,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8'
+      }
+    });
+    
+    const info = await Promise.race([sendMailPromise, sendMailTimeout]);
+    
+    const duration = Date.now() - startTime;
+    
+    logger.info('Batch email sent successfully', {
+      context: {
+        messageId: (info as any).messageId,
+        recipientDomain: to.split('@')[1] || 'unknown',
+        duration: `${duration}ms`,
+        response: (info as any).response
+      }
+    });
+    
+    return { success: true, messageId: (info as any).messageId };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logger.error('Failed to send batch email', {
+      context: {
+        recipientDomain: to.split('@')[1] || 'unknown',
+        duration: `${duration}ms`,
+        error: error instanceof Error ? {
+          message: error.message,
+          code: (error as any).code,
+          errno: (error as any).errno,
+          syscall: (error as any).syscall
+        } : error
+      }
+    });
+    
+    return { success: false, error };
+  } finally {
+    // Always close the transporter connection
+    if (transporter) {
+      try {
+        transporter.close();
+      } catch (closeError) {
+        logger.warn('Error closing transporter', { context: { closeError } });
+      }
+    }
+  }
+}
+
+/**
+ * Implement sending logic for a single batch with fresh SMTP connection
  */
 async function sendBatch(
   recipientIds: string[],
@@ -360,8 +467,8 @@ async function sendBatch(
           timeoutCheck();
         }
         
-        // Send the email using the email module
-        const result = await sendEmail({
+        // Send the email using batch-specific transporter
+        const result = await sendEmailBatch({
           to: email,
           subject,
           html,

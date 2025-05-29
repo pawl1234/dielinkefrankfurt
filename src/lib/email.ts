@@ -21,15 +21,13 @@ const createTransporter = () => {
     greetingTimeout: 30000, // 30 seconds
     socketTimeout: 45000, // 45 seconds
     
-    // Connection pooling configuration for better performance
-    pool: true, // Enable connection pooling
-    maxConnections: 1, // Limit to 1 connection for serverless environment
-    maxMessages: Infinity, // No limit on messages per connection
-    rateDelta: 1000, // 1 second rate limiting window  
-    rateLimit: 5, // Max 5 emails per second
+    // Disable connection pooling for serverless environment
+    pool: false, // Disable connection pooling (problematic in serverless)
+    maxConnections: 1, // Single connection only
+    maxMessages: 1, // One message per connection in serverless
   };
   
-  logger.info('Creating SMTP transporter with connection pooling', {
+  logger.info('Creating SMTP transporter for serverless environment', {
     context: {
       host: config.host,
       port: config.port,
@@ -39,7 +37,7 @@ const createTransporter = () => {
       rejectUnauthorized: config.tls.rejectUnauthorized,
       poolEnabled: config.pool,
       maxConnections: config.maxConnections,
-      rateLimit: config.rateLimit
+      maxMessages: config.maxMessages
     }
   });
   
@@ -47,15 +45,9 @@ const createTransporter = () => {
   return transporter;
 };
 
-// Global transporter instance for connection reuse
-let globalTransporter: nodemailer.Transporter | null = null;
-
-// Get or create a shared transporter instance
+// Create a fresh transporter for each batch (better for serverless)
 const getTransporter = () => {
-  if (!globalTransporter) {
-    globalTransporter = createTransporter();
-  }
-  return globalTransporter;
+  return createTransporter();
 };
 
 // Send email with HTML content
