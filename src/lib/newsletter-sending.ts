@@ -348,8 +348,12 @@ async function sendBatch(
     // Collect error information without logging each one
     const errors: Array<{index: number, error: any}> = [];
     
-    // Send emails to each recipient with timeout checking
-    const promises = recipientEmails.map(async (email, index) => {
+    // Send emails sequentially to avoid connection pool issues
+    const results: boolean[] = [];
+    
+    for (let index = 0; index < recipientEmails.length; index++) {
+      const email = recipientEmails[index];
+      
       try {
         // Check timeout before sending each email
         if (timeoutCheck) {
@@ -367,19 +371,21 @@ async function sendBatch(
         
         // Update counters based on result
         if (result.success) {
-          return true; // Success
+          results.push(true); // Success
         } else {
           errors.push({index, error: result.error});
-          return false; // Failure
+          results.push(false); // Failure
+        }
+        
+        // Small delay between emails to avoid overwhelming the SMTP server
+        if (index < recipientEmails.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
         }
       } catch (error) {
         errors.push({index, error});
-        return false; // Failure
+        results.push(false); // Failure
       }
-    });
-    
-    // Wait for all emails to be sent
-    const results = await Promise.all(promises);
+    }
     
     // Count successes and failures
     sentCount = results.filter(success => success).length;

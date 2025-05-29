@@ -20,21 +20,42 @@ const createTransporter = () => {
     connectionTimeout: 30000, // 30 seconds
     greetingTimeout: 30000, // 30 seconds
     socketTimeout: 45000, // 45 seconds
+    
+    // Connection pooling configuration for better performance
+    pool: true, // Enable connection pooling
+    maxConnections: 1, // Limit to 1 connection for serverless environment
+    maxMessages: Infinity, // No limit on messages per connection
+    rateDelta: 1000, // 1 second rate limiting window  
+    rateLimit: 5, // Max 5 emails per second
   };
   
-  logger.info('Creating SMTP transporter', {
+  logger.info('Creating SMTP transporter with connection pooling', {
     context: {
       host: config.host,
       port: config.port,
       secure: config.secure,
       hasAuth: !!(config.auth.user && config.auth.pass),
       environment: process.env.NODE_ENV,
-      rejectUnauthorized: config.tls.rejectUnauthorized
+      rejectUnauthorized: config.tls.rejectUnauthorized,
+      poolEnabled: config.pool,
+      maxConnections: config.maxConnections,
+      rateLimit: config.rateLimit
     }
   });
   
   const transporter = nodemailer.createTransport(config);
   return transporter;
+};
+
+// Global transporter instance for connection reuse
+let globalTransporter: nodemailer.Transporter | null = null;
+
+// Get or create a shared transporter instance
+const getTransporter = () => {
+  if (!globalTransporter) {
+    globalTransporter = createTransporter();
+  }
+  return globalTransporter;
 };
 
 // Send email with HTML content
@@ -65,7 +86,7 @@ export const sendEmail = async ({
       }
     });
     
-    const transporter = createTransporter();
+    const transporter = getTransporter();
     
     // Verify transporter configuration in production
     if (process.env.NODE_ENV === 'production') {
