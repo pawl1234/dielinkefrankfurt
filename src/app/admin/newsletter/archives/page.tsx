@@ -13,7 +13,7 @@ export default function AdminNewsletterArchivesRedirect() {
   useEffect(() => {
     // Redirect to the main newsletter page with a query param to open the archives tab
     // The tab state will be handled in the main newsletter page
-    router.replace('/admin/newsletter?tab=archives');
+    router.replace('/admin');
   }, [router]);
 
   return (

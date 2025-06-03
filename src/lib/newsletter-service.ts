@@ -12,6 +12,30 @@ import { subWeeks } from 'date-fns';
 import { getBaseUrl } from './base-url';
 
 /**
+ * Fix URLs in newsletter HTML content to ensure they have proper protocol
+ */
+function fixUrlsInNewsletterHtml(html: string): string {
+  if (!html) return html;
+  
+  const baseUrl = getBaseUrl();
+  const domain = baseUrl.replace(/^https?:\/\//, '');
+  
+  // Fix URLs that are missing protocol
+  // This regex finds href attributes with URLs that start with the domain but no protocol
+  const urlPattern = new RegExp(`href=["']${domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^"']*?)["']`, 'g');
+  
+  const fixedHtml = html.replace(urlPattern, `href="${baseUrl}$1"`);
+  
+  // Log if any URLs were fixed
+  const matchCount = (html.match(urlPattern) || []).length;
+  if (matchCount > 0) {
+    console.log(`Fixed ${matchCount} URLs in newsletter HTML to include protocol`);
+  }
+  
+  return fixedHtml;
+}
+
+/**
  * Fetches newsletter settings from the database
  * Creates default settings if none exist
  */
@@ -372,7 +396,10 @@ export async function handleSendTestNewsletter(request: NextRequest): Promise<Ne
         );
       }
       
-      newsletterHtml = newsletter.content;
+      newsletterHtml = fixUrlsInNewsletterHtml(newsletter.content || '');
+    } else if (html) {
+      // Fix URLs in the provided HTML as well
+      newsletterHtml = fixUrlsInNewsletterHtml(html);
     }
     
     if (!newsletterHtml) {
