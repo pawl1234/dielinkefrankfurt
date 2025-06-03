@@ -9,27 +9,7 @@ import {
 import { sendTestEmail } from './email';
 import { serverErrorResponse } from './api-auth';
 import { subWeeks } from 'date-fns';
-
-const getBaseUrl = () => {
-  // If VERCEL_PROJECT_PRODUCTION_URL is provided
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    const url = process.env.VERCEL_PROJECT_PRODUCTION_URL.trim();
-    
-    // Check if URL already has a protocol
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    
-    // Add https protocol if missing
-    return `https://${url}`;
-  }
-  
-  if (typeof window === 'undefined') { // Only log on server side
-    console.error('Warning: VERCEL_PROJECT_PRODUCTION_URL environment variable is not set. Falling back to localhost:3000');
-  }
-  
-  return 'http://localhost:3000';
-};
+import { getBaseUrl } from './base-url';
 
 /**
  * Fetches newsletter settings from the database
@@ -276,6 +256,7 @@ export async function generateNewsletter(introductionText: string): Promise<stri
     const { statusReportsByGroup } = await fetchNewsletterStatusReports();
     
     const baseUrl = getBaseUrl();
+    console.log('Generated baseUrl for newsletter:', baseUrl);
     
     // Generate HTML email
     return generateNewsletterHtml({

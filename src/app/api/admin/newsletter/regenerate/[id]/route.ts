@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
 import { generateNewsletterHtml, getDefaultNewsletterSettings } from '@/lib/newsletter-template';
+import { getBaseUrl } from '@/lib/base-url';
 
 interface Props {
   params: Promise<{
@@ -142,7 +143,7 @@ export async function PUT(request: NextRequest, { params }: Props) {
       featuredAppointments,
       upcomingAppointments,
       statusReportsByGroup: groupsWithReports,
-      baseUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL || 'http://localhost:3000'
+      baseUrl: getBaseUrl()
     });
 
     // Update newsletter with new content

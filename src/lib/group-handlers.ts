@@ -5,6 +5,7 @@ import { Group, GroupStatus, ResponsiblePerson, StatusReport, StatusReportStatus
 import { put, del } from '@vercel/blob';
 import slugify from 'slugify';
 import { sendEmail } from './email';
+import { getBaseUrl } from './base-url';
 
 /**
  * Types for group operations
@@ -942,7 +943,7 @@ export async function sendGroupAcceptanceEmail(group: Group & { responsiblePerso
     }
     
     const recipients = group.responsiblePersons.map(person => person.email).join(',');
-    const statusReportFormUrl = `${process.env.VERCEL_PROJECT_PRODUCTION_URL}/gruppen-bericht`;
+    const statusReportFormUrl = `${getBaseUrl()}/gruppen-bericht`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -1039,7 +1040,7 @@ export async function sendStatusReportAcceptanceEmail(
     }
     
     const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
-    const reportUrl = `${process.env.VERCEL_PROJECT_PRODUCTION_URL}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
+    const reportUrl = `${getBaseUrl()}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
     const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
     
     const html = `

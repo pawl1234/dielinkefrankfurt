@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
 import { generateNewsletterHtml, getDefaultNewsletterSettings } from '@/lib/newsletter-template';
 import { format } from 'date-fns';
+import { getBaseUrl } from '@/lib/base-url';
 
 // Helper function to get newsletter settings from database
 async function getNewsletterSettingsFromDB() {
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
       featuredAppointments,
       upcomingAppointments,
       statusReportsByGroup: groupsWithReports,
-      baseUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL || 'http://localhost:3000'
+      baseUrl: getBaseUrl()
     });
 
     // Create newsletter with generated content
