@@ -10,19 +10,17 @@ import {
   Divider,
   Chip,
   CircularProgress,
-  Card,
-  CardMedia,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Link from 'next/link';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components/ui/FileThumbnail';
 
 interface Appointment {
   id: number;
@@ -37,6 +35,8 @@ interface Appointment {
   postalCode: string | null;
   recurringText: string | null;
   fileUrls: string | null;
+  metadata: string | null;
+  featured: boolean;
 }
 
 type Params = {
@@ -233,61 +233,32 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
               </Box>
             </Box>
             
-            {appointment.fileUrls && (
+            {/* Display cover images if featured */}
+            {appointment.featured && appointment.metadata && parseCoverImages(appointment.metadata).length > 0 && (
+              <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium' }}>
+                  Cover-Bilder
+                </Typography>
+                <FileThumbnailGrid
+                  files={parseCoverImages(appointment.metadata)}
+                  gridSize={{ xs: 12, sm: 6, md: 6, lg: 6 }}
+                  height={160}
+                  showFileName={false}
+                />
+              </Box>
+            )}
+
+            {/* Display regular attachments */}
+            {appointment.fileUrls && parseFileUrls(appointment.fileUrls).length > 0 && (
               <Box sx={{ mt: 4 }}>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium' }}>
                   Dateien und Anhänge
                 </Typography>
-                
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                  {JSON.parse(appointment.fileUrls).map((fileUrl: string, index: number) => {
-                    const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');
-                    const isPdf = fileUrl.endsWith('.pdf');
-                    const fileName = fileUrl.split('/').pop() || `Datei-${index + 1}`;
-                    
-                    return (
-                      <Box 
-                        key={fileUrl}
-                        sx={{ 
-                          width: { xs: '100%', sm: '45%', md: '30%', lg: '22%' }, 
-                          mb: 2 
-                        }}
-                      >
-                        <Card variant="outlined">
-                          {isImage && (
-                            <CardMedia
-                              component="img"
-                              height="160"
-                              image={fileUrl}
-                              alt={`Anhang ${index + 1}`}
-                              sx={{ objectFit: 'cover' }}
-                            />
-                          )}
-                          {isPdf && (
-                            <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.100' }}>
-                              <PictureAsPdfIcon sx={{ fontSize: 60, color: 'error.main' }} />
-                            </Box>
-                          )}
-                          <Box sx={{ p: 2 }}>
-                            <Typography variant="body2" noWrap title={fileName}>
-                              {fileName}
-                            </Typography>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              href={fileUrl}
-                              target="_blank"
-                              fullWidth
-                              sx={{ mt: 1 }}
-                            >
-                              Öffnen
-                            </Button>
-                          </Box>
-                        </Card>
-                      </Box>
-                    );
-                  })}
-                </Box>
+                <FileThumbnailGrid
+                  files={parseFileUrls(appointment.fileUrls)}
+                  gridSize={{ xs: 12, sm: 6, md: 4, lg: 3 }}
+                  height={160}
+                />
               </Box>
             )}
             

@@ -21,7 +21,7 @@ import {
   Box, Typography, Paper, IconButton, Container, Button, CircularProgress, Grid, Chip,
   Dialog, DialogActions, DialogContent, DialogTitle, TextField, MenuItem, Select,
   FormControl, InputLabel, Divider, Tooltip, Accordion, AccordionSummary,
-  AccordionDetails, Card, CardMedia, CardContent, CardActions
+  AccordionDetails
 } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -29,12 +29,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import { Attachment as AttachmentIcon } from '@mui/icons-material';
 
 
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail';
 
 // This is the main StatusReport type for this page, aligned with Prisma
 interface StatusReport {
@@ -293,13 +292,6 @@ export default function AdminStatusReportsPage() {
     return 'N/A'; 
   };
 
-  const getImageUrls = (fileUrls: string | null | undefined): string[] => { 
-     if (!fileUrls) return [];
-    try {
-      const parsed = JSON.parse(fileUrls);
-      return Array.isArray(parsed) ? parsed.filter(url => typeof url === 'string') : [];
-    } catch (e) { console.error('Error parsing file URLs:', e); return []; }
-  };
 
   if (authStatus === 'loading' || authStatus === 'unauthenticated') return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
 
@@ -444,27 +436,14 @@ export default function AdminStatusReportsPage() {
                               )}
                               <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Status:</Typography><Chip label={getStatusInfo(report.status).label} color={getStatusInfo(report.status).color as any} size="small"/></Box>
                             </Grid>
-                            {getImageUrls(report.fileUrls).length > 0 && (
+                            {report.fileUrls && parseFileUrls(report.fileUrls).length > 0 && (
                               <Grid size={{ xs: 12 }}>
                                 <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>Anhänge</Typography>
-                                <Grid container spacing={2}>
-                                  {getImageUrls(report.fileUrls).map((fileUrl, index) => {
-                                    const isImage = /\.(jpe?g|png|gif|webp)$/i.test(fileUrl);
-                                    const isPdf = /\.pdf$/i.test(fileUrl);
-                                    const fileName = fileUrl.split('/').pop()?.split('?')[0] || `Anhang ${index + 1}`;
-                                    return (
-                                      <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={fileUrl + index}>
-                                        <Card variant="outlined">
-                                          {isImage && <CardMedia component="img" height="140" image={fileUrl} alt={fileName} sx={{ objectFit: 'cover' }} />}
-                                          {isPdf && <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', height: 140 }}><PictureAsPdfIcon sx={{ fontSize: 40, color: 'error.main' }} /></Box>}
-                                          {!isImage && !isPdf && <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', height: 140 }}><AttachmentIcon sx={{ fontSize: 40, color: 'text.secondary' }} /></Box>}
-                                          <CardContent sx={{ py: 1 }}><Typography variant="caption" noWrap title={fileName}>{fileName}</Typography></CardContent>
-                                          <CardActions><Button variant="outlined" size="small" href={fileUrl} target="_blank" rel="noopener noreferrer" fullWidth>Öffnen</Button></CardActions>
-                                        </Card>
-                                      </Grid>
-                                    );
-                                  })}
-                                </Grid>
+                                <FileThumbnailGrid
+                                  files={parseFileUrls(report.fileUrls)}
+                                  gridSize={{ xs: 12, sm: 6, md: 4, lg: 3 }}
+                                  height={140}
+                                />
                               </Grid>
                             )}
                             <Grid size={{ xs: 12 }}>

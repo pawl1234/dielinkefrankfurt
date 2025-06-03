@@ -22,16 +22,11 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
-  Grid,
-  CardMedia,
-  CardContent,
-  CardActions,
-  Card
+  Grid
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EventIcon from '@mui/icons-material/Event';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import EditIcon from '@mui/icons-material/Edit';
 import CancelIcon from '@mui/icons-material/Cancel';
 import { format } from 'date-fns';
@@ -39,6 +34,7 @@ import { de } from 'date-fns/locale';
 import FeaturedToggle from '@/components/newsletter/FeaturedToggle';
 import EditAppointmentWrapper from '@/components/forms/appointments/EditAppointmentWrapper';
 import { useAdminState } from '@/hooks/useAdminState';
+import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components/ui/FileThumbnail';
 
 // Define the Appointment type based on our Prisma schema
 interface Appointment {
@@ -565,101 +561,12 @@ export default function AdminAppointmentsPage() {
                                     <Typography variant="subtitle2" gutterBottom>
                                       Cover-Bilder (Featured Termin)
                                     </Typography>
-                                    <Grid container spacing={2}>
-                                      {(() => {
-                                        try {
-                                          const metadata = JSON.parse(appointment.metadata);
-                                          const coverItems = [];
-                                          
-                                          if (metadata.coverImageUrl) {
-                                            const urlKey = metadata.coverImageUrl.split("?")[0];
-                                            const originalKey = `original-cover-${urlKey}`;
-                                            
-                                            coverItems.push(
-                                              <Grid size={{ xs: 12, sm: 6 }} key={originalKey}>
-                                                <Card variant="outlined" sx={{ mb: 1 }}>
-                                                  <CardMedia
-                                                    component="img"
-                                                    height="140"
-                                                    image={metadata.coverImageUrl}
-                                                    alt="Original Cover-Bild"
-                                                    sx={{ objectFit: 'cover' }}
-                                                  />
-                                                  <CardContent sx={{ py: 1 }}>
-                                                    <Typography variant="caption" noWrap>
-                                                      Original Cover-Bild
-                                                    </Typography>
-                                                  </CardContent>
-                                                  <CardActions>
-                                                    <Button
-                                                      variant="outlined"
-                                                      size="small"
-                                                      href={metadata.coverImageUrl}
-                                                      target="_blank"
-                                                      fullWidth
-                                                    >
-                                                      Öffnen
-                                                    </Button>
-                                                  </CardActions>
-                                                </Card>
-                                              </Grid>
-                                            );
-                                          }
-                                          
-                                          if (metadata.croppedCoverImageUrl) {
-                                            const croppedUrlKey = metadata.croppedCoverImageUrl.split("?")[0];
-                                            const croppedKey = `cropped-cover-${croppedUrlKey}`;
-                                            
-                                            coverItems.push(
-                                              <Grid size={{ xs: 12, sm: 6 }} key={croppedKey}>
-                                                <Card variant="outlined" sx={{ mb: 1 }}>
-                                                  <CardMedia
-                                                    component="img"
-                                                    height="140"
-                                                    image={metadata.croppedCoverImageUrl}
-                                                    alt="Zugeschnittenes Cover-Bild (14:5)"
-                                                    sx={{ objectFit: 'cover' }}
-                                                  />
-                                                  <CardContent sx={{ py: 1 }}>
-                                                    <Typography variant="caption" noWrap>
-                                                      Zugeschnittenes Cover-Bild (14:5)
-                                                    </Typography>
-                                                  </CardContent>
-                                                  <CardActions>
-                                                    <Button
-                                                      variant="outlined"
-                                                      size="small"
-                                                      href={metadata.croppedCoverImageUrl}
-                                                      target="_blank"
-                                                      fullWidth
-                                                    >
-                                                      Öffnen
-                                                    </Button>
-                                                  </CardActions>
-                                                </Card>
-                                              </Grid>
-                                            );
-                                          }
-                                          
-                                          return coverItems.length > 0 ? coverItems : (
-                                            <Grid size={{ xs: 12 }}>
-                                              <Typography variant="body2" color="text.secondary">
-                                                Kein Cover-Bild vorhanden.
-                                              </Typography>
-                                            </Grid>
-                                          );
-                                        } catch (e) {
-                                          console.error("Error parsing metadata:", e);
-                                          return (
-                                            <Grid size={{ xs: 12 }}>
-                                              <Typography variant="body2" color="error">
-                                                Fehler beim Laden der Cover-Bilder.
-                                              </Typography>
-                                            </Grid>
-                                          );
-                                        }
-                                      })()}
-                                    </Grid>
+                                    <FileThumbnailGrid
+                                      files={parseCoverImages(appointment.metadata)}
+                                      gridSize={{ xs: 12, sm: 6 }}
+                                      height={140}
+                                      emptyMessage="Kein Cover-Bild vorhanden."
+                                    />
                                   </Box>
                                 )}
                               
@@ -669,50 +576,12 @@ export default function AdminAppointmentsPage() {
                                     <Typography variant="subtitle2" gutterBottom>
                                       Weitere Anhänge
                                     </Typography>
-                                    <Grid container spacing={1}>
-                                      {JSON.parse(appointment.fileUrls).map((fileUrl: string, index: number) => {
-                                        const isImage = fileUrl.endsWith('.jpg') || fileUrl.endsWith('.jpeg') || fileUrl.endsWith('.png');
-                                        const isPdf = fileUrl.endsWith('.pdf');
-                                        const fileName = fileUrl.split('/').pop() || `File-${index + 1}`;
-  
-                                        return (
-                                          <Grid size={{ xs: 12, sm: 6 }} key={fileUrl}>
-                                            <Card variant="outlined" sx={{ mb: 1 }}>
-                                              {isImage && (
-                                                <CardMedia
-                                                  component="img"
-                                                  height="140"
-                                                  image={fileUrl}
-                                                  alt={`Attachment ${index + 1}`}
-                                                  sx={{ objectFit: 'cover' }}
-                                                />
-                                              )}
-                                              {isPdf && (
-                                                <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-                                                  <PictureAsPdfIcon sx={{ fontSize: 40, color: 'error.main' }} />
-                                                </Box>
-                                              )}
-                                              <CardContent sx={{ py: 1 }}>
-                                                <Typography variant="caption" noWrap title={fileName}>
-                                                  {fileName}
-                                                </Typography>
-                                              </CardContent>
-                                              <CardActions>
-                                                <Button
-                                                  variant="outlined"
-                                                  size="small"
-                                                  href={fileUrl}
-                                                  target="_blank"
-                                                  fullWidth
-                                                >
-                                                  Öffnen
-                                                </Button>
-                                              </CardActions>
-                                            </Card>
-                                          </Grid>
-                                        );
-                                      })}
-                                    </Grid>
+                                    <FileThumbnailGrid
+                                      files={parseFileUrls(appointment.fileUrls)}
+                                      gridSize={{ xs: 12, sm: 6 }}
+                                      height={140}
+                                      emptyMessage="Keine weiteren Anhänge vorhanden."
+                                    />
                                   </Box>
                                 )}
                               </Grid>

@@ -16,15 +16,12 @@ import {
   InputLabel,
   Select,
   FormHelperText,
-  CardMedia,
-  CardActions,
-  Grid 
+  Grid
 } from '@mui/material';
 import RichTextEditor from '../../editor/RichTextEditor';
 import FileUpload from '@/components/upload/FileUpload';
 import SectionHeader from '@/components/layout/SectionHeader';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import { Attachment as AttachmentIcon } from '@mui/icons-material'; 
+import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail'; 
 
 interface Group {
   id: string;
@@ -281,28 +278,20 @@ export default function EditStatusReportForm({
           <FileUpload onFilesSelect={setNewlySelectedFiles} maxFiles={5 - currentExistingFileUrls.length} />
           {currentExistingFileUrls.length > 0 && (
             <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>Vorhandene Anhänge ({currentExistingFileUrls.length})</Typography>
-              <Grid container spacing={2}>
-                {currentExistingFileUrls.map((fileUrl) => {
-                  const isImage = /\.(jpe?g|png|gif|webp)$/i.test(fileUrl);
-                  const isPdf = /\.pdf$/i.test(fileUrl);
-                  const fileName = fileUrl.split('/').pop()?.split('?')[0] || `Anhang`;
-                  return (
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={fileUrl}>
-                      <Card variant="outlined">
-                        {isImage && <CardMedia component="img" height="140" image={fileUrl} alt={fileName} sx={{ objectFit: 'cover' }} />}
-                        {isPdf && <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', height: 140 }}><PictureAsPdfIcon sx={{ fontSize: 40, color: 'error.main' }} /></Box>}
-                        {!isImage && !isPdf && <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', height: 140 }}><AttachmentIcon sx={{ fontSize: 40, color: 'text.secondary' }} /></Box>}
-                        <CardContent sx={{ py: 1 }}><Typography variant="caption" noWrap title={fileName}>{fileName}</Typography></CardContent>
-                        <CardActions sx={{ justifyContent: 'space-between' }}>
-                          <Button size="small" href={fileUrl} target="_blank" rel="noopener noreferrer">Öffnen</Button>
-                          <Button size="small" color="error" onClick={() => setCurrentExistingFileUrls(prev => prev.filter(url => url !== fileUrl))}>Entfernen</Button>
-                        </CardActions>
-                      </Card>
-                    </Grid>
-                  );
-                })}
-              </Grid>
+              <Typography variant="subtitle1" gutterBottom>
+                Vorhandene Anhänge ({currentExistingFileUrls.length})
+              </Typography>
+              <FileThumbnailGrid
+                files={parseFileUrls(JSON.stringify(currentExistingFileUrls))}
+                gridSize={{ xs: 12, sm: 6, md: 4 }}
+                height={140}
+                showRemoveButton={true}
+                onRemove={(file) => {
+                  if (file.url) {
+                    setCurrentExistingFileUrls(prev => prev.filter(url => url !== file.url));
+                  }
+                }}
+              />
             </Box>
           )}
         </CardContent>

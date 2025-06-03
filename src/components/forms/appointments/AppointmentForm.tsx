@@ -5,6 +5,7 @@ import { useForm, Controller, Path } from 'react-hook-form';
 import RichTextEditor from '../../editor/RichTextEditor';
 import FileUpload from '@/components/upload/FileUpload';
 import CoverImageUpload from '@/components/upload/CoverImageUpload';
+import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail';
 import DateTimePicker from '@/components/ui/DateTimePicker'; // Updated DateTimePicker will be used
 import AddressFields from '../shared/AddressFields';
 import RequesterFields from '../shared/RequesterFields';
@@ -13,9 +14,8 @@ import FormSection from '../shared/FormSection';
 import FormBase, { FieldRefMap, CustomValidationEntry } from '../shared/FormBase';
 import {
   Box, Typography, TextField, Checkbox, FormControlLabel,
-  Collapse, Paper, CardMedia, CardContent, CardActions, Button, Card,
+  Collapse, Paper, Button,
 } from '@mui/material';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 interface FormInput {
   title: string;
@@ -264,7 +264,22 @@ export default function AppointmentForm({
       <FormSection title="Datei Anhänge (optional)" helpTitle="Anhänge hochladen" helpText={helpTextAttachments}>
         <Box ref={fileRef} sx={{mb:2}}><FileUpload onFilesSelect={setFileList} maxFiles={5} /></Box>
         {mode === 'edit' && existingFileUrls.length > 0 && (
-             <Box sx={{ mt: 3 }}> <Typography variant="subtitle1" gutterBottom> Vorhandene Anhänge </Typography> <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}> {existingFileUrls.map((fileUrl, index) => { const isImage = /\.(jpe?g|png|gif|webp)$/i.test(fileUrl); const isPdf = /\.pdf$/i.test(fileUrl); const fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1) || `Anhang-${index + 1}`; return ( <Box key={`${fileUrl}-${index}`} sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', md: 'calc(33.333% - 11px)' } }}> <Card variant="outlined"> {isImage && <CardMedia component="img" height="140" image={fileUrl} alt={fileName} sx={{ objectFit: 'cover' }} />} {isPdf && <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140 }}><PictureAsPdfIcon sx={{ fontSize: 60, color: 'error.main' }} /></Box>} {!isImage && !isPdf && <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140 }}><Typography>Datei</Typography></Box>} <CardContent sx={{ py: 1, px: 1.5 }}> <Typography variant="caption" noWrap title={fileName} sx={{ display: 'block' }}> {fileName} </Typography> </CardContent> <CardActions sx={{ justifyContent: 'space-between', px: 1, pb: 1}}> <Button size="small" href={fileUrl} target="_blank" rel="noopener noreferrer"> Öffnen </Button> <Button size="small" color="error" onClick={() => { setExistingFileUrls(prev => prev.filter((url, i) => i !== index)); }}> Entfernen </Button> </CardActions> </Card> </Box> ); })} </Box> </Box>
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Vorhandene Anhänge
+            </Typography>
+            <FileThumbnailGrid
+              files={parseFileUrls(JSON.stringify(existingFileUrls))}
+              gridSize={{ xs: 12, sm: 6, md: 4 }}
+              height={140}
+              showRemoveButton={true}
+              onRemove={(file) => {
+                if (file.url) {
+                  setExistingFileUrls(prev => prev.filter(url => url !== file.url));
+                }
+              }}
+            />
+          </Box>
         )}
       </FormSection>
 
