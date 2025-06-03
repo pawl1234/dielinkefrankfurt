@@ -74,10 +74,49 @@ export const getCoverImageUrl = (appointment: Appointment): string | null => {
 };
 
 /**
- * Format date helper
+ * Format date helper (date only)
  */
 export const formatDate = (dateString: Date | string): string => {
   return format(new Date(dateString), 'PPP', { locale: de });
+};
+
+/**
+ * Format date and time helper
+ */
+export const formatDateTime = (dateString: Date | string): string => {
+  return format(new Date(dateString), 'PPP p', { locale: de });
+};
+
+/**
+ * Format time only helper
+ */
+export const formatTime = (dateString: Date | string): string => {
+  return format(new Date(dateString), 'p', { locale: de });
+};
+
+/**
+ * Format date range for appointments
+ */
+export const formatAppointmentDateRange = (startDateTime: Date | string, endDateTime?: Date | string | null): string => {
+  const start = new Date(startDateTime);
+  
+  if (!endDateTime) {
+    return formatDateTime(start);
+  }
+  
+  const end = new Date(endDateTime);
+  const startDate = format(start, 'PPP', { locale: de });
+  const endDate = format(end, 'PPP', { locale: de });
+  const startTime = format(start, 'p', { locale: de });
+  const endTime = format(end, 'p', { locale: de });
+  
+  // If same date, show: "5. Juni 2025, 14:00 - 16:00"
+  if (startDate === endDate) {
+    return `${startDate}, ${startTime} - ${endTime} Uhr`;
+  }
+  
+  // If different dates, show: "5. Juni 2025, 14:00 - 6. Juni 2025, 16:00"
+  return `${startDate}, ${startTime} Uhr - ${endDate}, ${endTime} Uhr`;
 };
 
 /**
@@ -112,8 +151,7 @@ export const generateFeaturedEventsHtml = (
               <td class="featured-content" width="65%" valign="top">
                 <h3 class="event-title">${appointment.title}</h3>
                 <p class="upcoming-date">
-                  ${formatDate(appointment.startDateTime)}
-                  ${appointment.endDateTime ? ` - ${formatDate(appointment.endDateTime)}` : ''}
+                  ${formatAppointmentDateRange(appointment.startDateTime, appointment.endDateTime)}
                 </p>
                 <p class="event-teaser">${truncatedText}</p>
                 <div class="button-container">
@@ -156,7 +194,7 @@ export const generateUpcomingEventsHtml = (
         <td class="upcoming-event">
           <h3 class="upcoming-title">${appointment.title}</h3>
           <p class="upcoming-date">
-            ${formatDate(appointment.startDateTime)}
+            ${formatAppointmentDateRange(appointment.startDateTime, appointment.endDateTime)}
           </p>
           <p class="event-teaser">${truncatedText}</p>
           <a href="${detailUrl}" class="event-button">
