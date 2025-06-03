@@ -14,7 +14,13 @@ const getBaseUrl = () => {
   // If VERCEL_PROJECT_PRODUCTION_URL is provided
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     const url = process.env.VERCEL_PROJECT_PRODUCTION_URL.trim();
-
+    
+    // Check if URL already has a protocol
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Add https protocol if missing
     return `https://${url}`;
   }
   
