@@ -1,6 +1,6 @@
-import { Appointment, Newsletter, Group, StatusReport } from '@prisma/client';
-import { format } from 'date-fns';
+import { Appointment, Group, StatusReport } from '@prisma/client';
 import { de } from 'date-fns/locale';
+import { formatInTimeZone } from 'date-fns-tz';
 
 // Custom type for newsletter settings with defaults
 export interface NewsletterSettings {
@@ -74,24 +74,29 @@ export const getCoverImageUrl = (appointment: Appointment): string | null => {
 };
 
 /**
+ * Set fixed timezone
+ */
+const timeZone = 'Europe/Berlin';
+
+/**
  * Format date helper (date only)
  */
 export const formatDate = (dateString: Date | string): string => {
-  return format(new Date(dateString), 'PPP', { locale: de });
+  return formatInTimeZone(new Date(dateString), timeZone, 'PPP', { locale: de });
 };
 
 /**
  * Format date and time helper
  */
 export const formatDateTime = (dateString: Date | string): string => {
-  return format(new Date(dateString), 'PPP p', { locale: de });
+  return formatInTimeZone(new Date(dateString), timeZone, 'PPP p', { locale: de });
 };
 
 /**
  * Format time only helper
  */
 export const formatTime = (dateString: Date | string): string => {
-  return format(new Date(dateString), 'p', { locale: de });
+  return formatInTimeZone(new Date(dateString), timeZone, 'p', { locale: de });
 };
 
 /**
@@ -105,10 +110,10 @@ export const formatAppointmentDateRange = (startDateTime: Date | string, endDate
   }
   
   const end = new Date(endDateTime);
-  const startDate = format(start, 'PPP', { locale: de });
-  const endDate = format(end, 'PPP', { locale: de });
-  const startTime = format(start, 'p', { locale: de });
-  const endTime = format(end, 'p', { locale: de });
+  const startDate = formatInTimeZone(start, timeZone, 'PPP', { locale: de });
+  const endDate = formatInTimeZone(end, timeZone, 'PPP', { locale: de });
+  const startTime = formatInTimeZone(start, timeZone, 'p', { locale: de });
+  const endTime = formatInTimeZone(end, timeZone, 'p', { locale: de });
   
   // If same date, show: "5. Juni 2025, 14:00 - 16:00"
   if (startDate === endDate) {
