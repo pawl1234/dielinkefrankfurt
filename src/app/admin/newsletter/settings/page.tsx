@@ -16,9 +16,15 @@ import {
   Button,
   Divider,
   Alert,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Grid,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SaveIcon from '@mui/icons-material/Save';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import TuneIcon from '@mui/icons-material/Tune';
 
 export default function NewsletterSettingsPage() {
   const router = useRouter();
@@ -39,6 +45,18 @@ export default function NewsletterSettingsPage() {
     subjectTemplate: '',
     batchSize: 100,
     batchDelay: 1000,
+    // Advanced performance settings
+    chunkSize: 250,
+    chunkDelay: 500,
+    emailDelay: 50,
+    emailTimeout: 60000,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 45000,
+    maxConnections: 5,
+    maxMessages: 100,
+    maxRetries: 3,
+    maxBackoffDelay: 10000,
   });
 
   useEffect(() => {
@@ -249,6 +267,190 @@ export default function NewsletterSettingsPage() {
               margin="normal"
               helperText="Millisekunden zwischen Batches (100-10000)"
             />
+            
+            <Divider sx={{ my: 3 }} />
+            
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="advanced-settings-content"
+                id="advanced-settings-header"
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TuneIcon />
+                  <Typography variant="h6">
+                    Erweiterte Einstellungen
+                  </Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Diese Einstellungen sind für fortgeschrittene Benutzer. Änderungen können die E-Mail-Versand-Performance beeinflussen.
+                </Typography>
+                
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
+                  Chunk-Einstellungen
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Chunk-Größe"
+                      value={settings.chunkSize || 250}
+                      onChange={(e) => setSettings({ ...settings, chunkSize: parseInt(e.target.value) || 250 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 1, max: 1000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="E-Mails pro Chunk für Connection Pooling (1-1000)"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Chunk-Verzögerung (ms)"
+                      value={settings.chunkDelay || 500}
+                      onChange={(e) => setSettings({ ...settings, chunkDelay: parseInt(e.target.value) || 500 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 100, max: 5000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Millisekunden zwischen Chunks (100-5000)"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+                  E-Mail Timing
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="E-Mail-Verzögerung (ms)"
+                      value={settings.emailDelay || 50}
+                      onChange={(e) => setSettings({ ...settings, emailDelay: parseInt(e.target.value) || 50 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 10, max: 1000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Millisekunden zwischen einzelnen E-Mails (10-1000)"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="E-Mail-Timeout (ms)"
+                      value={settings.emailTimeout || 60000}
+                      onChange={(e) => setSettings({ ...settings, emailTimeout: parseInt(e.target.value) || 60000 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 10000, max: 300000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Timeout für einzelne E-Mail (10-300 Sekunden)"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+                  SMTP Verbindungseinstellungen
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      label="Verbindungs-Timeout (ms)"
+                      value={settings.connectionTimeout || 30000}
+                      onChange={(e) => setSettings({ ...settings, connectionTimeout: parseInt(e.target.value) || 30000 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 5000, max: 120000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="SMTP Verbindungs-Timeout (5-120s)"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      label="Begrüßungs-Timeout (ms)"
+                      value={settings.greetingTimeout || 30000}
+                      onChange={(e) => setSettings({ ...settings, greetingTimeout: parseInt(e.target.value) || 30000 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 5000, max: 120000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="SMTP Begrüßungs-Timeout (5-120s)"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      label="Socket-Timeout (ms)"
+                      value={settings.socketTimeout || 45000}
+                      onChange={(e) => setSettings({ ...settings, socketTimeout: parseInt(e.target.value) || 45000 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 5000, max: 180000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="SMTP Socket-Timeout (5-180s)"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+                  Connection Pooling
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Max. Verbindungen"
+                      value={settings.maxConnections || 5}
+                      onChange={(e) => setSettings({ ...settings, maxConnections: parseInt(e.target.value) || 5 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 1, max: 20 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Maximale gleichzeitige SMTP Verbindungen (1-20)"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Max. Nachrichten pro Verbindung"
+                      value={settings.maxMessages || 100}
+                      onChange={(e) => setSettings({ ...settings, maxMessages: parseInt(e.target.value) || 100 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 1, max: 1000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Maximale Nachrichten pro SMTP Verbindung (1-1000)"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+                  Wiederholungslogik
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Max. Wiederholungen"
+                      value={settings.maxRetries || 3}
+                      onChange={(e) => setSettings({ ...settings, maxRetries: parseInt(e.target.value) || 3 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 1, max: 10 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Maximale Anzahl Wiederholungsversuche (1-10)"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Max. Backoff-Verzögerung (ms)"
+                      value={settings.maxBackoffDelay || 10000}
+                      onChange={(e) => setSettings({ ...settings, maxBackoffDelay: parseInt(e.target.value) || 10000 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 1000, max: 60000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Maximale exponential Backoff Verzögerung (1-60s)"
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
             
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
               <Button

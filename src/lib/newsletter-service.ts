@@ -63,6 +63,23 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         replyToEmail: dbSettings.replyToEmail ?? defaultSettings.replyToEmail,
         subjectTemplate: dbSettings.subjectTemplate ?? defaultSettings.subjectTemplate,
         emailSalt: dbSettings.emailSalt || undefined,
+
+        // Newsletter sending performance settings
+        chunkSize: dbSettings.chunkSize ?? defaultSettings.chunkSize,
+        chunkDelay: dbSettings.chunkDelay ?? defaultSettings.chunkDelay,
+        emailDelay: dbSettings.emailDelay ?? defaultSettings.emailDelay,
+        emailTimeout: dbSettings.emailTimeout ?? defaultSettings.emailTimeout,
+
+        // SMTP connection settings
+        connectionTimeout: dbSettings.connectionTimeout ?? defaultSettings.connectionTimeout,
+        greetingTimeout: dbSettings.greetingTimeout ?? defaultSettings.greetingTimeout,
+        socketTimeout: dbSettings.socketTimeout ?? defaultSettings.socketTimeout,
+        maxConnections: dbSettings.maxConnections ?? defaultSettings.maxConnections,
+        maxMessages: dbSettings.maxMessages ?? defaultSettings.maxMessages,
+
+        // Retry logic settings
+        maxRetries: dbSettings.maxRetries ?? defaultSettings.maxRetries,
+        maxBackoffDelay: dbSettings.maxBackoffDelay ?? defaultSettings.maxBackoffDelay,
         
         // System fields
         id: dbSettings.id,
@@ -123,7 +140,24 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           fromName: data.fromName,
           replyToEmail: data.replyToEmail,
           subjectTemplate: data.subjectTemplate,
-          emailSalt: data.emailSalt
+          emailSalt: data.emailSalt,
+
+          // Newsletter sending performance settings
+          chunkSize: data.chunkSize,
+          chunkDelay: data.chunkDelay,
+          emailDelay: data.emailDelay,
+          emailTimeout: data.emailTimeout,
+
+          // SMTP connection settings
+          connectionTimeout: data.connectionTimeout,
+          greetingTimeout: data.greetingTimeout,
+          socketTimeout: data.socketTimeout,
+          maxConnections: data.maxConnections,
+          maxMessages: data.maxMessages,
+
+          // Retry logic settings
+          maxRetries: data.maxRetries,
+          maxBackoffDelay: data.maxBackoffDelay
         }
       });
     } else {
@@ -144,7 +178,24 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           fromEmail: data.fromEmail || defaultSettings.fromEmail,
           fromName: data.fromName || defaultSettings.fromName,
           replyToEmail: data.replyToEmail || defaultSettings.replyToEmail,
-          subjectTemplate: data.subjectTemplate || defaultSettings.subjectTemplate
+          subjectTemplate: data.subjectTemplate || defaultSettings.subjectTemplate,
+
+          // Newsletter sending performance settings
+          chunkSize: data.chunkSize || defaultSettings.chunkSize,
+          chunkDelay: data.chunkDelay || defaultSettings.chunkDelay,
+          emailDelay: data.emailDelay || defaultSettings.emailDelay,
+          emailTimeout: data.emailTimeout || defaultSettings.emailTimeout,
+
+          // SMTP connection settings
+          connectionTimeout: data.connectionTimeout || defaultSettings.connectionTimeout,
+          greetingTimeout: data.greetingTimeout || defaultSettings.greetingTimeout,
+          socketTimeout: data.socketTimeout || defaultSettings.socketTimeout,
+          maxConnections: data.maxConnections || defaultSettings.maxConnections,
+          maxMessages: data.maxMessages || defaultSettings.maxMessages,
+
+          // Retry logic settings
+          maxRetries: data.maxRetries || defaultSettings.maxRetries,
+          maxBackoffDelay: data.maxBackoffDelay || defaultSettings.maxBackoffDelay
         }
       });
     }

@@ -3,7 +3,7 @@ import { withAdminAuth } from '@/lib/api-auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
-import { sendEmail } from '@/lib/email';
+import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
 import { format } from 'date-fns';
 
@@ -89,6 +89,46 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
       }
     });
 
+    // Create a single transporter for this entire chunk (connection pooling)
+    let transporter = createTransporter(emailSettings);
+    
+    // Verify transporter once per chunk with retry logic
+    let retryCount = 0;
+    const maxRetries = emailSettings.maxRetries || 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        await transporter.verify();
+        break; // No logging for successful verification
+      } catch (verifyError: any) {
+        retryCount++;
+        
+        // Check if it's a connection error
+        const isConnectionError = verifyError?.response?.includes('too many connections') || 
+                                 verifyError?.code === 'ECONNREFUSED' ||
+                                 verifyError?.code === 'ESOCKET' ||
+                                 verifyError?.code === 'EPROTOCOL';
+        
+        if (isConnectionError && retryCount < maxRetries) {
+          const maxBackoffDelay = emailSettings.maxBackoffDelay || 10000;
+          const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), maxBackoffDelay); // Exponential backoff
+          logger.warn(`SMTP verification failed for chunk ${chunkIndex + 1} (attempt ${retryCount}/${maxRetries}), retrying in ${backoffDelay}ms`, {
+            context: { error: verifyError?.message || verifyError }
+          });
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        } else {
+          logger.error('SMTP transporter verification failed for chunk', {
+            context: { 
+              error: verifyError,
+              chunkIndex: chunkIndex + 1,
+              attempts: retryCount
+            }
+          });
+          return AppError.validation('SMTP connection failed').toResponse();
+        }
+      }
+    }
+
     // Process emails in this chunk
     let sentCount = 0;
     let failedCount = 0;
@@ -98,41 +138,98 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
       const email = emails[i];
       
       try {
-        logger.info(`Sending email ${i + 1}/${emails.length} in chunk ${chunkIndex + 1}`, {
-          context: {
-            recipientDomain: email.split('@')[1] || 'unknown'
-          }
-        });
-
-        const result = await sendEmail({
+        const result = await sendEmailWithTransporter(transporter, {
           to: email,
           subject: formattedSubject,
           html,
           from,
-          replyTo
+          replyTo,
+          settings: emailSettings
         });
 
         if (result.success) {
           sentCount++;
           results.push({ email, success: true });
-          logger.info(`Email ${i + 1} sent successfully`);
         } else {
-          failedCount++;
-          results.push({ email, success: false, error: result.error });
-          logger.warn(`Email ${i + 1} failed`, {
-            context: { error: result.error }
-          });
+          // Check if this is a connection error after all retries were exhausted
+          if ((result as any).isConnectionError) {
+            logger.warn(`Connection error detected for email ${i + 1}/${emails.length}, recreating transporter`, {
+              context: { 
+                recipientDomain: email.split('@')[1] || 'unknown',
+                error: result.error 
+              }
+            });
+            
+            // Close the old transporter
+            transporter.close();
+            
+            // Create a new transporter
+            transporter = createTransporter(emailSettings);
+            
+            // Retry the email once with the new transporter
+            try {
+              const retryResult = await sendEmailWithTransporter(transporter, {
+                to: email,
+                subject: formattedSubject,
+                html,
+                from,
+                replyTo,
+                settings: emailSettings
+              });
+              
+              if (retryResult.success) {
+                sentCount++;
+                results.push({ email, success: true });
+                logger.info(`Email ${i + 1}/${emails.length} succeeded after transporter recreation`, {
+                  context: { 
+                    recipientDomain: email.split('@')[1] || 'unknown'
+                  }
+                });
+              } else {
+                failedCount++;
+                results.push({ email, success: false, error: retryResult.error });
+                logger.error(`Email ${i + 1}/${emails.length} failed even after transporter recreation`, {
+                  context: { 
+                    recipientDomain: email.split('@')[1] || 'unknown',
+                    error: retryResult.error 
+                  }
+                });
+              }
+            } catch (recreateError) {
+              failedCount++;
+              results.push({ email, success: false, error: recreateError });
+              logger.error(`Email ${i + 1}/${emails.length} threw exception after transporter recreation`, {
+                context: { 
+                  recipientDomain: email.split('@')[1] || 'unknown',
+                  error: recreateError 
+                }
+              });
+            }
+          } else {
+            failedCount++;
+            results.push({ email, success: false, error: result.error });
+            logger.warn(`Email ${i + 1}/${emails.length} failed in chunk ${chunkIndex + 1}`, {
+              context: { 
+                recipientDomain: email.split('@')[1] || 'unknown',
+                error: result.error 
+              }
+            });
+          }
         }
 
-        // Small delay between emails to be nice to the SMTP server
+        // Use configured delay between emails
         if (i < emails.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          const emailDelay = emailSettings.emailDelay || 50; // Use configured delay or default to 50ms
+          await new Promise(resolve => setTimeout(resolve, emailDelay));
         }
       } catch (error) {
         failedCount++;
         results.push({ email, success: false, error });
-        logger.error(`Email ${i + 1} threw exception`, {
-          context: { error }
+        logger.error(`Email ${i + 1}/${emails.length} threw exception in chunk ${chunkIndex + 1}`, {
+          context: { 
+            recipientDomain: email.split('@')[1] || 'unknown',
+            error 
+          }
         });
       }
     }
@@ -186,6 +283,9 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
         finalStatus
       }
     });
+
+    // Close transporter connection pool
+    transporter.close();
 
     const response: ChunkResponse = {
       success: true,

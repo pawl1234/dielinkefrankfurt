@@ -75,6 +75,23 @@ model Newsletter {
   subjectTemplate    String?    // Template for subject line
   emailSalt          String?    // Salt for email hashing
 
+  // Newsletter sending performance settings
+  chunkSize          Int        @default(250)   // Number of emails processed per chunk
+  chunkDelay         Int        @default(500)   // Milliseconds between chunks
+  emailDelay         Int        @default(50)    // Milliseconds between individual emails
+  emailTimeout       Int        @default(60000) // Email sending timeout in milliseconds
+
+  // SMTP connection settings
+  connectionTimeout  Int        @default(30000) // SMTP connection timeout in milliseconds
+  greetingTimeout    Int        @default(30000) // SMTP greeting timeout in milliseconds
+  socketTimeout      Int        @default(45000) // SMTP socket timeout in milliseconds
+  maxConnections     Int        @default(5)     // Maximum concurrent SMTP connections
+  maxMessages        Int        @default(100)   // Maximum messages per SMTP connection
+
+  // Retry logic settings
+  maxRetries         Int        @default(3)     // Maximum verification retries
+  maxBackoffDelay    Int        @default(10000) // Maximum backoff delay in milliseconds
+
   // System fields
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt

@@ -273,9 +273,10 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           totalFailed
         });
 
-        // Small delay between chunks to prevent overwhelming the server
+        // Use configured delay between chunks  
         if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          const chunkDelay = prepareData.settings?.chunkDelay || 500; // Use configured delay or default to 500ms
+          await new Promise(resolve => setTimeout(resolve, chunkDelay));
         }
 
       } catch (err) {

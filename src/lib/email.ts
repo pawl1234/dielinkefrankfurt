@@ -3,7 +3,7 @@ import htmlToText from 'nodemailer-html-to-text';
 import { logger } from './logger';
 
 // Create a reusable transporter object using SMTP transport
-const createTransporter = () => {
+export const createTransporter = (settings?: any) => {
   const config = {
     host: process.env.EMAIL_SERVER_HOST,
     port: Number(process.env.EMAIL_SERVER_PORT) || 1025, // Default to MailDev
@@ -16,15 +16,15 @@ const createTransporter = () => {
     tls: {
       rejectUnauthorized: process.env.NODE_ENV === 'production',
     },
-    // Add timeouts for Vercel environment
-    connectionTimeout: 30000, // 30 seconds
-    greetingTimeout: 30000, // 30 seconds
-    socketTimeout: 45000, // 45 seconds
+    // Use configured timeouts or defaults
+    connectionTimeout: settings?.connectionTimeout || 30000, // 30 seconds default
+    greetingTimeout: settings?.greetingTimeout || 30000, // 30 seconds default
+    socketTimeout: settings?.socketTimeout || 45000, // 45 seconds default
     
-    // Disable connection pooling for serverless environment
-    pool: false, // Disable connection pooling (problematic in serverless)
-    maxConnections: 1, // Single connection only
-    maxMessages: 1, // One message per connection in serverless
+    // Use configured connection pooling settings or defaults
+    pool: true, // Enable connection pooling for efficiency
+    maxConnections: settings?.maxConnections || 5, // Default to 5 connections
+    maxMessages: settings?.maxMessages || 100, // Default to 100 messages per connection
   };
   
   logger.info('Creating SMTP transporter for serverless environment', {
@@ -46,55 +46,164 @@ const createTransporter = () => {
 };
 
 // Create a fresh transporter for each batch (better for serverless)
-const getTransporter = () => {
-  return createTransporter();
+const getTransporter = (settings?: any) => {
+  return createTransporter(settings);
 };
 
-// Send email with HTML content
-export const sendEmail = async ({
+// Send email with HTML content using provided transporter
+export const sendEmailWithTransporter = async (transporter: any, {
   to,
   subject,
   html,
   from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
   replyTo,
+  settings,
 }: {
   to: string;
   subject: string;
   html: string;
   from?: string;
   replyTo?: string;
+  settings?: any;
+}) => {
+  const startTime = Date.now();
+  const maxRetries = settings?.maxRetries || 3;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Create a timeout promise for the sendMail operation
+      const emailTimeout = settings?.emailTimeout || 60000;
+      const sendMailTimeout = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Email sending timed out after ${emailTimeout / 1000} seconds`));
+        }, emailTimeout);
+      });
+      
+      const sendMailPromise = transporter.sendMail({
+        from: from,
+        to: to,
+        subject: subject,
+        html: html,
+        replyTo: replyTo || from,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8'
+        }
+      });
+      
+      const info = await Promise.race([sendMailPromise, sendMailTimeout]);
+      
+      return { success: true, messageId: (info as any).messageId };
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      
+      // Check if it's a connection error that should be retried
+      const isConnectionError = error?.response?.includes('too many connections') || 
+                               error?.code === 'ECONNREFUSED' ||
+                               error?.code === 'ESOCKET' ||
+                               error?.code === 'EPROTOCOL' ||
+                               error?.code === 'ETIMEDOUT';
+      
+      // If it's the last attempt or not a connection error, fail
+      if (attempt === maxRetries || !isConnectionError) {
+        logger.error('Failed to send email with shared transporter', {
+          context: {
+            recipientDomain: to.split('@')[1] || 'unknown',
+            duration: `${duration}ms`,
+            attempts: attempt,
+            error: error instanceof Error ? {
+              message: error.message,
+              code: (error as any).code,
+              errno: (error as any).errno,
+              syscall: (error as any).syscall
+            } : error
+          }
+        });
+        
+        return { 
+          success: false, 
+          error,
+          isConnectionError: isConnectionError && attempt === maxRetries 
+        };
+      }
+      
+      // Calculate backoff delay for retry
+      const maxBackoffDelay = settings?.maxBackoffDelay || 10000;
+      const backoffDelay = Math.min(1000 * Math.pow(2, attempt - 1), maxBackoffDelay);
+      
+      logger.warn(`Email send failed (attempt ${attempt}/${maxRetries}), retrying in ${backoffDelay}ms`, {
+        context: { 
+          recipientDomain: to.split('@')[1] || 'unknown',
+          error: error?.message || error 
+        }
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+    }
+  }
+  
+  // This should never be reached, but just in case
+  return { success: false, error: new Error('Max retries exceeded') };
+};
+
+// Send email with HTML content (creates new transporter each time)
+export const sendEmail = async ({
+  to,
+  subject,
+  html,
+  from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
+  replyTo,
+  settings,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
+  replyTo?: string;
+  settings?: any;
 }) => {
   const startTime = Date.now();
   
   try {
-    // Log email attempt (without recipient email for privacy)
-    logger.info('Attempting to send email', {
-      context: {
-        recipientDomain: to.split('@')[1] || 'unknown',
-        subjectLength: subject.length,
-        htmlLength: html.length,
-        fromDomain: from.split('@')[1] || 'unknown',
-        hasReplyTo: !!replyTo
-      }
-    });
     
-    const transporter = getTransporter();
+    const transporter = getTransporter(settings);
     
-    // Verify transporter configuration in production
+    // Verify transporter configuration in production with retry logic
     if (process.env.NODE_ENV === 'production') {
-      try {
-        await transporter.verify();
-        logger.info('SMTP transporter verified successfully');
-      } catch (verifyError) {
-        logger.error('SMTP transporter verification failed', {
-          context: {
-            error: verifyError,
-            host: process.env.EMAIL_SERVER_HOST,
-            port: process.env.EMAIL_SERVER_PORT,
-            hasAuth: !!(process.env.EMAIL_SERVER_USER && process.env.EMAIL_SERVER_PASSWORD)
+      let retryCount = 0;
+      const maxRetries = settings?.maxRetries || 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          await transporter.verify();
+          break; // No logging for successful verification
+        } catch (verifyError: any) {
+          retryCount++;
+          
+          // Check if it's a "too many connections" error
+          const isConnectionError = verifyError?.response?.includes('too many connections') || 
+                                   verifyError?.code === 'ECONNREFUSED' ||
+                                   verifyError?.code === 'EPROTOCOL';
+          
+          if (isConnectionError && retryCount < maxRetries) {
+            const maxBackoffDelay = settings?.maxBackoffDelay || 10000;
+            const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), maxBackoffDelay); // Exponential backoff
+            logger.warn(`SMTP verification failed (attempt ${retryCount}/${maxRetries}), retrying in ${backoffDelay}ms`, {
+              context: { error: verifyError?.message || verifyError }
+            });
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          } else {
+            logger.error('SMTP transporter verification failed', {
+              context: {
+                error: verifyError,
+                host: process.env.EMAIL_SERVER_HOST,
+                port: process.env.EMAIL_SERVER_PORT,
+                hasAuth: !!(process.env.EMAIL_SERVER_USER && process.env.EMAIL_SERVER_PASSWORD),
+                attempts: retryCount
+              }
+            });
+            throw verifyError;
           }
-        });
-        throw verifyError;
+        }
       }
     }
 
@@ -102,10 +211,11 @@ export const sendEmail = async ({
     logger.info('Attempting to send email via SMTP...');
     
     // Create a timeout promise for the sendMail operation
+    const emailTimeout = settings?.emailTimeout || 60000;
     const sendMailTimeout = new Promise((_, reject) => {
       setTimeout(() => {
-        reject(new Error('Email sending timed out after 60 seconds'));
-      }, 60000); // 60 seconds timeout
+        reject(new Error(`Email sending timed out after ${emailTimeout / 1000} seconds`));
+      }, emailTimeout);
     });
     
     const sendMailPromise = transporter.sendMail({
@@ -121,20 +231,6 @@ export const sendEmail = async ({
     
     const info = await Promise.race([sendMailPromise, sendMailTimeout]);
     
-    const duration = Date.now() - startTime;
-    
-    logger.info('Email sent successfully', {
-      context: {
-        messageId: (info as any).messageId,
-        recipientDomain: to.split('@')[1] || 'unknown',
-        duration: `${duration}ms`,
-        response: (info as any).response,
-        accepted: (info as any).accepted?.length || 0,
-        rejected: (info as any).rejected?.length || 0,
-        envelope: (info as any).envelope
-      }
-    });
-
     return { success: true, messageId: (info as any).messageId };
   } catch (error) {
     const duration = Date.now() - startTime;

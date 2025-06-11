@@ -21,6 +21,23 @@ export interface NewsletterSettings {
   replyToEmail?: string;
   subjectTemplate?: string;
   emailSalt?: string;
+
+  // Newsletter sending performance settings
+  chunkSize?: number;
+  chunkDelay?: number;
+  emailDelay?: number;
+  emailTimeout?: number;
+
+  // SMTP connection settings
+  connectionTimeout?: number;
+  greetingTimeout?: number;
+  socketTimeout?: number;
+  maxConnections?: number;
+  maxMessages?: number;
+
+  // Retry logic settings
+  maxRetries?: number;
+  maxBackoffDelay?: number;
 }
 
 // Group with status reports type
@@ -752,6 +769,23 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
     fromEmail: 'newsletter@linke-frankfurt.de',
     fromName: 'Die Linke Frankfurt',
     replyToEmail: 'buero@linke-frankfurt.de',
-    subjectTemplate: 'Die Linke Frankfurt - Newsletter {date}'
+    subjectTemplate: 'Die Linke Frankfurt - Newsletter {date}',
+
+    // Newsletter sending performance settings (current optimized values)
+    chunkSize: 250,          // Number of emails processed per chunk
+    chunkDelay: 500,         // Milliseconds between chunks
+    emailDelay: 50,          // Milliseconds between individual emails
+    emailTimeout: 60000,     // Email sending timeout in milliseconds
+
+    // SMTP connection settings (current optimized values)
+    connectionTimeout: 30000, // SMTP connection timeout in milliseconds
+    greetingTimeout: 30000,   // SMTP greeting timeout in milliseconds
+    socketTimeout: 45000,     // SMTP socket timeout in milliseconds
+    maxConnections: 5,        // Maximum concurrent SMTP connections
+    maxMessages: 100,         // Maximum messages per SMTP connection
+
+    // Retry logic settings (current optimized values)
+    maxRetries: 3,            // Maximum verification retries
+    maxBackoffDelay: 10000    // Maximum backoff delay in milliseconds
   };
 }

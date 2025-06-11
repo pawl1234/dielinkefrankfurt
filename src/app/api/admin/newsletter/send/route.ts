@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
-import { processRecipientList, sendNewsletter } from '@/lib/newsletter-sending';
+import { processRecipientList } from '@/lib/newsletter-sending';
 import { AppError, apiErrorResponse, ErrorType } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
+import { getNewsletterSettings } from '@/lib/newsletter-service';
 
 /**
  * Process and send a newsletter to recipients
@@ -89,8 +90,9 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       }
     });
     
-    // Prepare email chunks for frontend processing
-    const chunkSize = 10; // Process 10 emails at a time
+    // Get newsletter settings to determine chunk size
+    const newsletterSettings = await getNewsletterSettings();
+    const chunkSize = newsletterSettings.chunkSize || 250; // Use configured chunk size or default to 250
     const emailChunks: string[][] = [];
     
     // Divide plain emails into chunks
