@@ -171,7 +171,6 @@ export default function GroupRequestForm() {
     
     // Parse successful response
     const result = await response.json();
-    }
     // Success is handled by FormBase and useFormSubmission
   };
 
