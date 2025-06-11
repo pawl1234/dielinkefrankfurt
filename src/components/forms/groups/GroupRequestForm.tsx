@@ -142,11 +142,35 @@ export default function GroupRequestForm() {
       body: formData
     });
 
-    const result = await response.json();
-
+    // Handle 413 Request Entity Too Large specifically
+    if (response.status === 413) {
+      throw new Error('Die hochgeladenen Dateien sind zu groß. Bitte reduzieren Sie die Dateigröße des Logos und versuchen Sie es erneut.');
+    }
+    
+    // Handle other non-2xx responses
     if (!response.ok) {
-      // This error will be caught by useFormSubmission hook and displayed
-      throw new Error(result.error || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+      let errorMessage = 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
+      
+      try {
+        // Try to parse JSON error response
+        const result = await response.json();
+        errorMessage = result.error || errorMessage;
+      } catch (jsonError) {
+        // If JSON parsing fails, provide generic error based on status
+        if (response.status >= 500) {
+          errorMessage = 'Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
+        } else if (response.status === 404) {
+          errorMessage = 'Der angeforderte Endpunkt wurde nicht gefunden.';
+        } else if (response.status >= 400) {
+          errorMessage = 'Ihre Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben.';
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Parse successful response
+    const result = await response.json();
     }
     // Success is handled by FormBase and useFormSubmission
   };

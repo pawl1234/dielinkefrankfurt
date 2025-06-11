@@ -150,7 +150,7 @@ const CoverImageUpload = ({
         0, 0, canvas.width, canvas.height
       );
       
-      // Convert canvas to blob
+      // Convert canvas to blob with better compression
       canvas.toBlob((blob) => {
         if (blob) {
           // Clean up any previous URL
@@ -164,6 +164,8 @@ const CoverImageUpload = ({
             lastModified: Date.now(),
           });
           
+          console.log(`✂️ Cropped image size: ${(croppedFile.size / 1024 / 1024).toFixed(2)}MB`);
+          
           // Update state with new cropped image and URL
           setCroppedImage(croppedFile);
           const newUrl = URL.createObjectURL(croppedFile);
@@ -174,7 +176,7 @@ const CoverImageUpload = ({
             onImageSelect(originalImage, croppedFile);
           }
         }
-      }, 'image/jpeg', 0.95);
+      }, 'image/jpeg', 0.85); // Reduced quality for smaller file size
     }
   }, [completedCrop, originalImage, croppedPreviewUrl, onImageSelect]);
 
@@ -186,13 +188,92 @@ const CoverImageUpload = ({
     setCrop(centerAspectCrop(width, height, aspectRatio));
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Smart compression utility function - only compresses when beneficial
+  const smartCompressImage = (file: File, maxWidth = 1920, quality = 0.85): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        const { width, height } = img;
+        
+        // Check if compression is needed based on file size and dimensions
+        const fileSizeMB = file.size / 1024 / 1024;
+        const needsCompression = fileSizeMB > 1.5 || width > maxWidth;
+        
+        if (!needsCompression) {
+          console.log(`✅ Image already optimized: ${fileSizeMB.toFixed(2)}MB, ${width}x${height}px - skipping compression`);
+          resolve(file);
+          return;
+        }
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        let newWidth = width;
+        let newHeight = height;
+        
+        if (width > maxWidth) {
+          newHeight = (height * maxWidth) / width;
+          newWidth = maxWidth;
+        }
+        
+        // Set canvas dimensions
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+        
+        // Enable high-quality image smoothing
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw compressed image to canvas
+        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+        
+        // Convert to blob with compression
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              
+              const originalSizeMB = file.size / 1024 / 1024;
+              const compressedSizeMB = compressedFile.size / 1024 / 1024;
+              
+              // Only use compressed version if it's significantly smaller
+              if (compressedSizeMB < originalSizeMB * 0.8) {
+                console.log(`🗜️ Image compressed: ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB (${width}x${height} → ${newWidth}x${newHeight})`);
+                resolve(compressedFile);
+              } else {
+                console.log(`↩️ Compression not beneficial: ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB - using original`);
+                resolve(file);
+              }
+            } else {
+              reject(new Error('Failed to compress image'));
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
     const validTypes = ['image/jpeg', 'image/png'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 10 * 1024 * 1024; // 10MB (original file size limit before compression)
 
     // Validate file type
     if (!validTypes.includes(file.type)) {
@@ -200,34 +281,44 @@ const CoverImageUpload = ({
       return;
     }
 
-    // Validate file size
+    // Validate file size (before compression)
     if (file.size > maxSize) {
-      setError("Bilddatei überschreitet 5MB Limit. Bitte lade ein kleineres Bild hoch.");
+      setError("Bilddatei überschreitet 10MB Limit. Bitte lade ein kleineres Bild hoch.");
       return;
     }
 
-    // Clean up previous URLs
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    if (croppedPreviewUrl) {
-      URL.revokeObjectURL(croppedPreviewUrl);
-      setCroppedPreviewUrl(null);
-    }
-    
-    // Create a new URL for the file
-    const imageUrl = URL.createObjectURL(file);
-    setPreviewUrl(imageUrl);
-    setOriginalImage(file);
-    setCroppedImage(null);
-    setError(null);
-    
-    // Enter cropping mode
-    setIsCropping(true);
-    
-    // Reset the file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    try {
+      setError("Bild wird verarbeitet...");
+      
+      // Smart compress the image (only if needed)
+      const processedFile = await smartCompressImage(file, 1920, 0.85);
+      
+      // Clean up previous URLs
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      if (croppedPreviewUrl) {
+        URL.revokeObjectURL(croppedPreviewUrl);
+        setCroppedPreviewUrl(null);
+      }
+      
+      // Create a new URL for the processed file
+      const imageUrl = URL.createObjectURL(processedFile);
+      setPreviewUrl(imageUrl);
+      setOriginalImage(processedFile);
+      setCroppedImage(null);
+      setError(null);
+      
+      // Enter cropping mode
+      setIsCropping(true);
+      
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (compressionError) {
+      console.error('Image compression failed:', compressionError);
+      setError("Bildkomprimierung fehlgeschlagen. Bitte versuchen Sie es erneut.");
     }
   };
 
@@ -292,7 +383,7 @@ const CoverImageUpload = ({
         component="label"
         sx={{ display: 'block', mb: 1, fontWeight: 600 }}
       >
-        Cover-Bild hochladen (JPEG, PNG, max. 5MB)
+        Cover-Bild hochladen (JPEG, PNG, max. 10MB)
       </Typography>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -303,7 +394,7 @@ const CoverImageUpload = ({
               Cover-Bild auswählen oder hierher ziehen
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              JPEG, PNG (max. 5MB)
+              JPEG, PNG (max. 10MB) - wird bei Bedarf optimiert
             </Typography>
             <input 
               type="file" 

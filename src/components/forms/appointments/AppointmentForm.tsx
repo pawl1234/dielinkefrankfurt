@@ -197,8 +197,36 @@ export default function AppointmentForm({
     const apiEndpoint = mode === 'edit' && initialValues?.id ? `/api/appointments/submit/${initialValues.id}` : '/api/appointments/submit';
     const apiMethod = mode === 'edit' && initialValues?.id ? 'PUT' : 'POST';
     const response = await fetch(apiEndpoint, { method: apiMethod, body: formData });
+    
+    // Handle 413 Request Entity Too Large specifically
+    if (response.status === 413) {
+      throw new Error('Die hochgeladenen Dateien sind zu groß. Bitte reduzieren Sie die Dateigröße oder Anzahl der Anhänge und versuchen Sie es erneut.');
+    }
+    
+    // Handle other non-2xx responses
+    if (!response.ok) {
+      let errorMessage = 'Ein Fehler ist aufgetreten.';
+      
+      try {
+        // Try to parse JSON error response
+        const result = await response.json();
+        errorMessage = result.error || errorMessage;
+      } catch (jsonError) {
+        // If JSON parsing fails, provide generic error based on status
+        if (response.status >= 500) {
+          errorMessage = 'Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
+        } else if (response.status === 404) {
+          errorMessage = 'Der angeforderte Endpunkt wurde nicht gefunden.';
+        } else if (response.status >= 400) {
+          errorMessage = 'Ihre Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben.';
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Parse successful response
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Ein Fehler ist aufgetreten.');
   };
 
   const getCustomError = (fieldName: string): string | undefined => {
