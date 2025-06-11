@@ -54,7 +54,7 @@ interface AppointmentFormProps {
   };
   mode?: 'create' | 'edit';
   submitButtonText?: string;
-  onSubmit?: (data: any, files: (File | Blob)[]) => Promise<void>;
+  onSubmit?: (data: any, files: (File | Blob)[], existingFileUrls?: string[], deletedFileUrls?: string[]) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -78,6 +78,7 @@ export default function AppointmentForm({
   const [mainTextEditorContent, setMainTextEditorContent] = useState(initialValues?.mainText || '');
   const [fileList, setFileList] = useState<(File | Blob)[]>([]);
   const [existingFileUrls, setExistingFileUrls] = useState<string[]>([]);
+  const [deletedFileUrls, setDeletedFileUrls] = useState<string[]>([]);
   const [isRecurring, setIsRecurring] = useState(!!initialValues?.recurringText);
   // We're not showing the teaser field in the UI, but we still need to handle it for the backend
   const [teaserValue, setTeaserValue] = useState(initialValues?.teaser || '');
@@ -156,7 +157,9 @@ export default function AppointmentForm({
 
   const handleReset = () => { /* ... as before: reset local state ... */
     setMainTextEditorContent(initialValues?.mainText || '');
-    setFileList([]); setIsRecurring(!!initialValues?.recurringText);
+    setFileList([]); 
+    setDeletedFileUrls([]);
+    setIsRecurring(!!initialValues?.recurringText);
     setTeaserValue(initialValues?.teaser || ''); // Reset teaser value
     setValue('teaser', initialValues?.teaser || ''); // Reset teaser in React Hook Form
     setIsFeatured(initialValues?.featured || false);
@@ -178,7 +181,7 @@ export default function AppointmentForm({
       if (coverImageFile) submissionPayload.newCoverImageForUpload = coverImageFile;
       if (croppedCoverImageFile) submissionPayload.newCroppedCoverImageForUpload = croppedCoverImageFile;
     }
-    if (customSubmit) { await customSubmit(submissionPayload, fileList); return; }
+    if (customSubmit) { await customSubmit(submissionPayload, fileList, existingFileUrls, deletedFileUrls); return; }
     const formData = new FormData();
     Object.entries(submissionPayload).forEach(([key, value]) => {
       if (key === 'newCoverImageForUpload' && value) formData.append('coverImage', value as Blob);
@@ -190,6 +193,7 @@ export default function AppointmentForm({
     });
     if (fileList.length > 0) fileList.forEach((file, index) => formData.append(`files[${index}]`, file));
     if (mode === 'edit' && existingFileUrls.length > 0) formData.append('existingFileUrls', JSON.stringify(existingFileUrls));
+    if (mode === 'edit' && deletedFileUrls.length > 0) formData.append('deletedFileUrls', JSON.stringify(deletedFileUrls));
     const apiEndpoint = mode === 'edit' && initialValues?.id ? `/api/appointments/submit/${initialValues.id}` : '/api/appointments/submit';
     const apiMethod = mode === 'edit' && initialValues?.id ? 'PUT' : 'POST';
     const response = await fetch(apiEndpoint, { method: apiMethod, body: formData });
@@ -275,6 +279,9 @@ export default function AppointmentForm({
               showRemoveButton={true}
               onRemove={(file) => {
                 if (file.url) {
+                  // Add URL to deletion list
+                  setDeletedFileUrls(prev => [...prev, file.url!]);
+                  // Remove from existing files list
                   setExistingFileUrls(prev => prev.filter(url => url !== file.url));
                 }
               }}

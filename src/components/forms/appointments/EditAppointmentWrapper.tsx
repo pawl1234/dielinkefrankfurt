@@ -45,6 +45,8 @@ interface FormInput {
   files?: (File | Blob)[];
   coverImage?: File | Blob;
   croppedCoverImage?: File | Blob;
+  newCoverImageForUpload?: File | Blob;
+  newCroppedCoverImageForUpload?: File | Blob;
   featured?: boolean;
 }
 
@@ -72,7 +74,7 @@ export default function EditAppointmentWrapper({
     setError(null);
   };
 
-  const handleSubmit = async (data: FormInput, files: (File | Blob)[]) => {
+  const handleSubmit = async (data: FormInput, files: (File | Blob)[], existingFileUrls?: string[], deletedFileUrls?: string[]) => {
     setIsSubmitting(true);
     setError(null);
 
@@ -112,10 +114,10 @@ export default function EditAppointmentWrapper({
       formData.append('featured', featured.toString());
       
       // Handle cover images for featured appointments
-      if (featured && data.coverImage) {
-        formData.append('coverImage', data.coverImage);
-        if (data.croppedCoverImage) {
-          formData.append('croppedCoverImage', data.croppedCoverImage);
+      if (featured && data.newCoverImageForUpload) {
+        formData.append('coverImage', data.newCoverImageForUpload);
+        if (data.newCroppedCoverImageForUpload) {
+          formData.append('croppedCoverImage', data.newCroppedCoverImageForUpload);
         }
       }
       
@@ -125,6 +127,15 @@ export default function EditAppointmentWrapper({
           formData.append(`file-${index}`, file);
         });
         formData.append('fileCount', files.length.toString());
+      }
+      
+      // Handle existing and deleted files
+      if (existingFileUrls && existingFileUrls.length > 0) {
+        formData.append('existingFileUrls', JSON.stringify(existingFileUrls));
+      }
+      
+      if (deletedFileUrls && deletedFileUrls.length > 0) {
+        formData.append('deletedFileUrls', JSON.stringify(deletedFileUrls));
       }
 
       // Call API to update appointment

@@ -666,6 +666,36 @@ export async function updateAppointment(request: NextRequest) {
         
         // Combine existing and new file URLs
         data.fileUrls = JSON.stringify([...existingFiles, ...uploadedFiles]);
+      } else {
+        // If no new files, just preserve existing files
+        const existingFileUrls = formData.get('existingFileUrls');
+        if (existingFileUrls && typeof existingFileUrls === 'string') {
+          try {
+            const existingFiles = JSON.parse(existingFileUrls);
+            data.fileUrls = JSON.stringify(existingFiles);
+          } catch (e) {
+            console.error('Error parsing existing file URLs:', e);
+            data.fileUrls = null;
+          }
+        } else {
+          data.fileUrls = null;
+        }
+      }
+      
+      // Handle file deletions - check for files that were removed
+      const deletedFileUrls = formData.get('deletedFileUrls');
+      if (deletedFileUrls && typeof deletedFileUrls === 'string') {
+        try {
+          const urlsToDelete = JSON.parse(deletedFileUrls);
+          if (Array.isArray(urlsToDelete) && urlsToDelete.length > 0) {
+            console.log(`🗑️ Deleting ${urlsToDelete.length} removed attachment files:`, urlsToDelete);
+            await del(urlsToDelete);
+            console.log(`✅ Removed attachment files deleted successfully`);
+          }
+        } catch (deleteError) {
+          console.error(`❌ Error deleting removed attachment files:`, deleteError);
+          // Continue with the update even if deletion fails
+        }
       }
       
       // Process cover image if present (for featured appointments)
