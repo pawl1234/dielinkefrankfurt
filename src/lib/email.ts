@@ -57,6 +57,7 @@ export const sendEmailWithTransporter = async (transporter: any, {
   html,
   from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
   replyTo,
+  bcc,
   settings,
 }: {
   to: string;
@@ -64,6 +65,7 @@ export const sendEmailWithTransporter = async (transporter: any, {
   html: string;
   from?: string;
   replyTo?: string;
+  bcc?: string;
   settings?: any;
 }) => {
   const startTime = Date.now();
@@ -82,6 +84,7 @@ export const sendEmailWithTransporter = async (transporter: any, {
       const sendMailPromise = transporter.sendMail({
         from: from,
         to: to,
+        ...(bcc && { bcc: bcc }),
         subject: subject,
         html: html,
         replyTo: replyTo || from,

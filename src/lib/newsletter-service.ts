@@ -69,6 +69,7 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         chunkDelay: dbSettings.chunkDelay ?? defaultSettings.chunkDelay,
         emailDelay: dbSettings.emailDelay ?? defaultSettings.emailDelay,
         emailTimeout: dbSettings.emailTimeout ?? defaultSettings.emailTimeout,
+        useBccSending: dbSettings.useBccSending ?? defaultSettings.useBccSending,
 
         // SMTP connection settings
         connectionTimeout: dbSettings.connectionTimeout ?? defaultSettings.connectionTimeout,
@@ -147,6 +148,7 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           chunkDelay: data.chunkDelay,
           emailDelay: data.emailDelay,
           emailTimeout: data.emailTimeout,
+          useBccSending: data.useBccSending,
 
           // SMTP connection settings
           connectionTimeout: data.connectionTimeout,
@@ -185,6 +187,7 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           chunkDelay: data.chunkDelay || defaultSettings.chunkDelay,
           emailDelay: data.emailDelay || defaultSettings.emailDelay,
           emailTimeout: data.emailTimeout || defaultSettings.emailTimeout,
+          useBccSending: data.useBccSending ?? defaultSettings.useBccSending,
 
           // SMTP connection settings
           connectionTimeout: data.connectionTimeout || defaultSettings.connectionTimeout,

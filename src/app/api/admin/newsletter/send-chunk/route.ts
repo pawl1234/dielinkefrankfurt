@@ -134,7 +134,97 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     let failedCount = 0;
     const results: Array<{ email: string; success: boolean; error?: any }> = [];
 
-    for (let i = 0; i < emails.length; i++) {
+    // Check if BCC sending is enabled
+    if (emailSettings.useBccSending) {
+      // BCC mode: Send one email with all recipients in BCC
+      logger.info(`Processing chunk ${chunkIndex + 1}/${totalChunks} in BCC mode with ${emails.length} recipients`);
+      
+      try {
+        const result = await sendEmailWithTransporter(transporter, {
+          to: from, // Use sender address as "To" (will be visible to all BCC recipients)
+          bcc: emails.join(','), // All recipients as BCC
+          subject: formattedSubject,
+          html,
+          from,
+          replyTo,
+          settings: emailSettings
+        });
+
+        if (result.success) {
+          sentCount = emails.length; // All emails considered sent
+          emails.forEach(email => {
+            results.push({ email, success: true });
+          });
+          logger.info(`BCC email sent successfully to ${emails.length} recipients in chunk ${chunkIndex + 1}`);
+        } else {
+          // Check if this is a connection error after all retries were exhausted
+          if ((result as any).isConnectionError) {
+            logger.warn(`Connection error detected for BCC email in chunk ${chunkIndex + 1}, recreating transporter`);
+            
+            // Close the old transporter
+            transporter.close();
+            
+            // Create a new transporter
+            transporter = createTransporter(emailSettings);
+            
+            // Retry the BCC email once with the new transporter
+            try {
+              const retryResult = await sendEmailWithTransporter(transporter, {
+                to: from,
+                bcc: emails.join(','),
+                subject: formattedSubject,
+                html,
+                from,
+                replyTo,
+                settings: emailSettings
+              });
+              
+              if (retryResult.success) {
+                sentCount = emails.length;
+                emails.forEach(email => {
+                  results.push({ email, success: true });
+                });
+                logger.info(`BCC email succeeded after transporter recreation in chunk ${chunkIndex + 1}`);
+              } else {
+                failedCount = emails.length;
+                emails.forEach(email => {
+                  results.push({ email, success: false, error: retryResult.error });
+                });
+                logger.error(`BCC email failed even after transporter recreation in chunk ${chunkIndex + 1}`, {
+                  context: { error: retryResult.error }
+                });
+              }
+            } catch (recreateError) {
+              failedCount = emails.length;
+              emails.forEach(email => {
+                results.push({ email, success: false, error: recreateError });
+              });
+              logger.error(`BCC email threw exception after transporter recreation in chunk ${chunkIndex + 1}`, {
+                context: { error: recreateError }
+              });
+            }
+          } else {
+            failedCount = emails.length;
+            emails.forEach(email => {
+              results.push({ email, success: false, error: result.error });
+            });
+            logger.warn(`BCC email failed in chunk ${chunkIndex + 1}`, {
+              context: { error: result.error }
+            });
+          }
+        }
+      } catch (error) {
+        failedCount = emails.length;
+        emails.forEach(email => {
+          results.push({ email, success: false, error });
+        });
+        logger.error(`BCC email threw exception in chunk ${chunkIndex + 1}`, {
+          context: { error }
+        });
+      }
+    } else {
+      // Individual email mode: Send each email separately (existing logic)
+      for (let i = 0; i < emails.length; i++) {
       const email = emails[i];
       
       try {
@@ -233,6 +323,7 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
         });
       }
     }
+    } // End of individual email mode
 
     // Check if this is the last chunk
     const isComplete = chunkIndex === totalChunks - 1;

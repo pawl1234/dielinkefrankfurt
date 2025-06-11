@@ -27,6 +27,7 @@ export interface NewsletterSettings {
   chunkDelay?: number;
   emailDelay?: number;
   emailTimeout?: number;
+  useBccSending?: boolean;
 
   // SMTP connection settings
   connectionTimeout?: number;
@@ -772,10 +773,11 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
     subjectTemplate: 'Die Linke Frankfurt - Newsletter {date}',
 
     // Newsletter sending performance settings (current optimized values)
-    chunkSize: 250,          // Number of emails processed per chunk
+    chunkSize: 250,          // Number of emails processed per chunk (or BCC recipients per email)
     chunkDelay: 500,         // Milliseconds between chunks
     emailDelay: 50,          // Milliseconds between individual emails
     emailTimeout: 60000,     // Email sending timeout in milliseconds
+    useBccSending: false,    // Whether to use BCC sending instead of individual emails
 
     // SMTP connection settings (current optimized values)
     connectionTimeout: 30000, // SMTP connection timeout in milliseconds

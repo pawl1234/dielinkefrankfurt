@@ -20,6 +20,8 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SaveIcon from '@mui/icons-material/Save';
@@ -57,6 +59,7 @@ export default function NewsletterSettingsPage() {
     maxMessages: 100,
     maxRetries: 3,
     maxBackoffDelay: 10000,
+    useBccSending: false,
   });
 
   useEffect(() => {
@@ -268,6 +271,23 @@ export default function NewsletterSettingsPage() {
               helperText="Millisekunden zwischen Batches (100-10000)"
             />
             
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={settings.useBccSending || false}
+                  onChange={(e) => setSettings({ ...settings, useBccSending: e.target.checked })}
+                />
+              }
+              label="BCC-Versand verwenden"
+              sx={{ mt: 2, mb: 1 }}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {settings.useBccSending 
+                ? "BCC-Modus: Alle Empfänger werden als BCC in wenige E-Mails versendet. Deutlich schneller, aber keine individuelle Verfolgung möglich."
+                : "Individueller Versand: Jeder Empfänger erhält eine separate E-Mail. Ermöglicht individuelle Verfolgung, aber langsamer."
+              }
+            </Typography>
+            
             <Divider sx={{ my: 3 }} />
             
             <Accordion>
@@ -301,7 +321,10 @@ export default function NewsletterSettingsPage() {
                       InputProps={{ inputProps: { min: 1, max: 1000 } }}
                       fullWidth
                       margin="normal"
-                      helperText="E-Mails pro Chunk für Connection Pooling (1-1000)"
+                      helperText={settings.useBccSending 
+                        ? "BCC-Empfänger pro E-Mail (1-100 empfohlen für BCC)" 
+                        : "E-Mails pro Chunk für Connection Pooling (1-1000)"
+                      }
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
@@ -313,7 +336,10 @@ export default function NewsletterSettingsPage() {
                       InputProps={{ inputProps: { min: 100, max: 5000 } }}
                       fullWidth
                       margin="normal"
-                      helperText="Millisekunden zwischen Chunks (100-5000)"
+                      helperText={settings.useBccSending 
+                        ? "Millisekunden zwischen BCC-E-Mails (100-5000)" 
+                        : "Millisekunden zwischen Chunks (100-5000)"
+                      }
                     />
                   </Grid>
                 </Grid>
@@ -331,7 +357,10 @@ export default function NewsletterSettingsPage() {
                       InputProps={{ inputProps: { min: 10, max: 1000 } }}
                       fullWidth
                       margin="normal"
-                      helperText="Millisekunden zwischen einzelnen E-Mails (10-1000)"
+                      helperText={settings.useBccSending 
+                        ? "Nicht verwendet bei BCC-Versand (alle Empfänger in einer E-Mail)" 
+                        : "Millisekunden zwischen einzelnen E-Mails (10-1000)"
+                      }
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
@@ -403,7 +432,10 @@ export default function NewsletterSettingsPage() {
                       InputProps={{ inputProps: { min: 1, max: 20 } }}
                       fullWidth
                       margin="normal"
-                      helperText="Maximale gleichzeitige SMTP Verbindungen (1-20)"
+                      helperText={settings.useBccSending 
+                        ? "Weniger relevant bei BCC (deutlich weniger Verbindungen)" 
+                        : "Maximale gleichzeitige SMTP Verbindungen (1-20)"
+                      }
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
@@ -415,7 +447,10 @@ export default function NewsletterSettingsPage() {
                       InputProps={{ inputProps: { min: 1, max: 1000 } }}
                       fullWidth
                       margin="normal"
-                      helperText="Maximale Nachrichten pro SMTP Verbindung (1-1000)"
+                      helperText={settings.useBccSending 
+                        ? "Weniger relevant bei BCC (deutlich weniger Nachrichten)" 
+                        : "Maximale Nachrichten pro SMTP Verbindung (1-1000)"
+                      }
                     />
                   </Grid>
                 </Grid>
