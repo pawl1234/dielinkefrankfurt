@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
+import { validateEmail, cleanEmail } from '@/lib/email-hashing';
 import { format } from 'date-fns';
 
 /**
@@ -139,10 +140,43 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
       // BCC mode: Send one email with all recipients in BCC
       logger.info(`Processing chunk ${chunkIndex + 1}/${totalChunks} in BCC mode with ${emails.length} recipients`);
       
+      // Clean and validate email addresses before creating BCC string
+      const validatedEmails = emails.map(email => {
+        const originalEmail = email;
+        const cleanedEmail = cleanEmail(email);
+        
+        // Log if cleaning changed the email (indicates invisible characters were present)
+        if (originalEmail !== cleanedEmail) {
+          logger.warn(`Cleaned email address`, {
+            context: {
+              original: JSON.stringify(originalEmail), // JSON.stringify shows invisible chars
+              cleaned: cleanedEmail,
+              originalLength: originalEmail.length,
+              cleanedLength: cleanedEmail.length
+            }
+          });
+        }
+        
+        return cleanedEmail;
+      }).filter(email => {
+        if (!validateEmail(email)) {
+          logger.warn(`Filtering out invalid email address after cleaning: ${JSON.stringify(email)}`);
+          return false;
+        }
+        return true;
+      });
+
+      if (validatedEmails.length !== emails.length) {
+        logger.warn(`Filtered out ${emails.length - validatedEmails.length} invalid email addresses from BCC`);
+      }
+
+      const bccString = validatedEmails.join(',');
+      logger.info(`BCC string created with ${validatedEmails.length} validated emails`);
+      
       try {
         const result = await sendEmailWithTransporter(transporter, {
           to: from, // Use sender address as "To" (will be visible to all BCC recipients)
-          bcc: emails.join(','), // All recipients as BCC
+          bcc: bccString, // All recipients as BCC
           subject: formattedSubject,
           html,
           from,

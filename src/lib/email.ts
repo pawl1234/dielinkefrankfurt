@@ -72,6 +72,18 @@ export const sendEmailWithTransporter = async (transporter: any, {
   const maxRetries = settings?.maxRetries || 3;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const mailOptions = {
+      from: from,
+      to: to,
+      ...(bcc && { bcc: bcc }),
+      subject: subject,
+      html: html,
+      replyTo: replyTo || from,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8'
+      }
+    };
+    
     try {
       // Create a timeout promise for the sendMail operation
       const emailTimeout = settings?.emailTimeout || 60000;
@@ -80,18 +92,8 @@ export const sendEmailWithTransporter = async (transporter: any, {
           reject(new Error(`Email sending timed out after ${emailTimeout / 1000} seconds`));
         }, emailTimeout);
       });
-      
-      const sendMailPromise = transporter.sendMail({
-        from: from,
-        to: to,
-        ...(bcc && { bcc: bcc }),
-        subject: subject,
-        html: html,
-        replyTo: replyTo || from,
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8'
-        }
-      });
+
+      const sendMailPromise = transporter.sendMail(mailOptions);
       
       const info = await Promise.race([sendMailPromise, sendMailTimeout]);
       
@@ -108,11 +110,24 @@ export const sendEmailWithTransporter = async (transporter: any, {
       
       // If it's the last attempt or not a connection error, fail
       if (attempt === maxRetries || !isConnectionError) {
+        // Create email headers dump for debugging
+        const emailHeadersDump = {
+          from: mailOptions.from,
+          to: mailOptions.to,
+          bcc: mailOptions.bcc,
+          subject: mailOptions.subject,
+          replyTo: mailOptions.replyTo,
+          headers: mailOptions.headers,
+          htmlLength: mailOptions.html ? mailOptions.html.length : 0,
+          bccCount: mailOptions.bcc ? mailOptions.bcc.split(',').length : 0
+        };
+
         logger.error('Failed to send email with shared transporter', {
           context: {
             recipientDomain: to.split('@')[1] || 'unknown',
             duration: `${duration}ms`,
             attempts: attempt,
+            emailHeaders: emailHeadersDump,
             error: error instanceof Error ? {
               message: error.message,
               code: (error as any).code,

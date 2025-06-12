@@ -30,12 +30,40 @@ export interface ValidationResult {
  * @param email Email to validate
  * @returns Boolean indicating if the email is valid
  */
+export function cleanEmail(email: string): string {
+  if (!email) return '';
+  
+  // Remove all invisible/non-printable characters commonly found in Excel exports
+  return email
+    // Remove zero-width characters, non-breaking spaces, etc.
+    .replace(/[\u200B-\u200D\u2060\uFEFF\u00A0\u180E\u2000-\u200A\u202F\u205F\u3000]/g, '')
+    // Remove all control characters except normal spaces
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+    // Remove carriage returns and line feeds
+    .replace(/[\r\n]/g, '')
+    // Remove tabs
+    .replace(/\t/g, '')
+    // Normalize regular spaces
+    .replace(/\s+/g, ' ')
+    // Final trim
+    .trim();
+}
+
 export function validateEmail(email: string): boolean {
   if (!email) return false;
   
-  // Email regex pattern - basic validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
+  const cleanedEmail = cleanEmail(email);
+  
+  if (!cleanedEmail) return false;
+  
+  // Check for problematic characters that cause SMTP formatting issues
+  if (cleanedEmail.includes('<') || cleanedEmail.includes('>') || cleanedEmail.includes('"')) {
+    return false;
+  }
+  
+  // More comprehensive email validation
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  return emailRegex.test(cleanedEmail) && cleanedEmail.length <= 254;
 }
 
 /**

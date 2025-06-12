@@ -5,6 +5,7 @@ import { AppError, apiErrorResponse, ErrorType } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
+import { cleanEmail } from '@/lib/email-hashing';
 
 /**
  * Process and send a newsletter to recipients
@@ -63,10 +64,27 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       }
     });
 
-    // Parse the original email list to get the plain emails
+    // Parse the original email list to get the plain emails, with Excel-safe cleaning
     const plainEmails = emailText
       .split('\n')
-      .map((email: string) => email.trim())
+      .map((email: string) => {
+        const originalEmail = email;
+        const cleanedEmail = cleanEmail(email);
+        
+        // Log if cleaning changed the email (indicates invisible characters from Excel)
+        if (originalEmail !== cleanedEmail && cleanedEmail.length > 0) {
+          logger.info(`Cleaned email during parsing`, {
+            context: {
+              original: JSON.stringify(originalEmail),
+              cleaned: cleanedEmail,
+              originalLength: originalEmail.length,
+              cleanedLength: cleanedEmail.length
+            }
+          });
+        }
+        
+        return cleanedEmail;
+      })
       .filter((email: string) => email.length > 0)
       .filter((email: string) => !validationResult.invalidEmails.includes(email));
 
