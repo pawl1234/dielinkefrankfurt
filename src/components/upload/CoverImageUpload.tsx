@@ -87,6 +87,55 @@ const CoverImageUpload = ({
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Optimize cropped image for newsletter use
+  const optimizeCroppedImageForNewsletter = (sourceCanvas: HTMLCanvasElement): HTMLCanvasElement => {
+    // Newsletter optimal dimensions (1.5x display size for retina)
+    const maxWidth = 340;
+    const maxHeight = 300;
+    
+    // Calculate optimal dimensions while maintaining aspect ratio
+    const sourceWidth = sourceCanvas.width;
+    const sourceHeight = sourceCanvas.height;
+    
+    let targetWidth = sourceWidth;
+    let targetHeight = sourceHeight;
+    
+    // Scale down if needed to optimize for newsletter
+    if (sourceWidth > maxWidth || sourceHeight > maxHeight) {
+      const widthRatio = maxWidth / sourceWidth;
+      const heightRatio = maxHeight / sourceHeight;
+      const ratio = Math.min(widthRatio, heightRatio);
+      
+      targetWidth = Math.round(sourceWidth * ratio);
+      targetHeight = Math.round(sourceHeight * ratio);
+      
+      // Create target canvas for newsletter optimization
+      const targetCanvas = document.createElement('canvas');
+      targetCanvas.width = targetWidth;
+      targetCanvas.height = targetHeight;
+      
+      const ctx = targetCanvas.getContext('2d');
+      if (!ctx) {
+        console.warn('Failed to get canvas context for newsletter optimization, using original size');
+        return sourceCanvas;
+      }
+      
+      // Enable high-quality image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw resized image
+      ctx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
+      
+      console.log(`📰 Newsletter-optimized crop: ${sourceWidth}x${sourceHeight} → ${targetWidth}x${targetHeight}px`);
+      return targetCanvas;
+    }
+    
+    // No optimization needed, return original canvas
+    console.log(`📰 Crop already optimal for newsletter: ${sourceWidth}x${sourceHeight}px`);
+    return sourceCanvas;
+  };
+
   // Handle initial URLs if provided
   useEffect(() => {
     if (initialCoverImageUrl && initialCroppedCoverImageUrl) {
@@ -150,33 +199,36 @@ const CoverImageUpload = ({
         0, 0, canvas.width, canvas.height
       );
       
-      // Convert canvas to blob with better compression
-      canvas.toBlob((blob) => {
+      // Optimize the cropped canvas for newsletter use
+      const optimizedCanvas = optimizeCroppedImageForNewsletter(canvas);
+      
+      // Convert optimized canvas to blob with compression for newsletter use
+      optimizedCanvas.toBlob((blob) => {
         if (blob) {
           // Clean up any previous URL
           if (croppedPreviewUrl) {
             URL.revokeObjectURL(croppedPreviewUrl);
           }
           
-          // Create a new File from the blob
+          // Create a new File from the optimized blob
           const croppedFile = new File([blob], 'cover-cropped.jpg', {
             type: 'image/jpeg',
             lastModified: Date.now(),
           });
           
-          console.log(`✂️ Cropped image size: ${(croppedFile.size / 1024 / 1024).toFixed(2)}MB`);
+          console.log(`✂️ Newsletter-optimized cropped image: ${(croppedFile.size / 1024).toFixed(1)}KB`);
           
           // Update state with new cropped image and URL
           setCroppedImage(croppedFile);
           const newUrl = URL.createObjectURL(croppedFile);
           setCroppedPreviewUrl(newUrl);
           
-          // Notify parent if we have both original and cropped images
+          // Notify parent with original and optimized cropped image
           if (originalImage) {
             onImageSelect(originalImage, croppedFile);
           }
         }
-      }, 'image/jpeg', 0.85); // Reduced quality for smaller file size
+      }, 'image/jpeg', 0.80); // More compression for newsletter optimization
     }
   }, [completedCrop, originalImage, croppedPreviewUrl, onImageSelect]);
 
