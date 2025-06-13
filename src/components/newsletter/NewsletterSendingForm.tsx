@@ -278,9 +278,21 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           throw new Error(chunkData.error || `Fehler beim Senden von Chunk ${i + 1}`);
         }
 
+        // DEBUG: Log chunk results
+        console.log(`=== CHUNK ${i + 1} RESULTS ===`);
+        console.log('chunkData:', JSON.stringify(chunkData, null, 2));
+        console.log('chunkData.sentCount:', chunkData.sentCount);
+        console.log('chunkData.failedCount:', chunkData.failedCount);
+        console.log('totalSent before:', totalSent);
+        console.log('totalFailed before:', totalFailed);
+
         // Update progress
         totalSent += chunkData.sentCount;
         totalFailed += chunkData.failedCount;
+        
+        console.log('totalSent after:', totalSent);
+        console.log('totalFailed after:', totalFailed);
+        console.log('========================');
         
         setSendingProgress({
           completedChunks: i + 1,
@@ -384,6 +396,19 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         }
 
         const retryData = await retryResponse.json();
+        
+        // DEBUG: Log detailed retry response
+        console.log('=== RETRY API RESPONSE ===');
+        console.log('retryData:', JSON.stringify(retryData, null, 2));
+        console.log('stage:', retryData.stage);
+        console.log('totalStages:', retryData.totalStages);
+        console.log('processedEmails:', retryData.processedEmails);
+        console.log('remainingFailedEmails:', retryData.remainingFailedEmails);
+        console.log('isComplete:', retryData.isComplete);
+        if (retryData.finalFailedEmails) {
+          console.log('finalFailedEmails:', retryData.finalFailedEmails);
+        }
+        console.log('========================');
         
         if (!retryData.success) {
           throw new Error(retryData.error || 'Fehler beim Wiederholen');
