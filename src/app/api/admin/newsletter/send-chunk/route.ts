@@ -379,6 +379,15 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     const totalFailed = chunkResults.reduce((sum: number, chunk: any) => sum + (chunk?.failedCount || 0), 0);
     
     let finalStatus = newsletter.status;
+    let finalSettings = {
+      ...currentSettings,
+      chunkResults,
+      totalSent,
+      totalFailed,
+      lastChunkCompletedAt: new Date().toISOString(),
+      completedChunks: chunkIndex + 1
+    };
+
     if (isComplete) {
       if (totalFailed === 0) {
         finalStatus = 'sent';
@@ -388,22 +397,43 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
         
         // Trigger retry process for failed emails
         await startRetryProcess(newsletterId, chunkResults, currentSettings);
+        
+        // Fetch the updated settings to preserve retry data
+        const updatedNewsletter = await prisma.newsletterItem.findUnique({
+          where: { id: newsletterId }
+        });
+        
+        if (updatedNewsletter?.settings) {
+          const retrySettings = JSON.parse(updatedNewsletter.settings);
+          // Merge retry settings with our chunk completion data
+          finalSettings = {
+            ...retrySettings,
+            chunkResults,
+            totalSent,
+            totalFailed,
+            lastChunkCompletedAt: new Date().toISOString(),
+            completedChunks: chunkIndex + 1
+          };
+          
+          logger.info(`Merged retry settings with chunk completion data`, {
+            context: {
+              newsletterId,
+              hasRetryInProgress: !!finalSettings.retryInProgress,
+              hasFailedEmails: !!finalSettings.failedEmails,
+              failedEmailsCount: finalSettings.failedEmails?.length || 0,
+              retrySettingsKeys: Object.keys(retrySettings)
+            }
+          });
+        }
       }
     }
 
-    // Update newsletter record
+    // Update newsletter record with merged settings
     await prisma.newsletterItem.update({
       where: { id: newsletterId },
       data: {
         status: finalStatus,
-        settings: JSON.stringify({
-          ...currentSettings,
-          chunkResults,
-          totalSent,
-          totalFailed,
-          lastChunkCompletedAt: new Date().toISOString(),
-          completedChunks: chunkIndex + 1
-        })
+        settings: JSON.stringify(finalSettings)
       }
     });
 
