@@ -99,6 +99,16 @@ export const sendEmailWithTransporter = async (transporter: any, {
       
       return { success: true, messageId: (info as any).messageId };
     } catch (error: any) {
+      // On error, generate the raw email for debugging
+      let rawEmail = '';
+      try {
+        // Use nodemailer's built-in method to generate the raw email
+        const message = await transporter.generateMessage(mailOptions);
+        rawEmail = message.toString();
+      } catch (generateError) {
+        // If generation fails, create a basic raw email representation
+        rawEmail = `From: ${mailOptions.from}\r\nTo: ${mailOptions.to}\r\n${mailOptions.bcc ? `Bcc: ${mailOptions.bcc}\r\n` : ''}Subject: ${mailOptions.subject}\r\nReply-To: ${mailOptions.replyTo}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n[HTML content omitted for brevity]`;
+      }
       const duration = Date.now() - startTime;
       
       // Check if it's a connection error that should be retried
@@ -128,6 +138,7 @@ export const sendEmailWithTransporter = async (transporter: any, {
             duration: `${duration}ms`,
             attempts: attempt,
             emailHeaders: emailHeadersDump,
+            rawEmail: rawEmail, // Add the raw email for debugging
             error: error instanceof Error ? {
               message: error.message,
               code: (error as any).code,
