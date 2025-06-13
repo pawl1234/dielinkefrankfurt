@@ -48,7 +48,7 @@ export default function NewsletterSettingsPage() {
     batchSize: 100,
     batchDelay: 1000,
     // Advanced performance settings
-    chunkSize: 250,
+    chunkSize: 50,
     chunkDelay: 500,
     emailDelay: 50,
     emailTimeout: 60000,
@@ -324,8 +324,8 @@ export default function NewsletterSettingsPage() {
                   <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       label="Chunk-Größe"
-                      value={settings.chunkSize || 250}
-                      onChange={(e) => setSettings({ ...settings, chunkSize: parseInt(e.target.value) || 250 })}
+                      value={settings.chunkSize || 50}
+                      onChange={(e) => setSettings({ ...settings, chunkSize: parseInt(e.target.value) || 50 })}
                       type="number"
                       InputProps={{ inputProps: { min: 1, max: 1000 } }}
                       fullWidth

@@ -160,7 +160,8 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
 
           // Retry logic settings
           maxRetries: data.maxRetries,
-          maxBackoffDelay: data.maxBackoffDelay
+          maxBackoffDelay: data.maxBackoffDelay,
+          retryChunkSizes: data.retryChunkSizes
         }
       });
     } else {
@@ -199,7 +200,8 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
 
           // Retry logic settings
           maxRetries: data.maxRetries || defaultSettings.maxRetries,
-          maxBackoffDelay: data.maxBackoffDelay || defaultSettings.maxBackoffDelay
+          maxBackoffDelay: data.maxBackoffDelay || defaultSettings.maxBackoffDelay,
+          retryChunkSizes: data.retryChunkSizes || defaultSettings.retryChunkSizes
         }
       });
     }

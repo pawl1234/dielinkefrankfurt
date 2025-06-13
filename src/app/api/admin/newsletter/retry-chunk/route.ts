@@ -69,8 +69,35 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
 
     const currentSettings = newsletter.settings ? JSON.parse(newsletter.settings) : {};
     
+    // If retry is not in progress but status is retrying, wait a moment and retry
     if (!currentSettings.retryInProgress) {
-      return AppError.validation('No retry process in progress').toResponse();
+      // Wait up to 5 seconds for the retry process to be initialized
+      let retryAttempts = 0;
+      const maxRetryAttempts = 10;
+      
+      while (retryAttempts < maxRetryAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Re-fetch newsletter to check if retry process is now initialized
+        const refreshedNewsletter = await prisma.newsletterItem.findUnique({
+          where: { id: newsletterId }
+        });
+        
+        if (refreshedNewsletter?.settings) {
+          const refreshedSettings = JSON.parse(refreshedNewsletter.settings);
+          if (refreshedSettings.retryInProgress) {
+            // Update currentSettings and break the loop
+            Object.assign(currentSettings, refreshedSettings);
+            break;
+          }
+        }
+        
+        retryAttempts++;
+      }
+      
+      if (!currentSettings.retryInProgress) {
+        return AppError.validation('No retry process in progress').toResponse();
+      }
     }
 
     const { 

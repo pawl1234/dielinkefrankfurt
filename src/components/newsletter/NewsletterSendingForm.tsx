@@ -307,6 +307,8 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     // Check if retry process was triggered
     if (lastChunkData && lastChunkData.newsletterStatus === 'retrying') {
       setCurrentStep('retrying');
+      // Add a small delay to ensure database update is completed
+      await new Promise(resolve => setTimeout(resolve, 2000));
       await processRetryStages(prepareData);
     } else {
       // Set final results

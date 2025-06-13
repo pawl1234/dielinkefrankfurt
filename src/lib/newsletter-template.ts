@@ -774,7 +774,7 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
     subjectTemplate: 'Die Linke Frankfurt - Newsletter {date}',
 
     // Newsletter sending performance settings (current optimized values)
-    chunkSize: 250,          // Number of emails processed per chunk (or BCC recipients per email)
+    chunkSize: 50,           // Number of emails processed per chunk (or BCC recipients per email)
     chunkDelay: 500,         // Milliseconds between chunks
     emailDelay: 50,          // Milliseconds between individual emails
     emailTimeout: 60000,     // Email sending timeout in milliseconds
