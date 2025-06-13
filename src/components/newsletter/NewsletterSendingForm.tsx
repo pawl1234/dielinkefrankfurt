@@ -623,7 +623,8 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
 
     return (
       <Paper sx={{ p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 0 }}>
-        {sendResult.success ? (
+        {/* Always show success message if any emails were sent */}
+        {sendResult.sentCount > 0 && (
           <Alert 
             severity="success" 
             icon={<CheckCircleOutlineIcon fontSize="inherit" />}
@@ -631,13 +632,11 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           >
             <AlertTitle>Newsletter erfolgreich versendet!</AlertTitle>
             Der Newsletter wurde an {sendResult.sentCount} Empfänger versendet.
-            {sendResult.failedCount > 0 && (
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Bei {sendResult.failedCount} Empfängern ist ein Fehler aufgetreten.
-              </Typography>
-            )}
           </Alert>
-        ) : (
+        )}
+
+        {/* Show error alert only if no emails were sent at all */}
+        {sendResult.sentCount === 0 && (
           <Alert 
             severity="error" 
             icon={<ErrorOutlineIcon fontSize="inherit" />}
@@ -645,11 +644,6 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           >
             <AlertTitle>Beim Versenden ist ein Fehler aufgetreten</AlertTitle>
             {sendResult.error || 'Es gab ein Problem beim Versenden des Newsletters.'}
-            {sendResult.sentCount > 0 && (
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Der Newsletter wurde an {sendResult.sentCount} von {(sendResult.sentCount + sendResult.failedCount)} Empfängern versendet.
-              </Typography>
-            )}
           </Alert>
         )}
 
