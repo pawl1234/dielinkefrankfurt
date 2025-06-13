@@ -334,8 +334,12 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     let retryComplete = false;
     let finalFailedEmails: string[] = [];
     
+    console.log('Starting retry process for newsletter:', newsletterId);
+    
     while (!retryComplete) {
       try {
+        console.log('Calling retry-chunk API for newsletter:', newsletterId);
+        
         const retryResponse = await fetch('/api/admin/newsletter/retry-chunk', {
           method: 'POST',
           headers: {
@@ -349,8 +353,11 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           }),
         });
 
+        console.log('Retry-chunk API response status:', retryResponse.status);
+
         if (!retryResponse.ok) {
           const errorData = await retryResponse.json();
+          console.error('Retry-chunk API error response:', errorData);
           throw new Error(errorData.error || 'Fehler beim Wiederholen');
         }
 

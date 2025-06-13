@@ -485,21 +485,51 @@ async function startRetryProcess(newsletterId: string, chunkResults: any[], curr
       }
     });
 
+    // Prepare retry settings
+    const retrySettings = {
+      ...currentSettings,
+      retryInProgress: true,
+      retryStartedAt: new Date().toISOString(),
+      failedEmails,
+      retryChunkSizes,
+      currentRetryStage: 0,
+      retryResults: []
+    };
+
+    logger.info(`Updating newsletter with retry settings`, {
+      context: {
+        newsletterId,
+        retryInProgress: retrySettings.retryInProgress,
+        failedEmailsCount: retrySettings.failedEmails.length,
+        settingsKeys: Object.keys(retrySettings)
+      }
+    });
+
     // Store retry information in newsletter settings
     await prisma.newsletterItem.update({
       where: { id: newsletterId },
       data: {
-        settings: JSON.stringify({
-          ...currentSettings,
-          retryInProgress: true,
-          retryStartedAt: new Date().toISOString(),
-          failedEmails,
-          retryChunkSizes,
-          currentRetryStage: 0,
-          retryResults: []
-        })
+        settings: JSON.stringify(retrySettings)
       }
     });
+
+    // Verify the update was successful
+    const updatedNewsletter = await prisma.newsletterItem.findUnique({
+      where: { id: newsletterId }
+    });
+
+    if (updatedNewsletter?.settings) {
+      const verifySettings = JSON.parse(updatedNewsletter.settings);
+      logger.info(`Verified newsletter update - retry process initialized`, {
+        context: {
+          newsletterId,
+          status: updatedNewsletter.status,
+          retryInProgress: verifySettings.retryInProgress,
+          failedEmailsCount: verifySettings.failedEmails?.length || 0,
+          currentRetryStage: verifySettings.currentRetryStage
+        }
+      });
+    }
 
   } catch (error) {
     logger.error('Error starting retry process:', { context: { error, newsletterId } });

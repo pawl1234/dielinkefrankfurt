@@ -49,8 +49,24 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     const body: RetryRequest = await request.json();
     const { newsletterId, html, subject, settings } = body;
 
+    logger.info(`Retry-chunk API called for newsletter ${newsletterId}`, {
+      context: {
+        newsletterId,
+        hasHtml: !!html,
+        hasSubject: !!subject,
+        hasSettings: !!settings
+      }
+    });
+
     // Validate required fields
     if (!newsletterId || !html || !subject) {
+      logger.error('Missing required fields in retry-chunk request', {
+        context: {
+          hasNewsletterId: !!newsletterId,
+          hasHtml: !!html,
+          hasSubject: !!subject
+        }
+      });
       return AppError.validation('Missing required fields').toResponse();
     }
 
@@ -59,24 +75,65 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
       where: { id: newsletterId }
     });
 
+    logger.info(`Newsletter found in database`, {
+      context: {
+        newsletterId,
+        found: !!newsletter,
+        status: newsletter?.status,
+        hasSettings: !!newsletter?.settings
+      }
+    });
+
     if (!newsletter) {
+      logger.error('Newsletter not found in database', { context: { newsletterId } });
+      logger.error('RETURNING 400: Newsletter not found', { context: { newsletterId } });
       return AppError.validation('Newsletter not found').toResponse();
     }
 
     if (newsletter.status !== 'retrying') {
+      logger.error('Newsletter is not in retrying state', {
+        context: {
+          newsletterId,
+          currentStatus: newsletter.status,
+          expected: 'retrying'
+        }
+      });
+      logger.error('RETURNING 400: Newsletter is not in retry state', { context: { newsletterId, status: newsletter.status } });
       return AppError.validation('Newsletter is not in retry state').toResponse();
     }
 
     const currentSettings = newsletter.settings ? JSON.parse(newsletter.settings) : {};
     
+    logger.info(`Newsletter settings parsed`, {
+      context: {
+        newsletterId,
+        hasRetryInProgress: !!currentSettings.retryInProgress,
+        retryInProgress: currentSettings.retryInProgress,
+        hasFailedEmails: !!currentSettings.failedEmails,
+        failedEmailsCount: currentSettings.failedEmails?.length || 0,
+        currentRetryStage: currentSettings.currentRetryStage,
+        retryChunkSizes: currentSettings.retryChunkSizes,
+        settingsKeys: Object.keys(currentSettings)
+      }
+    });
+    
     // If retry is not in progress but status is retrying, wait a moment and retry
     if (!currentSettings.retryInProgress) {
+      logger.warn(`Retry not in progress, waiting for initialization`, {
+        context: { newsletterId, retryInProgress: currentSettings.retryInProgress }
+      });
+      
       // Wait up to 5 seconds for the retry process to be initialized
       let retryAttempts = 0;
       const maxRetryAttempts = 10;
       
       while (retryAttempts < maxRetryAttempts) {
         await new Promise(resolve => setTimeout(resolve, 500));
+        retryAttempts++;
+        
+        logger.info(`Waiting for retry initialization, attempt ${retryAttempts}/${maxRetryAttempts}`, {
+          context: { newsletterId }
+        });
         
         // Re-fetch newsletter to check if retry process is now initialized
         const refreshedNewsletter = await prisma.newsletterItem.findUnique({
@@ -85,17 +142,41 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
         
         if (refreshedNewsletter?.settings) {
           const refreshedSettings = JSON.parse(refreshedNewsletter.settings);
+          
+          logger.info(`Refreshed newsletter settings`, {
+            context: {
+              newsletterId,
+              attempt: retryAttempts,
+              status: refreshedNewsletter.status,
+              hasRetryInProgress: !!refreshedSettings.retryInProgress,
+              retryInProgress: refreshedSettings.retryInProgress,
+              hasFailedEmails: !!refreshedSettings.failedEmails,
+              failedEmailsCount: refreshedSettings.failedEmails?.length || 0,
+              settingsKeys: Object.keys(refreshedSettings)
+            }
+          });
+          
           if (refreshedSettings.retryInProgress) {
             // Update currentSettings and break the loop
             Object.assign(currentSettings, refreshedSettings);
+            logger.info(`Retry process found after ${retryAttempts} attempts`, {
+              context: { newsletterId, retryAttempts }
+            });
             break;
           }
         }
-        
-        retryAttempts++;
       }
       
       if (!currentSettings.retryInProgress) {
+        logger.error(`No retry process in progress after ${maxRetryAttempts} attempts`, {
+          context: {
+            newsletterId,
+            maxRetryAttempts,
+            currentSettings: JSON.stringify(currentSettings, null, 2)
+          }
+        });
+        
+        logger.error('RETURNING 400: No retry process in progress', { context: { newsletterId } });
         return AppError.validation('No retry process in progress').toResponse();
       }
     }
@@ -276,7 +357,16 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     return NextResponse.json(response);
 
   } catch (error) {
-    logger.error('Error processing retry:', { context: { error } });
+    logger.error('Error processing retry:', { 
+      context: { 
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : error,
+        newsletterId: request.url
+      } 
+    });
     
     const response: RetryResponse = {
       success: false,
