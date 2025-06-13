@@ -106,11 +106,6 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
     }
   }, []);
 
-  // Expose refresh function to parent component via ref
-  useImperativeHandle(ref, () => ({
-    refresh: fetchNewsletters
-  }), [fetchNewsletters]);
-
   /**
    * Fetch newsletters from the API
    */
@@ -146,6 +141,11 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
       setLoading(false);
     }
   }, [page, pageSize, debouncedSearchTerm]);
+
+  // Expose refresh function to parent component via ref
+  useImperativeHandle(ref, () => ({
+    refresh: fetchNewsletters
+  }), [fetchNewsletters]);
 
   // Fetch newsletters when dependencies change
   useEffect(() => {
