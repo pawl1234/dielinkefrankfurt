@@ -27,6 +27,7 @@ interface NewsletterSendingFormProps {
   newsletterHtml: string; // The generated newsletter HTML
   subject: string; // Email subject
   newsletterId?: string; // The newsletter ID for updating existing draft
+  onComplete?: () => void; // Called when newsletter sending is completed
 }
 
 /**
@@ -58,7 +59,7 @@ interface SendResult {
 /**
  * Multi-step form for newsletter sending workflow
  */
-export default function NewsletterSendingForm({ newsletterHtml, subject, newsletterId }: NewsletterSendingFormProps) {
+export default function NewsletterSendingForm({ newsletterHtml, subject, newsletterId, onComplete }: NewsletterSendingFormProps) {
   // Step management state
   const [currentStep, setCurrentStep] = useState<'input' | 'validation' | 'sending' | 'retrying' | 'complete'>('input');
   
@@ -357,6 +358,9 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       setSendResult(finalResult);
 
       setCurrentStep('complete');
+      
+      // Call completion callback
+      onComplete?.();
     }
   };
 
@@ -494,6 +498,9 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     setSendResult(retryResult);
 
     setCurrentStep('complete');
+    
+    // Call completion callback
+    onComplete?.();
   };
 
   /**

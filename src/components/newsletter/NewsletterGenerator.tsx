@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -44,7 +44,7 @@ import { NewsletterSettings } from '@/lib/newsletter-template';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import NewsletterSendingForm from './NewsletterSendingForm';
-import NewsletterArchives from './NewsletterArchives';
+import NewsletterArchives, { NewsletterArchivesRef } from './NewsletterArchives';
 
 interface Appointment {
   id: number;
@@ -121,6 +121,15 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
   const [activeTab, setActiveTab] = useState<number>(0);
   const [generatedNewsletter, setGeneratedNewsletter] = useState<string>('');
   const [subject, setSubject] = useState<string>(`Die Linke Frankfurt Newsletter - ${format(new Date(), 'dd.MM.yyyy')}`);
+  
+  // Create ref for NewsletterArchives
+  const archivesRef = useRef<NewsletterArchivesRef>(null);
+  
+  // Handle newsletter sending completion
+  const handleNewsletterSent = () => {
+    // Refresh the archives when a newsletter is sent
+    archivesRef.current?.refresh();
+  };
   
   // Check for tab and newsletterId query parameters on initial load
   useEffect(() => {
@@ -656,6 +665,7 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
           <NewsletterSendingForm 
             newsletterHtml={generatedNewsletter} 
             subject={subject}
+            onComplete={handleNewsletterSent}
           />
           
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-start' }}>
@@ -679,7 +689,7 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
             Übersicht aller gesendeten Newsletter.
           </Typography>
           
-          <NewsletterArchives />
+          <NewsletterArchives ref={archivesRef} />
         </Box>
       )}
 

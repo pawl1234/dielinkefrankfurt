@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
   Paper,
   Table,
@@ -61,16 +61,20 @@ interface NewsletterArchivesProps {
   onResendNewsletter?: (newsletter: NewsletterItem) => void;
 }
 
+export interface NewsletterArchivesRef {
+  refresh: () => void;
+}
+
 /**
  * Component for displaying newsletter archives and details
  */
-export default function NewsletterArchives({ 
+const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesProps>(({ 
   onSendNewsletter,
   onEditDraft,
   onTestEmail,
   onPreview,
   onResendNewsletter
-}: NewsletterArchivesProps) {
+}, ref) => {
   // State for newsletters data
   const [newsletters, setNewsletters] = useState<NewsletterItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +105,11 @@ export default function NewsletterArchives({
       setSelectedNewsletterId(newsletterId);
     }
   }, []);
+
+  // Expose refresh function to parent component via ref
+  useImperativeHandle(ref, () => ({
+    refresh: fetchNewsletters
+  }), [fetchNewsletters]);
 
   /**
    * Fetch newsletters from the API
@@ -458,4 +467,8 @@ export default function NewsletterArchives({
       )}
     </>
   );
-}
+});
+
+NewsletterArchives.displayName = 'NewsletterArchives';
+
+export default NewsletterArchives;
