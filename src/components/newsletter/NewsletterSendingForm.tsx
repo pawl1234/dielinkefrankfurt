@@ -333,6 +333,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   const processRetryStages = async (prepareData: any) => {
     let retryComplete = false;
     let finalFailedEmails: string[] = [];
+    let hasRetryError = false;
     
     console.log('Starting retry process for newsletter:', newsletterId);
     
@@ -387,8 +388,24 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         console.error('Error during retry process:', err);
         setError(`Fehler beim Wiederholen: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`);
         retryComplete = true;
+        hasRetryError = true;
       }
     }
+
+    // Only set success results if there was no error during retry
+    if (hasRetryError) {
+      setCurrentStep('complete');
+      return;
+    }
+
+    console.log('Setting final retry results:', {
+      finalFailedEmails,
+      finalFailedEmailsCount: finalFailedEmails.length,
+      success: finalFailedEmails.length === 0
+    });
+
+    // Clear any error state before setting success results
+    setError('');
 
     // Set final results with retry information
     setSendResult({
@@ -401,7 +418,8 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       newsletterId: newsletterId,
       totalChunks: sendingProgress.totalChunks,
       completedChunks: sendingProgress.totalChunks,
-      isComplete: true
+      isComplete: true,
+      finalFailedEmails: finalFailedEmails
     });
 
     setCurrentStep('complete');
