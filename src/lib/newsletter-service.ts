@@ -81,6 +81,7 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         // Retry logic settings
         maxRetries: dbSettings.maxRetries ?? defaultSettings.maxRetries,
         maxBackoffDelay: dbSettings.maxBackoffDelay ?? defaultSettings.maxBackoffDelay,
+        retryChunkSizes: dbSettings.retryChunkSizes ?? defaultSettings.retryChunkSizes,
         
         // System fields
         id: dbSettings.id,

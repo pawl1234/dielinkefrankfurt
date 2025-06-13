@@ -110,7 +110,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
     
     // Get newsletter settings to determine chunk size
     const newsletterSettings = await getNewsletterSettings();
-    const chunkSize = newsletterSettings.chunkSize || 250; // Use configured chunk size or default to 250
+    const chunkSize = newsletterSettings.chunkSize || 50; // Use configured chunk size or default to 50
     const emailChunks: string[][] = [];
     
     // Divide plain emails into chunks

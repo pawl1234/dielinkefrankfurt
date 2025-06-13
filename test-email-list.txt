@@ -1,0 +1,15 @@
+success1@test.com
+testfail@test.com
+success2@test.com
+testerror@test.com
+success3@test.com
+testuser1@test.com
+testuser2@test.com
+testuser3@test.com
+shouldfail@test.com
+success4@test.com
+testuser4@test.com
+randomerror@test.com
+success5@test.com
+testuser5@test.com
+shoulderror@test.com

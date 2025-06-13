@@ -39,6 +39,7 @@ export interface NewsletterSettings {
   // Retry logic settings
   maxRetries?: number;
   maxBackoffDelay?: number;
+  retryChunkSizes?: string;
 }
 
 // Group with status reports type
@@ -788,6 +789,7 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
 
     // Retry logic settings (current optimized values)
     maxRetries: 3,            // Maximum verification retries
-    maxBackoffDelay: 10000    // Maximum backoff delay in milliseconds
+    maxBackoffDelay: 10000,   // Maximum backoff delay in milliseconds
+    retryChunkSizes: '10,5,1' // Comma-separated retry chunk sizes
   };
 }

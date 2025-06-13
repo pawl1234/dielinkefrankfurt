@@ -52,6 +52,7 @@ interface SendResult {
   totalChunks?: number;
   completedChunks?: number;
   isComplete?: boolean;
+  finalFailedEmails?: string[];
 }
 
 /**
@@ -59,7 +60,7 @@ interface SendResult {
  */
 export default function NewsletterSendingForm({ newsletterHtml, subject, newsletterId }: NewsletterSendingFormProps) {
   // Step management state
-  const [currentStep, setCurrentStep] = useState<'input' | 'validation' | 'sending' | 'complete'>('input');
+  const [currentStep, setCurrentStep] = useState<'input' | 'validation' | 'sending' | 'retrying' | 'complete'>('input');
   
   // Chunked sending state
   const [emailChunks, setEmailChunks] = useState<string[][]>([]);
@@ -68,6 +69,14 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     totalChunks: 0,
     totalSent: 0,
     totalFailed: 0
+  });
+  
+  // Retry progress state
+  const [retryProgress, setRetryProgress] = useState({
+    stage: 0,
+    totalStages: 0,
+    processedEmails: 0,
+    remainingFailedEmails: [] as string[]
   });
   
   // Form data state
@@ -231,6 +240,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     let totalSent = 0;
     let totalFailed = 0;
     let hasError = false;
+    let lastChunkData: any = null;
 
     for (let i = 0; i < chunks.length; i++) {
       try {
@@ -257,6 +267,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         }
 
         const chunkData = await chunkResponse.json();
+        lastChunkData = chunkData;
         
         if (!chunkData.success) {
           throw new Error(chunkData.error || `Fehler beim Senden von Chunk ${i + 1}`);
@@ -275,16 +286,15 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
 
         // Use configured delay between chunks  
         if (i < chunks.length - 1) {
-          const chunkDelay = prepareData.settings?.chunkDelay || 500; // Use configured delay or default to 500ms
+          const chunkDelay = prepareData.settings?.chunkDelay || 500;
           await new Promise(resolve => setTimeout(resolve, chunkDelay));
         }
 
       } catch (err) {
         console.error(`Error processing chunk ${i + 1}:`, err);
         hasError = true;
-        totalFailed += chunks[i].length; // Count all emails in failed chunk as failed
+        totalFailed += chunks[i].length;
         
-        // Update progress even for failed chunks
         setSendingProgress({
           completedChunks: i + 1,
           totalChunks: chunks.length,
@@ -294,15 +304,94 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       }
     }
 
-    // Set final results
+    // Check if retry process was triggered
+    if (lastChunkData && lastChunkData.newsletterStatus === 'retrying') {
+      setCurrentStep('retrying');
+      await processRetryStages(prepareData);
+    } else {
+      // Set final results
+      setSendResult({
+        success: !hasError && totalFailed === 0,
+        message: hasError ? 'Newsletter mit Fehlern versendet' : 'Newsletter erfolgreich versendet',
+        sentCount: totalSent,
+        failedCount: totalFailed,
+        newsletterId: newsletterId,
+        totalChunks: chunks.length,
+        completedChunks: chunks.length,
+        isComplete: true
+      });
+
+      setCurrentStep('complete');
+    }
+  };
+
+  /**
+   * Process retry stages automatically
+   */
+  const processRetryStages = async (prepareData: any) => {
+    let retryComplete = false;
+    let finalFailedEmails: string[] = [];
+    
+    while (!retryComplete) {
+      try {
+        const retryResponse = await fetch('/api/admin/newsletter/retry-chunk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            newsletterId,
+            html: prepareData.html,
+            subject: prepareData.subject,
+            settings: prepareData.settings
+          }),
+        });
+
+        if (!retryResponse.ok) {
+          const errorData = await retryResponse.json();
+          throw new Error(errorData.error || 'Fehler beim Wiederholen');
+        }
+
+        const retryData = await retryResponse.json();
+        
+        if (!retryData.success) {
+          throw new Error(retryData.error || 'Fehler beim Wiederholen');
+        }
+
+        // Update retry progress
+        setRetryProgress({
+          stage: retryData.stage,
+          totalStages: retryData.totalStages,
+          processedEmails: retryData.processedEmails,
+          remainingFailedEmails: retryData.remainingFailedEmails
+        });
+
+        if (retryData.isComplete) {
+          retryComplete = true;
+          finalFailedEmails = retryData.finalFailedEmails || [];
+        } else {
+          // Wait before next retry stage
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+      } catch (err) {
+        console.error('Error during retry process:', err);
+        setError(`Fehler beim Wiederholen: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`);
+        retryComplete = true;
+      }
+    }
+
+    // Set final results with retry information
     setSendResult({
-      success: !hasError && totalFailed === 0,
-      message: hasError ? 'Newsletter mit Fehlern versendet' : 'Newsletter erfolgreich versendet',
-      sentCount: totalSent,
-      failedCount: totalFailed,
+      success: finalFailedEmails.length === 0,
+      message: finalFailedEmails.length === 0 
+        ? 'Newsletter erfolgreich versendet (nach Wiederholung)' 
+        : 'Newsletter versendet mit einigen nicht zustellbaren E-Mails',
+      sentCount: sendingProgress.totalSent,
+      failedCount: finalFailedEmails.length,
       newsletterId: newsletterId,
-      totalChunks: chunks.length,
-      completedChunks: chunks.length,
+      totalChunks: sendingProgress.totalChunks,
+      completedChunks: sendingProgress.totalChunks,
       isComplete: true
     });
 
@@ -325,6 +414,12 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       totalChunks: 0,
       totalSent: 0,
       totalFailed: 0
+    });
+    setRetryProgress({
+      stage: 0,
+      totalStages: 0,
+      processedEmails: 0,
+      remainingFailedEmails: []
     });
   };
 
@@ -383,6 +478,9 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       
       case 'sending':
         return renderSendingStep();
+      
+      case 'retrying':
+        return renderRetryingStep();
       
       case 'complete':
         return renderCompleteStep();
@@ -445,6 +543,52 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   };
 
   /**
+   * Render retry progress step
+   */
+  const renderRetryingStep = () => {
+    return (
+      <Paper sx={{ p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 0 }}>
+        <Typography variant="h6" gutterBottom>
+          Fehlgeschlagene E-Mails werden wiederholt...
+        </Typography>
+        
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="body2">
+              Wiederholungsstufe: {retryProgress.stage} / {retryProgress.totalStages}
+            </Typography>
+            <Typography variant="body2">
+              Verbleibende E-Mails: {retryProgress.remainingFailedEmails.length}
+            </Typography>
+          </Box>
+          
+          <LinearProgress 
+            variant={retryProgress.totalStages > 0 ? "determinate" : "indeterminate"}
+            value={retryProgress.totalStages > 0 ? (retryProgress.stage / retryProgress.totalStages) * 100 : 0}
+            sx={{ height: 8, borderRadius: 4 }}
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="body2" color="success.main">
+            ✓ Ursprünglich versendet: {sendingProgress.totalSent}
+          </Typography>
+          <Typography variant="body2" color="warning.main">
+            ⟳ Wird wiederholt: {retryProgress.processedEmails}
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 3 }}>
+          <CircularProgress size={20} sx={{ mr: 2 }} />
+          <Typography variant="body2" color="text.secondary">
+            Fehlgeschlagene E-Mails werden mit kleineren Paketen wiederholt...
+          </Typography>
+        </Box>
+      </Paper>
+    );
+  };
+
+  /**
    * Render completion step
    */
   const renderCompleteStep = () => {
@@ -480,6 +624,30 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
               </Typography>
             )}
           </Alert>
+        )}
+
+        {/* Show failed email list if there are any */}
+        {sendResult.finalFailedEmails && sendResult.finalFailedEmails.length > 0 && (
+          <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: 'error.main', borderRadius: 1 }}>
+            <Typography variant="h6" color="error.main" gutterBottom>
+              E-Mail konnte nicht zugestellt werden an:
+            </Typography>
+            <Box sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
+              {sendResult.finalFailedEmails.map((email: string, index: number) => (
+                <Typography 
+                  key={index} 
+                  variant="body2" 
+                  sx={{ 
+                    fontFamily: 'monospace',
+                    mb: 0.5,
+                    wordBreak: 'break-all'
+                  }}
+                >
+                  • {email}
+                </Typography>
+              ))}
+            </Box>
+          </Box>
         )}
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>

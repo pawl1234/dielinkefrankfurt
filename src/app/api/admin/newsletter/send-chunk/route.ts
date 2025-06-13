@@ -370,7 +370,8 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     chunkResults[chunkIndex] = {
       sentCount,
       failedCount,
-      completedAt: new Date().toISOString()
+      completedAt: new Date().toISOString(),
+      results: results // Store individual email results for retry logic
     };
 
     // Calculate total progress
@@ -379,7 +380,15 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     
     let finalStatus = newsletter.status;
     if (isComplete) {
-      finalStatus = totalFailed === 0 ? 'sent' : 'partially_failed';
+      if (totalFailed === 0) {
+        finalStatus = 'sent';
+      } else {
+        // Check if we should start retry process
+        finalStatus = 'retrying';
+        
+        // Trigger retry process for failed emails
+        await startRetryProcess(newsletterId, chunkResults, currentSettings);
+      }
     }
 
     // Update newsletter record
@@ -437,6 +446,63 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     };
     
     return NextResponse.json(response, { status: 500 });
+  }
+}
+
+/**
+ * Start retry process for failed emails with progressively smaller chunk sizes
+ */
+async function startRetryProcess(newsletterId: string, chunkResults: any[], currentSettings: any) {
+  try {
+    // Get newsletter settings for retry configuration
+    const newsletterSettings = await getNewsletterSettings();
+    const retryChunkSizes = (newsletterSettings.retryChunkSizes || '10,5,1')
+      .split(',')
+      .map(size => parseInt(size.trim()))
+      .filter(size => size > 0);
+
+    // Collect all failed emails from all chunks
+    const failedEmails: string[] = [];
+    chunkResults.forEach(chunk => {
+      if (chunk?.results) {
+        chunk.results.forEach((result: any) => {
+          if (!result.success) {
+            failedEmails.push(result.email);
+          }
+        });
+      }
+    });
+
+    if (failedEmails.length === 0) {
+      return; // No failed emails to retry
+    }
+
+    logger.info(`Starting retry process for ${failedEmails.length} failed emails`, {
+      context: {
+        newsletterId,
+        failedCount: failedEmails.length,
+        retryChunkSizes
+      }
+    });
+
+    // Store retry information in newsletter settings
+    await prisma.newsletterItem.update({
+      where: { id: newsletterId },
+      data: {
+        settings: JSON.stringify({
+          ...currentSettings,
+          retryInProgress: true,
+          retryStartedAt: new Date().toISOString(),
+          failedEmails,
+          retryChunkSizes,
+          currentRetryStage: 0,
+          retryResults: []
+        })
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error starting retry process:', { context: { error, newsletterId } });
   }
 }
 

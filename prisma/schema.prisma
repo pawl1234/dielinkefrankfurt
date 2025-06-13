@@ -76,7 +76,7 @@ model Newsletter {
   emailSalt          String?    // Salt for email hashing
 
   // Newsletter sending performance settings
-  chunkSize          Int        @default(250)   // Number of emails processed per chunk (or BCC recipients per email)
+  chunkSize          Int        @default(50)    // Number of emails processed per chunk (or BCC recipients per email)
   chunkDelay         Int        @default(500)   // Milliseconds between chunks
   emailDelay         Int        @default(50)    // Milliseconds between individual emails
   emailTimeout       Int        @default(60000) // Email sending timeout in milliseconds
@@ -92,6 +92,7 @@ model Newsletter {
   // Retry logic settings
   maxRetries         Int        @default(3)     // Maximum verification retries
   maxBackoffDelay    Int        @default(10000) // Maximum backoff delay in milliseconds
+  retryChunkSizes    String     @default("10,5,1") // Comma-separated retry chunk sizes
 
   // System fields
   createdAt          DateTime   @default(now())
@@ -205,7 +206,7 @@ model NewsletterItem {
   subject          String
   introductionText String    @db.Text
   content          String?   @db.Text // Generated HTML content
-  status           String    @default("draft") // draft, sending, sent, failed, partially_failed
+  status           String    @default("draft") // draft, sending, sent, failed, partially_failed, retrying
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   sentAt           DateTime?

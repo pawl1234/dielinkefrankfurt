@@ -59,6 +59,7 @@ export default function NewsletterSettingsPage() {
     maxMessages: 100,
     maxRetries: 3,
     maxBackoffDelay: 10000,
+    retryChunkSizes: '10,5,1',
     useBccSending: true,
   });
 
@@ -489,6 +490,19 @@ export default function NewsletterSettingsPage() {
                       fullWidth
                       margin="normal"
                       helperText="Maximale exponential Backoff Verzögerung (1-60s)"
+                    />
+                  </Grid>
+                </Grid>
+                
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12 }}>
+                    <TextField
+                      label="Wiederholungs-Chunk-Größen"
+                      value={settings.retryChunkSizes || '10,5,1'}
+                      onChange={(e) => setSettings({ ...settings, retryChunkSizes: e.target.value })}
+                      fullWidth
+                      margin="normal"
+                      helperText="Kommagetrennte Liste der Chunk-Größen für Wiederholungsversuche (z.B. 10,5,1)"
                     />
                   </Grid>
                 </Grid>
