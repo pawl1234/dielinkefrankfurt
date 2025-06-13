@@ -425,11 +425,18 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       success: finalFailedEmails.length === 0
     });
 
+    // Calculate total sent emails: Total attempted - Final failed = Successfully sent
+    const totalEmailsAttempted = sendingProgress.totalSent + sendingProgress.totalFailed;
+    const actualSentCount = totalEmailsAttempted - finalFailedEmails.length;
+
     // DEBUG: Log before setting retry results
     console.log('=== SETTING FINAL RESULTS (RETRY) ===');
     console.log('finalFailedEmails:', finalFailedEmails);
     console.log('finalFailedEmails.length:', finalFailedEmails.length);
     console.log('sendingProgress.totalSent:', sendingProgress.totalSent);
+    console.log('sendingProgress.totalFailed:', sendingProgress.totalFailed);
+    console.log('totalEmailsAttempted:', totalEmailsAttempted);
+    console.log('actualSentCount (calculated):', actualSentCount);
     console.log('success will be:', finalFailedEmails.length === 0);
     console.log('Clearing error state...');
     
@@ -441,7 +448,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       message: finalFailedEmails.length === 0 
         ? 'Newsletter erfolgreich versendet (nach Wiederholung)' 
         : 'Newsletter versendet mit einigen nicht zustellbaren E-Mails',
-      sentCount: sendingProgress.totalSent,
+      sentCount: actualSentCount,
       failedCount: finalFailedEmails.length,
       newsletterId: newsletterId,
       totalChunks: sendingProgress.totalChunks,

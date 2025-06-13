@@ -347,7 +347,7 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
       success: true,
       stage: currentRetryStage + 1,
       totalStages: retryChunkSizes.length,
-      processedEmails: processedCount,
+      processedEmails: successfulEmails.length,
       remainingFailedEmails: stillFailedEmails,
       isComplete,
       finalFailedEmails: isComplete ? stillFailedEmails : undefined,
