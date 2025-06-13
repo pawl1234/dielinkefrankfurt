@@ -367,6 +367,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     let retryComplete = false;
     let finalFailedEmails: string[] = [];
     let hasRetryError = false;
+    let totalRetrySuccesses = 0; // Track total successful emails during retry
     
     console.log('Starting retry process for newsletter:', newsletterId);
     
@@ -414,6 +415,11 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           throw new Error(retryData.error || 'Fehler beim Wiederholen');
         }
 
+        // Accumulate successful emails from this retry stage
+        totalRetrySuccesses += retryData.processedEmails || 0;
+        
+        console.log('Accumulated retry successes so far:', totalRetrySuccesses);
+
         // Update retry progress
         setRetryProgress({
           stage: retryData.stage,
@@ -450,9 +456,8 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       success: finalFailedEmails.length === 0
     });
 
-    // Calculate total sent emails: Total attempted - Final failed = Successfully sent
-    const totalEmailsAttempted = sendingProgress.totalSent + sendingProgress.totalFailed;
-    const actualSentCount = totalEmailsAttempted - finalFailedEmails.length;
+    // Calculate total sent emails: Initial sent + Retry successes
+    const actualSentCount = sendingProgress.totalSent + totalRetrySuccesses;
 
     // DEBUG: Log before setting retry results
     console.log('=== SETTING FINAL RESULTS (RETRY) ===');
@@ -460,7 +465,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     console.log('finalFailedEmails.length:', finalFailedEmails.length);
     console.log('sendingProgress.totalSent:', sendingProgress.totalSent);
     console.log('sendingProgress.totalFailed:', sendingProgress.totalFailed);
-    console.log('totalEmailsAttempted:', totalEmailsAttempted);
+    console.log('totalRetrySuccesses:', totalRetrySuccesses);
     console.log('actualSentCount (calculated):', actualSentCount);
     console.log('success will be:', finalFailedEmails.length === 0);
     console.log('Clearing error state...');
