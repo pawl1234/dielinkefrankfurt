@@ -225,7 +225,12 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       await processEmailChunks(chunks, prepareData);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ein unerwarteter Fehler ist aufgetreten');
+      const errorMessage = err instanceof Error ? err.message : 'Ein unerwarteter Fehler ist aufgetreten';
+      console.log('=== SETTING ERROR (SEND PROCESS) ===');
+      console.log('Error:', err);
+      console.log('Error message:', errorMessage);
+      console.log('====================================');
+      setError(errorMessage);
       console.error('Sending error:', err);
       setCurrentStep('validation');
     } finally {
@@ -311,11 +316,18 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       await new Promise(resolve => setTimeout(resolve, 2000));
       await processRetryStages(prepareData);
     } else {
+      // DEBUG: Log before setting final results
+      console.log('=== SETTING FINAL RESULTS (NON-RETRY) ===');
+      console.log('hasError:', hasError);
+      console.log('totalSent:', totalSent);
+      console.log('totalFailed:', totalFailed);
+      console.log('success will be:', !hasError && totalFailed === 0);
+      console.log('Clearing error state...');
+      
       // Clear any previous error state
       setError('');
       
-      // Set final results
-      setSendResult({
+      const finalResult = {
         success: !hasError && totalFailed === 0,
         message: hasError ? 'Newsletter mit Fehlern versendet' : 'Newsletter erfolgreich versendet',
         sentCount: totalSent,
@@ -324,7 +336,13 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         totalChunks: chunks.length,
         completedChunks: chunks.length,
         isComplete: true
-      });
+      };
+      
+      console.log('Setting sendResult to:', JSON.stringify(finalResult, null, 2));
+      console.log('==========================================');
+      
+      // Set final results
+      setSendResult(finalResult);
 
       setCurrentStep('complete');
     }
@@ -407,11 +425,18 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       success: finalFailedEmails.length === 0
     });
 
+    // DEBUG: Log before setting retry results
+    console.log('=== SETTING FINAL RESULTS (RETRY) ===');
+    console.log('finalFailedEmails:', finalFailedEmails);
+    console.log('finalFailedEmails.length:', finalFailedEmails.length);
+    console.log('sendingProgress.totalSent:', sendingProgress.totalSent);
+    console.log('success will be:', finalFailedEmails.length === 0);
+    console.log('Clearing error state...');
+    
     // Clear any error state before setting success results
     setError('');
 
-    // Set final results with retry information
-    setSendResult({
+    const retryResult = {
       success: finalFailedEmails.length === 0,
       message: finalFailedEmails.length === 0 
         ? 'Newsletter erfolgreich versendet (nach Wiederholung)' 
@@ -423,7 +448,13 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       completedChunks: sendingProgress.totalChunks,
       isComplete: true,
       finalFailedEmails: finalFailedEmails
-    });
+    };
+    
+    console.log('Setting sendResult to:', JSON.stringify(retryResult, null, 2));
+    console.log('======================================');
+
+    // Set final results with retry information
+    setSendResult(retryResult);
 
     setCurrentStep('complete');
   };
@@ -624,6 +655,17 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   const renderCompleteStep = () => {
     if (!sendResult) return null;
 
+    // DEBUG: Log the complete state when rendering
+    console.log('=== RENDER COMPLETE STEP DEBUG ===');
+    console.log('sendResult:', JSON.stringify(sendResult, null, 2));
+    console.log('error state:', error);
+    console.log('sendResult.sentCount:', sendResult.sentCount);
+    console.log('sendResult.failedCount:', sendResult.failedCount);
+    console.log('sendResult.success:', sendResult.success);
+    console.log('Will show success alert:', sendResult.sentCount > 0);
+    console.log('Will show error alert:', sendResult.sentCount === 0);
+    console.log('===================================');
+
     return (
       <Paper sx={{ p: 3, border: '1px solid', borderColor: 'grey.300', borderRadius: 0 }}>
         {/* Always show success message if any emails were sent */}
@@ -705,7 +747,15 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       {/* Error message */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
+          {(() => {
+            // DEBUG: Log when top-level error is displayed
+            console.log('=== TOP LEVEL ERROR DISPLAY ===');
+            console.log('error:', error);
+            console.log('currentStep:', currentStep);
+            console.log('sendResult:', sendResult);
+            console.log('===============================');
+            return error;
+          })()}
         </Alert>
       )}
       
