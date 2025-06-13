@@ -311,6 +311,9 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       await new Promise(resolve => setTimeout(resolve, 2000));
       await processRetryStages(prepareData);
     } else {
+      // Clear any previous error state
+      setError('');
+      
       // Set final results
       setSendResult({
         success: !hasError && totalFailed === 0,
