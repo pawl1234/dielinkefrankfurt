@@ -37,6 +37,7 @@ interface NewsletterDetail {
   subject: string;
   recipientCount: number;
   status: string;
+  type: 'draft' | 'sent';
   content: string;
   settings: string;
   settingsData?: Record<string, any>;
@@ -46,12 +47,13 @@ interface NewsletterDetailProps {
   id: string;
   onBack: () => void;
   onDelete?: (id: string) => void;
+  onResendNewsletter?: (newsletter: NewsletterDetail) => void;
 }
 
 /**
  * Component for displaying newsletter details
  */
-export default function NewsletterDetail({ id, onBack, onDelete }: NewsletterDetailProps) {
+export default function NewsletterDetail({ id, onBack, onDelete, onResendNewsletter }: NewsletterDetailProps) {
   const [newsletter, setNewsletter] = useState<NewsletterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,8 +136,11 @@ export default function NewsletterDetail({ id, onBack, onDelete }: NewsletterDet
 
   // Handle resending the newsletter
   const handleResend = () => {
-    // This would be implemented in the future
-    alert('Diese Funktion ist noch nicht implementiert.');
+    if (newsletter && onResendNewsletter) {
+      onResendNewsletter(newsletter);
+    } else {
+      alert('Diese Funktion ist noch nicht implementiert.');
+    }
   };
 
   // Download the newsletter as HTML
@@ -355,15 +360,17 @@ export default function NewsletterDetail({ id, onBack, onDelete }: NewsletterDet
                   Als HTML herunterladen
                 </Button>
                 
-                <Button 
-                  variant="contained" 
-                  color="primary" 
-                  startIcon={<ReplayIcon />}
-                  onClick={handleResend}
-                  fullWidth
-                >
-                  Erneut versenden
-                </Button>
+                {(newsletter.status === 'completed' || newsletter.status === 'failed' || newsletter.status === 'completed_with_errors') && (
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    startIcon={<ReplayIcon />}
+                    onClick={handleResend}
+                    fullWidth
+                  >
+                    Erneut versenden
+                  </Button>
+                )}
                 
                 <Button 
                   variant="outlined" 

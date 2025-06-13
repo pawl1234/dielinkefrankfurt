@@ -28,6 +28,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmailIcon from '@mui/icons-material/Email';
 import PreviewIcon from '@mui/icons-material/Preview';
+import ReplayIcon from '@mui/icons-material/Replay';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import NewsletterDetail from './NewsletterDetail';
 
@@ -57,6 +58,7 @@ interface NewsletterArchivesProps {
   onEditDraft?: (newsletter: NewsletterItem) => void;
   onTestEmail?: (newsletter: NewsletterItem) => void;
   onPreview?: (newsletter: NewsletterItem) => void;
+  onResendNewsletter?: (newsletter: NewsletterItem) => void;
 }
 
 /**
@@ -66,7 +68,8 @@ export default function NewsletterArchives({
   onSendNewsletter,
   onEditDraft,
   onTestEmail,
-  onPreview
+  onPreview,
+  onResendNewsletter
 }: NewsletterArchivesProps) {
   // State for newsletters data
   const [newsletters, setNewsletters] = useState<NewsletterItem[]>([]);
@@ -271,6 +274,7 @@ export default function NewsletterArchives({
       id={selectedNewsletterId} 
       onBack={handleBackToList}
       onDelete={handleNewsletterDeleted}
+      onResendNewsletter={onResendNewsletter}
     />;
   }
 
@@ -407,6 +411,17 @@ export default function NewsletterArchives({
                             >
                               <VisibilityIcon fontSize="small" />
                             </Button>
+                            {(newsletter.status === 'sent' || newsletter.status === 'failed' || newsletter.status === 'partially_failed') && (
+                              <Button
+                                onClick={() => onResendNewsletter?.(newsletter)}
+                                variant="outlined"
+                                size="small"
+                                color="primary"
+                                title="Erneut versenden"
+                              >
+                                <ReplayIcon fontSize="small" />
+                              </Button>
+                            )}
                             <Button
                               onClick={() => handleDelete(newsletter)}
                               variant="outlined"

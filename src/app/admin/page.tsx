@@ -39,6 +39,7 @@ export default function AdminPage() {
   
   // State for dialogs and forms
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [resendDialogOpen, setResendDialogOpen] = useState(false);
   const [testEmailDialogOpen, setTestEmailDialogOpen] = useState(false);
   const [selectedNewsletter, setSelectedNewsletter] = useState<NewsletterItem | null>(null);
   const [newsletterHtml, setNewsletterHtml] = useState('');
@@ -121,6 +122,21 @@ export default function AdminPage() {
                 }
                 setSendDialogOpen(true);
               }}
+              onResendNewsletter={async (newsletter) => {
+                setSelectedNewsletter(newsletter);
+                // Fetch the newsletter content (same as onSendNewsletter)
+                try {
+                  const response = await fetch(`/api/admin/newsletter/archives/${newsletter.id}`);
+                  if (response.ok) {
+                    const data = await response.json();
+                    setNewsletterHtml(data.content || '');
+                    setSubject(data.subject || '');
+                  }
+                } catch (error) {
+                  console.error('Error fetching newsletter content:', error);
+                }
+                setResendDialogOpen(true);
+              }}
               onEditDraft={(newsletter) => {
                 router.push(`/admin/newsletter/edit?id=${newsletter.id}`);
               }}
@@ -162,6 +178,39 @@ export default function AdminPage() {
           <DialogActions>
             <Button onClick={() => {
               setSendDialogOpen(false);
+              setSelectedNewsletter(null);
+            }}>
+              Schließen
+            </Button>
+          </DialogActions>
+        </Dialog>
+        
+        {/* Resend Newsletter Dialog */}
+        <Dialog 
+          open={resendDialogOpen} 
+          onClose={() => setResendDialogOpen(false)}
+          maxWidth="lg"
+          fullWidth
+        >
+          <DialogTitle>Newsletter erneut versenden</DialogTitle>
+          <DialogContent>
+            {selectedNewsletter && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  {selectedNewsletter.subject}
+                </Typography>
+                
+                <NewsletterSendingForm 
+                  newsletterHtml={newsletterHtml}
+                  subject={subject || selectedNewsletter.subject}
+                  newsletterId={selectedNewsletter.id}
+                />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setResendDialogOpen(false);
               setSelectedNewsletter(null);
             }}>
               Schließen

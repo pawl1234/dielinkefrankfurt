@@ -38,8 +38,8 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       return AppError.validation('Newsletter not found').toResponse();
     }
 
-    if (newsletter.status !== 'draft') {
-      return AppError.validation('Only draft newsletters can be sent').toResponse();
+    if (!['draft', 'sent', 'failed', 'partially_failed'].includes(newsletter.status)) {
+      return AppError.validation('Only draft, sent, failed, or partially failed newsletters can be sent').toResponse();
     }
 
     // Process recipient list

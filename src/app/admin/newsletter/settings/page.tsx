@@ -59,7 +59,7 @@ export default function NewsletterSettingsPage() {
     maxMessages: 100,
     maxRetries: 3,
     maxBackoffDelay: 10000,
-    useBccSending: false,
+    useBccSending: true,
   });
 
   useEffect(() => {
@@ -249,28 +249,6 @@ export default function NewsletterSettingsPage() {
               helperText="Vorlage für den E-Mail-Betreff. Verwende {date} für das Datum."
             />
             
-            <TextField
-              label="Batch-Größe"
-              value={settings.batchSize || 100}
-              onChange={(e) => setSettings({ ...settings, batchSize: parseInt(e.target.value) || 100 })}
-              type="number"
-              InputProps={{ inputProps: { min: 1, max: 500 } }}
-              fullWidth
-              margin="normal"
-              helperText="Anzahl der E-Mails pro Batch (1-500)"
-            />
-            
-            <TextField
-              label="Batch-Verzögerung (ms)"
-              value={settings.batchDelay || 1000}
-              onChange={(e) => setSettings({ ...settings, batchDelay: parseInt(e.target.value) || 1000 })}
-              type="number"
-              InputProps={{ inputProps: { min: 100, max: 10000 } }}
-              fullWidth
-              margin="normal"
-              helperText="Millisekunden zwischen Batches (100-10000)"
-            />
-            
             <FormControlLabel
               control={
                 <Switch
@@ -309,6 +287,36 @@ export default function NewsletterSettingsPage() {
                 </Typography>
                 
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
+                  Versand-Einstellungen
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Batch-Größe"
+                      value={settings.batchSize || 100}
+                      onChange={(e) => setSettings({ ...settings, batchSize: parseInt(e.target.value) || 100 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 1, max: 500 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Anzahl der E-Mails pro Batch (1-500)"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Batch-Verzögerung (ms)"
+                      value={settings.batchDelay || 1000}
+                      onChange={(e) => setSettings({ ...settings, batchDelay: parseInt(e.target.value) || 1000 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 100, max: 10000 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="Millisekunden zwischen Batches (100-10000)"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
                   Chunk-Einstellungen
                 </Typography>
                 <Grid container spacing={2}>
