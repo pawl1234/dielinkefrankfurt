@@ -108,7 +108,7 @@ export function mockUnauthenticatedUser() {
 }
 
 // API request helpers
-export function createNextRequest(url: string, method: string = 'GET', body?: any): NextRequest {
+export function createNextRequest(url: string, method: string = 'GET', body?: unknown): NextRequest {
   const options: RequestInit = { method };
   
   if (body) {
@@ -126,7 +126,7 @@ export function createNextRequest(url: string, method: string = 'GET', body?: an
 }
 
 // Mock form data creator
-export function createMockFormData(data: Record<string, any>): FormData {
+export function createMockFormData(data: Record<string, unknown>): FormData {
   const formData = new FormData();
   
   for (const [key, value] of Object.entries(data)) {

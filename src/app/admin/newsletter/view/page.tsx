@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -22,13 +22,23 @@ import EditIcon from '@mui/icons-material/Edit';
 function NewsletterViewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   
   const newsletterId = searchParams?.get('id');
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [newsletter, setNewsletter] = useState<any>(null);
+  const [newsletter, setNewsletter] = useState<{
+    id: string;
+    subject?: string;
+    content?: string;
+    sentAt?: string;
+    status?: string;
+    recipientCount?: number;
+    createdAt?: string;
+    introductionText?: string;
+    settings?: Record<string, unknown>;
+  } | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -36,13 +46,7 @@ function NewsletterViewContent() {
     }
   }, [status, router]);
 
-  useEffect(() => {
-    if (status === 'authenticated' && newsletterId) {
-      fetchNewsletter();
-    }
-  }, [status, newsletterId]);
-
-  const fetchNewsletter = async () => {
+  const fetchNewsletter = useCallback(async () => {
     if (!newsletterId) {
       setError('Newsletter ID fehlt');
       setLoading(false);
@@ -57,12 +61,18 @@ function NewsletterViewContent() {
       } else {
         setError('Newsletter nicht gefunden');
       }
-    } catch (error) {
+    } catch {
       setError('Fehler beim Laden des Newsletters');
     } finally {
       setLoading(false);
     }
-  };
+  }, [newsletterId]);
+
+  useEffect(() => {
+    if (status === 'authenticated' && newsletterId) {
+      fetchNewsletter();
+    }
+  }, [status, newsletterId, fetchNewsletter]);
 
   const handleBack = () => {
     router.push('/admin');

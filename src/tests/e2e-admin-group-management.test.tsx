@@ -1,7 +1,6 @@
 // e2e-admin-group-management.test.tsx - End-to-end tests for admin group management workflows
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import AdminGroupsPage from '../components/AdminGroupsPage';
 import GroupEditForm from '../components/GroupEditForm';
@@ -35,7 +34,7 @@ const mockFetch = global.fetch as jest.Mock;
 jest.mock('../components/FileUpload', () => {
   return {
     __esModule: true,
-    default: ({ onFilesSelect }: { onFilesSelect: (files: any[]) => void }) => {
+    default: ({ onFilesSelect }: { onFilesSelect: (files: File[]) => void }) => {
       return (
         <div data-testid="file-upload">
           <button

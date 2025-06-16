@@ -15,19 +15,6 @@ import {
   Alert,
   Divider,
   LinearProgress,
-  Card,
-  CardContent,
-  CardMedia,
-  Avatar,
-  Chip,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  ListSubheader,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Tab,
   Tabs,
 } from '@mui/material';
@@ -35,72 +22,25 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import GroupsIcon from '@mui/icons-material/Groups';
 import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import RichTextEditor from '../editor/RichTextEditor';
 import { NewsletterSettings } from '@/lib/newsletter-template';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import NewsletterSendingForm from './NewsletterSendingForm';
 import NewsletterArchives, { NewsletterArchivesRef } from './NewsletterArchives';
 
-interface Appointment {
-  id: number;
-  title: string;
-  teaser: string;
-  startDateTime: string;
-  featured: boolean;
-  metadata?: string;
-}
 
-interface Group {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string | null;
-}
 
-interface StatusReport {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  reporterFirstName: string;
-  reporterLastName: string;
-}
 
-interface GroupWithReports {
-  group: Group;
-  reports: StatusReport[];
-}
 
 interface NewsletterGeneratorProps {
-  isPreviewMode?: boolean;
   introductionText?: string;
-  onGenerated?: (html: string) => void;
 }
 
-// Helper function to truncate text for display
-const truncateText = (text: string, maxLength: number = 300): string => {
-  if (!text || text.length <= maxLength) {
-    return text || '';
-  }
-  
-  // Find the last space within the maxLength
-  const lastSpace = text.substring(0, maxLength).lastIndexOf(' ');
-  
-  // If no space found, just cut at maxLength
-  const truncatedText = lastSpace !== -1 ? text.substring(0, lastSpace) : text.substring(0, maxLength);
-  
-  return truncatedText + '...';
-};
 
 const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({ 
-  isPreviewMode = false, 
-  introductionText: externalIntroductionText,
-  onGenerated
+  introductionText: externalIntroductionText
 }) => {
   const [settings, setSettings] = useState<NewsletterSettings>({} as NewsletterSettings);
   const [introductionText, setIntroductionText] = useState<string>(
@@ -110,9 +50,6 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
   const [loading, setLoading] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
-  const [featuredAppointments, setFeaturedAppointments] = useState<Appointment[]>([]);
-  const [statusReportsByGroup, setStatusReportsByGroup] = useState<GroupWithReports[]>([]);
-  const [statusReportsLoading, setStatusReportsLoading] = useState(false);
   const [alert, setAlert] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -127,8 +64,18 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
   
   // Handle newsletter sending completion
   const handleNewsletterSent = () => {
+    console.log('=== NEWSLETTER SENDING COMPLETED ===');
+    console.log('archivesRef.current:', archivesRef.current);
+    console.log('activeTab:', activeTab);
+    
     // Refresh the archives when a newsletter is sent
-    archivesRef.current?.refresh();
+    if (archivesRef.current) {
+      console.log('Calling refresh on archives...');
+      archivesRef.current.refresh();
+    } else {
+      console.log('archivesRef.current is null, cannot refresh');
+    }
+    console.log('====================================');
   };
   
   // Check for tab and newsletterId query parameters on initial load
@@ -152,7 +99,7 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
   }, []);
 
   // Handle tab change
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
     
     // Update the URL with the tab parameter without refreshing the page
@@ -171,7 +118,6 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
     const fetchData = async () => {
       try {
         setSettingsLoading(true);
-        setStatusReportsLoading(true);
         
         // Fetch settings from the API
         const settingsResponse = await fetch('/api/admin/newsletter/settings');
@@ -179,26 +125,6 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
           const data = await settingsResponse.json();
           setSettings(data);
           console.log("Settings loaded:", data);
-        }
-        
-        // Fetch featured appointments to display their images
-        const appointmentsResponse = await fetch('/api/admin/newsletter/appointments');
-        if (appointmentsResponse.ok) {
-          const response = await appointmentsResponse.json();
-          // Handle both array or paginated response format
-          const appointments = response.items ? response.items : response;
-          // Filter for featured appointments
-          const featured = appointments.filter((app: Appointment) => app.featured);
-          setFeaturedAppointments(featured);
-          console.log("Featured appointments loaded:", featured);
-        }
-        
-        // Fetch status reports by group
-        const statusReportsResponse = await fetch('/api/admin/newsletter/status-reports');
-        if (statusReportsResponse.ok) {
-          const { statusReportsByGroup } = await statusReportsResponse.json();
-          setStatusReportsByGroup(statusReportsByGroup);
-          console.log("Status reports loaded:", statusReportsByGroup);
         }
       } catch (error) {
         console.error('Error fetching newsletter data:', error);
@@ -209,7 +135,6 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
         });
       } finally {
         setSettingsLoading(false);
-        setStatusReportsLoading(false);
       }
     };
 
@@ -329,7 +254,7 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         setAlert({
           open: true,
           message: 'Test Newsletter erfolgreich gesendet',
@@ -450,182 +375,6 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
               placeholder="Einleitungstext für Mittwochsmail"
             />
           </Box>
-          {/*
-         
-          {featuredAppointments.length > 0 && (
-            <Card sx={{ mt: 3, mb: 3 }}>
-              <CardContent>
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  Featured Termine im Newsletter
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Diese Termine werden im Newsletter mit Titelbild hervorgehoben.
-                </Typography>
-                
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                  {featuredAppointments.map(appointment => {
-                    // Parse metadata to get cover image URLs
-                    let coverImageUrl = null;
-                    let croppedCoverImageUrl = null;
-                    
-                    if (appointment.metadata) {
-                      try {
-                        const metadata = JSON.parse(appointment.metadata);
-                        coverImageUrl = metadata.coverImageUrl;
-                        croppedCoverImageUrl = metadata.croppedCoverImageUrl;
-                      } catch (e) {
-                        console.error('Error parsing appointment metadata:', e);
-                      }
-                    }
-                    
-                    return (
-                      <Card key={appointment.id} sx={{ width: '100%', mb: 2 }}>
-                        {croppedCoverImageUrl && (
-                          <CardMedia
-                            component="img"
-                            height="150"
-                            image={croppedCoverImageUrl}
-                            alt={appointment.title}
-                            sx={{ objectFit: 'cover' }}
-                          />
-                        )}
-                        <CardContent>
-                          <Typography variant="h6" gutterBottom>
-                            {appointment.title}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {appointment.teaser}
-                          </Typography>
-                          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                            {new Date(appointment.startDateTime).toLocaleDateString('de-DE', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </Box>
-              </CardContent>
-            </Card>
-          )}
-          
-         
-          <Card sx={{ mt: 3, mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <GroupsIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="subtitle1" fontWeight="bold">
-                  Gruppenberichte im Newsletter
-                </Typography>
-                {statusReportsLoading && <CircularProgress size={20} sx={{ ml: 2 }} />}
-              </Box>
-              
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Berichte der letzten zwei Wochen von Gruppen, alphabetisch sortiert.
-              </Typography>
-              
-              {statusReportsByGroup && statusReportsByGroup.length > 0 ? (
-                <Box sx={{ mt: 2 }}>
-                  {statusReportsByGroup.map((groupWithReports) => (
-                    <Accordion key={groupWithReports.group.id} sx={{ mb: 2 }}>
-                      <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        aria-controls={`group-${groupWithReports.group.id}-content`}
-                        id={`group-${groupWithReports.group.id}-header`}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          {groupWithReports.group.logoUrl ? (
-                            <Avatar 
-                              src={groupWithReports.group.logoUrl} 
-                              alt={groupWithReports.group.name}
-                              sx={{ mr: 2, width: 40, height: 40 }}
-                            />
-                          ) : (
-                            <Avatar sx={{ mr: 2, width: 40, height: 40, bgcolor: 'primary.main' }}>
-                              {groupWithReports.group.name.substring(0, 1)}
-                            </Avatar>
-                          )}
-                          <Box>
-                            <Typography variant="subtitle1">
-                              {groupWithReports.group.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {groupWithReports.reports.length} Bericht(e)
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <List sx={{ width: '100%', bgcolor: 'background.paper', padding: 0 }}>
-                          {groupWithReports.reports.map((report) => (
-                            <ListItem
-                              key={report.id}
-                              alignItems="flex-start"
-                              sx={{ 
-                                borderBottom: '1px dashed #e0e0e0',
-                                paddingY: 2,
-                                flexDirection: 'column',
-                                alignItems: 'stretch'
-                              }}
-                            >
-                              <ListItemText
-                                primary={report.title}
-                                secondary={truncateText(report.content, 300)}
-                                slotProps={{
-                                  primary: {
-                                    variant: "subtitle1",
-                                    color: "text.primary",
-                                    fontWeight: "medium"
-                                  },
-                                  secondary: {
-                                    variant: "body2",
-                                    component: "div" // Critical fix - changes p to div
-                                  }
-                                }}
-                              />
-                              
-               
-                              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Chip 
-                                  label={format(new Date(report.createdAt), 'PPP', { locale: de })}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ mr: 1 }}
-                                />
-                                <Button 
-                                  variant="contained" 
-                                  color="primary" 
-                                  size="small"
-                                  sx={{ minWidth: 'fit-content' }}
-                                >
-                                  Mehr Infos
-                                </Button>
-                              </Box>
-                            </ListItem>
-                          ))}
-                        </List>
-                      </AccordionDetails>
-                    </Accordion>
-                  ))}
-                </Box>
-              ) : !statusReportsLoading && (
-                <Box sx={{ textAlign: 'center', p: 3, bgcolor: '#f9f9f9' }} component="div">
-                  <Typography variant="body1" color="text.secondary">
-                    Keine aktuellen Gruppenberichte verfügbar.
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} component="div">
-                    Es wurden keine Berichte von Gruppen in den letzten zwei Wochen veröffentlicht.
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>  */}
           
           {/* Action buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>

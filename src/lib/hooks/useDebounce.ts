@@ -34,7 +34,7 @@ export function useDebounce<T>(value: T, delay = 300): T {
  * @param delay The delay in milliseconds (default: 300ms)
  * @returns The debounced function
  */
-export function useDebouncedCallback<T extends (...args: any[]) => any>(
+export function useDebouncedCallback<T extends (...args: never[]) => unknown>(
   fn: T,
   delay = 300
 ): (...args: Parameters<T>) => void {
@@ -73,7 +73,7 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
  * @param delay The delay in milliseconds (default: 300ms)
  * @returns The throttled function
  */
-export function useThrottle<T extends (...args: any[]) => any>(
+export function useThrottle<T extends (...args: never[]) => unknown>(
   fn: T,
   delay = 300
 ): (...args: Parameters<T>) => void {

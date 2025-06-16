@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
+interface SessionWithRole {
+  role?: string;
+  [key: string]: unknown;
+}
+
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   
@@ -17,7 +22,7 @@ export async function middleware(request: NextRequest) {
   if (path.startsWith('/api/admin')) {
     // API authentication is handled by the withAdminAuth wrapper in each route
     // This middleware just ensures consistent behavior for API and UI routes
-    if (!session || (session as any).role !== 'admin') {
+    if (!session || (session as SessionWithRole).role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     

@@ -72,8 +72,8 @@ export default function ChangePasswordPage() {
         newPassword: '',
         confirmPassword: ''
       });
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

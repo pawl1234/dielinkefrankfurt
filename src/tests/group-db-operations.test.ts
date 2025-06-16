@@ -4,7 +4,6 @@ import {
   getGroupById,
   updateGroupStatus,
   createStatusReport,
-  getStatusReports,
   updateStatusReportStatus
 } from '../lib/group-handlers';
 import prisma from '../lib/prisma';

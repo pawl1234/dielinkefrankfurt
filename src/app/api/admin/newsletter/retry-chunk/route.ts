@@ -5,7 +5,6 @@ import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
-import { validateEmail, cleanEmail } from '@/lib/email-hashing';
 import { format } from 'date-fns';
 
 /**
@@ -15,7 +14,14 @@ interface RetryRequest {
   newsletterId: string;
   html: string;
   subject: string;
-  settings?: any;
+  settings?: {
+    fromEmail?: string;
+    fromName?: string;
+    replyToEmail?: string;
+    emailDelay?: number;
+    chunkDelay?: number;
+    [key: string]: unknown;
+  };
 }
 
 /**
@@ -221,12 +227,12 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     });
 
     // Create transporter
-    let transporter = createTransporter(emailSettings);
+    const transporter = createTransporter(emailSettings);
     
     // Verify transporter
     try {
       await transporter.verify();
-    } catch (verifyError: any) {
+    } catch (verifyError) {
       logger.error('SMTP transporter verification failed during retry', {
         context: { error: verifyError, newsletterId }
       });
@@ -234,7 +240,7 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     }
 
     // Process emails in chunks of current retry size
-    const stageResults: Array<{ email: string; success: boolean; error?: any }> = [];
+    const stageResults: Array<{ email: string; success: boolean; error?: unknown }> = [];
     let processedCount = 0;
 
     for (let i = 0; i < failedEmails.length; i += currentChunkSize) {
@@ -264,11 +270,11 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
           const emailDelay = emailSettings.emailDelay || 50;
           await new Promise(resolve => setTimeout(resolve, emailDelay));
 
-        } catch (error) {
+        } catch (emailError) {
           stageResults.push({
             email,
             success: false,
-            error
+            error: emailError
           });
           processedCount++;
         }
@@ -313,7 +319,7 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     });
 
     // Determine next step
-    let nextStage = currentRetryStage + 1;
+    const nextStage = currentRetryStage + 1;
     let isComplete = false;
     let finalStatus = 'retrying';
 
@@ -385,12 +391,23 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
 /**
  * Finalize retry process when all stages are completed
  */
-async function finalizeRetryProcess(newsletterId: string, retryResults: any[], currentSettings: any): Promise<NextResponse> {
+async function finalizeRetryProcess(
+  newsletterId: string, 
+  retryResults: Array<{
+    chunkSize: number;
+    processedCount: number;
+    successCount: number;
+    failedCount: number;
+    completedAt: string;
+    results: Array<{ email: string; success: boolean; error?: unknown }>;
+  }>, 
+  currentSettings: Record<string, unknown>
+): Promise<NextResponse> {
   // Get final failed emails from last retry stage
   const lastStageResults = retryResults[retryResults.length - 1];
   const finalFailedEmails = lastStageResults?.results
-    ?.filter((result: any) => !result.success)
-    ?.map((result: any) => result.email) || [];
+    ?.filter((result) => !result.success)
+    ?.map((result) => result.email) || [];
 
   const finalStatus = finalFailedEmails.length === 0 ? 'sent' : 'partially_failed';
 

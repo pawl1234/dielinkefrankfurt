@@ -42,7 +42,7 @@ type StatusReport = {
 };
 
 // Mock implementation of email notification functions
-async function sendGroupAcceptanceEmail(group: Group): Promise<{ success: boolean; error?: any }> {
+async function sendGroupAcceptanceEmail(group: Group): Promise<{ success: boolean; error?: string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -85,7 +85,7 @@ async function sendGroupAcceptanceEmail(group: Group): Promise<{ success: boolea
   }
 }
 
-async function sendGroupRejectionEmail(group: Group): Promise<{ success: boolean; error?: any }> {
+async function sendGroupRejectionEmail(group: Group): Promise<{ success: boolean; error?: string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -126,7 +126,7 @@ async function sendGroupRejectionEmail(group: Group): Promise<{ success: boolean
   }
 }
 
-async function sendGroupArchivingEmail(group: Group): Promise<{ success: boolean; error?: any }> {
+async function sendGroupArchivingEmail(group: Group): Promise<{ success: boolean; error?: string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -168,7 +168,7 @@ async function sendGroupArchivingEmail(group: Group): Promise<{ success: boolean
 
 async function sendStatusReportAcceptanceEmail(
   statusReport: StatusReport
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
     if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${statusReport.group.id}`);
@@ -214,7 +214,7 @@ async function sendStatusReportAcceptanceEmail(
 
 async function sendStatusReportRejectionEmail(
   statusReport: StatusReport
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
     if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${statusReport.group.id}`);

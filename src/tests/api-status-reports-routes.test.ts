@@ -24,9 +24,9 @@ function mockAuthenticatedAdminUser() {
 
 // Mock FormData for file upload tests
 class MockFormData {
-  private data = new Map<string, any>();
+  private data = new Map<string, unknown>();
 
-  get(key: string): any {
+  get(key: string): unknown {
     return this.data.get(key);
   }
 
@@ -34,7 +34,7 @@ class MockFormData {
     return this.data.has(key);
   }
 
-  append(key: string, value: any) {
+  append(key: string, value: unknown) {
     this.data.set(key, value);
   }
 }

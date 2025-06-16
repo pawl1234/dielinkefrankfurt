@@ -8,7 +8,7 @@ import ReplayIcon from '@mui/icons-material/Replay';
 interface ErrorDetails {
   type?: string;
   fieldErrors?: Record<string, string>;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 interface ErrorFeedbackProps {

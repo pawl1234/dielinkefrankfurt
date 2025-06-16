@@ -11,10 +11,7 @@ import {
   IconButton,
   Divider,
   Tooltip,
-  ToggleButton,
-  Stack,
   LinearProgress,
-  Alert
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
@@ -90,7 +87,6 @@ const RichTextEditor = ({ value, onChange, maxLength = 50000, placeholder, minHe
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      const text = editor.getText();
       const currentCount = html.length;
 
       setCharCount(currentCount);

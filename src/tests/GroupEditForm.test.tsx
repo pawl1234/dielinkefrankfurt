@@ -61,7 +61,7 @@ jest.mock('../components/GroupLogoUpload', () => {
 jest.mock('../components/ResponsiblePersonFields', () => {
   return {
     __esModule: true,
-    default: ({ form }: any) => {
+    default: ({ form }: { form: { register: () => void; formState: { errors: Record<string, unknown> } } }) => {
       return (
         <div data-testid="responsible-person-fields">
           <div>

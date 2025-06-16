@@ -6,7 +6,7 @@ interface CacheEntry<T> {
 }
 
 // Cache with expiration time (5 minutes by default)
-const cache = new Map<string, CacheEntry<any>>();
+const cache = new Map<string, CacheEntry<unknown>>();
 const DEFAULT_CACHE_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 /**
@@ -22,7 +22,7 @@ export function useDataFetch<T>(
   url: string,
   options?: RequestInit,
   cacheTime = DEFAULT_CACHE_TIME,
-  dependencies: any[] = []
+  dependencies: unknown[] = []
 ) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,7 +41,7 @@ export function useDataFetch<T>(
       const cachedResponse = cache.get(cacheKey);
       
       if (!ignoreCache && cachedResponse && now - cachedResponse.timestamp < cacheTime) {
-        setData(cachedResponse.data);
+        setData(cachedResponse.data as T);
         setLoading(false);
         return;
       }
@@ -68,7 +68,8 @@ export function useDataFetch<T>(
     } finally {
       setLoading(false);
     }
-  }, [url, cacheKey, cacheTime, ...dependencies]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, cacheKey, cacheTime, options, ...dependencies]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {

@@ -17,9 +17,9 @@ const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 // Errors
 export class FileUploadError extends Error {
   code: string;
-  details?: any;
+  details?: Record<string, unknown>;
 
-  constructor(message: string, code: string, details?: any) {
+  constructor(message: string, code: string, details?: Record<string, unknown>) {
     super(message);
     this.name = 'FileUploadError';
     this.code = code;
@@ -97,7 +97,6 @@ export async function uploadFile(
     
     // Create a unique pathname with hash for deduplication
     const timestamp = new Date().getTime();
-    const fileExtension = file.name.split('.').pop() || '';
     const sanitizedFileName = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-_.]/g, '');
     const blobPathname = `${pathPrefix}${timestamp}-${fileHash.substring(0, 10)}-${sanitizedFileName}`;
     

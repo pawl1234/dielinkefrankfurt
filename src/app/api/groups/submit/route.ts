@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     };
     
     return NextResponse.json(response);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error submitting group request:', error);
     
     // Return friendly error message based on the error

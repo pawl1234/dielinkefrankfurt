@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useForm, useWatch } from 'react-hook-form'; // Added useWatch
 import {
   Box,
@@ -97,7 +97,7 @@ export default function GroupRequestForm() {
     setValue('description', value, { shouldValidate: false, shouldDirty: true }); // Update RHF, optionally validate
   };
 
-  const handleLogoSelect = (original: File | Blob, cropped: File | Blob) => {
+  const handleLogoSelect = useCallback((original: File | Blob, cropped: File | Blob) => {
     if (original.size === 0 || cropped.size === 0) {
       setLogoFile(null);
       setCroppedLogoFile(null);
@@ -109,7 +109,7 @@ export default function GroupRequestForm() {
       setValue('logo', original, { shouldDirty: true });
       setValue('croppedLogo', cropped, { shouldDirty: true });
     }
-  };
+  }, [setValue]);
 
   const handleFormSubmit = async (data: GroupFormInput) => {
     // Set form as submitted to show validation errors
@@ -155,7 +155,7 @@ export default function GroupRequestForm() {
         // Try to parse JSON error response
         const result = await response.json();
         errorMessage = result.error || errorMessage;
-      } catch (jsonError) {
+      } catch {
         // If JSON parsing fails, provide generic error based on status
         if (response.status >= 500) {
           errorMessage = 'Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
@@ -170,7 +170,7 @@ export default function GroupRequestForm() {
     }
     
     // Parse successful response
-    const result = await response.json();
+    await response.json();
     // Success is handled by FormBase and useFormSubmission
   };
 

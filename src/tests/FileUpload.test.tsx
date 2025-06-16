@@ -1,5 +1,4 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import FileUpload from '../components/FileUpload';
 
@@ -12,7 +11,7 @@ class MockFile {
   webkitRelativePath: string;
   bytes: Uint8Array;
   
-  constructor(bits: any, name: string, options: any = {}) {
+  constructor(bits: ArrayLike<number> | ArrayBufferLike | Blob | string, name: string, options: { type?: string } = {}) {
     this.name = name;
     this.size = bits.length;
     this.type = options.type || 'application/octet-stream';
@@ -43,10 +42,10 @@ global.File = MockFile as unknown as typeof File;
 
 // Mock the FileReader API
 class FileReaderMock {
-  onload: ((ev: ProgressEvent<FileReader>) => any) | null = null;
+  onload: ((ev: ProgressEvent<FileReader>) => void) | null = null;
   result: string | ArrayBuffer | null = null;
   
-  readAsDataURL(file: Blob) {
+  readAsDataURL() {
     setTimeout(() => {
       this.result = 'data:image/jpeg;base64,mockbase64data';
       if (this.onload) {

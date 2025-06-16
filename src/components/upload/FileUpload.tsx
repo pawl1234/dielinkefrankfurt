@@ -1,28 +1,21 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Uppy from '@uppy/core';
-import { Dashboard } from '@uppy/react';
-import ThumbnailGenerator from '@uppy/thumbnail-generator';
-import DragDrop from '@uppy/drag-drop';
+import { useState, useRef } from 'react';
 import {
   Box,
   Typography,
   Paper,
   Button,
   FormHelperText,
-  IconButton,
   Card,
   CardContent,
   CardMedia,
   CardActions,
   styled,
   BoxProps,
-  Grid,
-  Chip
+  Grid
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import CloseIcon from '@mui/icons-material/Close';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -87,11 +80,6 @@ const FileUpload = ({
 
     // Process each selected file
     const newFiles: FileItem[] = [];
-    const validMimeTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf', 'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
     
     // Helper function to check if file extension matches allowed types
     const isValidFileType = (filename: string): boolean => {

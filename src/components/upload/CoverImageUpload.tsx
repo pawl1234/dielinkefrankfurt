@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Box,
   Button,
@@ -245,7 +246,7 @@ const CoverImageUpload = ({
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      const img = new Image();
+      const img = document.createElement('img');
       
       img.onload = () => {
         const { width, height } = img;
@@ -471,9 +472,11 @@ const CoverImageUpload = ({
               }}
             >
               {initialCroppedCoverImageUrl && (
-                <img 
+                <Image 
                   src={initialCroppedCoverImageUrl} 
                   alt="Aktuelles Cover-Bild"
+                  width={400}
+                  height={250}
                   style={{ 
                     width: '100%', 
                     maxHeight: '250px', 
@@ -544,6 +547,7 @@ const CoverImageUpload = ({
                       aspect={aspectRatio}
                       minWidth={100}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         ref={imgRef}
                         src={previewUrl}
@@ -599,9 +603,11 @@ const CoverImageUpload = ({
                   }}
                 >
                   {croppedPreviewUrl && (
-                    <img 
+                    <Image 
                       src={croppedPreviewUrl} 
                       alt="Zugeschnittenes Bild"
+                      width={400}
+                      height={250}
                       style={{ 
                         width: '100%', 
                         maxHeight: '250px', 

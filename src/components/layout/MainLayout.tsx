@@ -119,7 +119,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, breadcrumbs = [], showHeader = true, title }: MainLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const isAuthenticated = status === 'authenticated';
   const pathname = usePathname();
 

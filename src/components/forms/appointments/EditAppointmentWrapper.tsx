@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import AppointmentForm from './AppointmentForm';
 import { Box, Button, Typography } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
 
 interface Appointment {
   id: number;
@@ -32,8 +31,8 @@ interface FormInput {
   title: string;
   teaser: string;
   mainText: string;
-  startDateTime: Date;
-  endDateTime?: Date;
+  startDateTime: Date | null;
+  endDateTime?: Date | null;
   street?: string;
   city?: string;
   state?: string;
@@ -62,7 +61,7 @@ export default function EditAppointmentWrapper({
   appointmentComponent
 }: EditAppointmentWrapperProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleEditToggle = () => {

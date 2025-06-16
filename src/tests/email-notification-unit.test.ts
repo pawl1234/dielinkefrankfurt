@@ -12,13 +12,13 @@ const sendStatusReportArchivingEmail = jest.fn();
 
 // Mock the group-handlers module
 jest.mock('../lib/group-handlers', () => ({
-  sendStatusReportAcceptanceEmail: (...args: any[]) => {
+  sendStatusReportAcceptanceEmail: (...args: unknown[]) => {
     return sendStatusReportAcceptanceEmail(...args);
   },
-  sendStatusReportRejectionEmail: (...args: any[]) => {
+  sendStatusReportRejectionEmail: (...args: unknown[]) => {
     return sendStatusReportRejectionEmail(...args);
   },
-  sendStatusReportArchivingEmail: (...args: any[]) => {
+  sendStatusReportArchivingEmail: (...args: unknown[]) => {
     return sendStatusReportArchivingEmail(...args);
   }
 }));

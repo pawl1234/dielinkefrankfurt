@@ -88,9 +88,9 @@ async function handleTestEmail(request: NextRequest): Promise<NextResponse> {
       context: {
         error: error instanceof Error ? {
           message: error.message,
-          code: (error as any).code,
-          errno: (error as any).errno,
-          syscall: (error as any).syscall
+          code: (error as unknown as { code?: string }).code,
+          errno: (error as unknown as { errno?: string }).errno,
+          syscall: (error as unknown as { syscall?: string }).syscall
         } : error
       }
     });
@@ -99,9 +99,9 @@ async function handleTestEmail(request: NextRequest): Promise<NextResponse> {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       details: error instanceof Error ? {
-        code: (error as any).code,
-        errno: (error as any).errno,
-        syscall: (error as any).syscall
+        code: (error as unknown as { code?: string }).code,
+        errno: (error as unknown as { errno?: string }).errno,
+        syscall: (error as unknown as { syscall?: string }).syscall
       } : undefined
     }, { status: 500 });
   }

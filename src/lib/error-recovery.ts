@@ -201,7 +201,7 @@ export async function withErrorRecovery<T>(
 export function safeJsonParse<T>(text: string, fallback: T): T {
   try {
     return JSON.parse(text) as T;
-  } catch (error) {
+  } catch {
     logger.warn('Failed to parse JSON', {
       context: {
         text: text.slice(0, 100) + (text.length > 100 ? '...' : ''),
@@ -302,10 +302,12 @@ export async function withCacheRecovery<T>(
   }
 }
 
-export default {
+const errorRecoveryModule = {
   withRetry,
   resilientFetch,
   withErrorRecovery,
   safeJsonParse,
   withCacheRecovery,
 };
+
+export default errorRecoveryModule;

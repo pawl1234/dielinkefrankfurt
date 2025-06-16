@@ -1,7 +1,6 @@
 // e2e-status-report-submission.test.tsx - End-to-end tests for the status report submission flow
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import StatusReportForm from '../components/StatusReportForm';
 import { setupMockBlobStorage, setupMockEmailService, resetMockBlobStorage, resetMockEmailService } from './mock-services';
@@ -21,7 +20,7 @@ const mockFetch = global.fetch as jest.Mock;
 jest.mock('../components/FileUpload', () => {
   return {
     __esModule: true,
-    default: ({ onFilesSelect }: { onFilesSelect: (files: any[]) => void }) => {
+    default: ({ onFilesSelect }: { onFilesSelect: (files: File[]) => void }) => {
       return (
         <div data-testid="file-upload">
           <button
@@ -83,7 +82,7 @@ jest.mock('../components/GroupSelector', () => {
 jest.mock('../components/CaptchaField', () => {
   return {
     __esModule: true,
-    default: ({ setValue }: { setValue: any }) => {
+    default: ({ setValue }: { setValue: (name: string, value: string) => void }) => {
       return (
         <div data-testid="captcha-field">
           <button

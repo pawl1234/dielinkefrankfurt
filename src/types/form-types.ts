@@ -15,13 +15,13 @@ export interface BaseFormProps {
   submitButtonText?: string;
   
   /** Callback function for when the form is submitted */
-  onSubmit?: (data: any, files?: (File | Blob)[]) => Promise<void>;
+  onSubmit?: (data: Record<string, unknown>, files?: (File | Blob)[]) => Promise<void>;
   
   /** Callback function for when the form is cancelled (edit mode) */
   onCancel?: () => void;
   
   /** Initial values for the form fields (edit mode) */
-  initialValues?: Record<string, any>;
+  initialValues?: Record<string, unknown>;
 }
 
 /**

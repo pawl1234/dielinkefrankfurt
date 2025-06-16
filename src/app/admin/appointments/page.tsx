@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -61,7 +61,7 @@ interface Appointment {
 }
 
 export default function AdminAppointmentsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   
   // Use our custom hook for admin state management
@@ -69,7 +69,7 @@ export default function AdminAppointmentsPage() {
   
   // Define view types
   type ViewType = 'pending' | 'upcoming' | 'archive';
-  const views: ViewType[] = ['pending', 'upcoming', 'archive'];
+  const views = useMemo<ViewType[]>(() => ['pending', 'upcoming', 'archive'], []);
   
   // Get current view
   const currentView = views[adminState.tabValue];
@@ -80,16 +80,10 @@ export default function AdminAppointmentsPage() {
       router.push('/admin/login');
     }
   }, [status, router]);
-  
-  useEffect(() => {
-    // Fetch appointments when authenticated
-    if (status === 'authenticated') {
-      fetchAppointments(views[adminState.tabValue]);
-    }
-  }, [status, adminState.tabValue, adminState.page, adminState.pageSize, adminState.timestamp]);
 
-  const fetchAppointments = async (view: ViewType) => {
+  const fetchAppointments = useCallback(async (view: ViewType) => {
     try {
+      console.log('🔄 fetchAppointments called for view:', view, 'page:', adminState.page, 'timestamp:', adminState.timestamp);
       adminState.setLoading(true);
       const response = await fetch(`/api/admin/appointments?view=${view}&page=${adminState.page}&pageSize=${adminState.pageSize}&t=${adminState.timestamp}`);
 
@@ -122,7 +116,35 @@ export default function AdminAppointmentsPage() {
     } finally {
       adminState.setLoading(false);
     }
-  };
+  // We intentionally use individual adminState properties instead of the entire adminState object
+  // to prevent infinite re-renders. The adminState object changes on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps    
+  }, [adminState.page, adminState.pageSize, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
+
+  // Add logging to track when fetchAppointments is recreated
+  console.log('🔧 fetchAppointments recreated with dependencies:', {
+    page: adminState.page,
+    pageSize: adminState.pageSize,
+    timestamp: adminState.timestamp,
+    setLoading: typeof adminState.setLoading,
+    setItems: typeof adminState.setItems,
+    setPaginationData: typeof adminState.setPaginationData,
+    setError: typeof adminState.setError
+  });
+  
+  useEffect(() => {
+    console.log('📅 Appointments useEffect triggered:', {
+      status,
+      tabValue: adminState.tabValue,
+      page: adminState.page,
+      pageSize: adminState.pageSize,
+      timestamp: adminState.timestamp
+    });
+    // Fetch appointments when authenticated
+    if (status === 'authenticated') {
+      fetchAppointments(views[adminState.tabValue]);
+    }
+  }, [status, adminState.tabValue, adminState.page, adminState.pageSize, adminState.timestamp, fetchAppointments, views]);
 
   const handleAppointmentUpdate = async (id: number, data: { processed?: boolean, status?: 'pending' | 'accepted' | 'rejected' }) => {
     try {
@@ -156,10 +178,6 @@ export default function AdminAppointmentsPage() {
     }
   };
 
-  // Process appointment (legacy method, keep for backward compatibility)
-  const handleProcessAppointment = async (id: number, processed: boolean) => {
-    await handleAppointmentUpdate(id, { processed });
-  };
 
   // New methods for accepting/rejecting
   const handleAcceptAppointment = async (id: number) => {

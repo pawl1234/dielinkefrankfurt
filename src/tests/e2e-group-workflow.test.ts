@@ -1,13 +1,11 @@
 // e2e-group-workflow.test.ts - End-to-end test for the complete group creation and approval workflow
-import { NextRequest } from 'next/server';
 import { POST as groupSubmitPost } from '@/app/api/groups/submit/route';
 import { GET as adminGroupsGet } from '@/app/api/admin/groups/route';
 import { GET as adminGroupGet, PATCH as adminGroupPatch } from '@/app/api/admin/groups/[id]/route';
 import { getToken } from 'next-auth/jwt';
 import { sendEmail } from '@/lib/email';
 import { setupMockBlobStorage, setupMockEmailService, resetMockBlobStorage, resetMockEmailService } from './mock-services';
-import { createMockGroup, createMockFile, createMockImageFile, createNextRequest } from './test-utils';
-import { put } from '@vercel/blob';
+import { createNextRequest } from './test-utils';
 
 // Mock external dependencies
 jest.mock('next-auth/jwt', () => ({
@@ -55,7 +53,6 @@ describe('End-to-End Group Creation and Approval Workflow', () => {
   describe('Step 1: Public group submission by user', () => {
     it('should allow submission of a new group request with logo', async () => {
       // Mock data for the new group
-      const logoFile = createMockImageFile('group-logo.jpg');
       const newGroupData = {
         name: 'New Political Action Group',
         description: '<p>This is a new group focused on local community action.</p>',
@@ -146,7 +143,7 @@ describe('End-to-End Group Creation and Approval Workflow', () => {
       expect(Array.isArray(responseData.groups)).toBe(true);
       
       // Verify our new group is in the list
-      const newGroup = responseData.groups.find((g: any) => g.id === groupId);
+      const newGroup = responseData.groups.find((g: { id: string }) => g.id === groupId);
       expect(newGroup).toBeDefined();
       expect(newGroup.name).toBe('New Political Action Group');
       expect(newGroup.status).toBe('NEW');
@@ -164,12 +161,12 @@ describe('End-to-End Group Creation and Approval Workflow', () => {
       
       // Verify all returned groups have NEW status
       expect(response.status).toBe(200);
-      responseData.groups.forEach((group: any) => {
+      responseData.groups.forEach((group: { status: string }) => {
         expect(group.status).toBe('NEW');
       });
       
       // Verify our new group is in the list
-      const newGroup = responseData.groups.find((g: any) => g.id === groupId);
+      const newGroup = responseData.groups.find((g: { id: string }) => g.id === groupId);
       expect(newGroup).toBeDefined();
     });
     

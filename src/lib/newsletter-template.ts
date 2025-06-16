@@ -72,7 +72,7 @@ export const getCoverImageUrl = (appointment: Appointment): string | null => {
       if (metadata.coverImageUrl) {
         return metadata.coverImageUrl;
       }
-    } catch (e) {
+    } catch {
       console.warn('Failed to parse metadata for appointment:', appointment.id);
     }
   }
@@ -87,7 +87,7 @@ export const getCoverImageUrl = (appointment: Appointment): string | null => {
       url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png') || url.endsWith('.gif')
     );
     return imageUrl || null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -156,10 +156,9 @@ export const generateFeaturedEventsHtml = (
   
   let html = '<tr><td colspan="100%"><h2 class="section-title">Featured</h2></td></tr>';
   
-  featuredAppointments.forEach((appointment: Appointment, index: number) => {
+  featuredAppointments.forEach((appointment: Appointment) => {
     const imageUrl = getCoverImageUrl(appointment);
     const detailUrl = `${baseUrl}/termine/${appointment.id}`;
-    const isLastItem = index === featuredAppointments.length - 1;
     
     // Use truncated mainText instead of teaser
     const truncatedText = truncateText(appointment.mainText, 300);
@@ -290,10 +289,9 @@ export const generateStatusReportsHtml = (
     `;
     
     // Add reports for this group
-    reports.forEach((report, reportIndex) => {
+    reports.forEach((report) => {
       const reportUrl = `${baseUrl}/gruppen/${group.slug}#report-${report.id}`;
       const truncatedContent = truncateText(report.content);
-      const isLastReport = reportIndex === reports.length - 1;
       
       html += `
         <tr>

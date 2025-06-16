@@ -66,7 +66,7 @@ describe('Status Report Email Notifications', () => {
     it('should call sendStatusReportAcceptanceEmail when status is ACTIVE', async () => {
       // Arrange
       const spy = jest.spyOn(global.console, 'log').mockImplementation();
-      const statusSpy = jest.spyOn(global, 'sendStatusReportAcceptanceEmail' as any).mockResolvedValue({ success: true });
+      const statusSpy = jest.spyOn(global as unknown as { sendStatusReportAcceptanceEmail: () => Promise<{ success: boolean }> }, 'sendStatusReportAcceptanceEmail').mockResolvedValue({ success: true });
       
       // Act
       await updateStatusReportStatus('report-1', 'ACTIVE');
@@ -93,7 +93,7 @@ describe('Status Report Email Notifications', () => {
     it('should call sendStatusReportRejectionEmail when status is REJECTED', async () => {
       // Arrange
       const spy = jest.spyOn(global.console, 'log').mockImplementation();
-      const statusSpy = jest.spyOn(global, 'sendStatusReportRejectionEmail' as any).mockResolvedValue({ success: true });
+      const statusSpy = jest.spyOn(global as unknown as { sendStatusReportRejectionEmail: () => Promise<{ success: boolean }> }, 'sendStatusReportRejectionEmail').mockResolvedValue({ success: true });
       
       // Act
       await updateStatusReportStatus('report-1', 'REJECTED');
@@ -120,7 +120,7 @@ describe('Status Report Email Notifications', () => {
     it('should call sendStatusReportArchivingEmail when status is ARCHIVED', async () => {
       // Arrange
       const spy = jest.spyOn(global.console, 'log').mockImplementation();
-      const statusSpy = jest.spyOn(global, 'sendStatusReportArchivingEmail' as any).mockResolvedValue({ success: true });
+      const statusSpy = jest.spyOn(global as unknown as { sendStatusReportArchivingEmail: () => Promise<{ success: boolean }> }, 'sendStatusReportArchivingEmail').mockResolvedValue({ success: true });
       
       // Act
       await updateStatusReportStatus('report-1', 'ARCHIVED');
@@ -148,7 +148,7 @@ describe('Status Report Email Notifications', () => {
   describe('sendStatusReportAcceptanceEmail', () => {
     it('should send an email with the correct content for ACTIVE status', async () => {
       // Act
-      await sendStatusReportAcceptanceEmail(mockStatusReport as any);
+      await sendStatusReportAcceptanceEmail(mockStatusReport as Parameters<typeof sendStatusReportAcceptanceEmail>[0]);
       
       // Assert
       expect(sendEmail).toHaveBeenCalledWith({
@@ -177,7 +177,7 @@ describe('Status Report Email Notifications', () => {
       };
       
       // Act
-      const result = await sendStatusReportAcceptanceEmail(reportWithNoResponsible as any);
+      const result = await sendStatusReportAcceptanceEmail(reportWithNoResponsible as Parameters<typeof sendStatusReportAcceptanceEmail>[0]);
       
       // Assert
       expect(result.success).toBe(false);
@@ -189,7 +189,7 @@ describe('Status Report Email Notifications', () => {
   describe('sendStatusReportRejectionEmail', () => {
     it('should send an email with the correct content for REJECTED status', async () => {
       // Act
-      await sendStatusReportRejectionEmail(mockStatusReport as any);
+      await sendStatusReportRejectionEmail(mockStatusReport as Parameters<typeof sendStatusReportRejectionEmail>[0]);
       
       // Assert
       expect(sendEmail).toHaveBeenCalledWith({
@@ -207,7 +207,7 @@ describe('Status Report Email Notifications', () => {
   describe('sendStatusReportArchivingEmail', () => {
     it('should send an email with the correct content for ARCHIVED status', async () => {
       // Act
-      await sendStatusReportArchivingEmail(mockStatusReport as any);
+      await sendStatusReportArchivingEmail(mockStatusReport as Parameters<typeof sendStatusReportArchivingEmail>[0]);
       
       // Assert
       expect(sendEmail).toHaveBeenCalledWith({
@@ -233,7 +233,7 @@ describe('Status Report Email Notifications', () => {
       };
       
       // Act
-      await sendStatusReportArchivingEmail(reportWithInvalidFileUrls as any);
+      await sendStatusReportArchivingEmail(reportWithInvalidFileUrls as Parameters<typeof sendStatusReportArchivingEmail>[0]);
       
       // Assert
       expect(sendEmail).toHaveBeenCalled();

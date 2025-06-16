@@ -12,8 +12,8 @@ import {
  * Returns settings object from database or defaults.
  * Authentication required.
  */
-export const GET = withAdminAuth(async (request: NextRequest) => {
-  return handleGetNewsletterSettings(request);
+export const GET = withAdminAuth(async () => {
+  return handleGetNewsletterSettings();
 });
 
 /**

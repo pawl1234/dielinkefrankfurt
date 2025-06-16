@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -24,7 +24,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 function NewsletterEditContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   
   const newsletterId = searchParams?.get('id');
   const isNewsletter = !newsletterId; // If no ID, it's a new newsletter
@@ -36,7 +36,6 @@ function NewsletterEditContent() {
   
   const [subject, setSubject] = useState('');
   const [introductionText, setIntroductionText] = useState('');
-  const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -44,25 +43,11 @@ function NewsletterEditContent() {
     }
   }, [status, router]);
 
-  // Load newsletter settings first
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchSettings();
-    }
-  }, [status]);
-  
-  useEffect(() => {
-    if (status === 'authenticated' && newsletterId) {
-      fetchNewsletter();
-    }
-  }, [status, newsletterId]);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/newsletter/settings');
       if (response.ok) {
         const data = await response.json();
-        setSettings(data);
         // Set default subject from template if creating new newsletter
         if (isNewsletter && data.subjectTemplate) {
           const currentDate = new Date().toLocaleDateString('de-DE');
@@ -70,12 +55,12 @@ function NewsletterEditContent() {
           setSubject(formattedSubject);
         }
       }
-    } catch (error) {
-      console.error('Error loading settings:', error);
+    } catch {
+      console.error('Error loading settings');
     }
-  };
+  }, [isNewsletter]);
 
-  const fetchNewsletter = async () => {
+  const fetchNewsletter = useCallback(async () => {
     if (!newsletterId) return;
     
     try {
@@ -87,12 +72,25 @@ function NewsletterEditContent() {
       } else {
         setError('Newsletter nicht gefunden');
       }
-    } catch (error) {
+    } catch {
       setError('Fehler beim Laden des Newsletters');
     } finally {
       setLoading(false);
     }
-  };
+  }, [newsletterId]);
+
+  // Load newsletter settings first
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchSettings();
+    }
+  }, [status, fetchSettings]);
+  
+  useEffect(() => {
+    if (status === 'authenticated' && newsletterId) {
+      fetchNewsletter();
+    }
+  }, [status, newsletterId, fetchNewsletter]);
 
   const handleSave = async () => {
     setSaving(true);

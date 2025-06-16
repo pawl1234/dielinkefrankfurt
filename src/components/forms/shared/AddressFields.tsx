@@ -1,31 +1,46 @@
 'use client';
 
-import { UseFormRegister, Control } from 'react-hook-form';
+import { UseFormRegister, FieldErrors, Control, FieldPath } from 'react-hook-form';
 import {
-  Card,
-  CardContent,
-  Typography,
   TextField,
   Box
 } from '@mui/material';
-import { Grid } from '@mui/material';
 
-interface AddressFieldsProps {
-  register: UseFormRegister<any>;
-  errors: Record<string, any>;
-  control?: Control<any>;
+// Define a base interface for address fields
+interface AddressFieldsData {
+  street?: string;
+  city?: string;
+  postalCode?: string;
+  state?: string;
 }
 
-const AddressFields = ({ register, errors, control }: AddressFieldsProps) => {
+// Make the component generic to work with any form that has address fields
+interface AddressFieldsProps<TFormData extends AddressFieldsData> {
+  register: UseFormRegister<TFormData>;
+  errors: FieldErrors<TFormData>;
+  control?: Control<TFormData>; // Added for consistency
+}
+
+const AddressFields = <TFormData extends AddressFieldsData>({ 
+  register, 
+  errors 
+}: AddressFieldsProps<TFormData>) => {
+  // Helper to safely get error messages
+  const getErrorMessage = (fieldName: keyof AddressFieldsData): string | undefined => {
+    const error = errors[fieldName as FieldPath<TFormData>];
+    if (!error) return undefined;
+    if (typeof error.message === 'string') return error.message;
+    return undefined;
+  };
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
       <TextField
         fullWidth
         label="Straße und Hausnummer"
         placeholder="Straße und Hausnummer"
-        {...register('street')}
+        {...register('street' as FieldPath<TFormData>)}
         error={!!errors.street}
-        helperText={errors.street?.message}
+        helperText={getErrorMessage('street')}
         margin="normal"
         variant="outlined"
       />
@@ -34,9 +49,9 @@ const AddressFields = ({ register, errors, control }: AddressFieldsProps) => {
         fullWidth
         label="Stadt"
         placeholder="Stadt"
-        {...register('city')}
+        {...register('city' as FieldPath<TFormData>)}
         error={!!errors.city}
-        helperText={errors.city?.message}
+        helperText={getErrorMessage('city')}
         margin="normal"
         variant="outlined"
       />
@@ -45,20 +60,20 @@ const AddressFields = ({ register, errors, control }: AddressFieldsProps) => {
         fullWidth
         label="Postleitzahl"
         placeholder="Postleitzahl"
-        {...register('postalCode')}
+        {...register('postalCode' as FieldPath<TFormData>)}
         error={!!errors.postalCode}
-        helperText={errors.postalCode?.message}
+        helperText={getErrorMessage('postalCode')}
         margin="normal"
         variant="outlined"
       />
 
       <TextField
         fullWidth
-        label="Angabe wie Saalbau Bornheim"
-        placeholder="Angabe wie Saalbau Bornheim"
-        {...register('zusatzAngabe')}
-        error={!!errors.zusatzAngabe}
-        helperText={errors.zusatzAngabe?.message}
+        label="Bundesland"
+        placeholder="Bundesland"
+        {...register('state' as FieldPath<TFormData>)}
+        error={!!errors.state}
+        helperText={getErrorMessage('state')}
         margin="normal"
         variant="outlined"
       />

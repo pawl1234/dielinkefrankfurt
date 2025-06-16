@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useMemo, useEffect } from 'react';
-import { useForm, Controller, Path } from 'react-hook-form';
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useForm, Controller, FieldValues, Control } from 'react-hook-form';
 import RichTextEditor from '../../editor/RichTextEditor';
 import FileUpload from '@/components/upload/FileUpload';
 import CoverImageUpload from '@/components/upload/CoverImageUpload';
@@ -17,7 +17,7 @@ import {
   Collapse, Paper, Button,
 } from '@mui/material';
 
-interface FormInput {
+interface FormInput extends FieldValues {
   title: string;
   teaser: string; // Keeping this for database compatibility
   mainText: string;
@@ -54,7 +54,7 @@ interface AppointmentFormProps {
   };
   mode?: 'create' | 'edit';
   submitButtonText?: string;
-  onSubmit?: (data: any, files: (File | Blob)[], existingFileUrls?: string[], deletedFileUrls?: string[]) => Promise<void>;
+  onSubmit?: (data: FormInput, files: (File | Blob)[], existingFileUrls?: string[], deletedFileUrls?: string[]) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -65,7 +65,6 @@ export default function AppointmentForm({
 
   const requesterRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
-  const teaserRef = useRef<HTMLDivElement>(null);
   const mainTextRef = useRef<HTMLDivElement>(null);
   const coverImageRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLDivElement>(null);
@@ -80,8 +79,6 @@ export default function AppointmentForm({
   const [existingFileUrls, setExistingFileUrls] = useState<string[]>([]);
   const [deletedFileUrls, setDeletedFileUrls] = useState<string[]>([]);
   const [isRecurring, setIsRecurring] = useState(!!initialValues?.recurringText);
-  // We're not showing the teaser field in the UI, but we still need to handle it for the backend
-  const [teaserValue, setTeaserValue] = useState(initialValues?.teaser || '');
   const [helpOpen, setHelpOpen] = useState(false);
   const [isFeatured, setIsFeatured] = useState(initialValues?.featured || false);
   const [coverImageFile, setCoverImageFile] = useState<File | Blob | null>(null);
@@ -144,23 +141,26 @@ export default function AppointmentForm({
     // Captcha validation removed
   ], [mainTextEditorContent, isFeatured, coverImageFile, initialCoverImageUrl, isRecurring, getValues]);
 
-  const handleMainTextChange = (value: string) => {
+  const handleMainTextChange = useCallback((value: string) => {
     setMainTextEditorContent(value);
     setValue('mainText', value, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-  };
+  }, [setValue]);
 
-  const handleCoverImageSelect = (original: File | Blob | null, cropped: File | Blob | null) => {
+  const handleCoverImageSelect = useCallback((original: File | Blob | null, cropped: File | Blob | null) => {
     setCoverImageFile(original); setCroppedCoverImageFile(cropped);
-    // Optionally trigger validation for coverImage if it's a custom one
-    if (isFeatured) methods.trigger('coverImage' as any); // Assuming 'coverImage' is a field in customValidations
-  };
+    // Note: 'coverImage' is handled by custom validation, not RHF fields
+  }, []);
+
+  const handleFileSelect = useCallback((files: (File | Blob)[]) => {
+    setFileList(files);
+  }, []);
 
   const handleReset = () => { /* ... as before: reset local state ... */
     setMainTextEditorContent(initialValues?.mainText || '');
     setFileList([]); 
     setDeletedFileUrls([]);
     setIsRecurring(!!initialValues?.recurringText);
-    setTeaserValue(initialValues?.teaser || ''); // Reset teaser value
+    // Reset teaser value handled by setValue below
     setValue('teaser', initialValues?.teaser || ''); // Reset teaser in React Hook Form
     setIsFeatured(initialValues?.featured || false);
     setCoverImageFile(null); setCroppedCoverImageFile(null);
@@ -169,7 +169,12 @@ export default function AppointmentForm({
 
   const handleFormSubmit = async (data: FormInput) => { /* ... as before: prepare and send data ... */
     // Make sure teaser always has a value
-    const submissionPayload: any = { 
+    const submissionPayload: FormInput & { 
+      id?: number;
+      featured: boolean;
+      newCoverImageForUpload?: File | Blob;
+      newCroppedCoverImageForUpload?: File | Blob;
+    } = { 
       ...data, 
       teaser: data.teaser || '',  // Ensure teaser is never null
       mainText: mainTextEditorContent, 
@@ -211,7 +216,7 @@ export default function AppointmentForm({
         // Try to parse JSON error response
         const result = await response.json();
         errorMessage = result.error || errorMessage;
-      } catch (jsonError) {
+      } catch {
         // If JSON parsing fails, provide generic error based on status
         if (response.status >= 500) {
           errorMessage = 'Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
@@ -224,9 +229,6 @@ export default function AppointmentForm({
       
       throw new Error(errorMessage);
     }
-    
-    // Parse successful response
-    const result = await response.json();
   };
 
   const getCustomError = (fieldName: string): string | undefined => {
@@ -258,7 +260,7 @@ export default function AppointmentForm({
       files={fileList}
     >
       <FormSection title="Antragsteller" helpTitle="Ihre Kontaktdaten" helpText={helpTextRequester}>
-        <Box ref={requesterRef}><RequesterFields register={register} errors={errors} control={control as any} /></Box>
+        <Box ref={requesterRef}><RequesterFields register={register} errors={errors} control={control} /></Box>
       </FormSection>
 
       <FormSection title="Beschreibung der Veranstaltung" helpTitle="Über die Veranstaltung" helpText={helpTextDescription}>
@@ -266,8 +268,8 @@ export default function AppointmentForm({
           <Typography variant="subtitle1" component="label" htmlFor="appointment-title-input" sx={{ fontWeight: 600 }}>
             Titel <Box component="span" sx={{ color: "primary.main" }}>*</Box>
           </Typography>
-          <Controller name="title" control={control as any} rules={{ required: 'Titel ist erforderlich', minLength: { value: 5, message: 'Mind. 5 Zeichen' }, maxLength: { value: 100, message: 'Max. 100 Zeichen' } }}
-            render={({ field }) => <TextField id="appointment-title-input" {...field} fullWidth placeholder="Titel der Veranstaltung..." error={!!errors.title} helperText={errors.title?.message as string || `${(field.value || '').length}/100`} margin="normal" />}
+          <Controller name="title" control={control} rules={{ required: 'Titel ist erforderlich', minLength: { value: 5, message: 'Mind. 5 Zeichen' }, maxLength: { value: 100, message: 'Max. 100 Zeichen' } }}
+            render={({ field }) => <TextField id="appointment-title-input" {...field} fullWidth placeholder="Titel der Veranstaltung..." error={!!errors.title} helperText={errors.title?.message || `${(field.value || '').length}/100`} margin="normal" />}
           />
         </Box>
         {/* Teaser section removed as no longer needed */}
@@ -294,7 +296,7 @@ export default function AppointmentForm({
       )}
 
       <FormSection title="Datei Anhänge (optional)" helpTitle="Anhänge hochladen" helpText={helpTextAttachments}>
-        <Box ref={fileRef} sx={{mb:2}}><FileUpload onFilesSelect={setFileList} maxFiles={5} /></Box>
+        <Box ref={fileRef} sx={{mb:2}}><FileUpload onFilesSelect={handleFileSelect} maxFiles={5} /></Box>
         {mode === 'edit' && existingFileUrls.length > 0 && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="subtitle1" gutterBottom>
@@ -325,19 +327,19 @@ export default function AppointmentForm({
                 key={`start-date-${formResetKey}`} // Key for re-rendering on reset if needed
                 label="Startdatum und -uhrzeit"
                 name="startDateTime"
-                control={control as any}
+                control={control as unknown as Control<FieldValues>}
                 rules={{ required: 'Startdatum und -uhrzeit sind erforderlich' }}
                 required={true} // For asterisk
-                error={errors.startDateTime?.message as string}
+                error={errors.startDateTime?.message || undefined}
                 defaultValue={defaultValues.startDateTime || undefined} // Pass RHF default
             />
             <DateTimePicker
                 key={`end-date-${formResetKey}`}
                 label="Enddatum und -uhrzeit (optional)"
                 name="endDateTime"
-                control={control as any}
+                control={control as unknown as Control<FieldValues>}
                 rules={{ validate: value => { const startDateVal = getValues('startDateTime'); if (startDateVal && value && value < startDateVal) { return 'Enddatum darf nicht vor dem Startdatum liegen.'; } return true; }}}
-                error={errors.endDateTime?.message as string}
+                error={errors.endDateTime?.message || undefined}
                 minDate={watchedStartDateTime || undefined}
                 defaultValue={defaultValues.endDateTime || undefined} // Pass RHF default
             />
@@ -346,9 +348,9 @@ export default function AppointmentForm({
           {isRecurring && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle1" component="label" htmlFor="recurring-text-input" sx={{ fontWeight: 600, display:'block', mb:1 }}>Beschreibung der Wiederholung <Box component="span" sx={{ color: "primary.main" }}>*</Box></Typography>
-              <Typography variant="body2" display="block" sx={{ mb: 1 }}> Beschreiben Sie den wiederkehrenden Termin in eigenen Worten, z. B. 'Jeden zweiten Mittwoch im Monat um 19 Uhr'. </Typography>
-              <Controller name="recurringText" control={control as any}
-                render={({ field }) => <TextField id="recurring-text-input" {...field} fullWidth multiline rows={3} placeholder="z.B. Jeden Montag um 18:00 Uhr" error={!!errors.recurringText || !!getCustomError('recurringText')} helperText={(errors.recurringText?.message as string) || getCustomError('recurringText')} margin="normal" />}
+              <Typography variant="body2" display="block" sx={{ mb: 1 }}> Beschreiben Sie den wiederkehrenden Termin in eigenen Worten, z. B. &apos;Jeden zweiten Mittwoch im Monat um 19 Uhr&apos;. </Typography>
+              <Controller name="recurringText" control={control}
+                render={({ field }) => <TextField id="recurring-text-input" {...field} fullWidth multiline rows={3} placeholder="z.B. Jeden Montag um 18:00 Uhr" error={!!errors.recurringText || !!getCustomError('recurringText')} helperText={errors.recurringText?.message || getCustomError('recurringText')} margin="normal" />}
               />
             </Box>
           )}
@@ -356,7 +358,7 @@ export default function AppointmentForm({
       </FormSection>
 
       <FormSection title="Veranstaltungsort (optional)" helpTitle="Adressinformationen" helpText={helpTextAddress}>
-        <Box ref={addressRef}><AddressFields register={register} errors={errors} control={control as any} /></Box>
+        <Box ref={addressRef}><AddressFields register={register} errors={errors} control={control} /></Box>
       </FormSection>
 
       {/* Captcha section removed */}

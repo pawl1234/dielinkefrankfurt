@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import { 
-  getGroups, 
-  updateGroup, 
-  deleteGroup,
-  PaginatedResponse 
+  getGroups
 } from '@/lib/group-handlers';
 import { Group, GroupStatus } from '@prisma/client';
 

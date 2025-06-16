@@ -1,13 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import GroupRequestForm from '@/components/GroupRequestForm';
 import '@testing-library/jest-dom';
 
 // Mock the rich text editor
 jest.mock('@/components/RichTextEditor', () => ({
   __esModule: true,
-  default: ({ value, onChange, maxLength, placeholder }: any) => (
+  default: ({ value, onChange, maxLength, placeholder }: { value: string; onChange: (value: string) => void; maxLength?: number; placeholder?: string }) => (
     <div data-testid="rich-text-editor">
       <textarea
         data-testid="mock-rich-text"
@@ -23,7 +22,7 @@ jest.mock('@/components/RichTextEditor', () => ({
 // Mock the group logo upload
 jest.mock('@/components/GroupLogoUpload', () => ({
   __esModule: true,
-  default: ({ onImageSelect }: any) => (
+  default: ({ onImageSelect }: { onImageSelect: (file: File, croppedFile: File) => void }) => (
     <div data-testid="group-logo-upload">
       <button
         type="button"

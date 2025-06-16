@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
 import { generateNewsletterHtml, getDefaultNewsletterSettings } from '@/lib/newsletter-template';
 import { getBaseUrl } from '@/lib/base-url';
+import { Group } from '@prisma/client';
 
 interface Props {
   params: Promise<{
@@ -125,7 +126,7 @@ export async function PUT(request: NextRequest, { params }: Props) {
       }
       acc[groupId].reports.push(report);
       return acc;
-    }, {} as Record<string, { group: any, reports: any[] }>);
+    }, {} as Record<string, { group: Group, reports: typeof statusReports }>);
 
     const groupsWithReports = Object.values(groupedReports);
 

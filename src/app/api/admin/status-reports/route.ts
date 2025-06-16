@@ -3,7 +3,8 @@ import { withAdminAuth } from '@/lib/api-auth';
 import { 
   getStatusReports, 
   updateStatusReport, 
-  deleteStatusReport 
+  deleteStatusReport,
+  StatusReportUpdateData
 } from '@/lib/group-handlers';
 import { put, del } from '@vercel/blob';
 
@@ -16,7 +17,7 @@ import { put, del } from '@vercel/blob';
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const url = new URL(request.url);
-    const status = url.searchParams.get('status') || 'ALL';
+    const status = (url.searchParams.get('status') || 'ALL') as 'ALL' | 'NEW' | 'ACTIVE' | 'ARCHIVED';
     const groupId = url.searchParams.get('groupId') || undefined;
     const search = url.searchParams.get('search') || '';
     const orderBy = (url.searchParams.get('orderBy') || 'createdAt') as 'title' | 'createdAt';
@@ -25,7 +26,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
     
     const result = await getStatusReports(
-      status as any,
+      status,
       groupId,
       search,
       orderBy,
@@ -108,7 +109,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
     }
     
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       id: id.toString()
     };
     
@@ -123,7 +124,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
     
     // Handle file uploads if any
     const fileCount = formData.get('fileCount');
-    let uploadedFiles: string[] = [];
+    const uploadedFiles: string[] = [];
     
     if (fileCount && parseInt(fileCount as string) > 0) {
       const count = parseInt(fileCount as string);
@@ -192,7 +193,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
             }
           }
         }
-      } catch (parseError) {
+      } catch (parseError: unknown) {
         console.error('Error parsing current file URLs:', parseError);
       }
     }
@@ -201,7 +202,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
     updateData.fileUrls = [...existingFiles, ...uploadedFiles];
     
     // Update the status report
-    const updatedStatusReport = await updateStatusReport(updateData);
+    const updatedStatusReport = await updateStatusReport(updateData as unknown as StatusReportUpdateData);
     return NextResponse.json(updatedStatusReport);
   } catch (error) {
     console.error('Error updating status report:', error);

@@ -303,7 +303,7 @@ describe('Group Pages', () => {
 
     it('handles special characters in slug parameter', async () => {
       // Override the default mock to test special characters
-      const useParamsMock = require('next/navigation').useParams;
+      const { useParams: useParamsMock } = await import('next/navigation');
       useParamsMock.mockReturnValueOnce({ slug: 'arbeitsgruppe-für-ökologie-1234' });
 
       // Mock successful API response

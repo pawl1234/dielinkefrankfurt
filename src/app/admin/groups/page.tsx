@@ -1,7 +1,7 @@
 // src/app/admin/groups/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -42,7 +42,7 @@ interface AdminGroup extends Group {
 }
 
 export default function AdminGroupsPage() {
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const router = useRouter();
   const adminState = useAdminState<AdminGroup>();
 
@@ -71,18 +71,17 @@ export default function AdminGroupsPage() {
   const views: ViewType[] = [GroupStatus.NEW, GroupStatus.ACTIVE, GroupStatus.ARCHIVED, 'ALL'];
   const currentView = views[adminState.tabValue];
 
-  const statusOptions = [
+  const statusOptions: ReadonlyArray<{ value: GroupStatus, label: string, color: 'info' | 'success' | 'default' }> = [
     { value: GroupStatus.NEW, label: 'Neu', color: 'info' },
     { value: GroupStatus.ACTIVE, label: 'Aktiv', color: 'success' },
     { value: GroupStatus.ARCHIVED, label: 'Archiviert', color: 'default' },
   ] as const;
 
   useEffect(() => { if (authStatus === 'unauthenticated') router.push('/admin/login'); }, [authStatus, router]);
-  useEffect(() => { if (authStatus === 'authenticated') fetchGroups(); },
-    [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp]);
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
+      console.log('👥 fetchGroups called for currentView:', currentView, 'page:', adminState.page, 'timestamp:', adminState.timestamp);
       adminState.setLoading(true);
       const statusFilter = currentView !== 'ALL' ? `&status=${currentView}` : '';
       const searchFilter = adminState.searchTerm ? `&search=${encodeURIComponent(adminState.searchTerm)}` : '';
@@ -106,13 +105,29 @@ export default function AdminGroupsPage() {
         adminState.setPaginationData({ totalItems: 0, totalPages: 1 });
       }
       adminState.setError(null);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching groups:', err);
-      adminState.setError(err.message || 'Failed to load groups.');
+      adminState.setError(err instanceof Error ? err.message : 'Failed to load groups.');
     } finally {
       adminState.setLoading(false);
     }
-  };
+  // We intentionally use individual adminState properties instead of the entire adminState object
+  // to prevent infinite re-renders. The adminState object changes on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
+
+  useEffect(() => { 
+    console.log('👥 Groups useEffect triggered:', {
+      authStatus,
+      tabValue: adminState.tabValue,
+      page: adminState.page,
+      pageSize: adminState.pageSize,
+      searchTerm: adminState.searchTerm,
+      timestamp: adminState.timestamp,
+      currentView
+    });
+    if (authStatus === 'authenticated') fetchGroups(); 
+  }, [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, fetchGroups, currentView]);
 
   const handleOpenCreateGroupDialog = () => {
     setNewGroupSimpleData({ name: '', slug: '', description: '', status: GroupStatus.NEW });
@@ -140,8 +155,8 @@ export default function AdminGroupsPage() {
       adminState.showNotification('Gruppe erfolgreich erstellt.', 'success');
       setCreateGroupDialogOpen(false);
       adminState.refreshTimestamp();
-    } catch (err: any) {
-      adminState.showNotification(`Fehler: ${err.message}`, 'error');
+    } catch (err) {
+      adminState.showNotification(`Fehler: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`, 'error');
     }
   };
 
@@ -197,8 +212,8 @@ export default function AdminGroupsPage() {
       adminState.showNotification('Gruppe erfolgreich aktualisiert.', 'success');
       setEditingGroupId(null);
       adminState.refreshTimestamp();
-    } catch (err: any) {
-      adminState.showNotification(`Fehler: ${err.message || 'Unbekannter Fehler.'}`, 'error');
+    } catch (err) {
+      adminState.showNotification(`Fehler: ${err instanceof Error ? err.message : 'Unbekannter Fehler.'}`, 'error');
       throw err; // Re-throw for form's internal error handling
     }
   };
@@ -220,8 +235,8 @@ export default function AdminGroupsPage() {
       }
       adminState.showNotification('Gruppenstatus erfolgreich aktualisiert.', 'success');
       adminState.refreshTimestamp();
-    } catch (err: any) {
-      adminState.showNotification(`Fehler beim Aktualisieren des Gruppenstatus: ${err.message}`, 'error');
+    } catch (err) {
+      adminState.showNotification(`Fehler beim Aktualisieren des Gruppenstatus: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`, 'error');
     }
   };
 
@@ -237,13 +252,12 @@ export default function AdminGroupsPage() {
       adminState.showNotification('Gruppe gelöscht.', 'success');
       setDeleteDialogOpen(false);
       adminState.refreshTimestamp();
-    } catch (err: any) {
-      adminState.showNotification(`Fehler: ${err.message}`, 'error');
+    } catch (err) {
+      adminState.showNotification(`Fehler: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`, 'error');
     }
   };
   
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); adminState.setPage(1); fetchGroups(); };
-  const resetFilters = () => { adminState.setSearchTerm(''); adminState.setPage(1); adminState.refreshTimestamp();};
 
   const getGroupStatusInfo = (statusValue: GroupStatus) => {
     return statusOptions.find(s => s.value === statusValue) || { value: statusValue, label: String(statusValue), color: 'default' };
@@ -306,7 +320,11 @@ export default function AdminGroupsPage() {
                         if (!isExpanded && editingGroupId === group.id) setEditingGroupId(null);
                       }}
                     >
-                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <AccordionSummary
+                        expandIcon={<ExpandMoreIcon />}
+                        aria-controls={`group-${group.id}-content`}
+                        id={`group-${group.id}-header`}
+                      >
                         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, pr: 2, overflow: 'hidden' }}>
                             <Avatar src={group.logoUrl || undefined} sx={{ mr: 2, width: 40, height: 40, bgcolor: 'primary.light' }}>
@@ -322,13 +340,13 @@ export default function AdminGroupsPage() {
                           <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
                             {group.status === GroupStatus.NEW && currentView === GroupStatus.NEW && (
                               <>
-                                <IconButton color="success" size="small" title="Gruppe aktivieren"
+                                <IconButton component="span" color="success" size="small" title="Gruppe aktivieren"
                                   sx={{ borderRadius: 1, bgcolor: 'rgba(46, 125, 50, 0.08)', '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.12)'}, px:1}}
                                   onClick={(e) => { e.stopPropagation(); handleUpdateGroupStatus(group.id, GroupStatus.ACTIVE); }}>
                                   <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
                                   <Typography variant="button">Aktivieren</Typography>
                                 </IconButton>
-                                <IconButton color="warning" size="small" title="Gruppe archivieren"
+                                <IconButton component="span" color="warning" size="small" title="Gruppe archivieren"
                                   sx={{ borderRadius: 1, bgcolor: 'rgba(237, 108, 0, 0.08)', '&:hover': { bgcolor: 'rgba(237, 108, 0, 0.12)'}, px:1}}
                                   onClick={(e) => { e.stopPropagation(); handleUpdateGroupStatus(group.id, GroupStatus.ARCHIVED); }}>
                                   <ArchiveIcon fontSize="small" sx={{ mr: 0.5 }} />
@@ -337,10 +355,10 @@ export default function AdminGroupsPage() {
                               </>
                             )}
                             {!(group.status === GroupStatus.NEW && currentView === GroupStatus.NEW) && (
-                               <Chip label={groupStatusInfo.label} color={groupStatusInfo.color as any} size="small" variant="outlined" sx={{ mr: 0.5 }}/>
+                               <Chip label={groupStatusInfo.label} color={groupStatusInfo.color} size="small" variant="outlined" sx={{ mr: 0.5 }}/>
                             )}
                            
-                            <IconButton color="primary" size="small" 
+                            <IconButton component="span" color="primary" size="small" 
                               sx={{ borderRadius: 1, bgcolor: 'rgba(25, 118, 210, 0.08)', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.12)'}, px:1}}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -354,8 +372,9 @@ export default function AdminGroupsPage() {
                           </Box>
                         </Box>
                       </AccordionSummary>
-                      <AccordionDetails>
-                        <Divider sx={{ mb: 2 }} />
+                        
+                        <AccordionDetails>
+                          <Divider sx={{ mb: 2 }} />
                         {isEditingThisGroup && initialFormDataForGroupEdit ? (
                           <EditGroupForm
                             group={initialFormDataForGroupEdit}
@@ -385,13 +404,13 @@ export default function AdminGroupsPage() {
                               <Typography variant="h6" gutterBottom>Details</Typography>
                               <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>ID:</strong> {group.id}</Typography></Box>
                               <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Slug:</strong> {group.slug}</Typography></Box>
-                              <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Status:</strong> <Chip component="span" label={groupStatusInfo.label} color={groupStatusInfo.color as any} size="small"/></Typography></Box>
+                              <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Status:</strong> <Chip component="span" label={groupStatusInfo.label} color={groupStatusInfo.color} size="small"/></Typography></Box>
                               <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Erstellt:</strong> {format(new Date(group.createdAt), 'PPpp', {locale: de})}</Typography></Box>
                               <Box sx={{ mb: 1 }}><Typography variant="body2"><strong>Aktualisiert:</strong> {format(new Date(group.updatedAt), 'PPpp', {locale: de})}</Typography></Box>
                               {group.logoUrl && (
                                 <Box sx={{mt:2}}>
                                   <Typography variant="subtitle2" gutterBottom>Logo:</Typography>
-                                  <img src={group.logoUrl} alt={`${group.name} Logo`} style={{maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #ddd'}}/>
+                                  <Box component="img" src={group.logoUrl} alt={`${group.name} Logo`} sx={{maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #ddd'}}/>
                                 </Box>
                               )}
                             </Grid>
@@ -433,8 +452,8 @@ export default function AdminGroupsPage() {
                             </Grid>
                           </Grid>
                         )}
-                      </AccordionDetails>
-                    </Accordion>
+                        </AccordionDetails>
+                      </Accordion>
                   </Grid>
                 );
               })}

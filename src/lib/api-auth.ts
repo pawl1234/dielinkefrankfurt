@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { getToken, JWT } from 'next-auth/jwt';
 import { AppError, apiErrorResponse, ErrorType } from './errors';
+
+// Extended JWT interface with role
+interface AdminJWT extends JWT {
+  role?: string;
+}
 
 /**
  * Verifies that the request is authenticated with admin privileges
@@ -14,7 +19,7 @@ export async function verifyAdminAccess(request: NextRequest): Promise<NextRespo
       return AppError.authentication('Authentication token missing').toResponse();
     }
     
-    if ((token as any).role !== 'admin') {
+    if ((token as AdminJWT).role !== 'admin') {
       return AppError.authorization('Admin role required').toResponse();
     }
 
@@ -25,18 +30,23 @@ export async function verifyAdminAccess(request: NextRequest): Promise<NextRespo
   }
 }
 
+
 /**
- * Type for API handler functions
+ * Type for API handler functions with generic context
  */
-export type ApiHandler = (request: NextRequest, context?: any) => Promise<NextResponse>;
+export type ApiHandler<TContext = unknown> = (request: NextRequest, context: TContext) => Promise<NextResponse>;
 
 /**
  * Wraps an API handler with admin authentication
  * If the user is not authenticated, returns a 401 response
  * Otherwise, calls the handler
+ * 
+ * Uses generics to preserve the exact type signature of the wrapped handler
  */
-export function withAdminAuth(handler: ApiHandler): ApiHandler {
-  return async (request: NextRequest, context?: any) => {
+export function withAdminAuth<TContext = unknown>(
+  handler: (request: NextRequest, context: TContext) => Promise<NextResponse>
+): (request: NextRequest, context: TContext) => Promise<NextResponse> {
+  return async (request: NextRequest, context: TContext) => {
     try {
       const unauthorized = await verifyAdminAccess(request);
       if (unauthorized) {

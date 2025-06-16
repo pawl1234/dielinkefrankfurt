@@ -8,7 +8,7 @@ import { AppError } from '@/lib/errors';
 const prisma = new PrismaClient();
 
 // Get all users
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export const GET = withAdminAuth(async () => {
   try {
     const users = await prisma.user.findMany({
       select: {
@@ -59,13 +59,23 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         lastName,
         role: role || 'admin',
         isActive: true
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
     
     console.log(`User created successfully: ${username}, ID: ${newUser.id}`);
     
-    const { passwordHash: _, ...userToReturn } = newUser;
-    return NextResponse.json(userToReturn, { status: 201 });
+    return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
     return AppError.database('Failed to create user').toResponse();

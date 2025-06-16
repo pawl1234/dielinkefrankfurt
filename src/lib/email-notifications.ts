@@ -18,7 +18,7 @@ export type StatusReportWithGroup = StatusReport & {
  */
 export async function sendGroupAcceptanceEmail(
   group: GroupWithResponsiblePersons
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -57,7 +57,7 @@ export async function sendGroupAcceptanceEmail(
     return { success: true };
   } catch (error) {
     console.error('Error sending group acceptance email:', error);
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -68,7 +68,7 @@ export async function sendGroupAcceptanceEmail(
  */
 export async function sendGroupRejectionEmail(
   group: GroupWithResponsiblePersons
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -105,7 +105,7 @@ export async function sendGroupRejectionEmail(
     return { success: true };
   } catch (error) {
     console.error('Error sending group rejection email:', error);
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -116,7 +116,7 @@ export async function sendGroupRejectionEmail(
  */
 export async function sendGroupArchivingEmail(
   group: GroupWithResponsiblePersons
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -152,7 +152,7 @@ export async function sendGroupArchivingEmail(
     return { success: true };
   } catch (error) {
     console.error('Error sending group archiving email:', error);
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -163,7 +163,7 @@ export async function sendGroupArchivingEmail(
  */
 export async function sendStatusReportAcceptanceEmail(
   statusReport: StatusReportWithGroup
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${statusReport.group.id}`);
@@ -228,7 +228,7 @@ export async function sendStatusReportAcceptanceEmail(
     return { success: true };
   } catch (error) {
     console.error('Error sending status report acceptance email:', error);
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -239,7 +239,7 @@ export async function sendStatusReportAcceptanceEmail(
  */
 export async function sendStatusReportRejectionEmail(
   statusReport: StatusReportWithGroup
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${statusReport.group.id}`);
@@ -277,6 +277,6 @@ export async function sendStatusReportRejectionEmail(
     return { success: true };
   } catch (error) {
     console.error('Error sending status report rejection email:', error);
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }

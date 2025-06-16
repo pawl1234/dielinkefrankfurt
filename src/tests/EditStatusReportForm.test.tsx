@@ -15,7 +15,7 @@ global.fetch = jest.fn(() =>
 // Mock useForm's implementation from 'react-hook-form'
 jest.mock('react-hook-form', () => ({
   ...jest.requireActual('react-hook-form'),
-  Controller: ({ name, control, defaultValue, render }) => {
+  Controller: ({ name, defaultValue, render }) => {
     const props = {
       field: {
         value: defaultValue,

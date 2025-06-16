@@ -9,7 +9,7 @@ global.fetch = jest.fn();
 // Mock components that are difficult to test
 jest.mock('@/components/RichTextEditor', () => ({
   __esModule: true,
-  default: ({ value, onChange, maxLength, placeholder }: any) => (
+  default: ({ value, onChange, maxLength, placeholder }: { value: string; onChange: (value: string) => void; maxLength?: number; placeholder?: string }) => (
     <div data-testid="rich-text-editor">
       <textarea 
         data-testid="mock-rich-text-editor" 
@@ -24,7 +24,7 @@ jest.mock('@/components/RichTextEditor', () => ({
 
 jest.mock('@/components/FileUpload', () => ({
   __esModule: true,
-  default: ({ onFilesSelect, maxFiles }: any) => (
+  default: ({ onFilesSelect }: { onFilesSelect: (files: File[]) => void }) => (
     <div data-testid="file-upload">
       <button 
         data-testid="mock-file-upload-button"

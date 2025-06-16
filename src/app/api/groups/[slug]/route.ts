@@ -58,7 +58,7 @@ export async function GET(
       group
     };
     return NextResponse.json(response);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`Error fetching group:`, error);
     
     const response: PublicGroupDetailResponse = {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 /**
  * Handler for fetching newsletter archives (unified table)
@@ -27,7 +28,7 @@ async function handleGetNewsletterArchives(request: NextRequest): Promise<NextRe
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.NewsletterItemWhereInput = {};
     
     if (search) {
       where.OR = [

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, memo } from 'react';
-import { Control, Controller, FieldValues, Path, RegisterOptions, UseFormSetValue } from 'react-hook-form'; // Import Control and Controller
+import { useEffect, useState, memo } from 'react';
+import { Control, Controller, FieldValues, Path, RegisterOptions, UseFormSetValue, PathValue } from 'react-hook-form'; // Import Control and Controller
 import { DateTimePicker as MUIDateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -73,7 +73,7 @@ const DateTimePicker = <TFieldValues extends FieldValues>({
           name={name}
           control={control}
           rules={rules || { required: required ? `${label} ist erforderlich` : false }}
-          defaultValue={defaultValue ? dayjs(defaultValue) as any : null} // Set RHF default value for the Controller
+          defaultValue={defaultValue as PathValue<TFieldValues, Path<TFieldValues>>}
           render={({ field: { onChange, value, ref, ...restField }, fieldState: { error: controllerError } }) => (
             <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="de">
               <MUIDateTimePicker

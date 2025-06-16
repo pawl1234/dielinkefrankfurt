@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/group-handlers';
-import { Group, ResponsiblePerson, StatusReport } from '@prisma/client';
+import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
 import { validateFile, uploadCroppedImagePair, deleteFiles, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
+
 
 /**
  * Response type for group details
@@ -113,7 +114,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       // Extract basic fields
       if (formData.has('name')) updateData.name = formData.get('name') as string;
       if (formData.has('description')) updateData.description = formData.get('description') as string;
-      if (formData.has('status')) updateData.status = formData.get('status') as any;
+      if (formData.has('status')) updateData.status = formData.get('status') as GroupStatus;
       
       // Handle responsible persons if provided
       if (formData.has('responsiblePersonsCount')) {

@@ -21,7 +21,7 @@ export interface ArchiveNewsletterParams {
   content: string;
   subject: string;
   recipientCount: number;
-  settings: any;
+  settings: Record<string, unknown>;
   status?: string;
 }
 
@@ -38,7 +38,7 @@ export interface ListNewslettersParams {
  * Interface for sent newsletter with formatted data
  */
 export interface SentNewsletterWithMeta extends NewsletterItem {
-  settingsData?: Record<string, any>;
+  settingsData?: Record<string, unknown>;
 }
 
 /**

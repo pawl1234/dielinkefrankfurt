@@ -44,7 +44,7 @@ export default function LoginPage() {
         setError('Ungültige Anmeldedaten. Bitte versuchen Sie es erneut.');
         setLoading(false);
       }
-    } catch (error) {
+    } catch {
       setError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
       setLoading(false);
     }

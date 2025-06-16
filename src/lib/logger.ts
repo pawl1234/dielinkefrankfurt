@@ -9,7 +9,7 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 interface LogContext {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface LogOptions {
@@ -34,7 +34,7 @@ interface LogEntry {
     name: string;
     message: string;
     stack?: string;
-    cause?: any;
+    cause?: unknown;
   };
 }
 
@@ -73,7 +73,9 @@ function log(level: LogLevel, message: string | Error, options: LogOptions = {})
   if (process.env.NODE_ENV === 'production' && level === 'debug') return;
 
   const includeTimestamp = options.timestamp !== false;
-  const { timestamp: timestampOption, ...restOptions } = options;
+  // Extract timestamp but don't use it since we use includeTimestamp
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { timestamp, ...restOptions } = options;
   let errorInfo;
   let finalMessage = message;
 
@@ -83,7 +85,7 @@ function log(level: LogLevel, message: string | Error, options: LogOptions = {})
       name: message.name,
       message: message.message,
       stack: message.stack,
-      cause: (message as any).cause, // Error cause is supported in newer JS
+      cause: (message as Error & { cause?: unknown }).cause, // Error cause is supported in newer JS
     };
     finalMessage = message.message;
   }

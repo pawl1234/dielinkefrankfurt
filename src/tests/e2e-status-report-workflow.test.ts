@@ -1,5 +1,4 @@
 // e2e-status-report-workflow.test.ts - End-to-end test for the complete status report submission and approval workflow
-import { NextRequest } from 'next/server';
 import { POST as statusReportSubmitPost } from '@/app/api/status-reports/submit/route';
 import { GET as adminStatusReportsGet } from '@/app/api/admin/status-reports/route';
 import { GET as adminStatusReportGet, PATCH as adminStatusReportPatch } from '@/app/api/admin/status-reports/[id]/route';
@@ -7,8 +6,8 @@ import { GET as publicGroupGet } from '@/app/api/groups/[slug]/route';
 import { getToken } from 'next-auth/jwt';
 import { sendEmail } from '@/lib/email';
 import { setupMockBlobStorage, setupMockEmailService, resetMockBlobStorage, resetMockEmailService } from './mock-services';
-import { createMockGroup, createMockStatusReport, createMockPdfFile, createMockImageFile, createNextRequest } from './test-utils';
-import { put, del } from '@vercel/blob';
+import { createMockGroup, createNextRequest } from './test-utils';
+import { del } from '@vercel/blob';
 
 // Mock external dependencies
 jest.mock('next-auth/jwt', () => ({
@@ -71,10 +70,6 @@ describe('End-to-End Status Report Submission and Approval Workflow', () => {
   
   describe('Step 1: Public status report submission', () => {
     it('should allow submission of a new status report with files', async () => {
-      // Mock file uploads
-      const pdfFile = createMockPdfFile('meeting-notes.pdf');
-      const imageFile = createMockImageFile('event-photo.jpg');
-      
       // Mock data for the new status report
       const newReportData = {
         title: 'Quarterly Activity Report',
@@ -196,7 +191,7 @@ describe('End-to-End Status Report Submission and Approval Workflow', () => {
       expect(Array.isArray(responseData.statusReports)).toBe(true);
       
       // Verify our new report is in the list
-      const newReport = responseData.statusReports.find((r: any) => r.id === reportId);
+      const newReport = responseData.statusReports.find((r: { id: string }) => r.id === reportId);
       expect(newReport).toBeDefined();
       expect(newReport.title).toBe('Quarterly Activity Report');
       expect(newReport.status).toBe('NEW');
@@ -214,12 +209,12 @@ describe('End-to-End Status Report Submission and Approval Workflow', () => {
       
       // Verify all returned reports have NEW status
       expect(response.status).toBe(200);
-      responseData.statusReports.forEach((report: any) => {
+      responseData.statusReports.forEach((report: { status?: string; groupId?: string }) => {
         expect(report.status).toBe('NEW');
       });
       
       // Verify our new report is in the list
-      const newReport = responseData.statusReports.find((r: any) => r.id === reportId);
+      const newReport = responseData.statusReports.find((r: { id: string }) => r.id === reportId);
       expect(newReport).toBeDefined();
     });
     
@@ -235,12 +230,12 @@ describe('End-to-End Status Report Submission and Approval Workflow', () => {
       
       // Verify all returned reports belong to our group
       expect(response.status).toBe(200);
-      responseData.statusReports.forEach((report: any) => {
+      responseData.statusReports.forEach((report: { status?: string; groupId?: string }) => {
         expect(report.groupId).toBe(mockGroup.id);
       });
       
       // Verify our new report is in the list
-      const newReport = responseData.statusReports.find((r: any) => r.id === reportId);
+      const newReport = responseData.statusReports.find((r: { id: string }) => r.id === reportId);
       expect(newReport).toBeDefined();
     });
     
@@ -343,7 +338,7 @@ describe('End-to-End Status Report Submission and Approval Workflow', () => {
       expect(Array.isArray(responseData.statusReports)).toBe(true);
       
       // Find our approved report
-      const approvedReport = responseData.statusReports.find((r: any) => r.id === reportId);
+      const approvedReport = responseData.statusReports.find((r: { id: string }) => r.id === reportId);
       expect(approvedReport).toBeDefined();
       expect(approvedReport.title).toBe('Quarterly Activity Report');
       expect(approvedReport.status).toBe('ACTIVE');
@@ -383,7 +378,7 @@ describe('End-to-End Status Report Submission and Approval Workflow', () => {
       expect(responseData.statusReports).toBeDefined();
       
       // Ensure the pending report is NOT included
-      const pendingReport = responseData.statusReports.find((r: any) => r.id === pendingReportId);
+      const pendingReport = responseData.statusReports.find((r: { id: string }) => r.id === pendingReportId);
       expect(pendingReport).toBeUndefined();
     });
   });
@@ -466,11 +461,6 @@ describe('End-to-End Status Report Submission and Approval Workflow', () => {
       });
       
       // Mock new file URLs
-      const existingFileUrls = JSON.stringify([
-        'https://mock-blob-storage.vercel.app/status-reports/123-meeting-notes.pdf',
-        'https://mock-blob-storage.vercel.app/status-reports/123-event-photo.jpg'
-      ]);
-      
       const newFileUrls = JSON.stringify([
         'https://mock-blob-storage.vercel.app/status-reports/123-meeting-notes.pdf',
         'https://mock-blob-storage.vercel.app/status-reports/123-event-photo.jpg',

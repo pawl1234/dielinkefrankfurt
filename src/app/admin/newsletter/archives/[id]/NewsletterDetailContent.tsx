@@ -28,7 +28,7 @@ interface NewsletterDetail {
   status: string;
   content: string;
   settings: string;
-  settingsData?: Record<string, any>;
+  settingsData?: Record<string, unknown>;
 }
 
 /**
@@ -89,7 +89,7 @@ export default function NewsletterDetailContent({ id }: { id: string }) {
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'dd. MMMM yyyy HH:mm', { locale: de });
-    } catch (error) {
+    } catch {
       return 'Ungültiges Datum';
     }
   };
@@ -205,38 +205,40 @@ export default function NewsletterDetailContent({ id }: { id: string }) {
           {newsletter.settingsData && (
             <Card variant="outlined" sx={{ mt: 2, bgcolor: 'background.default' }}>
               <CardContent>
-                {newsletter.settingsData.fromName && newsletter.settingsData.fromEmail && (
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Absender
-                    </Typography>
-                    <Typography variant="body2">
-                      {newsletter.settingsData.fromName} &lt;{newsletter.settingsData.fromEmail}&gt;
-                    </Typography>
-                  </Box>
-                )}
-                
-                {newsletter.settingsData.replyTo && (
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Antwort an
-                    </Typography>
-                    <Typography variant="body2">
-                      {newsletter.settingsData.replyTo}
-                    </Typography>
-                  </Box>
-                )}
-                
-                {newsletter.settingsData.batchSize && (
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Batch-Größe
-                    </Typography>
-                    <Typography variant="body2">
-                      {newsletter.settingsData.batchSize} Empfänger pro Batch
-                    </Typography>
-                  </Box>
-                )}
+                <>
+                  {newsletter.settingsData.fromName && newsletter.settingsData.fromEmail && (
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Absender
+                      </Typography>
+                      <Typography variant="body2">
+                        {String(newsletter.settingsData.fromName)} &lt;{String(newsletter.settingsData.fromEmail)}&gt;
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {newsletter.settingsData.replyTo && (
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Antwort an
+                      </Typography>
+                      <Typography variant="body2">
+                        {String(newsletter.settingsData.replyTo)}
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {newsletter.settingsData.batchSize && (
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Batch-Größe
+                      </Typography>
+                      <Typography variant="body2">
+                        {String(newsletter.settingsData.batchSize)} Empfänger pro Batch
+                      </Typography>
+                    </Box>
+                  )}
+                </>
               </CardContent>
             </Card>
           )}

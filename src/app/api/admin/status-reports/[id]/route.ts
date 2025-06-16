@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
-import { getStatusReportById, updateStatusReport, deleteStatusReport } from '@/lib/group-handlers';
+import { getStatusReportById, updateStatusReport, deleteStatusReport, StatusReportUpdateData } from '@/lib/group-handlers';
 import { uploadStatusReportFiles, FileUploadError, deleteFiles } from '@/lib/file-upload';
 import { StatusReport } from '@prisma/client';
 
@@ -80,7 +80,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     
     // Check if the request is multipart/form-data or JSON
     const contentType = request.headers.get('content-type') || '';
-    let updateData: any = { id };
+    let updateData: Record<string, unknown> = { id };
     let fileUrls: string[] = [];
     let existingFileUrls: string[] = [];
     let retainExistingFiles = true;
@@ -104,7 +104,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       if (formData.has('content')) updateData.content = formData.get('content') as string;
       if (formData.has('reporterFirstName')) updateData.reporterFirstName = formData.get('reporterFirstName') as string;
       if (formData.has('reporterLastName')) updateData.reporterLastName = formData.get('reporterLastName') as string;
-      if (formData.has('status')) updateData.status = formData.get('status') as any;
+      if (formData.has('status')) updateData.status = formData.get('status') as string;
       
       // Check if we need to clear existing files
       if (formData.has('retainExistingFiles')) {
@@ -166,7 +166,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
         // Check if the fileUrls is different from the existing ones
         if (!retainExistingFiles) {
           // Files to delete are those in existingFileUrls but not in updateData.fileUrls
-          const filesToDelete = existingFileUrls.filter(url => !updateData.fileUrls.includes(url));
+          const filesToDelete = existingFileUrls.filter(url => !Array.isArray(updateData.fileUrls) || !updateData.fileUrls.includes(url));
           
           if (filesToDelete.length > 0) {
             try {
@@ -182,7 +182,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     }
     
     // Update the status report
-    const updatedStatusReport = await updateStatusReport(updateData);
+    const updatedStatusReport = await updateStatusReport(updateData as unknown as StatusReportUpdateData);
     
     const response: StatusReportResponse = {
       success: true,

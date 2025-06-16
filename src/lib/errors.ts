@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { logger } from './logger';
 
+// Type for error context
+type ErrorContext = Record<string, unknown>;
+
 /**
  * Error types for better error categorization and handling
  */
@@ -23,14 +26,14 @@ export class AppError extends Error {
   public readonly type: ErrorType;
   public readonly statusCode: number;
   public readonly originalError?: Error;
-  public readonly context?: Record<string, any>;
+  public readonly context?: ErrorContext;
 
   constructor(
     message: string,
     type: ErrorType = ErrorType.UNKNOWN,
     statusCode: number = 500,
     originalError?: Error,
-    context?: Record<string, any>
+    context?: ErrorContext
   ) {
     super(message);
     this.name = 'AppError';
@@ -53,7 +56,7 @@ export class AppError extends Error {
   /**
    * Creates a validation error
    */
-  static validation(message: string, context?: Record<string, any>): AppError {
+  static validation(message: string, context?: ErrorContext): AppError {
     return new AppError(message, ErrorType.VALIDATION, 400, undefined, context);
   }
 
@@ -88,7 +91,7 @@ export class AppError extends Error {
   /**
    * Creates a file upload error
    */
-  static fileUpload(message: string, originalError?: Error, context?: Record<string, any>): AppError {
+  static fileUpload(message: string, originalError?: Error, context?: ErrorContext): AppError {
     return new AppError(message, ErrorType.FILE_UPLOAD, 500, originalError, context);
   }
 
@@ -96,7 +99,7 @@ export class AppError extends Error {
    * Converts the error to a NextResponse object for API responses
    */
   toResponse(includeDetails: boolean = false): NextResponse {
-    const errorBody: Record<string, any> = {
+    const errorBody: Record<string, unknown> = {
       error: this.message,
       type: this.type,
     };
@@ -137,7 +140,7 @@ export function validationErrorResponse(fieldErrors: Record<string, string>): Ne
 export function apiErrorResponse(
   error: unknown, 
   defaultMessage: string = 'An unexpected error occurred',
-  context?: Record<string, any>
+  context?: ErrorContext
 ): NextResponse {
   if (error instanceof AppError) {
     // Log AppError with context
@@ -204,7 +207,7 @@ export function getClientErrorMessage(error: unknown, defaultMessage: string = '
   }
   
   if (error && typeof error === 'object' && 'message' in error) {
-    return (error as any).message || defaultMessage;
+    return (error as { message: string }).message || defaultMessage;
   }
   
   return defaultMessage;
@@ -234,7 +237,7 @@ export function handleDatabaseError(error: unknown, operation: string): AppError
 /**
  * Helper to format and standardize file upload errors
  */
-export function handleFileUploadError(error: unknown, context?: Record<string, any>): AppError {
+export function handleFileUploadError(error: unknown, context?: ErrorContext): AppError {
   // Convert to Error object if needed
   const errorObj = error instanceof Error ? error : new Error(String(error));
   

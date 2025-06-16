@@ -1,5 +1,5 @@
 import { AppError, ErrorType, apiErrorResponse, getLocalizedErrorMessage } from '@/lib/errors';
-import { withRetry, resilientFetch, safeJsonParse, withErrorRecovery } from '@/lib/error-recovery';
+import { withRetry, safeJsonParse, withErrorRecovery } from '@/lib/error-recovery';
 
 // Mock NextResponse
 jest.mock('next/server', () => ({

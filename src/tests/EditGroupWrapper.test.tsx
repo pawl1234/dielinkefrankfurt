@@ -11,7 +11,7 @@ jest.mock('../components/GroupEditForm', () => {
     onSubmitSuccess,
     onCancel,
   }: {
-    group: any;
+    group: { id: string; name: string; status: string };
     onSubmitSuccess?: () => void;
     onCancel?: () => void;
   }) => {

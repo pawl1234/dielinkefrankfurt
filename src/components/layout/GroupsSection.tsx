@@ -12,7 +12,6 @@ import {
   Avatar, 
   Skeleton,
   Chip,
-  CircularProgress,
   Paper,
   Pagination
 } from '@mui/material';

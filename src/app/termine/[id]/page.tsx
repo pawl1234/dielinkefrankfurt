@@ -12,7 +12,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Link from 'next/link';
@@ -38,11 +37,6 @@ interface Appointment {
   metadata: string | null;
   featured: boolean;
 }
-
-type Params = {
-  id: string;
-};
-
 
 export default function AppointmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [appointment, setAppointment] = useState<Appointment | null>(null);

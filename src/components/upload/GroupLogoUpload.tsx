@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Box,
   Button,
@@ -332,9 +333,11 @@ const GroupLogoUpload = ({
               }}
             >
               {initialCroppedLogoUrl && (
-                <img 
+                <Image 
                   src={initialCroppedLogoUrl} 
                   alt="Aktuelles Logo"
+                  width={400}
+                  height={250}
                   style={{ 
                     width: '100%', 
                     maxHeight: '250px', 
@@ -394,6 +397,7 @@ const GroupLogoUpload = ({
                       aspect={aspectRatio}
                       minWidth={100}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         ref={imgRef}
                         src={previewUrl}
@@ -449,9 +453,11 @@ const GroupLogoUpload = ({
                   }}
                 >
                   {croppedPreviewUrl && (
-                    <img 
+                    <Image 
                       src={croppedPreviewUrl} 
                       alt="Zugeschnittenes Logo"
+                      width={400}
+                      height={250}
                       style={{ 
                         width: '100%', 
                         maxHeight: '250px', 

@@ -14,7 +14,7 @@ export const testData = {
   recurringText: 'Every first Sunday of the month',
 };
 
-export async function testFormSubmission(formData: FormData) {
+export async function testFormSubmission() {
   // This is a mock function for testing form submission
   // In a real application, this would send the data to the server
   

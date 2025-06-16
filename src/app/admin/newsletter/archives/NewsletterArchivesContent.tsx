@@ -10,7 +10,6 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Link as MuiLink,
   Chip,
   Button,
   Box,
@@ -153,7 +152,7 @@ export default function NewsletterArchivesContent() {
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'dd.MM.yyyy HH:mm', { locale: de });
-    } catch (error) {
+    } catch {
       return 'Ungültiges Datum';
     }
   };

@@ -1,5 +1,4 @@
 import 'next';
-import { AppType, NextComponentType } from 'next/types';
 
 declare module 'next' {
   // Override the PageProps type to support our params format

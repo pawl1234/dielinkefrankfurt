@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
-import { generateNewsletterHtml, getDefaultNewsletterSettings } from '@/lib/newsletter-template';
-import { format } from 'date-fns';
+import { generateNewsletterHtml, getDefaultNewsletterSettings, GroupWithReports } from '@/lib/newsletter-template';
 import { getBaseUrl } from '@/lib/base-url';
 
 // Helper function to get newsletter settings from database
@@ -34,11 +33,6 @@ async function getNewsletterSettingsFromDB() {
   return getDefaultNewsletterSettings();
 }
 
-// Helper function to format subject using template
-function formatSubject(template: string): string {
-  const currentDate = format(new Date(), 'dd.MM.yyyy');
-  return template.replace('{date}', currentDate);
-}
 
 // POST create new newsletter with generated content
 export async function POST(request: NextRequest) {
@@ -105,7 +99,7 @@ export async function POST(request: NextRequest) {
       }
       acc[groupId].reports.push(report);
       return acc;
-    }, {} as Record<string, { group: any, reports: any[] }>);
+    }, {} as Record<string, GroupWithReports>);
 
     const groupsWithReports = Object.values(groupedReports);
 
@@ -114,7 +108,7 @@ export async function POST(request: NextRequest) {
     
     // For new newsletters created via the UI (which already uses the template), 
     // we use the subject as provided. The template is applied in the frontend.
-    let finalSubject = subject;
+    const finalSubject = subject;
     
     // Separate featured and regular appointments
     const featuredAppointments = appointments.filter(apt => apt.featured);

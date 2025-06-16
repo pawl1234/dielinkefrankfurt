@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 
 interface UseFormSubmissionProps<T> {
   onSubmit: (data: T, files?: (File | Blob)[]) => Promise<void>;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
+  fieldRefs?: Record<string, React.RefObject<HTMLElement>>;
   resetForm?: () => void;
-  fieldRefs?: Record<string, React.RefObject<any>>;
 }
 
 interface FieldError {
@@ -23,7 +23,6 @@ export function useFormSubmission<T>({
   onSubmit,
   onSuccess,
   onError,
-  resetForm,
   fieldRefs = {}
 }: UseFormSubmissionProps<T>) {
   const [isSubmitting, setIsSubmitting] = useState(false);

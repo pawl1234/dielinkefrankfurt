@@ -13,7 +13,6 @@ import {
   Card,
   CardContent,
   Button,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -28,7 +27,6 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LinkIcon from '@mui/icons-material/Link';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 // Interface for newsletter details
 interface NewsletterDetail {
@@ -40,7 +38,7 @@ interface NewsletterDetail {
   type: 'draft' | 'sent';
   content: string;
   settings: string;
-  settingsData?: Record<string, any>;
+  settingsData?: Record<string, unknown>;
 }
 
 interface NewsletterDetailProps {
@@ -116,7 +114,7 @@ export default function NewsletterDetail({ id, onBack, onDelete, onResendNewslet
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'dd. MMMM yyyy HH:mm', { locale: de });
-    } catch (error) {
+    } catch {
       return 'Ungültiges Datum';
     }
   };
@@ -298,44 +296,56 @@ export default function NewsletterDetail({ id, onBack, onDelete, onResendNewslet
                 Versand-Einstellungen
               </Typography>
               
-              {newsletter.settingsData && (
+              {newsletter.settingsData && typeof newsletter.settingsData === 'object' ? (
                 <Card variant="outlined" sx={{ mt: 2, bgcolor: 'background.default' }}>
-                  <CardContent>
-                    {newsletter.settingsData.fromName && newsletter.settingsData.fromEmail && (
+                  <CardContent sx={{ '&:last-child': { pb: 2 } }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Newsletter-Einstellungen
+                    </Typography>
+                    
+                    {newsletter.settingsData.fromName && newsletter.settingsData.fromEmail ? (
                       <Box sx={{ mb: 1 }}>
                         <Typography variant="body2" color="text.secondary">
                           Absender
                         </Typography>
                         <Typography variant="body2">
-                          {newsletter.settingsData.fromName} &lt;{newsletter.settingsData.fromEmail}&gt;
+                          {`${String(newsletter.settingsData.fromName || '')} <${String(newsletter.settingsData.fromEmail || '')}>`}
                         </Typography>
                       </Box>
-                    )}
+                    ) : null}
                     
-                    {newsletter.settingsData.replyToEmail && (
+                    {newsletter.settingsData.replyToEmail ? (
                       <Box sx={{ mb: 1 }}>
                         <Typography variant="body2" color="text.secondary">
                           Antwort an
                         </Typography>
                         <Typography variant="body2">
-                          {newsletter.settingsData.replyToEmail}
+                          {String(newsletter.settingsData.replyToEmail || '')}
                         </Typography>
                       </Box>
-                    )}
+                    ) : null}
                     
-                    {newsletter.settingsData.batchSize && (
+                    {newsletter.settingsData.batchSize ? (
                       <Box sx={{ mb: 1 }}>
                         <Typography variant="body2" color="text.secondary">
                           Batch-Größe
                         </Typography>
                         <Typography variant="body2">
-                          {newsletter.settingsData.batchSize} Empfänger pro Batch
+                          {newsletter.settingsData.batchSize ? `${newsletter.settingsData.batchSize} Empfänger pro Batch` : 'Nicht konfiguriert'}
                         </Typography>
                       </Box>
-                    )}
+                    ) : null}
+                    
+                    {(!newsletter.settingsData.fromName || !newsletter.settingsData.fromEmail) && 
+                     !newsletter.settingsData.replyToEmail && 
+                     !newsletter.settingsData.batchSize ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Keine spezifischen Einstellungen verfügbar
+                      </Typography>
+                    ) : null}
                   </CardContent>
                 </Card>
-              )}
+              ) : null}
               
               <Divider sx={{ my: 2 }} />
               

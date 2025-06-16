@@ -3,6 +3,37 @@ import { logger } from './logger';
 import prisma from './prisma';
 
 /**
+ * Interface for newsletter status response
+ */
+interface NewsletterStatus {
+  id: string;
+  sentAt: Date | null;
+  subject: string;
+  recipientCount: number;
+  status: string;
+  settings: Record<string, unknown>;
+}
+
+/**
+ * Interface for sent newsletters result with pagination
+ */
+interface SentNewslettersResult {
+  newsletters: {
+    id: string;
+    sentAt: Date | null;
+    subject: string;
+    recipientCount: number;
+    status: string;
+  }[];
+  pagination: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+}
+
+/**
  * Process a list of recipient emails
  * @param emailText Newline-separated list of email addresses
  * @returns ValidationResult with statistics
@@ -23,7 +54,7 @@ export async function processRecipientList(emailText: string): Promise<Validatio
 /**
  * Get status of a newsletter
  */
-export async function getNewsletterStatus(newsletterId: string): Promise<any> {
+export async function getNewsletterStatus(newsletterId: string): Promise<NewsletterStatus> {
   try {
     const newsletter = await prisma.newsletterItem.findUnique({
       where: { id: newsletterId }
@@ -37,7 +68,7 @@ export async function getNewsletterStatus(newsletterId: string): Promise<any> {
       id: newsletter.id,
       sentAt: newsletter.sentAt,
       subject: newsletter.subject,
-      recipientCount: newsletter.recipientCount,
+      recipientCount: newsletter.recipientCount ?? 0,
       status: newsletter.status,
       settings: newsletter.settings ? JSON.parse(newsletter.settings) : {}
     };
@@ -50,7 +81,7 @@ export async function getNewsletterStatus(newsletterId: string): Promise<any> {
 /**
  * Get all sent newsletters with pagination
  */
-export async function getSentNewsletters(page = 1, pageSize = 10): Promise<any> {
+export async function getSentNewsletters(page = 1, pageSize = 10): Promise<SentNewslettersResult> {
   try {
     const skip = (page - 1) * pageSize;
     
@@ -77,7 +108,7 @@ export async function getSentNewsletters(page = 1, pageSize = 10): Promise<any> 
         id: n.id,
         sentAt: n.sentAt,
         subject: n.subject,
-        recipientCount: n.recipientCount,
+        recipientCount: n.recipientCount ?? 0,
         status: n.status
       })),
       pagination: {

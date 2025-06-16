@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import NewsletterArchives from '@/components/newsletter/NewsletterArchives';
+import NewsletterArchives, { NewsletterArchivesRef } from '@/components/newsletter/NewsletterArchives';
 import NewsletterSendingForm from '@/components/newsletter/NewsletterSendingForm';
 import {
   Box,
@@ -35,7 +35,7 @@ interface NewsletterItem {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   
   // State for dialogs and forms
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -44,6 +44,31 @@ export default function AdminPage() {
   const [selectedNewsletter, setSelectedNewsletter] = useState<NewsletterItem | null>(null);
   const [newsletterHtml, setNewsletterHtml] = useState('');
   const [subject, setSubject] = useState('');
+
+  // Create ref for NewsletterArchives to trigger refresh
+  const archivesRef = useRef<NewsletterArchivesRef>(null);
+
+  // Handle newsletter sending completion
+  const handleNewsletterSent = () => {
+    console.log('Newsletter sent, refreshing archives...');
+    archivesRef.current?.refresh();
+  };
+
+  // Handle dialog close (also refresh to show updated status)
+  const handleCloseDialog = () => {
+    setSendDialogOpen(false);
+    setSelectedNewsletter(null);
+    console.log('Send dialog closed, refreshing archives...');
+    archivesRef.current?.refresh();
+  };
+
+  // Handle resend dialog close
+  const handleCloseResendDialog = () => {
+    setResendDialogOpen(false);
+    setSelectedNewsletter(null);
+    console.log('Resend dialog closed, refreshing archives...');
+    archivesRef.current?.refresh();
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -117,8 +142,8 @@ export default function AdminPage() {
                     setNewsletterHtml(data.content || '');
                     setSubject(data.subject || '');
                   }
-                } catch (error) {
-                  console.error('Error fetching newsletter content:', error);
+                } catch {
+                  console.error('Error fetching newsletter content');
                 }
                 setSendDialogOpen(true);
               }}
@@ -132,8 +157,8 @@ export default function AdminPage() {
                     setNewsletterHtml(data.content || '');
                     setSubject(data.subject || '');
                   }
-                } catch (error) {
-                  console.error('Error fetching newsletter content:', error);
+                } catch {
+                  console.error('Error fetching newsletter content');
                 }
                 setResendDialogOpen(true);
               }}
@@ -148,6 +173,7 @@ export default function AdminPage() {
                 // Navigate to the view page
                 router.push(`/admin/newsletter/view?id=${newsletter.id}`);
               }}
+              ref={archivesRef}
             />
           </Container>
         </Box>
@@ -171,15 +197,13 @@ export default function AdminPage() {
                   newsletterHtml={newsletterHtml}
                   subject={subject || selectedNewsletter.subject}
                   newsletterId={selectedNewsletter.id}
+                  onComplete={handleNewsletterSent}
                 />
               </Box>
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => {
-              setSendDialogOpen(false);
-              setSelectedNewsletter(null);
-            }}>
+            <Button onClick={handleCloseDialog}>
               Schließen
             </Button>
           </DialogActions>
@@ -204,15 +228,13 @@ export default function AdminPage() {
                   newsletterHtml={newsletterHtml}
                   subject={subject || selectedNewsletter.subject}
                   newsletterId={selectedNewsletter.id}
+                  onComplete={handleNewsletterSent}
                 />
               </Box>
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => {
-              setResendDialogOpen(false);
-              setSelectedNewsletter(null);
-            }}>
+            <Button onClick={handleCloseResendDialog}>
               Schließen
             </Button>
           </DialogActions>
@@ -247,7 +269,7 @@ export default function AdminPage() {
                       });
                       
                       if (response.ok) {
-                        const data = await response.json();
+                        await response.json();
                       // alert(`Test-Email wurde erfolgreich gesendet! ${data.message || ''}`);
                         setTestEmailDialogOpen(false);
                         setSelectedNewsletter(null);

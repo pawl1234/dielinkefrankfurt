@@ -57,6 +57,44 @@ interface SendResult {
 }
 
 /**
+ * Interface for prepare newsletter API response
+ */
+interface PrepareNewsletterResponse {
+  success: boolean;
+  message?: string;
+  validRecipients: number;
+  invalidRecipients: number;
+  newsletterId: string;
+  emailChunks: string[][];
+  totalChunks: number;
+  chunkSize: number;
+  html: string;
+  subject: string;
+  settings?: {
+    chunkDelay?: number;
+    fromEmail?: string;
+    fromName?: string;
+    replyToEmail?: string;
+    batchSize?: number;
+    batchDelay?: number;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Interface for newsletter settings
+ */
+interface NewsletterSettings {
+  fromName?: string;
+  fromEmail?: string;
+  replyToEmail?: string;
+  batchSize?: number;
+  batchDelay?: number;
+  chunkDelay?: number;
+  [key: string]: unknown;
+}
+
+/**
  * Multi-step form for newsletter sending workflow
  */
 export default function NewsletterSendingForm({ newsletterHtml, subject, newsletterId, onComplete }: NewsletterSendingFormProps) {
@@ -64,7 +102,6 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   const [currentStep, setCurrentStep] = useState<'input' | 'validation' | 'sending' | 'retrying' | 'complete'>('input');
   
   // Chunked sending state
-  const [emailChunks, setEmailChunks] = useState<string[][]>([]);
   const [sendingProgress, setSendingProgress] = useState({
     completedChunks: 0,
     totalChunks: 0,
@@ -87,7 +124,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [sendResult, setSendResult] = useState<SendResult | null>(null);
-  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [settings, setSettings] = useState<NewsletterSettings>({});
   
   // Fetch newsletter settings on component mount
   useEffect(() => {
@@ -206,7 +243,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         throw new Error(errorData.error || 'Fehler beim Vorbereiten des Newsletters');
       }
 
-      const prepareData = await prepareResponse.json();
+      const prepareData: PrepareNewsletterResponse = await prepareResponse.json();
       
       if (!prepareData.success) {
         throw new Error(prepareData.message || 'Fehler beim Vorbereiten des Newsletters');
@@ -214,7 +251,6 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
 
       // Store email chunks and initialize progress
       const chunks = prepareData.emailChunks;
-      setEmailChunks(chunks);
       setSendingProgress({
         completedChunks: 0,
         totalChunks: chunks.length,
@@ -242,11 +278,11 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   /**
    * Process email chunks one by one
    */
-  const processEmailChunks = async (chunks: string[][], prepareData: any) => {
+  const processEmailChunks = async (chunks: string[][], prepareData: PrepareNewsletterResponse) => {
     let totalSent = 0;
     let totalFailed = 0;
     let hasError = false;
-    let lastChunkData: any = null;
+    let lastChunkData: Record<string, unknown> | null = null;
 
     for (let i = 0; i < chunks.length; i++) {
       try {
@@ -367,7 +403,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   /**
    * Process retry stages automatically
    */
-  const processRetryStages = async (prepareData: any) => {
+  const processRetryStages = async (prepareData: PrepareNewsletterResponse) => {
     let retryComplete = false;
     let finalFailedEmails: string[] = [];
     let hasRetryError = false;
@@ -513,7 +549,6 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     setIsModalOpen(false);
     setError('');
     setSendResult(null);
-    setEmailChunks([]);
     setSendingProgress({
       completedChunks: 0,
       totalChunks: 0,

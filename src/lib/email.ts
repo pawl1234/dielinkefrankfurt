@@ -1,9 +1,47 @@
 import nodemailer from 'nodemailer';
-import htmlToText from 'nodemailer-html-to-text';
 import { logger } from './logger';
 
+// TypeScript interfaces for better type safety
+interface EmailSettings {
+  connectionTimeout?: number;
+  greetingTimeout?: number;
+  socketTimeout?: number;
+  maxConnections?: number;
+  maxMessages?: number;
+  maxRetries?: number;
+  emailTimeout?: number;
+  maxBackoffDelay?: number;
+}
+
+interface MailOptions {
+  from: string;
+  to: string;
+  bcc?: string;
+  subject: string;
+  html: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+}
+
+interface TransporterType {
+  sendMail: (mailOptions: MailOptions) => Promise<EmailInfo>;
+  verify: () => Promise<void>;
+  close: () => void;
+}
+
+interface EmailInfo {
+  messageId: string;
+}
+
+interface EmailError extends Error {
+  code?: string;
+  errno?: number;
+  syscall?: string;
+  response?: string;
+}
+
 // Create a reusable transporter object using SMTP transport
-export const createTransporter = (settings?: any) => {
+export const createTransporter = (settings?: EmailSettings): TransporterType => {
   const config = {
     host: process.env.EMAIL_SERVER_HOST,
     port: Number(process.env.EMAIL_SERVER_PORT) || 1025, // Default to MailDev
@@ -42,16 +80,16 @@ export const createTransporter = (settings?: any) => {
   });
   
   const transporter = nodemailer.createTransport(config);
-  return transporter;
+  return transporter as unknown as TransporterType;
 };
 
 // Create a fresh transporter for each batch (better for serverless)
-const getTransporter = (settings?: any) => {
+const getTransporter = (settings?: EmailSettings): TransporterType => {
   return createTransporter(settings);
 };
 
 // Send email with HTML content using provided transporter
-export const sendEmailWithTransporter = async (transporter: any, {
+export const sendEmailWithTransporter = async (transporter: TransporterType, {
   to,
   subject,
   html,
@@ -66,7 +104,7 @@ export const sendEmailWithTransporter = async (transporter: any, {
   from?: string;
   replyTo?: string;
   bcc?: string;
-  settings?: any;
+  settings?: EmailSettings;
 }) => {
   const startTime = Date.now();
   const maxRetries = settings?.maxRetries || 3;
@@ -97,26 +135,19 @@ export const sendEmailWithTransporter = async (transporter: any, {
       
       const info = await Promise.race([sendMailPromise, sendMailTimeout]);
       
-      return { success: true, messageId: (info as any).messageId };
-    } catch (error: any) {
-      // On error, generate the raw email for debugging
-      let rawEmail = '';
-      try {
-        // Use nodemailer's built-in method to generate the raw email
-        const message = await transporter.generateMessage(mailOptions);
-        rawEmail = message.toString();
-      } catch (generateError) {
-        // If generation fails, create a basic raw email representation
-        rawEmail = `From: ${mailOptions.from}\r\nTo: ${mailOptions.to}\r\n${mailOptions.bcc ? `Bcc: ${mailOptions.bcc}\r\n` : ''}Subject: ${mailOptions.subject}\r\nReply-To: ${mailOptions.replyTo}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n[HTML content omitted for brevity]`;
-      }
+      return { success: true, messageId: (info as EmailInfo).messageId };
+    } catch (error: unknown) {
+      // On error, create a basic raw email representation for debugging
+      const rawEmail = `From: ${mailOptions.from}\r\nTo: ${mailOptions.to}\r\n${mailOptions.bcc ? `Bcc: ${mailOptions.bcc}\r\n` : ''}Subject: ${mailOptions.subject}\r\nReply-To: ${mailOptions.replyTo}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n[HTML content omitted for brevity]`;
       const duration = Date.now() - startTime;
       
       // Check if it's a connection error that should be retried
-      const isConnectionError = error?.response?.includes('too many connections') || 
-                               error?.code === 'ECONNREFUSED' ||
-                               error?.code === 'ESOCKET' ||
-                               error?.code === 'EPROTOCOL' ||
-                               error?.code === 'ETIMEDOUT';
+      const emailError = error as EmailError;
+      const isConnectionError = emailError?.response?.includes('too many connections') || 
+                               emailError?.code === 'ECONNREFUSED' ||
+                               emailError?.code === 'ESOCKET' ||
+                               emailError?.code === 'EPROTOCOL' ||
+                               emailError?.code === 'ETIMEDOUT';
       
       // If it's the last attempt or not a connection error, fail
       if (attempt === maxRetries || !isConnectionError) {
@@ -141,9 +172,9 @@ export const sendEmailWithTransporter = async (transporter: any, {
             rawEmail: rawEmail, // Add the raw email for debugging
             error: error instanceof Error ? {
               message: error.message,
-              code: (error as any).code,
-              errno: (error as any).errno,
-              syscall: (error as any).syscall
+              code: (error as EmailError).code,
+              errno: (error as EmailError).errno,
+              syscall: (error as EmailError).syscall
             } : error
           }
         });
@@ -162,7 +193,7 @@ export const sendEmailWithTransporter = async (transporter: any, {
       logger.warn(`Email send failed (attempt ${attempt}/${maxRetries}), retrying in ${backoffDelay}ms`, {
         context: { 
           recipientDomain: to.split('@')[1] || 'unknown',
-          error: error?.message || error 
+          error: emailError?.message || emailError 
         }
       });
       
@@ -188,7 +219,7 @@ export const sendEmail = async ({
   html: string;
   from?: string;
   replyTo?: string;
-  settings?: any;
+  settings?: EmailSettings;
 }) => {
   const startTime = Date.now();
   
@@ -205,25 +236,26 @@ export const sendEmail = async ({
         try {
           await transporter.verify();
           break; // No logging for successful verification
-        } catch (verifyError: any) {
+        } catch (verifyError: unknown) {
           retryCount++;
           
           // Check if it's a "too many connections" error
-          const isConnectionError = verifyError?.response?.includes('too many connections') || 
-                                   verifyError?.code === 'ECONNREFUSED' ||
-                                   verifyError?.code === 'EPROTOCOL';
+          const emailVerifyError = verifyError as EmailError;
+          const isConnectionError = emailVerifyError?.response?.includes('too many connections') || 
+                                   emailVerifyError?.code === 'ECONNREFUSED' ||
+                                   emailVerifyError?.code === 'EPROTOCOL';
           
           if (isConnectionError && retryCount < maxRetries) {
             const maxBackoffDelay = settings?.maxBackoffDelay || 10000;
             const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), maxBackoffDelay); // Exponential backoff
             logger.warn(`SMTP verification failed (attempt ${retryCount}/${maxRetries}), retrying in ${backoffDelay}ms`, {
-              context: { error: verifyError?.message || verifyError }
+              context: { error: emailVerifyError?.message || emailVerifyError }
             });
             await new Promise(resolve => setTimeout(resolve, backoffDelay));
           } else {
             logger.error('SMTP transporter verification failed', {
               context: {
-                error: verifyError,
+                error: emailVerifyError,
                 host: process.env.EMAIL_SERVER_HOST,
                 port: process.env.EMAIL_SERVER_PORT,
                 hasAuth: !!(process.env.EMAIL_SERVER_USER && process.env.EMAIL_SERVER_PASSWORD),
@@ -260,7 +292,7 @@ export const sendEmail = async ({
     
     const info = await Promise.race([sendMailPromise, sendMailTimeout]);
     
-    return { success: true, messageId: (info as any).messageId };
+    return { success: true, messageId: (info as EmailInfo).messageId };
   } catch (error) {
     const duration = Date.now() - startTime;
     
@@ -270,9 +302,9 @@ export const sendEmail = async ({
         duration: `${duration}ms`,
         error: error instanceof Error ? {
           message: error.message,
-          code: (error as any).code,
-          errno: (error as any).errno,
-          syscall: (error as any).syscall
+          code: (error as EmailError).code,
+          errno: (error as EmailError).errno,
+          syscall: (error as EmailError).syscall
         } : error,
         smtpConfig: {
           host: process.env.EMAIL_SERVER_HOST,

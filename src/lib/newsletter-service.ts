@@ -360,7 +360,7 @@ export async function generateNewsletter(introductionText: string): Promise<stri
 export async function sendNewsletterTestEmail(html: string): Promise<{
   success: boolean;
   messageId?: string;
-  error?: any;
+  error?: Error | unknown;
   recipientCount: number;
 }> {
   try {
@@ -382,7 +382,7 @@ export async function sendNewsletterTestEmail(html: string): Promise<{
 /**
  * API handler for getting newsletter settings
  */
-export async function handleGetNewsletterSettings(request: NextRequest): Promise<NextResponse> {
+export async function handleGetNewsletterSettings(): Promise<NextResponse> {
   try {
     const settings = await getNewsletterSettings();
     return NextResponse.json(settings);
@@ -436,7 +436,7 @@ export async function handleGenerateNewsletter(request: NextRequest): Promise<Ne
  */
 export async function handleSendTestNewsletter(request: NextRequest): Promise<NextResponse> {
   try {
-    const { html, newsletterId, subject } = await request.json();
+    const { html, newsletterId } = await request.json();
     
     let newsletterHtml = html;
     

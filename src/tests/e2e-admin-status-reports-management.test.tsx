@@ -1,7 +1,6 @@
 // e2e-admin-status-reports-management.test.tsx - End-to-end tests for admin status reports management workflows
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import AdminStatusReportsPage from '../components/AdminStatusReportsPage';
 import StatusReportEditForm from '../components/StatusReportEditForm';
@@ -35,7 +34,7 @@ const mockFetch = global.fetch as jest.Mock;
 jest.mock('../components/FileUpload', () => {
   return {
     __esModule: true,
-    default: ({ onFilesSelect }: { onFilesSelect: (files: any[]) => void }) => {
+    default: ({ onFilesSelect }: { onFilesSelect: (files: File[]) => void }) => {
       return (
         <div data-testid="file-upload">
           <button

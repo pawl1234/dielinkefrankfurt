@@ -82,8 +82,8 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'max-age=3600, s-maxage=3600', // Cache for 1 hour
       }
     });
-  } catch (error) {
-    console.error('Error generating RSS feed:', error);
+  } catch (_error) {
+    console.error('Error generating RSS feed:', _error);
     // Return a plain text error message with 500 status
     return new NextResponse('Error generating RSS feed', {
       status: 500,

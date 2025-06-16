@@ -4,7 +4,7 @@ import { useDataFetch } from './useDataFetch';
 // Generic interface for paginated responses
 interface PaginatedResponse<T> {
   items?: T[];
-  [key: string]: any; // Allow additional fields like groups, statusReports, etc.
+  [key: string]: unknown; // Allow additional fields like groups, statusReports, etc.
   totalItems?: number;
   page?: number;
   pageSize?: number;
@@ -28,8 +28,10 @@ export function usePaginatedData<T>(
   initialPage = 1,
   initialPageSize = 10,
   additionalParams: Record<string, string> = {},
-  dataExtractor: (response: any) => T[] = (response) => 
-    response.items || response.groups || response.statusReports || []
+  dataExtractor: (response: Record<string, unknown>) => T[] = (response) => {
+    const items = response.items || response.groups || response.statusReports;
+    return Array.isArray(items) ? items as T[] : [];
+  }
 ) {
   // Pagination state
   const [page, setPage] = useState(initialPage);

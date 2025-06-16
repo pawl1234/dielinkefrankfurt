@@ -5,9 +5,8 @@ import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import {
-  Box, Container, Typography, CircularProgress, Paper, Button,
+  Box, Container, CircularProgress, Paper, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   TextField, Switch, IconButton, Tooltip, Alert, FormControl, InputLabel,
@@ -22,8 +21,7 @@ import { User } from '@/types/user';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 export default function UsersPage() {
-  const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,8 +57,8 @@ export default function UsersPage() {
       if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
       setUsers(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -84,8 +82,8 @@ export default function UsersPage() {
       setOpenCreateDialog(false);
       resetForm();
       fetchUsers();
-    } catch (err: any) {
-      setFormErrors({ general: err.message });
+    } catch (err: unknown) {
+      setFormErrors({ general: err instanceof Error ? err.message : 'An error occurred' });
     }
   };
   
@@ -93,7 +91,8 @@ export default function UsersPage() {
     if (!validateForm(true) || !selectedUser) return;
     
     try {
-      const { password, ...dataToSend } = formData;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password: _, ...dataToSend } = formData;
       
       const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
         method: 'PUT',
@@ -108,8 +107,8 @@ export default function UsersPage() {
       
       setOpenEditDialog(false);
       fetchUsers();
-    } catch (err: any) {
-      setFormErrors({ general: err.message });
+    } catch (err: unknown) {
+      setFormErrors({ general: err instanceof Error ? err.message : 'An error occurred' });
     }
   };
   
@@ -128,8 +127,8 @@ export default function UsersPage() {
       
       setOpenDeleteDialog(false);
       fetchUsers();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
   
@@ -153,8 +152,8 @@ export default function UsersPage() {
       
       setOpenResetDialog(false);
       setResetPassword('');
-    } catch (err: any) {
-      setFormErrors({ resetPassword: err.message });
+    } catch (err: unknown) {
+      setFormErrors({ resetPassword: err instanceof Error ? err.message : 'An error occurred' });
     }
   };
   
@@ -172,8 +171,8 @@ export default function UsersPage() {
       }
       
       fetchUsers();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
   
@@ -473,7 +472,7 @@ export default function UsersPage() {
         <DialogTitle>Delete User</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete user "{selectedUser?.username}"? This action cannot be undone.
+            Are you sure you want to delete user &quot;{selectedUser?.username}&quot;? This action cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

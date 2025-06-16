@@ -10,16 +10,16 @@ interface CustomValidationEntry {
 }
 
 export class FormValidationHelper {
-  private static getRHFErrorForField(errors: FieldErrors<any>, fieldName: string): any {
+  private static getRHFErrorForField(errors: FieldErrors<FieldValues>, fieldName: string): unknown {
     // ... (implementation from previous correct version)
     if (errors[fieldName]) {
       return errors[fieldName];
     }
     const parts = fieldName.split(/[.\[\]]+/g).filter(Boolean);
-    let currentError = errors;
+    let currentError: unknown = errors;
     for (const part of parts) {
         if (currentError && typeof currentError === 'object' && part in currentError) {
-            currentError = (currentError as any)[part];
+            currentError = (currentError as Record<string, unknown>)[part];
         } else {
             return undefined;
         }

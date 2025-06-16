@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
@@ -17,8 +17,7 @@ import {
   Link as MuiLink,
   Card,
   CardMedia,
-  CardContent,
-  Breadcrumbs
+  CardContent
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -36,7 +35,7 @@ import AdminNavigation from '@/components/admin/AdminNavigation';
 import { StatusReport, Group } from '@prisma/client';
 
 export default function StatusReportDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const router = useRouter();
 
   // State for status report data
@@ -59,15 +58,8 @@ export default function StatusReportDetail({ params }: { params: Promise<{ id: s
     params.then(p => setParamsId(p.id));
   }, [params]);
   
-  // Fetch status report when page loads
-  useEffect(() => {
-    if (sessionStatus === 'authenticated' && paramsId) {
-      fetchStatusReport();
-    }
-  }, [paramsId, sessionStatus]);
-
   // Function to fetch status report details
-  const fetchStatusReport = async () => {
+  const fetchStatusReport = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -98,7 +90,14 @@ export default function StatusReportDetail({ params }: { params: Promise<{ id: s
     } finally {
       setLoading(false);
     }
-  };
+  }, [paramsId]);
+
+  // Fetch status report when page loads
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && paramsId) {
+      fetchStatusReport();
+    }
+  }, [paramsId, sessionStatus, fetchStatusReport]);
 
   // Format date for display
   const formatDate = (dateString: Date) => {

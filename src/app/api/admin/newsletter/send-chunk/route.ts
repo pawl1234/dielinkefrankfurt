@@ -7,6 +7,7 @@ import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
 import { validateEmail, cleanEmail } from '@/lib/email-hashing';
 import { format } from 'date-fns';
+import { ChunkResult } from '@/types/api-types';
 
 /**
  * Interface for chunk processing request
@@ -18,7 +19,17 @@ interface ChunkRequest {
   emails: string[];
   chunkIndex: number;
   totalChunks: number;
-  settings?: any;
+  settings?: Record<string, unknown>;
+}
+
+/**
+ * Interface for email sending result
+ */
+interface EmailSendResult {
+  success: boolean;
+  messageId?: string;
+  error?: unknown;
+  isConnectionError?: boolean;
 }
 
 /**
@@ -101,20 +112,21 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
       try {
         await transporter.verify();
         break; // No logging for successful verification
-      } catch (verifyError: any) {
+      } catch (verifyError) {
         retryCount++;
         
         // Check if it's a connection error
-        const isConnectionError = verifyError?.response?.includes('too many connections') || 
-                                 verifyError?.code === 'ECONNREFUSED' ||
-                                 verifyError?.code === 'ESOCKET' ||
-                                 verifyError?.code === 'EPROTOCOL';
+        const errorObj = verifyError as { response?: string; code?: string; message?: string };
+        const isConnectionError = errorObj?.response?.includes('too many connections') || 
+                                 errorObj?.code === 'ECONNREFUSED' ||
+                                 errorObj?.code === 'ESOCKET' ||
+                                 errorObj?.code === 'EPROTOCOL';
         
         if (isConnectionError && retryCount < maxRetries) {
           const maxBackoffDelay = emailSettings.maxBackoffDelay || 10000;
           const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), maxBackoffDelay); // Exponential backoff
           logger.warn(`SMTP verification failed for chunk ${chunkIndex + 1} (attempt ${retryCount}/${maxRetries}), retrying in ${backoffDelay}ms`, {
-            context: { error: verifyError?.message || verifyError }
+            context: { error: errorObj?.message || String(verifyError) }
           });
           await new Promise(resolve => setTimeout(resolve, backoffDelay));
         } else {
@@ -133,7 +145,7 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     // Process emails in this chunk
     let sentCount = 0;
     let failedCount = 0;
-    const results: Array<{ email: string; success: boolean; error?: any }> = [];
+    const results: Array<{ email: string; success: boolean; error?: unknown }> = [];
 
     // Check if BCC sending is enabled
     if (emailSettings.useBccSending) {
@@ -192,7 +204,7 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
           logger.info(`BCC email sent successfully to ${emails.length} recipients in chunk ${chunkIndex + 1}`);
         } else {
           // Check if this is a connection error after all retries were exhausted
-          if ((result as any).isConnectionError) {
+          if ((result as EmailSendResult).isConnectionError) {
             logger.warn(`Connection error detected for BCC email in chunk ${chunkIndex + 1}, recreating transporter`);
             
             // Close the old transporter
@@ -276,7 +288,7 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
           results.push({ email, success: true });
         } else {
           // Check if this is a connection error after all retries were exhausted
-          if ((result as any).isConnectionError) {
+          if ((result as EmailSendResult).isConnectionError) {
             logger.warn(`Connection error detected for email ${i + 1}/${emails.length}, recreating transporter`, {
               context: { 
                 recipientDomain: email.split('@')[1] || 'unknown',
@@ -375,8 +387,8 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     };
 
     // Calculate total progress
-    const totalSent = chunkResults.reduce((sum: number, chunk: any) => sum + (chunk?.sentCount || 0), 0);
-    const totalFailed = chunkResults.reduce((sum: number, chunk: any) => sum + (chunk?.failedCount || 0), 0);
+    const totalSent = chunkResults.reduce((sum: number, chunk: ChunkResult) => sum + (chunk?.sentCount || 0), 0);
+    const totalFailed = chunkResults.reduce((sum: number, chunk: ChunkResult) => sum + (chunk?.failedCount || 0), 0);
     
     let finalStatus = newsletter.status;
     let finalSettings = {
@@ -482,7 +494,7 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
 /**
  * Start retry process for failed emails with progressively smaller chunk sizes
  */
-async function startRetryProcess(newsletterId: string, chunkResults: any[], currentSettings: any) {
+async function startRetryProcess(newsletterId: string, chunkResults: unknown[], currentSettings: Record<string, unknown>) {
   try {
     // Get newsletter settings for retry configuration
     const newsletterSettings = await getNewsletterSettings();
@@ -494,9 +506,10 @@ async function startRetryProcess(newsletterId: string, chunkResults: any[], curr
     // Collect all failed emails from all chunks
     const failedEmails: string[] = [];
     chunkResults.forEach(chunk => {
-      if (chunk?.results) {
-        chunk.results.forEach((result: any) => {
-          if (!result.success) {
+      const chunkData = chunk as { results?: Array<{ success?: boolean; email?: string }> };
+      if (chunkData?.results) {
+        chunkData.results.forEach((result: { success?: boolean; email?: string }) => {
+          if (!result.success && result.email) {
             failedEmails.push(result.email);
           }
         });

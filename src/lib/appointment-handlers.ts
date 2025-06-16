@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
+import type { Appointment, Prisma } from '@prisma/client';
 import { serverErrorResponse } from './api-auth';
 import { put, del } from '@vercel/blob';
 import { 
@@ -14,6 +15,10 @@ import {
 /**
  * Types for appointment operations
  */
+interface AppointmentMetadata {
+  coverImageUrl?: string;
+  croppedCoverImageUrl?: string;
+}
 export interface AppointmentUpdateData {
   id: number;
   processed?: boolean;
@@ -102,7 +107,7 @@ export async function getAppointments(request: NextRequest) {
     }
 
     // Build filter based on parameters
-    const filter: any = {};
+    const filter: Prisma.AppointmentWhereInput = {};
     const currentDate = new Date();
 
     // View-based filtering
@@ -149,7 +154,7 @@ export async function getAppointments(request: NextRequest) {
     });
 
     // Create paginated response
-    const response: PaginatedResponse<any> = {
+    const response: PaginatedResponse<Appointment> = {
       items: appointments,
       totalItems,
       page,
@@ -243,7 +248,7 @@ export async function getPublicAppointments(request: NextRequest) {
     });
     
     // Create paginated response
-    const response: PaginatedResponse<any> = {
+    const response: PaginatedResponse<Partial<Appointment>> = {
       items: appointments,
       totalItems,
       page,
@@ -307,7 +312,7 @@ export async function getNewsletterAppointments(request: NextRequest) {
     });
     
     // Create paginated response
-    const response: PaginatedResponse<any> = {
+    const response: PaginatedResponse<Partial<Appointment>> = {
       items: appointments,
       totalItems,
       page,
@@ -543,32 +548,32 @@ export async function createAppointment(request: NextRequest) {
       }
 
       // Connection successful, proceed with creating appointment
+      const appointmentData = {
+        title,
+        teaser,
+        mainText,
+        startDateTime: new Date(startDateTime),
+        endDateTime: endDateTime ? new Date(endDateTime) : null,
+        street,
+        city,
+        state,
+        postalCode,
+        firstName,
+        lastName,
+        recurringText,
+        featured,
+        status: 'pending' as const,
+        // Store file URLs as JSON strings
+        fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
+        // Store cover image URLs in metadata field
+        metadata: coverImageUrl ? JSON.stringify({
+          coverImageUrl,
+          croppedCoverImageUrl
+        }) : null,
+      };
+      
       const newAppointment = await prisma.appointment.create({
-        data: {
-          title,
-          teaser,
-          mainText,
-          startDateTime: new Date(startDateTime),
-          endDateTime: endDateTime ? new Date(endDateTime) : null,
-          street,
-          city,
-          state,
-          postalCode,
-          firstName,
-          lastName,
-          recurringText,
-          featured,
-          status: 'pending',
-          // Store file URLs as JSON strings
-          fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
-          // Store cover image URLs in metadata field
-          ...(coverImageUrl && {
-            metadata: JSON.stringify({
-              coverImageUrl,
-              croppedCoverImageUrl
-            })
-          }),
-        } as any // Use type assertion to bypass the type error
+        data: appointmentData,
       });
       
       console.log('✅ Appointment successfully saved to database with ID:', newAppointment.id);
@@ -606,14 +611,14 @@ export async function updateAppointment(request: NextRequest) {
         if (key.startsWith('file-')) return;
         
         // Use type assertion to allow dynamic property assignment
-        const typedData = data as Record<string, any>;
+        const typedData = data as unknown as Record<string, unknown>;
         
         // Convert boolean values
         if (value === 'true') {
           typedData[key] = true;
         } else if (value === 'false') {
           typedData[key] = false;
-        } else {
+        } else if (typeof value === 'string') {
           typedData[key] = value;
         }
       });
@@ -718,7 +723,7 @@ export async function updateAppointment(request: NextRequest) {
           
           if (existingAppointment?.metadata) {
             try {
-              const metadata: { coverImageUrl?: string; croppedCoverImageUrl?: string; [key: string]: any } = 
+              const metadata: AppointmentMetadata = 
                 JSON.parse(existingAppointment.metadata);
               oldCoverImageUrl = metadata.coverImageUrl || null;
               oldCroppedCoverImageUrl = metadata.croppedCoverImageUrl || null;
@@ -781,7 +786,7 @@ export async function updateAppointment(request: NextRequest) {
           });
           
           console.log(`✅ Cover image uploaded successfully to: ${url}`);
-          let coverImageUrl = url;
+          const coverImageUrl = url;
           let croppedCoverImageUrl = null;
           
           // Upload cropped cover image if available
@@ -813,7 +818,7 @@ export async function updateAppointment(request: NextRequest) {
           }
           
           // Parse existing metadata if available
-          let metadata: { coverImageUrl?: string; croppedCoverImageUrl?: string; [key: string]: any } = {};
+          let metadata: AppointmentMetadata = {};
           let oldCoverImageUrl: string | null = null;
           let oldCroppedCoverImageUrl: string | null = null;
           
@@ -889,7 +894,7 @@ export async function updateAppointment(request: NextRequest) {
     }
 
     // Prepare update data
-    const updateData: any = {};
+    const updateData: Prisma.AppointmentUpdateInput = {};
 
     // Handle processed flag if present
     if (processed !== undefined) {

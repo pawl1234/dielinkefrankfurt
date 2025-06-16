@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
 export type ApiErrorDetails = {
   type?: string;
   fieldErrors?: Record<string, string>;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 };
 
 export type ApiError = {
@@ -37,7 +37,7 @@ export function useApiError() {
         };
         setError(apiError);
         return null;
-      } catch (err) {
+      } catch {
         // If we can't parse the error response
         setError({
           message: `${response.status} ${response.statusText || 'Fehler'}`,
@@ -49,7 +49,7 @@ export function useApiError() {
 
     try {
       return await response.json();
-    } catch (err) {
+    } catch {
       // This is not necessarily an error; some responses don't have JSON bodies
       return {};
     }
@@ -110,7 +110,7 @@ export function useApiError() {
 /**
  * Utility function to handle common fetch errors outside of the hook
  */
-export async function handleFetchError(response: Response): Promise<any> {
+export async function handleFetchError(response: Response): Promise<Record<string, unknown>> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({
       error: `${response.status} ${response.statusText}`

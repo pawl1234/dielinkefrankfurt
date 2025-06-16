@@ -1,5 +1,4 @@
 import { createTheme } from '@mui/material/styles';
-import { Theme, ThemeOptions } from '@mui/material/styles';
 
 // Extend the TypeBackground interface to include our custom properties
 declare module '@mui/material/styles' {

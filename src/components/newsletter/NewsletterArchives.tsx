@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
-  Paper,
   Table,
   TableBody,
   TableCell,
@@ -10,14 +9,12 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Link as MuiLink,
   Chip,
   Button,
   Box,
   Alert,
   CircularProgress
 } from '@mui/material';
-import Link from 'next/link';
 import SearchFilterBar from '@/components/admin/tables/SearchFilterBar';
 import AdminPagination from '@/components/admin/tables/AdminPagination';
 import { format } from 'date-fns';
@@ -27,7 +24,6 @@ import SendIcon from '@mui/icons-material/Send';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmailIcon from '@mui/icons-material/Email';
-import PreviewIcon from '@mui/icons-material/Preview';
 import ReplayIcon from '@mui/icons-material/Replay';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import NewsletterDetail from './NewsletterDetail';
@@ -144,7 +140,10 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
 
   // Expose refresh function to parent component via ref
   useImperativeHandle(ref, () => ({
-    refresh: fetchNewsletters
+    refresh: () => {
+      console.log('=== NewsletterArchives.refresh() called ===');
+      fetchNewsletters();
+    }
   }), [fetchNewsletters]);
 
   // Fetch newsletters when dependencies change
@@ -219,7 +218,7 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
   /**
    * Get status chip based on newsletter status
    */
-  const getStatusChip = (status: string, type: 'draft' | 'sent', sentAt?: string) => {
+  const getStatusChip = (status: string) => {
     switch (status) {
       case 'draft':
         return <Chip label="Entwurf" color="default" size="small" />;
@@ -243,7 +242,7 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
     if (!dateString) return '-';
     try {
       return format(new Date(dateString), 'dd.MM.yyyy HH:mm', { locale: de });
-    } catch (error) {
+    } catch {
       return 'Ungültiges Datum';
     }
   };
@@ -271,7 +270,7 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
   };
 
   // Handle successful newsletter deletion
-  const handleNewsletterDeleted = (id: string) => {
+  const handleNewsletterDeleted = () => {
     // Return to list view and refresh the list
     handleBackToList();
     fetchNewsletters();
@@ -350,7 +349,7 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
                       {newsletter.recipientCount || '-'}
                     </TableCell>
                     <TableCell align="center">
-                      {getStatusChip(newsletter.status, newsletter.type, newsletter.sentAt)}
+                      {getStatusChip(newsletter.status)}
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ 

@@ -30,7 +30,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { params }: { par
     });
     
     return new NextResponse(null, { status: 204 });
-  } catch (error) {
+  } catch {
     return AppError.database('Failed to reset password').toResponse();
   }
 });

@@ -30,7 +30,7 @@ import TuneIcon from '@mui/icons-material/Tune';
 
 export default function NewsletterSettingsPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -82,7 +82,7 @@ export default function NewsletterSettingsPage() {
         const data = await response.json();
         setSettings(data);
       }
-    } catch (error) {
+    } catch {
       setError('Fehler beim Laden der Einstellungen');
     } finally {
       setLoading(false);
@@ -109,7 +109,7 @@ export default function NewsletterSettingsPage() {
       } else {
         throw new Error('Fehler beim Speichern');
       }
-    } catch (error) {
+    } catch {
       setError('Fehler beim Speichern der Einstellungen');
     } finally {
       setSaving(false);

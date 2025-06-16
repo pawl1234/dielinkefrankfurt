@@ -75,9 +75,9 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
     },
   });
 
-  const { control, handleSubmit, formState: { errors }, watch, setValue, reset } = methods;
+  const { control, handleSubmit, formState: { errors }, watch, reset } = methods;
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: "responsiblePersons"
   });

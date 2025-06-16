@@ -1,7 +1,7 @@
 // AdminStatusReportsPage.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -20,7 +20,7 @@ import EditStatusReportForm, {
 import {
   Box, Typography, Paper, IconButton, Container, Button, CircularProgress, Grid, Chip,
   Dialog, DialogActions, DialogContent, DialogTitle, TextField, MenuItem, Select,
-  FormControl, InputLabel, Divider, Tooltip, Accordion, AccordionSummary,
+  FormControl, InputLabel, Divider, Accordion, AccordionSummary,
   AccordionDetails
 } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
@@ -79,7 +79,7 @@ const mapToApiStatus = (status: InitialStatusReportData['status']): StatusReport
 
 
 export default function AdminStatusReportsPage() {
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const router = useRouter();
   const adminState = useAdminState<StatusReport>();
 
@@ -99,7 +99,7 @@ export default function AdminStatusReportsPage() {
   const views: ViewType[] = [ StatusReportStatus.NEW, StatusReportStatus.ACTIVE, StatusReportStatus.ARCHIVED, StatusReportStatus.REJECTED, 'ALL'];
   const currentView = views[adminState.tabValue];
 
-  const statusOptions = [
+  const statusOptions: ReadonlyArray<{ value: StatusReportStatus, label: string, color: 'warning' | 'success' | 'default' | 'error' }> = [
     { value: StatusReportStatus.NEW, label: 'Neu', color: 'warning' },
     { value: StatusReportStatus.ACTIVE, label: 'Aktiv', color: 'success' },
     { value: StatusReportStatus.ARCHIVED, label: 'Archiviert', color: 'default' },
@@ -107,10 +107,8 @@ export default function AdminStatusReportsPage() {
   ] as const;
 
   useEffect(() => { if (authStatus === 'unauthenticated') router.push('/admin/login'); }, [authStatus, router]);
-  useEffect(() => { if (authStatus === 'authenticated') fetchStatusReports(); }, 
-    [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, orderBy, orderDirection, adminState.timestamp]);
 
-  const fetchStatusReports = async () => { 
+  const fetchStatusReports = useCallback(async () => { 
     try {
       adminState.setLoading(true);
       const statusFilter = currentView !== 'ALL' ? `&status=${currentView}` : '';
@@ -128,13 +126,20 @@ export default function AdminStatusReportsPage() {
         adminState.setPaginationData({ totalItems: 0, totalPages: 1 });
       }
       adminState.setError(null);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      adminState.setError(err.message || 'Failed to load status reports. Please try again.');
+      adminState.setError(err instanceof Error ? err.message : 'Failed to load status reports. Please try again.');
     } finally {
       adminState.setLoading(false);
     }
-  };
+  // We intentionally use individual adminState properties instead of the entire adminState object
+  // to prevent infinite re-renders. The adminState object changes on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps    
+  }, [currentView, orderBy, orderDirection, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
+
+  useEffect(() => { 
+    if (authStatus === 'authenticated') fetchStatusReports(); 
+  }, [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, orderBy, orderDirection, adminState.timestamp, fetchStatusReports]);
 
   const handleOpenCreateReportDialog = () => { 
     setNewReportData({ title: '', content: '', status: StatusReportStatus.NEW, groupId: '', reporterFirstName: '', reporterLastName: '', fileUrls: null }); 
@@ -167,9 +172,9 @@ export default function AdminStatusReportsPage() {
       adminState.showNotification('Statusmeldung erfolgreich erstellt.', 'success');
       setCreateReportDialogOpen(false);
       adminState.refreshTimestamp();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      adminState.showNotification(err.message || 'Fehler beim Erstellen der Statusmeldung.', 'error');
+      adminState.showNotification(err instanceof Error ? err.message : 'Fehler beim Erstellen der Statusmeldung.', 'error');
     }
   };
 
@@ -207,9 +212,9 @@ export default function AdminStatusReportsPage() {
       adminState.showNotification('Statusmeldung erfolgreich aktualisiert.', 'success');
       setEditingReportId(null); 
       adminState.refreshTimestamp(); 
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error updating status report:', err);
-      adminState.showNotification(`Fehler: ${err.message || 'Unbekannter Fehler beim Speichern.'}`, 'error');
+      adminState.showNotification(`Fehler: ${err instanceof Error ? err.message : 'Unbekannter Fehler beim Speichern.'}`, 'error');
       throw err; // Re-throw so form's own error handling can catch it if it wants
     }
   };
@@ -231,9 +236,9 @@ export default function AdminStatusReportsPage() {
       }
       adminState.showNotification('Statusmeldung erfolgreich aktualisiert.', 'success');
       adminState.refreshTimestamp();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      adminState.showNotification(err.message || 'Fehler beim Aktualisieren der Statusmeldung.', 'error');
+      adminState.showNotification(err instanceof Error ? err.message : 'Fehler beim Aktualisieren der Statusmeldung.', 'error');
     }
   };
 
@@ -249,14 +254,20 @@ export default function AdminStatusReportsPage() {
       adminState.showNotification('Statusmeldung wurde erfolgreich gelöscht.', 'success');
       setDeleteDialogOpen(false);
       adminState.refreshTimestamp(); 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      adminState.showNotification(err.message || 'Fehler beim Löschen der Statusmeldung.', 'error');
+      adminState.showNotification(err instanceof Error ? err.message : 'Fehler beim Löschen der Statusmeldung.', 'error');
     }
   };
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); adminState.setPage(1); fetchStatusReports(); };
-  const resetFilters = () => { adminState.setSearchTerm(''); adminState.setPage(1); setOrderBy('createdAt'); setOrderDirection('desc'); adminState.refreshTimestamp();};
+  
+  const resetFilters = () => {
+    adminState.setSearchTerm('');
+    setOrderBy('createdAt');
+    setOrderDirection('desc');
+    adminState.setPage(1);
+  };
   
   const getStatusInfo = (statusValue: StatusReportStatus) => { 
       const info = statusOptions.find(s => s.value === statusValue);
@@ -378,10 +389,10 @@ export default function AdminStatusReportsPage() {
                           <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
                              {currentView === StatusReportStatus.NEW && report.status === StatusReportStatus.NEW && (
                               <>
-                                <IconButton color="success" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(46, 125, 50, 0.08)', '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE); }}>
+                                <IconButton component="span" color="success" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(46, 125, 50, 0.08)', '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE); }}>
                                   <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} /><Typography variant="button">Aktivieren</Typography>
                                 </IconButton>
-                                <IconButton color="error" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(211, 47, 47, 0.08)', '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.REJECTED); }}>
+                                <IconButton component="span" color="error" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(211, 47, 47, 0.08)', '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.REJECTED); }}>
                                   <CancelIcon fontSize="small" sx={{ mr: 0.5 }} /><Typography variant="button">Ablehnen</Typography>
                                 </IconButton>
                               </>
@@ -390,9 +401,9 @@ export default function AdminStatusReportsPage() {
                               (currentView === StatusReportStatus.ARCHIVED && report.status === StatusReportStatus.ARCHIVED) ||
                               (currentView === StatusReportStatus.REJECTED && report.status === StatusReportStatus.REJECTED) ||
                                currentView === 'ALL') 
-                              && <Chip label={statusInfo.label} color={statusInfo.color as any} variant="outlined" size="small" sx={{mr:0.5}}/>}
+                              && <Chip label={statusInfo.label} color={statusInfo.color as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'} variant="outlined" size="small" sx={{mr:0.5}}/>}
                             
-                            <IconButton color="primary" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(25, 118, 210, 0.08)', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.12)'}, px:1}} 
+                            <IconButton component="span" color="primary" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(25, 118, 210, 0.08)', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.12)'}, px:1}} 
                               onClick={(e) => {
                                 e.stopPropagation(); 
                                 if (isEditingThisReport) {
@@ -434,7 +445,7 @@ export default function AdminStatusReportsPage() {
                               {report.updatedAt && new Date(report.updatedAt).getTime() !== new Date(report.createdAt).getTime() && (
                                 <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Zuletzt aktualisiert:</Typography><Typography variant="body1">{format(new Date(report.updatedAt), 'PPPp', { locale: de })}</Typography></Box>
                               )}
-                              <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Status:</Typography><Chip label={getStatusInfo(report.status).label} color={getStatusInfo(report.status).color as any} size="small"/></Box>
+                              <Box sx={{ mb: 2 }}><Typography variant="subtitle1">Status:</Typography><Chip label={getStatusInfo(report.status).label} color={getStatusInfo(report.status).color as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'} size="small"/></Box>
                             </Grid>
                             {report.fileUrls && parseFileUrls(report.fileUrls).length > 0 && (
                               <Grid size={{ xs: 12 }}>
@@ -461,7 +472,7 @@ export default function AdminStatusReportsPage() {
                                         <Button variant="outlined" color="success" onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE)}>Wieder Aktivieren</Button>
                                     )}
                                     {report.status === StatusReportStatus.REJECTED && (
-                                        <Button variant="outlined" color="primary" onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.NEW)}>Als 'Neu' wiederherstellen</Button>
+                                        <Button variant="outlined" color="primary" onClick={() => handleUpdateReportStatus(report.id, StatusReportStatus.NEW)}>Als &apos;Neu&apos; wiederherstellen</Button>
                                     )}
                                     <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => openDeleteConfirm(report.id)}>Löschen</Button>
                                 </Box>

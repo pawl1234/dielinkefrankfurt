@@ -7,7 +7,6 @@ import {
   uploadStatusReportFiles,
   FileUploadError, 
   ALLOWED_IMAGE_TYPES, 
-  ALLOWED_FILE_TYPES,
   MAX_LOGO_SIZE,
   MAX_FILE_SIZE,
   MAX_STATUS_REPORT_FILES_SIZE,

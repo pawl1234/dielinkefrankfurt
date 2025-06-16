@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
-import { serverErrorResponse } from './api-auth';
 import { Group, GroupStatus, ResponsiblePerson, StatusReport, StatusReportStatus, Prisma } from '@prisma/client';
-import { put, del } from '@vercel/blob';
+import { del } from '@vercel/blob';
 import slugify from 'slugify';
-import { sendEmail } from './email';
 import { getBaseUrl } from './base-url';
+import { sendEmail } from './email';
 
 /**
  * Types for group operations
@@ -485,7 +483,7 @@ export async function updateGroup(data: GroupUpdateData): Promise<Group> {
     // Use a transaction to handle group update and responsible persons changes
     const updatedGroup = await prisma.$transaction(async (tx) => {
       // Update the group
-      const group = await tx.group.update({
+      await tx.group.update({
         where: { id: data.id },
         data: updateData
       });
@@ -559,8 +557,8 @@ export async function deleteGroup(id: string): Promise<boolean> {
           if (metadata.originalUrl && metadata.originalUrl !== group.logoUrl) {
             filesToDelete.push(metadata.originalUrl);
           }
-        } catch (e) {
-          console.error(`Error parsing metadata for group ${id}:`, e);
+        } catch (parseError) {
+          console.error(`Error parsing metadata for group ${id}:`, parseError);
         }
       }
     }
@@ -573,8 +571,8 @@ export async function deleteGroup(id: string): Promise<boolean> {
           if (Array.isArray(urls)) {
             filesToDelete.push(...urls);
           }
-        } catch (e) {
-          console.error(`Error parsing fileUrls for status report ${report.id}:`, e);
+        } catch (parseError) {
+          console.error(`Error parsing fileUrls for status report ${report.id}:`, parseError);
         }
       }
     }
@@ -880,8 +878,8 @@ export async function deleteStatusReport(id: string): Promise<boolean> {
         if (Array.isArray(fileUrls) && fileUrls.length > 0) {
           await del(fileUrls);
         }
-      } catch (e) {
-        console.error(`Error parsing/deleting fileUrls for status report ${id}:`, e);
+      } catch (parseError) {
+        console.error(`Error parsing/deleting fileUrls for status report ${id}:`, parseError);
         // Continue even if file deletion fails
       }
     }
@@ -935,7 +933,7 @@ export async function getRecentStatusReportsForNewsletter(): Promise<(StatusRepo
  * @param group The group with its responsible persons
  * @returns Promise resolving to the email sending result
  */
-export async function sendGroupAcceptanceEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: any }> {
+export async function sendGroupAcceptanceEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -975,7 +973,7 @@ export async function sendGroupAcceptanceEmail(group: Group & { responsiblePerso
   } catch (error) {
     console.error('Error sending group acceptance email:', error);
     // Don't throw, to avoid interrupting the main process
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -984,7 +982,7 @@ export async function sendGroupAcceptanceEmail(group: Group & { responsiblePerso
  * @param group The group with its responsible persons
  * @returns Promise resolving to the email sending result
  */
-export async function sendGroupArchivingEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: any }> {
+export async function sendGroupArchivingEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -1021,7 +1019,7 @@ export async function sendGroupArchivingEmail(group: Group & { responsiblePerson
   } catch (error) {
     console.error('Error sending group archiving email:', error);
     // Don't throw, to avoid interrupting the main process
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -1032,7 +1030,7 @@ export async function sendGroupArchivingEmail(group: Group & { responsiblePerson
  */
 export async function sendStatusReportAcceptanceEmail(
   statusReport: StatusReport & { group: Group & { responsiblePersons: ResponsiblePerson[] } }
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${statusReport.group.id}`);
@@ -1073,7 +1071,7 @@ export async function sendStatusReportAcceptanceEmail(
   } catch (error) {
     console.error('Error sending status report acceptance email:', error);
     // Don't throw, to avoid interrupting the main process
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -1082,7 +1080,7 @@ export async function sendStatusReportAcceptanceEmail(
  * @param group The group with its responsible persons
  * @returns Promise resolving to the email sending result
  */
-export async function sendGroupRejectionEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: any }> {
+export async function sendGroupRejectionEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${group.id}`);
@@ -1120,7 +1118,7 @@ export async function sendGroupRejectionEmail(group: Group & { responsiblePerson
   } catch (error) {
     console.error('Error sending group rejection email:', error);
     // Don't throw, to avoid interrupting the main process
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -1131,7 +1129,7 @@ export async function sendGroupRejectionEmail(group: Group & { responsiblePerson
  */
 export async function sendStatusReportRejectionEmail(
   statusReport: StatusReport & { group: Group & { responsiblePersons: ResponsiblePerson[] } }
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${statusReport.group.id}`);
@@ -1170,7 +1168,7 @@ export async function sendStatusReportRejectionEmail(
   } catch (error) {
     console.error('Error sending status report rejection email:', error);
     // Don't throw, to avoid interrupting the main process
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
 
@@ -1181,7 +1179,7 @@ export async function sendStatusReportRejectionEmail(
  */
 export async function sendStatusReportArchivingEmail(
   statusReport: StatusReport & { group: Group & { responsiblePersons: ResponsiblePerson[] } }
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: Error | string }> {
   try {
     if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
       console.error(`No responsible persons found for group ${statusReport.group.id}`);
@@ -1209,8 +1207,8 @@ export async function sendStatusReportArchivingEmail(
             </div>
           `;
         }
-      } catch (e) {
-        console.error('Error parsing file URLs:', e);
+      } catch (parseError) {
+        console.error('Error parsing file URLs:', parseError);
       }
     }
     
@@ -1244,6 +1242,6 @@ export async function sendStatusReportArchivingEmail(
   } catch (error) {
     console.error('Error sending status report archiving email:', error);
     // Don't throw, to avoid interrupting the main process
-    return { success: false, error };
+    return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }

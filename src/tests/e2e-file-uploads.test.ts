@@ -21,11 +21,11 @@ import { createMockFile, createMockImageFile, createMockPdfFile } from './test-u
 
 // Mock the Vercel Blob functions
 jest.mock('@vercel/blob', () => ({
-  put: jest.fn().mockImplementation((path, data, options) => {
+  put: jest.fn().mockImplementation((path) => {
     // Generate mock URL based on the path
     return Promise.resolve({ url: `https://mock-blob-storage.vercel.app/${path}` });
   }),
-  del: jest.fn().mockImplementation((urls) => {
+  del: jest.fn().mockImplementation(() => {
     return Promise.resolve({ success: true });
   })
 }));
@@ -94,13 +94,13 @@ describe('File Upload System', () => {
       });
       
       it('should reject null or undefined files', () => {
-        // @ts-ignore: Intentionally passing null for testing
+        // @ts-expect-error: Intentionally passing null for testing
         expect(() => validateFile(null, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
         expect(() => validateFile(null, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow('Invalid file');
         
-        // @ts-ignore: Intentionally passing undefined for testing
+        // @ts-expect-error: Intentionally passing undefined for testing
         expect(() => validateFile(undefined, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
       });

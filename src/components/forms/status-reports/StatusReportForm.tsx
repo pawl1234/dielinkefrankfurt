@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Box,
@@ -53,7 +53,7 @@ export default function StatusReportForm() {
     }
   });
 
-  const { register, setValue, control, formState, getValues } = methods;
+  const { register, setValue, control, formState } = methods;
 
   useEffect(() => {
     register('content');
@@ -109,6 +109,10 @@ export default function StatusReportForm() {
     setValue('content', value, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
   };
 
+  const handleFileSelect = useCallback((files: (File | Blob)[]) => {
+    setFileList(files);
+  }, []);
+
   const handleReset = () => {
     setContentEditorValue('');
     setFileList([]);
@@ -142,7 +146,7 @@ export default function StatusReportForm() {
         // Try to parse JSON error response
         const result = await response.json();
         errorMessage = result.error || errorMessage;
-      } catch (jsonError) {
+      } catch {
         // If JSON parsing fails, provide generic error based on status
         if (response.status >= 500) {
           errorMessage = 'Ein Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
@@ -157,7 +161,7 @@ export default function StatusReportForm() {
     }
     
     // Parse successful response
-    const result = await response.json();
+    await response.json();
   };
 
   const getCustomError = (fieldName: string): string | undefined => {
@@ -245,7 +249,7 @@ export default function StatusReportForm() {
 
       <FormSection title="Datei Anhänge (optional)" helpTitle="Zusätzliche Dateien" helpText={helpTextAttachments}>
         <Box sx={{ mb: 2 }} ref={filesRef}>
-          <FileUpload onFilesSelect={setFileList} maxFiles={5} />
+          <FileUpload onFilesSelect={handleFileSelect} maxFiles={5} />
           {getCustomError('files') && <Typography variant="caption" color="error">{getCustomError('files')}</Typography>}
         </Box>
       </FormSection>

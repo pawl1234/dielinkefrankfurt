@@ -51,7 +51,7 @@ function TestForm() {
   ];
 
   // Form submission handler
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: { name?: string; email?: string }) => {
     if (!data.name) {
       throw new Error('Name is required');
     }

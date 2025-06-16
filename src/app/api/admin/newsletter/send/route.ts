@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import { processRecipientList } from '@/lib/newsletter-sending';
-import { AppError, apiErrorResponse, ErrorType } from '@/lib/errors';
+import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { getNewsletterSettings } from '@/lib/newsletter-service';

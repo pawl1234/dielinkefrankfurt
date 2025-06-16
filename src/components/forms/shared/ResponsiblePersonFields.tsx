@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -9,8 +8,7 @@ import {
   Card,
   CardContent,
   IconButton,
-  Alert,
-  Divider
+  Alert
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';

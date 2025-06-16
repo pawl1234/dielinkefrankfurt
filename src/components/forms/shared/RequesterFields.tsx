@@ -1,29 +1,35 @@
 'use client';
 
-import { UseFormRegister, Controller, Control } from 'react-hook-form';
+import { UseFormRegister, FieldErrors, Control, Path } from 'react-hook-form';
 import {
-  Card,
-  CardContent,
-  Typography,
   TextField,
   Box
 } from '@mui/material';
-import { Grid } from '@mui/material';
 
-interface RequesterFieldsProps {
-  register: UseFormRegister<any>;
-  errors: Record<string, any>;
-  control?: Control<any>;
+// Make the component generic to work with any form that has firstName and lastName fields
+interface RequesterFieldsProps<TFormData extends { firstName: string; lastName: string }> {
+  register: UseFormRegister<TFormData>;
+  errors: FieldErrors<TFormData>;
+  control?: Control<TFormData>; // Added for potential future use
 }
 
-const RequesterFields = ({ register, errors, control }: RequesterFieldsProps) => {
+const RequesterFields = <TFormData extends { firstName: string; lastName: string }>({ 
+  register, 
+  errors 
+}: RequesterFieldsProps<TFormData>) => {
+  // Helper function to safely extract error messages as strings
+  const getErrorMessage = (fieldName: 'firstName' | 'lastName'): string | undefined => {
+    const error = errors[fieldName];
+    return error?.message as string | undefined;
+  };
+
   return (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
           <TextField
             fullWidth
             label="Vorname *"
             placeholder="Vorname"
-            {...register('firstName', {
+            {...register('firstName' as Path<TFormData>, {
               required: 'Vorname ist erforderlich',
               pattern: {
                 value: /^[A-Za-zÀ-ÖØ-öø-ÿ\s-]+$/,
@@ -31,7 +37,7 @@ const RequesterFields = ({ register, errors, control }: RequesterFieldsProps) =>
               },
             })}
             error={!!errors.firstName}
-            helperText={errors.firstName?.message}
+            helperText={getErrorMessage('firstName')}
             margin="normal"
             size="medium"
             variant="outlined"
@@ -41,7 +47,7 @@ const RequesterFields = ({ register, errors, control }: RequesterFieldsProps) =>
             fullWidth
             label="Nachname *"
             placeholder="Nachname"
-            {...register('lastName', {
+            {...register('lastName' as Path<TFormData>, {
               required: 'Nachname ist erforderlich',
               pattern: {
                 value: /^[A-Za-zÀ-ÖØ-öø-ÿ\s-]+$/,
@@ -49,7 +55,7 @@ const RequesterFields = ({ register, errors, control }: RequesterFieldsProps) =>
               },
             })}
             error={!!errors.lastName}
-            helperText={errors.lastName?.message}
+            helperText={getErrorMessage('lastName')}
             margin="normal"
             size="medium"
             variant="outlined"

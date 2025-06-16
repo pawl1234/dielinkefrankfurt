@@ -1,9 +1,9 @@
 'use client';
 
-import { ReactNode, RefObject, useMemo } from 'react';
+import { ReactNode, RefObject } from 'react';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import { FieldValues, UseFormReturn, FormProvider, SubmitHandler, FieldErrors, Path } from 'react-hook-form';
+import { FieldValues, UseFormReturn, FormProvider, SubmitHandler, FieldErrors } from 'react-hook-form';
 import FormSuccessMessage from './FormSuccessMessage';
 import { useFormSubmission } from '@/hooks/useFormSubmission';
 import { FormValidationHelper } from './FormValidationHelper';
@@ -51,7 +51,7 @@ export default function FormBase<TFormValues extends FieldValues>({
   onCancel,
   customValidations = [],
 }: FormBaseProps<TFormValues>) {
-  const { handleSubmit: rhfHandleSubmit, reset, formState } = formMethods;
+  const { handleSubmit: rhfHandleSubmit, reset } = formMethods;
 
   const resetForm = () => {
     reset();

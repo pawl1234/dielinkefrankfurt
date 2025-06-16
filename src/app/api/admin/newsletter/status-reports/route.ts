@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import prisma from '@/lib/prisma';
 import { subWeeks } from 'date-fns';
@@ -11,7 +11,7 @@ import { subWeeks } from 'date-fns';
  * Groups are sorted alphabetically.
  * Authentication required.
  */
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export const GET = withAdminAuth(async () => {
   try {
     // Get the date 2 weeks ago
     const twoWeeksAgo = subWeeks(new Date(), 2);

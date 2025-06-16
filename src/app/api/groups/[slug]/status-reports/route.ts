@@ -7,7 +7,7 @@ import { getStatusReportsByGroupSlug } from '@/lib/group-handlers';
  * Public endpoint for retrieving all active status reports for a specific group.
  * Returns only status reports with ACTIVE status, sorted by date (newest first).
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   let slug: string = '';
   try {
     const paramData = await params;

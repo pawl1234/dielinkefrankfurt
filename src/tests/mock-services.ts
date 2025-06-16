@@ -6,12 +6,12 @@ import { sendEmail } from '../lib/email';
 export function setupMockBlobStorage() {
   // Mock the Vercel Blob functions
   jest.mock('@vercel/blob', () => ({
-    put: jest.fn().mockImplementation((path, data, options) => {
+    put: jest.fn().mockImplementation((path) => {
       // Create a mock URL based on the path
       const url = `https://mock-blob-storage.vercel.app/${path}`;
       return Promise.resolve({ url });
     }),
-    del: jest.fn().mockImplementation((urls) => {
+    del: jest.fn().mockImplementation(() => {
       return Promise.resolve({ success: true });
     })
   }));

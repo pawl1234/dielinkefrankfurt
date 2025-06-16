@@ -50,7 +50,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     });
     
     return new NextResponse(null, { status: 204 });
-  } catch (error) {
+  } catch {
     return AppError.database('Failed to change password').toResponse();    
   }
 });

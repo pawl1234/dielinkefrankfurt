@@ -12,7 +12,6 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  Stack,
   Chip
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';

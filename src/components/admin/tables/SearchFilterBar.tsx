@@ -4,7 +4,6 @@ import {
   IconButton, 
   InputAdornment,
   TextField, 
-  Tooltip
 } from '@mui/material';
 import React from 'react';
 import SearchIcon from '@mui/icons-material/Search';

@@ -1,6 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AppointmentForm from '../components/AppointmentForm';
 import '@testing-library/jest-dom';
 
@@ -25,7 +24,7 @@ jest.mock('../components/RichTextEditor', () => {
 jest.mock('../components/FileUpload', () => {
   return {
     __esModule: true,
-    default: ({ onFilesSelect }: { onFilesSelect: (files: any[]) => void }) => {
+    default: ({ onFilesSelect }: { onFilesSelect: (files: File[]) => void }) => {
       return (
         <div data-testid="file-upload">
           <button
@@ -43,7 +42,7 @@ jest.mock('../components/FileUpload', () => {
 jest.mock('../components/DateTimePicker', () => {
   return {
     __esModule: true,
-    default: ({ name, setValue }: { name: string; setValue: any }) => {
+    default: ({ name, setValue }: { name: string; setValue: (name: string, value: unknown) => void }) => {
       return (
         <div data-testid={`date-picker-${name}`}>
           <input
@@ -63,7 +62,7 @@ jest.mock('../components/DateTimePicker', () => {
 jest.mock('../components/CaptchaField', () => {
   return {
     __esModule: true,
-    default: ({ setValue }: { setValue: any }) => {
+    default: ({ setValue }: { setValue: (name: string, value: string) => void }) => {
       return (
         <div data-testid="captcha-field">
           <button

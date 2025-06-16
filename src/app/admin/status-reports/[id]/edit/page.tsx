@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
@@ -17,7 +17,6 @@ import {
   Select,
   MenuItem,
   Grid,
-  IconButton,
   Chip,
   Stack,
   Snackbar,
@@ -33,17 +32,16 @@ import {
   Delete as DeleteIcon,
   AttachFile as AttachFileIcon,
   UploadFile as UploadFileIcon,
-  FileDownload as FileDownloadIcon
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
-import { StatusReport, Group, StatusReportStatus } from '@prisma/client';
+import { Group, StatusReportStatus } from '@prisma/client';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import FileUpload from '@/components/upload/FileUpload';
 
 export default function EditStatusReport({ params }: { params: { id: string } }) {
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const router = useRouter();
   const id = params.id;
 
@@ -73,16 +71,8 @@ export default function EditStatusReport({ params }: { params: { id: string } })
     }
   }, [sessionStatus, router]);
 
-  // Fetch status report data and groups when component mounts
-  useEffect(() => {
-    if (sessionStatus === 'authenticated' && params.id) {
-      fetchStatusReport();
-      fetchGroups();
-    }
-  }, [params.id, sessionStatus]);
-
   // Function to fetch status report details
-  const fetchStatusReport = async () => {
+  const fetchStatusReport = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -120,10 +110,10 @@ export default function EditStatusReport({ params }: { params: { id: string } })
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
   // Function to fetch active groups
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/groups?status=ACTIVE');
       
@@ -137,7 +127,15 @@ export default function EditStatusReport({ params }: { params: { id: string } })
       console.error('Error fetching groups:', err);
       // Don't set error state to avoid blocking the main form
     }
-  };
+  }, []);
+
+  // Fetch status report data and groups when component mounts
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && params.id) {
+      fetchStatusReport();
+      fetchGroups();
+    }
+  }, [params.id, sessionStatus, fetchStatusReport, fetchGroups]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,9 +158,6 @@ export default function EditStatusReport({ params }: { params: { id: string } })
       newFiles.forEach((file, i) => {
         formData.append(`file-${i}`, file);
       });
-      
-      // Calculate final file URLs to keep
-      const currentFileUrls = fileUrls.filter(url => !removedFileUrls.includes(url));
       
       // Use flag to indicate whether to retain existing files
       formData.append('retainExistingFiles', 'true');

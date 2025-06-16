@@ -1,7 +1,7 @@
 // src/components/HomePageContent.tsx (or any other suitable location)
 'use client';
 
-import { useState, useEffect, Suspense } from 'react'; // Add Suspense here or in parent
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Typography,
@@ -71,7 +71,7 @@ export default function HomePageContent() {
         let data;
         try {
           data = await response.json();
-        } catch (jsonError) {
+        } catch {
           setAppointments([]); return;
         }
         if (Array.isArray(data)) {
@@ -89,7 +89,7 @@ export default function HomePageContent() {
         } else {
           setAppointments([]);
         }
-      } catch (err) {
+      } catch {
         setError('Failed to load appointments. Please try again.');
       } finally {
         setLoading(false);
