@@ -404,84 +404,150 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
    * Process retry stages automatically
    */
   const processRetryStages = async (prepareData: PrepareNewsletterResponse) => {
-    let retryComplete = false;
     let finalFailedEmails: string[] = [];
     let hasRetryError = false;
     let totalRetrySuccesses = 0; // Track total successful emails during retry
     
     console.log('Starting retry process for newsletter:', newsletterId);
     
-    while (!retryComplete) {
-      try {
-        console.log('Calling retry-chunk API for newsletter:', newsletterId);
-        
-        const retryResponse = await fetch('/api/admin/newsletter/retry-chunk', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            newsletterId,
-            html: prepareData.html,
-            subject: prepareData.subject,
-            settings: prepareData.settings
-          }),
-        });
-
-        console.log('Retry-chunk API response status:', retryResponse.status);
-
-        if (!retryResponse.ok) {
-          const errorData = await retryResponse.json();
-          console.error('Retry-chunk API error response:', errorData);
-          throw new Error(errorData.error || 'Fehler beim Wiederholen');
-        }
-
-        const retryData = await retryResponse.json();
-        
-        // DEBUG: Log detailed retry response
-        console.log('=== RETRY API RESPONSE ===');
-        console.log('retryData:', JSON.stringify(retryData, null, 2));
-        console.log('stage:', retryData.stage);
-        console.log('totalStages:', retryData.totalStages);
-        console.log('processedEmails:', retryData.processedEmails);
-        console.log('remainingFailedEmails:', retryData.remainingFailedEmails);
-        console.log('isComplete:', retryData.isComplete);
-        if (retryData.finalFailedEmails) {
-          console.log('finalFailedEmails:', retryData.finalFailedEmails);
-        }
-        console.log('========================');
-        
-        if (!retryData.success) {
-          throw new Error(retryData.error || 'Fehler beim Wiederholen');
-        }
-
-        // Accumulate successful emails from this retry stage
-        totalRetrySuccesses += retryData.processedEmails || 0;
-        
-        console.log('Accumulated retry successes so far:', totalRetrySuccesses);
-
-        // Update retry progress
-        setRetryProgress({
-          stage: retryData.stage,
-          totalStages: retryData.totalStages,
-          processedEmails: retryData.processedEmails,
-          remainingFailedEmails: retryData.remainingFailedEmails
-        });
-
-        if (retryData.isComplete) {
-          retryComplete = true;
-          finalFailedEmails = retryData.finalFailedEmails || [];
-        } else {
-          // Wait before next retry stage
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-      } catch (err) {
-        console.error('Error during retry process:', err);
-        setError(`Fehler beim Wiederholen: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`);
-        retryComplete = true;
-        hasRetryError = true;
+    try {
+      // First, get the current newsletter status to retrieve failed emails
+      const statusResponse = await fetch(`/api/admin/newsletter/archives/${newsletterId}`);
+      if (!statusResponse.ok) {
+        throw new Error('Failed to retrieve newsletter status');
       }
+      
+      const newsletterData = await statusResponse.json();
+      const settings = newsletterData.settings ? JSON.parse(newsletterData.settings) : {};
+      const { failedEmails = [], retryChunkSizes = [10, 5, 1] } = settings;
+      
+      if (!failedEmails || failedEmails.length === 0) {
+        console.log('No failed emails to retry');
+        setRetryProgress({
+          stage: 1,
+          totalStages: 1,
+          processedEmails: 0,
+          remainingFailedEmails: []
+        });
+        return;
+      }
+      
+      console.log(`Starting frontend-driven retry for ${failedEmails.length} failed emails`);
+      
+      // Process retry stages
+      for (let stageIndex = 0; stageIndex < retryChunkSizes.length; stageIndex++) {
+        const chunkSize = retryChunkSizes[stageIndex];
+        const remainingEmails = [...finalFailedEmails.length > 0 ? finalFailedEmails : failedEmails];
+        
+        console.log(`Processing retry stage ${stageIndex + 1}/${retryChunkSizes.length} with chunk size ${chunkSize}`);
+        console.log(`Emails to process: ${remainingEmails.length}`);
+        
+        // Reset failed emails for this stage
+        const stageFailedEmails: string[] = [];
+        let stageSuccessCount = 0;
+        
+        // Process emails in chunks
+        for (let i = 0; i < remainingEmails.length; i += chunkSize) {
+          const chunk = remainingEmails.slice(i, i + chunkSize);
+          const chunkIndex = Math.floor(i / chunkSize);
+          
+          console.log(`Processing chunk ${chunkIndex + 1} with ${chunk.length} emails`);
+          
+          try {
+            const retryResponse = await fetch('/api/admin/newsletter/retry-chunk', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                newsletterId,
+                html: prepareData.html,
+                subject: prepareData.subject,
+                settings: prepareData.settings,
+                chunkEmails: chunk,
+                chunkIndex
+              }),
+            });
+            
+            if (!retryResponse.ok) {
+              const errorData = await retryResponse.json();
+              console.error('Retry chunk error:', errorData);
+              // Add all chunk emails to failed list
+              stageFailedEmails.push(...chunk);
+              continue;
+            }
+            
+            const chunkResult = await retryResponse.json();
+            
+            if (chunkResult.success) {
+              stageSuccessCount += chunkResult.successfulEmails?.length || 0;
+              if (chunkResult.failedEmails && chunkResult.failedEmails.length > 0) {
+                stageFailedEmails.push(...chunkResult.failedEmails);
+              }
+            } else {
+              // If chunk processing failed, add all emails to failed list
+              stageFailedEmails.push(...chunk);
+            }
+            
+            // Update progress
+            setRetryProgress({
+              stage: stageIndex + 1,
+              totalStages: retryChunkSizes.length,
+              processedEmails: i + chunk.length,
+              remainingFailedEmails: stageFailedEmails
+            });
+            
+            // Add a small delay between chunks to avoid overwhelming the server
+            if (i + chunkSize < remainingEmails.length) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          } catch (error) {
+            console.error('Error processing chunk:', error);
+            stageFailedEmails.push(...chunk);
+          }
+        }
+        
+        totalRetrySuccesses += stageSuccessCount;
+        finalFailedEmails = stageFailedEmails;
+        
+        console.log(`Stage ${stageIndex + 1} completed. Success: ${stageSuccessCount}, Failed: ${stageFailedEmails.length}`);
+        
+        // If no more failed emails, we're done
+        if (stageFailedEmails.length === 0) {
+          console.log('All emails sent successfully!');
+          break;
+        }
+        
+        // If this is the last stage, we're done regardless
+        if (stageIndex === retryChunkSizes.length - 1) {
+          console.log(`Retry process completed with ${stageFailedEmails.length} failed emails`);
+          break;
+        }
+      }
+      
+      // Update newsletter status after retry completion
+      const finalStatus = finalFailedEmails.length === 0 ? 'sent' : 'partially_failed';
+      await fetch(`/api/admin/newsletter/drafts/${newsletterId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: finalStatus,
+          settings: JSON.stringify({
+            ...settings,
+            retryInProgress: false,
+            retryCompletedAt: new Date().toISOString(),
+            finalFailedEmails,
+            totalRetrySuccesses
+          })
+        }),
+      });
+      
+    } catch (error) {
+      console.error('Retry process error:', error);
+      hasRetryError = true;
+      setError(error instanceof Error ? error.message : 'Fehler beim Wiederholen');
     }
 
     // Only set success results if there was no error during retry

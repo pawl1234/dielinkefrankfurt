@@ -4,6 +4,7 @@ import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
+import { validateEmail, cleanEmail } from '@/lib/email-hashing';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
 import { format } from 'date-fns';
 
@@ -22,6 +23,9 @@ interface RetryRequest {
     chunkDelay?: number;
     [key: string]: unknown;
   };
+  // Frontend-driven chunk processing
+  chunkEmails?: string[];  // Specific emails to process in this request
+  chunkIndex?: number;     // Current chunk index for progress tracking
 }
 
 /**
@@ -48,19 +52,235 @@ function formatSubject(template: string): string {
 }
 
 /**
+ * Process a single chunk of emails provided by the frontend
+ */
+async function processFrontendChunk(params: {
+  newsletterId: string;
+  newsletter: { id: string; status: string; settings: string | null };
+  chunkEmails: string[];
+  chunkIndex: number;
+  html: string;
+  subject: string;
+  settings?: Record<string, unknown>;
+  currentSettings: Record<string, unknown>;
+}): Promise<NextResponse> {
+  const { 
+    newsletterId, 
+    chunkEmails, 
+    chunkIndex, 
+    html, 
+    subject, 
+    settings
+  } = params;
+  
+  try {
+    // Get newsletter settings
+    const defaultSettings = await getNewsletterSettings();
+    const emailSettings = { ...defaultSettings, ...settings };
+    
+    // Prepare sender information
+    const fromEmail = emailSettings.fromEmail || 'newsletter@die-linke-frankfurt.de';
+    const fromName = emailSettings.fromName || 'Die Linke Frankfurt';
+    const from = `${fromName} <${fromEmail}>`;
+    const replyTo = emailSettings.replyToEmail || fromEmail;
+    
+    
+    logger.info(`Processing frontend chunk ${chunkIndex} with ${chunkEmails.length} emails`, {
+      context: {
+        newsletterId,
+        chunkIndex,
+        emailCount: chunkEmails.length
+      }
+    });
+    
+    // Create transporter
+    const transporter = createTransporter(emailSettings);
+    
+    // Verify transporter
+    try {
+      await transporter.verify();
+    } catch (verifyError) {
+      logger.error('SMTP transporter verification failed during chunk retry', {
+        context: { error: verifyError, newsletterId, chunkIndex }
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'SMTP connection failed',
+        chunkIndex
+      }, { status: 500 });
+    }
+    
+    const chunkResults: Array<{ email: string; success: boolean; error?: unknown }> = [];
+    
+    // Always use BCC sending for retry chunks
+    if (chunkEmails.length > 1) {
+      // Clean and validate email addresses
+      const validatedEmails = chunkEmails.map(email => {
+        const cleanedEmail = cleanEmail(email);
+        if (email !== cleanedEmail) {
+          logger.warn(`Cleaned email address in chunk`, {
+            context: {
+              original: JSON.stringify(email),
+              cleaned: cleanedEmail,
+              chunkIndex
+            }
+          });
+        }
+        return cleanedEmail;
+      }).filter(email => {
+        if (!validateEmail(email)) {
+          logger.warn(`Invalid email in chunk: ${JSON.stringify(email)}`);
+          chunkResults.push({
+            email,
+            success: false,
+            error: new Error('Invalid email address')
+          });
+          return false;
+        }
+        return true;
+      });
+      
+      if (validatedEmails.length > 0) {
+        const bccString = validatedEmails.join(',');
+        
+        try {
+          const result = await sendEmailWithTransporter(transporter, {
+            to: fromEmail, // Sender address as "To"
+            bcc: bccString, // All recipients as BCC
+            subject,
+            html,
+            from,
+            replyTo,
+            settings: emailSettings
+          });
+          
+          if (result.success) {
+            validatedEmails.forEach((email: string) => {
+              chunkResults.push({
+                email,
+                success: true,
+                error: undefined
+              });
+            });
+          } else {
+            validatedEmails.forEach((email: string) => {
+              chunkResults.push({
+                email,
+                success: false,
+                error: result.error
+              });
+            });
+          }
+        } catch (error) {
+          validatedEmails.forEach(email => {
+            chunkResults.push({
+              email,
+              success: false,
+              error
+            });
+          });
+        }
+      }
+    } else {
+      // Single email
+      const email = chunkEmails[0];
+      const cleanedEmail = cleanEmail(email);
+      
+      if (!validateEmail(cleanedEmail)) {
+        chunkResults.push({
+          email,
+          success: false,
+          error: new Error('Invalid email address')
+        });
+      } else {
+        try {
+          const result = await sendEmailWithTransporter(transporter, {
+            to: fromEmail, // Sender address as "To"
+            bcc: cleanedEmail, // Recipient as BCC
+            subject,
+            html,
+            from,
+            replyTo,
+            settings: emailSettings
+          });
+          
+          chunkResults.push({
+            email: cleanedEmail,
+            success: result.success,
+            error: result.success ? undefined : result.error
+          });
+        } catch (error) {
+          chunkResults.push({
+            email: cleanedEmail,
+            success: false,
+            error
+          });
+        }
+      }
+    }
+    
+    // Close transporter
+    transporter.close();
+    
+    // Calculate results
+    const successfulEmails = chunkResults.filter(r => r.success).map(r => r.email);
+    const failedEmails = chunkResults.filter(r => !r.success).map(r => r.email);
+    
+    logger.info(`Frontend chunk ${chunkIndex} completed`, {
+      context: {
+        newsletterId,
+        chunkIndex,
+        successful: successfulEmails.length,
+        failed: failedEmails.length
+      }
+    });
+    
+    return NextResponse.json({
+      success: true,
+      chunkIndex,
+      processedCount: chunkResults.length,
+      successfulEmails,
+      failedEmails,
+      results: chunkResults
+    });
+    
+  } catch (error) {
+    logger.error('Error processing frontend chunk:', {
+      context: {
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack
+        } : error,
+        newsletterId,
+        chunkIndex
+      }
+    });
+    
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      chunkIndex
+    }, { status: 500 });
+  }
+}
+
+/**
  * Process retry for a newsletter with failed emails
  */
 async function handleRetryProcessing(request: NextRequest): Promise<NextResponse> {
   try {
     const body: RetryRequest = await request.json();
-    const { newsletterId, html, subject, settings } = body;
+    const { newsletterId, html, subject, settings, chunkEmails, chunkIndex } = body;
 
     logger.info(`Retry-chunk API called for newsletter ${newsletterId}`, {
       context: {
         newsletterId,
         hasHtml: !!html,
         hasSubject: !!subject,
-        hasSettings: !!settings
+        hasSettings: !!settings,
+        hasFrontendChunk: !!chunkEmails,
+        chunkSize: chunkEmails?.length,
+        chunkIndex
       }
     });
 
@@ -187,6 +407,22 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
       }
     }
 
+    // Frontend-driven chunk processing
+    if (chunkEmails && chunkEmails.length > 0) {
+      // Process specific chunk provided by frontend
+      return await processFrontendChunk({
+        newsletterId,
+        newsletter,
+        chunkEmails,
+        chunkIndex: chunkIndex || 0,
+        html,
+        subject: formatSubject(subject),
+        settings,
+        currentSettings
+      });
+    }
+    
+    // Legacy full retry processing (kept for backward compatibility)
     const { 
       failedEmails, 
       retryChunkSizes, 
@@ -239,44 +475,154 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
       return AppError.validation('SMTP connection failed').toResponse();
     }
 
+    
     // Process emails in chunks of current retry size
     const stageResults: Array<{ email: string; success: boolean; error?: unknown }> = [];
     let processedCount = 0;
 
+    // Check if BCC sending is enabled
+    const useBccSending = emailSettings.useBccSending !== false; // Default to true for retry
+    
+    logger.info(`Processing retry with BCC sending: ${useBccSending}`, {
+      context: {
+        newsletterId,
+        currentChunkSize,
+        useBccSending
+      }
+    });
+
     for (let i = 0; i < failedEmails.length; i += currentChunkSize) {
       const emailChunk = failedEmails.slice(i, i + currentChunkSize);
       
-      // Process each email in the chunk
-      for (const email of emailChunk) {
-        try {
-          const result = await sendEmailWithTransporter(transporter, {
-            to: email,
-            subject: formattedSubject,
-            html,
-            from,
-            replyTo,
-            settings: emailSettings
-          });
+      if (useBccSending && emailChunk.length > 1) {
+        // BCC mode: Send one email with all recipients in BCC
+        logger.info(`Processing retry chunk with ${emailChunk.length} recipients in BCC mode`, {
+          context: {
+            newsletterId,
+            chunkIndex: Math.floor(i / currentChunkSize),
+            recipients: emailChunk.length
+          }
+        });
+        
+        // Clean and validate email addresses
+        const validatedEmails = emailChunk.map((email: string) => {
+          const cleanedEmail = cleanEmail(email);
+          if (email !== cleanedEmail) {
+            logger.warn(`Cleaned email address during retry`, {
+              context: {
+                original: JSON.stringify(email),
+                cleaned: cleanedEmail
+              }
+            });
+          }
+          return cleanedEmail;
+        }).filter((email: string) => {
+          if (!validateEmail(email)) {
+            logger.warn(`Filtering out invalid email during retry: ${JSON.stringify(email)}`);
+            stageResults.push({
+              email,
+              success: false,
+              error: new Error('Invalid email address')
+            });
+            return false;
+          }
+          return true;
+        });
 
-          stageResults.push({
-            email,
-            success: result.success,
-            error: result.success ? undefined : result.error
-          });
+        if (validatedEmails.length > 0) {
+          const bccString = validatedEmails.join(',');
+          
+          try {
+            const result = await sendEmailWithTransporter(transporter, {
+              to: fromEmail, // Use sender address as "To"
+              bcc: bccString, // All recipients as BCC
+              subject: formattedSubject,
+              html,
+              from,
+              replyTo,
+              settings: emailSettings
+            });
 
-          processedCount++;
+            if (result.success) {
+              // All emails in chunk considered sent
+              validatedEmails.forEach((email: string) => {
+                stageResults.push({
+                  email,
+                  success: true,
+                  error: undefined
+                });
+              });
+              processedCount += validatedEmails.length;
+            } else {
+              // All emails in chunk failed
+              validatedEmails.forEach((email: string) => {
+                stageResults.push({
+                  email,
+                  success: false,
+                  error: result.error
+                });
+              });
+              processedCount += validatedEmails.length;
+            }
+          } catch (emailError) {
+            // All emails in chunk failed
+            validatedEmails.forEach((email: string) => {
+              stageResults.push({
+                email,
+                success: false,
+                error: emailError
+              });
+            });
+            processedCount += validatedEmails.length;
+          }
+        }
+      } else {
+        // Single email mode (for chunks of size 1 or when BCC is disabled)
+        for (const email of emailChunk) {
+          const cleanedEmail = cleanEmail(email);
+          
+          if (!validateEmail(cleanedEmail)) {
+            logger.warn(`Invalid email during retry: ${JSON.stringify(email)}`);
+            stageResults.push({
+              email,
+              success: false,
+              error: new Error('Invalid email address')
+            });
+            processedCount++;
+            continue;
+          }
+          
+          try {
+            const result = await sendEmailWithTransporter(transporter, {
+              to: fromEmail, // Always use sender address as "To"
+              bcc: cleanedEmail, // Recipient as BCC even for single emails
+              subject: formattedSubject,
+              html,
+              from,
+              replyTo,
+              settings: emailSettings
+            });
 
-          // Small delay between emails
-          const emailDelay = emailSettings.emailDelay || 50;
-          await new Promise(resolve => setTimeout(resolve, emailDelay));
+            stageResults.push({
+              email: cleanedEmail,
+              success: result.success,
+              error: result.success ? undefined : result.error
+            });
+            processedCount++;
 
-        } catch (emailError) {
-          stageResults.push({
-            email,
-            success: false,
-            error: emailError
-          });
-          processedCount++;
+            // Small delay between individual emails
+            if (emailChunk.length > 1) {
+              const emailDelay = emailSettings.emailDelay || 50;
+              await new Promise(resolve => setTimeout(resolve, emailDelay));
+            }
+          } catch (emailError) {
+            stageResults.push({
+              email: cleanedEmail,
+              success: false,
+              error: emailError
+            });
+            processedCount++;
+          }
         }
       }
 
