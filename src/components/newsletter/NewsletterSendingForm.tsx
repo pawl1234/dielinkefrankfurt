@@ -126,6 +126,9 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   const [sendResult, setSendResult] = useState<SendResult | null>(null);
   const [settings, setSettings] = useState<NewsletterSettings>({});
   
+  // Request synchronization to prevent parallel operations
+  const [isRetryInProgress, setIsRetryInProgress] = useState(false);
+  
   // Fetch newsletter settings on component mount
   useEffect(() => {
     const fetchSettings = async () => {
@@ -408,6 +411,13 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
     let hasRetryError = false;
     let totalRetrySuccesses = 0; // Track total successful emails during retry
     
+    // Prevent parallel retry operations
+    if (isRetryInProgress) {
+      console.warn('Retry already in progress, ignoring duplicate request');
+      return;
+    }
+    
+    setIsRetryInProgress(true);
     console.log('Starting retry process for newsletter:', newsletterId);
     
     try {
@@ -497,9 +507,10 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
               remainingFailedEmails: stageFailedEmails
             });
             
-            // Add a small delay between chunks to avoid overwhelming the server
+            // Use configured delay between chunks
             if (i + chunkSize < remainingEmails.length) {
-              await new Promise(resolve => setTimeout(resolve, 500));
+              const chunkDelay = settings.chunkDelay || 200; // Default to 200ms
+              await new Promise(resolve => setTimeout(resolve, chunkDelay));
             }
           } catch (error) {
             console.error('Error processing chunk:', error);
@@ -548,6 +559,9 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
       console.error('Retry process error:', error);
       hasRetryError = true;
       setError(error instanceof Error ? error.message : 'Fehler beim Wiederholen');
+    } finally {
+      // Always clear the retry lock, even on error
+      setIsRetryInProgress(false);
     }
 
     // Only set success results if there was no error during retry
@@ -854,7 +868,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
                     wordBreak: 'break-all'
                   }}
                 >
-                  • {email}
+                  {email}
                 </Typography>
               ))}
             </Box>

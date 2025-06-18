@@ -771,19 +771,19 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
     replyToEmail: 'buero@linke-frankfurt.de',
     subjectTemplate: 'Die Linke Frankfurt - Newsletter {date}',
 
-    // Newsletter sending performance settings (current optimized values)
+    // Newsletter sending performance settings (optimized for BCC sending)
     chunkSize: 50,           // Number of emails processed per chunk (or BCC recipients per email)
-    chunkDelay: 500,         // Milliseconds between chunks
-    emailDelay: 50,          // Milliseconds between individual emails
-    emailTimeout: 60000,     // Email sending timeout in milliseconds
-    useBccSending: false,    // Whether to use BCC sending instead of individual emails
+    chunkDelay: 200,         // Milliseconds between chunks (reduced for faster processing)
+    emailDelay: 50,          // Milliseconds between individual emails (only used for non-BCC)
+    emailTimeout: 30000,     // Email sending timeout in milliseconds (reduced for faster failures)
+    useBccSending: true,     // BCC sending is now the default for better performance
 
-    // SMTP connection settings (current optimized values)
-    connectionTimeout: 30000, // SMTP connection timeout in milliseconds
-    greetingTimeout: 30000,   // SMTP greeting timeout in milliseconds
-    socketTimeout: 45000,     // SMTP socket timeout in milliseconds
-    maxConnections: 5,        // Maximum concurrent SMTP connections
-    maxMessages: 100,         // Maximum messages per SMTP connection
+    // SMTP connection settings (optimized for single-connection usage)
+    connectionTimeout: 20000, // SMTP connection timeout in milliseconds (faster connection)
+    greetingTimeout: 20000,   // SMTP greeting timeout in milliseconds (faster greeting)
+    socketTimeout: 30000,     // SMTP socket timeout in milliseconds (faster socket timeout)
+    maxConnections: 1,        // Single connection per transporter (no pooling)
+    maxMessages: 1,          // Single message per connection (clean lifecycle)
 
     // Retry logic settings (current optimized values)
     maxRetries: 3,            // Maximum verification retries

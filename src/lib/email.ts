@@ -59,10 +59,10 @@ export const createTransporter = (settings?: EmailSettings): TransporterType => 
     greetingTimeout: settings?.greetingTimeout || 30000, // 30 seconds default
     socketTimeout: settings?.socketTimeout || 45000, // 45 seconds default
     
-    // Use configured connection pooling settings or defaults
-    pool: true, // Enable connection pooling for efficiency
-    maxConnections: settings?.maxConnections || 5, // Default to 5 connections
-    maxMessages: settings?.maxMessages || 100, // Default to 100 messages per connection
+    // Disable connection pooling for clean lifecycle (better for serverless)
+    pool: false, // Disable connection pooling to prevent connection accumulation
+    maxConnections: settings?.maxConnections || 1, // Single connection per transporter
+    maxMessages: settings?.maxMessages || 1, // Single message per connection
   };
   
   logger.info('Creating SMTP transporter for serverless environment', {
@@ -75,7 +75,8 @@ export const createTransporter = (settings?: EmailSettings): TransporterType => 
       rejectUnauthorized: config.tls.rejectUnauthorized,
       poolEnabled: config.pool,
       maxConnections: config.maxConnections,
-      maxMessages: config.maxMessages
+      maxMessages: config.maxMessages,
+      connectionModel: config.pool ? 'pooled' : 'single-use'
     }
   });
   

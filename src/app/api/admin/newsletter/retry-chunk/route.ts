@@ -181,46 +181,20 @@ async function processFrontendChunk(params: {
           });
         }
       }
-    } else {
-      // Single email
-      const email = chunkEmails[0];
-      const cleanedEmail = cleanEmail(email);
-      
-      if (!validateEmail(cleanedEmail)) {
-        chunkResults.push({
-          email,
-          success: false,
-          error: new Error('Invalid email address')
-        });
-      } else {
-        try {
-          const result = await sendEmailWithTransporter(transporter, {
-            to: fromEmail, // Sender address as "To"
-            bcc: cleanedEmail, // Recipient as BCC
-            subject,
-            html,
-            from,
-            replyTo,
-            settings: emailSettings
-          });
-          
-          chunkResults.push({
-            email: cleanedEmail,
-            success: result.success,
-            error: result.success ? undefined : result.error
-          });
-        } catch (error) {
-          chunkResults.push({
-            email: cleanedEmail,
-            success: false,
-            error
-          });
-        }
-      }
     }
+    // Note: All retry emails now use BCC sending for consistency and performance
     
-    // Close transporter
-    transporter.close();
+    // Close transporter immediately to free connections
+    try {
+      transporter.close();
+      logger.info('Frontend chunk transporter closed successfully', {
+        context: { newsletterId, chunkIndex }
+      });
+    } catch (closeError) {
+      logger.warn('Error closing frontend chunk transporter', {
+        context: { error: closeError, newsletterId, chunkIndex }
+      });
+    }
     
     // Calculate results
     const successfulEmails = chunkResults.filter(r => r.success).map(r => r.email);
@@ -633,8 +607,17 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
       }
     }
 
-    // Close transporter
-    transporter.close();
+    // Close transporter immediately to free connections
+    try {
+      transporter.close();
+      logger.info('Legacy retry transporter closed successfully', {
+        context: { newsletterId }
+      });
+    } catch (closeError) {
+      logger.warn('Error closing legacy retry transporter', {
+        context: { error: closeError, newsletterId }
+      });
+    }
 
     // Analyze results of this stage
     const stillFailedEmails = stageResults

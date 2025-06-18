@@ -284,56 +284,28 @@ export default function NewsletterSettingsPage() {
               </AccordionSummary>
               <AccordionDetails>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Diese Einstellungen sind für fortgeschrittene Benutzer. Änderungen können die E-Mail-Versand-Performance beeinflussen.
+                  Diese Einstellungen wurden nach der BCC-Optimierung neu organisiert. Aktive Einstellungen sind hervorgehoben.
                 </Typography>
                 
-                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
-                  Versand-Einstellungen
+                {/* BCC Sending & Performance Section */}
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                  📧 BCC-Versand & Performance (AKTIV)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Haupteinstellungen für BCC-E-Mail-Versand - diese beeinflussen die Geschwindigkeit direkt!
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
-                      label="Batch-Größe"
-                      value={settings.batchSize || 100}
-                      onChange={(e) => setSettings({ ...settings, batchSize: parseInt(e.target.value) || 100 })}
-                      type="number"
-                      InputProps={{ inputProps: { min: 1, max: 500 } }}
-                      fullWidth
-                      margin="normal"
-                      helperText="Anzahl der E-Mails pro Batch (1-500)"
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      label="Batch-Verzögerung (ms)"
-                      value={settings.batchDelay || 1000}
-                      onChange={(e) => setSettings({ ...settings, batchDelay: parseInt(e.target.value) || 1000 })}
-                      type="number"
-                      InputProps={{ inputProps: { min: 100, max: 10000 } }}
-                      fullWidth
-                      margin="normal"
-                      helperText="Millisekunden zwischen Batches (100-10000)"
-                    />
-                  </Grid>
-                </Grid>
-
-                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
-                  Chunk-Einstellungen
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      label="Chunk-Größe"
+                      label="Chunk-Größe (BCC Empfänger)"
                       value={settings.chunkSize || 50}
                       onChange={(e) => setSettings({ ...settings, chunkSize: parseInt(e.target.value) || 50 })}
                       type="number"
-                      InputProps={{ inputProps: { min: 1, max: 1000 } }}
+                      InputProps={{ inputProps: { min: 1, max: 100 } }}
                       fullWidth
                       margin="normal"
-                      helperText={settings.useBccSending 
-                        ? "BCC-Empfänger pro E-Mail (1-100 empfohlen für BCC)" 
-                        : "E-Mails pro Chunk für Connection Pooling (1-1000)"
-                      }
+                      helperText="Anzahl BCC-Empfänger pro E-Mail (1-100) - KRITISCH für Performance"
+                      sx={{ bgcolor: 'primary.50' }}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
@@ -345,31 +317,8 @@ export default function NewsletterSettingsPage() {
                       InputProps={{ inputProps: { min: 100, max: 5000 } }}
                       fullWidth
                       margin="normal"
-                      helperText={settings.useBccSending 
-                        ? "Millisekunden zwischen BCC-E-Mails (100-5000)" 
-                        : "Millisekunden zwischen Chunks (100-5000)"
-                      }
-                    />
-                  </Grid>
-                </Grid>
-
-                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
-                  E-Mail Timing
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      label="E-Mail-Verzögerung (ms)"
-                      value={settings.emailDelay || 50}
-                      onChange={(e) => setSettings({ ...settings, emailDelay: parseInt(e.target.value) || 50 })}
-                      type="number"
-                      InputProps={{ inputProps: { min: 10, max: 1000 } }}
-                      fullWidth
-                      margin="normal"
-                      helperText={settings.useBccSending 
-                        ? "Nicht verwendet bei BCC-Versand (alle Empfänger in einer E-Mail)" 
-                        : "Millisekunden zwischen einzelnen E-Mails (10-1000)"
-                      }
+                      helperText="Pause zwischen E-Mail-Chunks (100-5000ms) - KRITISCH für Geschwindigkeit"
+                      sx={{ bgcolor: 'primary.50' }}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
@@ -381,13 +330,50 @@ export default function NewsletterSettingsPage() {
                       InputProps={{ inputProps: { min: 10000, max: 300000 } }}
                       fullWidth
                       margin="normal"
-                      helperText="Timeout für einzelne E-Mail (10-300 Sekunden)"
+                      helperText="Timeout für E-Mail-Versand (10-300 Sekunden)"
                     />
                   </Grid>
                 </Grid>
 
+                {/* Retry Configuration Section */}
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold', color: 'secondary.main' }}>
+                  🔁 Wiederholungs-Konfiguration (AKTIV)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Einstellungen für automatische Wiederholung fehlgeschlagener E-Mails
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Wiederholungs-Chunk-Größen"
+                      value={settings.retryChunkSizes || '10,5,1'}
+                      onChange={(e) => setSettings({ ...settings, retryChunkSizes: e.target.value })}
+                      fullWidth
+                      margin="normal"
+                      helperText="Kommagetrennte Chunk-Größen für Retry-Stufen (z.B. 10,5,1) - KRITISCH"
+                      sx={{ bgcolor: 'secondary.50' }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                      label="Max. SMTP Wiederholungen"
+                      value={settings.maxRetries || 3}
+                      onChange={(e) => setSettings({ ...settings, maxRetries: parseInt(e.target.value) || 3 })}
+                      type="number"
+                      InputProps={{ inputProps: { min: 1, max: 10 } }}
+                      fullWidth
+                      margin="normal"
+                      helperText="SMTP-Ebene Wiederholungsversuche pro E-Mail (1-10)"
+                    />
+                  </Grid>
+                </Grid>
+
+                {/* SMTP Connection Settings */}
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
-                  SMTP Verbindungseinstellungen
+                  🔧 SMTP Verbindungseinstellungen (AKTIV)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Timeout-Einstellungen für SMTP-Verbindungen - werden für jede E-Mail verwendet
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, md: 4 }}>
@@ -428,84 +414,118 @@ export default function NewsletterSettingsPage() {
                   </Grid>
                 </Grid>
 
-                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
-                  Connection Pooling
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      label="Max. Verbindungen"
-                      value={settings.maxConnections || 5}
-                      onChange={(e) => setSettings({ ...settings, maxConnections: parseInt(e.target.value) || 5 })}
-                      type="number"
-                      InputProps={{ inputProps: { min: 1, max: 20 } }}
-                      fullWidth
-                      margin="normal"
-                      helperText={settings.useBccSending 
-                        ? "Weniger relevant bei BCC (deutlich weniger Verbindungen)" 
-                        : "Maximale gleichzeitige SMTP Verbindungen (1-20)"
-                      }
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      label="Max. Nachrichten pro Verbindung"
-                      value={settings.maxMessages || 100}
-                      onChange={(e) => setSettings({ ...settings, maxMessages: parseInt(e.target.value) || 100 })}
-                      type="number"
-                      InputProps={{ inputProps: { min: 1, max: 1000 } }}
-                      fullWidth
-                      margin="normal"
-                      helperText={settings.useBccSending 
-                        ? "Weniger relevant bei BCC (deutlich weniger Nachrichten)" 
-                        : "Maximale Nachrichten pro SMTP Verbindung (1-1000)"
-                      }
-                    />
-                  </Grid>
-                </Grid>
-
-                <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
-                  Wiederholungslogik
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      label="Max. Wiederholungen"
-                      value={settings.maxRetries || 3}
-                      onChange={(e) => setSettings({ ...settings, maxRetries: parseInt(e.target.value) || 3 })}
-                      type="number"
-                      InputProps={{ inputProps: { min: 1, max: 10 } }}
-                      fullWidth
-                      margin="normal"
-                      helperText="Maximale Anzahl Wiederholungsversuche (1-10)"
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField
-                      label="Max. Backoff-Verzögerung (ms)"
-                      value={settings.maxBackoffDelay || 10000}
-                      onChange={(e) => setSettings({ ...settings, maxBackoffDelay: parseInt(e.target.value) || 10000 })}
-                      type="number"
-                      InputProps={{ inputProps: { min: 1000, max: 60000 } }}
-                      fullWidth
-                      margin="normal"
-                      helperText="Maximale exponential Backoff Verzögerung (1-60s)"
-                    />
-                  </Grid>
-                </Grid>
-                
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      label="Wiederholungs-Chunk-Größen"
-                      value={settings.retryChunkSizes || '10,5,1'}
-                      onChange={(e) => setSettings({ ...settings, retryChunkSizes: e.target.value })}
-                      fullWidth
-                      margin="normal"
-                      helperText="Kommagetrennte Liste der Chunk-Größen für Wiederholungsversuche (z.B. 10,5,1)"
-                    />
-                  </Grid>
-                </Grid>
+                {/* Legacy/Obsolete Settings Section */}
+                <Accordion sx={{ mt: 3, bgcolor: 'grey.50' }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'warning.main' }}>
+                      ⚠️ Legacy-Einstellungen (größtenteils unbenutzt)
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Diese Einstellungen sind aufgrund der BCC-Optimierungen größtenteils obsolet geworden.
+                    </Typography>
+                    
+                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'warning.main' }}>
+                      Connection Pooling (DEAKTIVIERT - Nicht verwendet)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Connection Pooling wurde für BCC-Versand deaktiviert. Jede E-Mail verwendet eine frische Verbindung.
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Max. Verbindungen (nicht verwendet)"
+                          value="1 (fest codiert)"
+                          disabled
+                          fullWidth
+                          margin="normal"
+                          helperText="Fest auf 1 gesetzt - Connection Pooling deaktiviert"
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Max. Nachrichten (nicht verwendet)"
+                          value="1 (fest codiert)"
+                          disabled
+                          fullWidth
+                          margin="normal"
+                          helperText="Fest auf 1 gesetzt - Jede Verbindung sendet nur eine E-Mail"
+                        />
+                      </Grid>
+                    </Grid>
+                    
+                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, fontWeight: 'bold', color: 'warning.main' }}>
+                      Batch-Einstellungen (OBSOLET - Nicht verwendet beim Versenden)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Diese Einstellungen werden nur noch für E-Mail-Validierung verwendet, nicht für den Versand.
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Batch-Größe (nur Validierung)"
+                          value={settings.batchSize || 100}
+                          onChange={(e) => setSettings({ ...settings, batchSize: parseInt(e.target.value) || 100 })}
+                          type="number"
+                          InputProps={{ inputProps: { min: 10, max: 1000 } }}
+                          fullWidth
+                          margin="normal"
+                          helperText="Nur für E-Mail-Validierung verwendet, nicht für Versand"
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Batch-Verzögerung (nicht verwendet)"
+                          value={settings.batchDelay || 1000}
+                          onChange={(e) => setSettings({ ...settings, batchDelay: parseInt(e.target.value) || 1000 })}
+                          type="number"
+                          InputProps={{ inputProps: { min: 100, max: 10000 } }}
+                          fullWidth
+                          margin="normal"
+                          helperText="Nicht verwendet beim Versenden"
+                        />
+                      </Grid>
+                    </Grid>
+                    
+                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, fontWeight: 'bold', color: 'warning.main' }}>
+                      Einzelne E-Mail Verzögerung (OBSOLET - Nur für Non-BCC Modus)
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="E-Mail-Verzögerung (obsolet)"
+                          value={settings.emailDelay || 50}
+                          onChange={(e) => setSettings({ ...settings, emailDelay: parseInt(e.target.value) || 50 })}
+                          type="number"
+                          InputProps={{ inputProps: { min: 10, max: 1000 } }}
+                          fullWidth
+                          margin="normal"
+                          helperText="Nur verwendet wenn BCC deaktiviert ist (nicht empfohlen)"
+                        />
+                      </Grid>
+                    </Grid>
+                    
+                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, fontWeight: 'bold', color: 'error.main' }}>
+                      Nicht implementierte Einstellungen
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Max. Backoff-Verzögerung (nicht implementiert)"
+                          value={settings.maxBackoffDelay || 10000}
+                          onChange={(e) => setSettings({ ...settings, maxBackoffDelay: parseInt(e.target.value) || 10000 })}
+                          type="number"
+                          InputProps={{ inputProps: { min: 1000, max: 60000 } }}
+                          fullWidth
+                          margin="normal"
+                          helperText="Diese Einstellung ist im Code nicht implementiert"
+                          disabled
+                        />
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
               </AccordionDetails>
             </Accordion>
             
