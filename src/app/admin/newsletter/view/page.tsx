@@ -14,10 +14,20 @@ import {
   Paper,
   Button,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  Chip,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import { EmailSendResult, ChunkResult } from '@/types/api-types';
 
 function NewsletterViewContent() {
   const router = useRouter();
@@ -39,6 +49,7 @@ function NewsletterViewContent() {
     introductionText?: string;
     settings?: Record<string, unknown>;
   } | null>(null);
+  const [showFailedDialog, setShowFailedDialog] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -81,6 +92,30 @@ function NewsletterViewContent() {
   const handleEdit = () => {
     router.push(`/admin/newsletter/edit?id=${newsletterId}`);
   };
+
+  const getFailedRecipients = (): EmailSendResult[] => {
+    if (!newsletter?.settings) return [];
+    
+    const settings = newsletter.settings as { chunkResults?: ChunkResult[] };
+    if (!settings.chunkResults) return [];
+    
+    const failedRecipients: EmailSendResult[] = [];
+    
+    settings.chunkResults.forEach((chunk) => {
+      if (chunk.results) {
+        chunk.results.forEach((result) => {
+          if (!result.success) {
+            failedRecipients.push(result);
+          }
+        });
+      }
+    });
+    
+    return failedRecipients;
+  };
+
+  const failedRecipients = getFailedRecipients();
+  const hasFailedRecipients = failedRecipients.length > 0;
 
   if (status === 'loading' || loading) {
     return (
@@ -210,6 +245,19 @@ function NewsletterViewContent() {
                 </Typography>
               </Box>
             )}
+            
+            {hasFailedRecipients && (
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<ErrorOutlineIcon />}
+                  onClick={() => setShowFailedDialog(true)}
+                >
+                  Fehlgeschlagene Empfänger anzeigen ({failedRecipients.length})
+                </Button>
+              </Box>
+            )}
           </Paper>
           
           <Paper sx={{ p: 3 }}>
@@ -238,6 +286,49 @@ function NewsletterViewContent() {
           </Paper>
         </Container>
       </Box>
+      
+      {/* Failed Recipients Dialog */}
+      <Dialog
+        open={showFailedDialog}
+        onClose={() => setShowFailedDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Fehlgeschlagene Empfänger
+          <Typography variant="body2" color="text.secondary">
+            {failedRecipients.length} E-Mail(s) konnten nicht zugestellt werden
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <List>
+            {failedRecipients.map((result, index) => (
+              <ListItem key={index} divider>
+                <ListItemText
+                  primary={result.email}
+                  secondary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      {result.error && (
+                        <Chip
+                          label={result.error}
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowFailedDialog(false)}>
+            Schließen
+          </Button>
+        </DialogActions>
+      </Dialog>
     </MainLayout>
   );
 }
