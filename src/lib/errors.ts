@@ -17,6 +17,7 @@ export enum ErrorType {
   EXTERNAL_SERVICE = 'EXTERNAL_SERVICE',
   NETWORK = 'NETWORK',
   UNKNOWN = 'UNKNOWN',
+  NEWSLETTER = 'NEWSLETTER',
 }
 
 /**
@@ -142,6 +143,24 @@ export function apiErrorResponse(
   defaultMessage: string = 'An unexpected error occurred',
   context?: ErrorContext
 ): NextResponse {
+  // Handle newsletter-specific errors
+  if (error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError) {
+    // Log newsletter error with specific context
+    logger.error(error, {
+      module: 'api',
+      context: {
+        type: error.type,
+        statusCode: error.statusCode,
+        errorName: error.name,
+        ...error.context,
+        ...context
+      },
+      tags: ['api', 'newsletter', error.name.toLowerCase(), `status-${error.statusCode}`]
+    });
+    
+    return error.toResponse(process.env.NODE_ENV !== 'production');
+  }
+  
   if (error instanceof AppError) {
     // Log AppError with context
     logger.error(error, {
@@ -268,6 +287,8 @@ export const errorTranslations: Record<string, string> = {
   'File upload failed': 'Datei-Upload fehlgeschlagen',
   'File size exceeds limit': 'Dateigröße überschreitet das Limit',
   'Unsupported file type': 'Nicht unterstützter Dateityp',
+  'Newsletter not found': 'Newsletter nicht gefunden',
+  'Newsletter validation failed': 'Newsletter-Validierung fehlgeschlagen',
 };
 
 /**
@@ -275,4 +296,62 @@ export const errorTranslations: Record<string, string> = {
  */
 export function getLocalizedErrorMessage(message: string): string {
   return errorTranslations[message] || message;
+}
+
+/**
+ * Newsletter-specific error class for when a newsletter is not found
+ */
+export class NewsletterNotFoundError extends AppError {
+  constructor(message: string = 'Newsletter not found', context?: ErrorContext) {
+    super(message, ErrorType.NEWSLETTER, 404, undefined, context);
+    this.name = 'NewsletterNotFoundError';
+  }
+}
+
+/**
+ * Newsletter-specific error class for validation errors
+ */
+export class NewsletterValidationError extends AppError {
+  public readonly details?: Record<string, string>;
+
+  constructor(
+    message: string = 'Newsletter validation failed',
+    details?: Record<string, string>,
+    context?: ErrorContext
+  ) {
+    super(message, ErrorType.NEWSLETTER, 400, undefined, context);
+    this.name = 'NewsletterValidationError';
+    this.details = details;
+  }
+
+  /**
+   * Override toResponse to include validation details
+   */
+  toResponse(includeDetails: boolean = false): NextResponse {
+    const errorBody: Record<string, unknown> = {
+      error: this.message,
+      type: this.type,
+    };
+
+    // Always include validation details for validation errors
+    if (this.details) {
+      errorBody.fieldErrors = this.details;
+    }
+
+    // Include additional details in non-production environments
+    if (includeDetails && process.env.NODE_ENV !== 'production') {
+      if (this.context) {
+        errorBody.context = this.context;
+      }
+    }
+
+    return NextResponse.json(errorBody, { status: this.statusCode });
+  }
+}
+
+/**
+ * Helper function to check if an error is newsletter-related
+ */
+export function isNewsletterError(error: unknown): error is NewsletterNotFoundError | NewsletterValidationError {
+  return error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError;
 }

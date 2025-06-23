@@ -1,15 +1,116 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
 import { withAdminAuth } from '@/lib/api-auth';
-import { handleSendTestNewsletter } from '@/lib/newsletter-service';
+import { sendNewsletterTestEmail, fixUrlsInNewsletterHtml } from '@/lib/newsletter-service';
+import { AppError, apiErrorResponse } from '@/lib/errors';
+import { logger } from '@/lib/logger';
+import prisma from '@/lib/prisma';
 
 /**
  * POST /api/admin/newsletter/send-test
  * 
  * Admin endpoint for sending a test newsletter email.
- * Expects HTML content in request body.
- * Returns success status and message ID.
+ * Sends test email to configured test recipients.
  * Authentication required.
+ * 
+ * Request body:
+ * - html: string (optional) - HTML content to send
+ * - newsletterId: number (optional) - ID of existing newsletter to send
+ * 
+ * Response:
+ * - success: boolean - Whether the test was sent successfully
+ * - message: string - Success message with recipient count
+ * - messageId: string - Email provider message ID
+ * - recipientCount: number - Number of recipients
  */
-export const POST = withAdminAuth(async (request: NextRequest) => {
-  return handleSendTestNewsletter(request);
+export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+  try {
+    const { html, newsletterId } = await request.json();
+    
+    let newsletterHtml = html;
+    
+    // If newsletterId is provided, fetch the newsletter content
+    if (newsletterId && !html) {
+      logger.info('Fetching newsletter content for test email', {
+        context: { 
+          operation: 'send_test_newsletter',
+          newsletterId 
+        }
+      });
+      
+      const newsletter = await prisma.newsletterItem.findUnique({
+        where: { id: newsletterId }
+      });
+      
+      if (!newsletter) {
+        logger.warn('Newsletter not found for test email', {
+          context: { 
+            operation: 'send_test_newsletter',
+            newsletterId 
+          }
+        });
+        return AppError.notFound('Newsletter not found').toResponse();
+      }
+      
+      newsletterHtml = fixUrlsInNewsletterHtml(newsletter.content || '');
+    } else if (html) {
+      // Fix URLs in the provided HTML as well
+      newsletterHtml = fixUrlsInNewsletterHtml(html);
+    }
+    
+    if (!newsletterHtml) {
+      logger.warn('Test newsletter attempted without HTML content');
+      return AppError.validation('Newsletter HTML content is required').toResponse();
+    }
+    
+    logger.info('Sending test newsletter email', {
+      context: { 
+        operation: 'send_test_newsletter',
+        hasNewsletterHtml: !!newsletterHtml,
+        newsletterId: newsletterId || null
+      }
+    });
+    
+    const result = await sendNewsletterTestEmail(newsletterHtml);
+    
+    if (result.success) {
+      logger.info('Test newsletter email sent successfully', {
+        context: {
+          operation: 'send_test_newsletter',
+          recipientCount: result.recipientCount,
+          messageId: result.messageId
+        }
+      });
+      
+      return NextResponse.json({
+        success: true,
+        message: `Test emails sent successfully to ${result.recipientCount} recipient${result.recipientCount !== 1 ? 's' : ''}`,
+        messageId: result.messageId,
+        recipientCount: result.recipientCount
+      });
+    } else {
+      logger.error('Failed to send test newsletter email', {
+        context: {
+          operation: 'send_test_newsletter',
+          error: result.error instanceof Error ? result.error.message : 'Unknown error'
+        }
+      });
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to send test email', 
+          details: result.error instanceof Error ? result.error.message : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    logger.error('Error sending test newsletter email', {
+      context: {
+        operation: 'send_test_newsletter',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+    return apiErrorResponse(error, 'Failed to send test email');
+  }
 });

@@ -1,4 +1,4 @@
-// jest.config.js
+// jest.config.api.js
 const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
@@ -8,24 +8,22 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.api.js'],
   moduleNameMapper: {
     // Handle module aliases
     '^@/components/(.*)$': '<rootDir>/src/components/$1',
     '^@/app/(.*)$': '<rootDir>/src/app/$1',
     '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
   },
-  testEnvironment: 'jest-environment-jsdom',
-  testEnvironmentOptions: {
-    customExportConditions: [''],
-  },
+  testEnvironment: 'node', // Use node environment for API tests
+  testMatch: ['**/src/tests/api/**/*.test.ts'], // Only run API tests
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   transform: {
     // Use babel-jest to transpile tests with the next/babel preset
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(jose|@auth)/)',
+    '/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx'],

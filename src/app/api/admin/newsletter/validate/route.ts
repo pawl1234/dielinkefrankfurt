@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
 import { withAdminAuth } from '@/lib/api-auth';
 import { processRecipientList } from '@/lib/newsletter-sending';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 
 /**
- * Handler for validating newsletter recipients
+ * POST /api/admin/newsletter/validate
+ * 
+ * Admin endpoint for validating newsletter recipient list.
+ * Processes email list and returns validation statistics.
+ * Authentication required.
+ * 
+ * Request body:
+ * - emailText: string - Raw text containing email addresses
+ * 
+ * Response:
+ * - valid: number - Count of valid email addresses
+ * - invalid: number - Count of invalid email addresses
+ * - new: number - Count of new email addresses
+ * - existing: number - Count of existing email addresses
+ * - invalidEmails: string[] - List of invalid email addresses
  */
-async function handleValidateRecipients(request: NextRequest): Promise<NextResponse> {
+export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
   try {
     // Parse request body
     const body = await request.json();
@@ -15,12 +30,28 @@ async function handleValidateRecipients(request: NextRequest): Promise<NextRespo
 
     // Validate required fields
     if (!emailText) {
+      logger.warn('Newsletter recipient validation attempted without email text');
       return AppError.validation('Email recipient list is required').toResponse();
     }
 
     // Process recipient list
-    logger.info('Processing newsletter recipient validation');
+    logger.info('Processing newsletter recipient validation', {
+      context: { 
+        operation: 'validate_recipients'
+      }
+    });
+    
     const validationResult = await processRecipientList(emailText);
+
+    logger.info('Newsletter recipient validation completed', {
+      context: {
+        operation: 'validate_recipients',
+        validCount: validationResult.valid,
+        invalidCount: validationResult.invalid,
+        newCount: validationResult.new,
+        existingCount: validationResult.existing
+      }
+    });
 
     // Return validation results
     return NextResponse.json({
@@ -31,13 +62,12 @@ async function handleValidateRecipients(request: NextRequest): Promise<NextRespo
       invalidEmails: validationResult.invalidEmails
     });
   } catch (error) {
-    logger.error('Error validating recipient list:', { context: { error } });
+    logger.error('Error validating recipient list', { 
+      context: { 
+        operation: 'validate_recipients',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
     return apiErrorResponse(error, 'Failed to validate recipient list');
   }
-}
-
-/**
- * POST handler for validating newsletter recipients
- * Requires admin authentication
- */
-export const POST = withAdminAuth(handleValidateRecipients);
+});

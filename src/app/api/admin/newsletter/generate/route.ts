@@ -1,53 +1,131 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
+import { withAdminAuth } from '@/lib/api-auth';
+import { apiErrorResponse, handleDatabaseError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
-import { generateNewsletterHtml, getDefaultNewsletterSettings, GroupWithReports } from '@/lib/newsletter-template';
+import { 
+  generateNewsletterHtml, 
+  GroupWithReports 
+} from '@/lib/newsletter-template';
+import { getNewsletterSettings, generateNewsletter } from '@/lib/newsletter-service';
 import { getBaseUrl } from '@/lib/base-url';
+import { subWeeks } from 'date-fns';
 
-// Helper function to get newsletter settings from database
-async function getNewsletterSettingsFromDB() {
+/**
+ * GET /api/admin/newsletter/generate
+ * 
+ * Admin endpoint for generating newsletter HTML preview.
+ * Returns generated HTML without creating a newsletter record.
+ * Authentication required.
+ * 
+ * Query parameters:
+ * - introductionText: string (optional) - Introduction HTML content
+ */
+export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
   try {
-    const settings = await prisma.newsletter.findFirst();
-    if (settings) {
-      return {
-        headerLogo: settings.headerLogo || '',
-        headerBanner: settings.headerBanner || '',
-        footerText: settings.footerText || '',
-        unsubscribeLink: settings.unsubscribeLink || '',
-        batchSize: settings.batchSize || 100,
-        batchDelay: settings.batchDelay || 1000,
-        fromEmail: settings.fromEmail || '',
-        fromName: settings.fromName || '',
-        replyToEmail: settings.replyToEmail || '',
-        subjectTemplate: settings.subjectTemplate || '',
-        emailSalt: settings.emailSalt || '',
-        testEmailRecipients: settings.testEmailRecipients || ''
-      };
-    }
+    // Get query parameters
+    const url = new URL(request.url);
+    const introductionText = url.searchParams.get('introductionText') || 
+      '<p>Herzlich willkommen zum Newsletter der Linken Frankfurt!</p>';
+    
+    logger.debug('Generating newsletter preview', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'GET',
+        hasIntroduction: !!introductionText
+      }
+    });
+
+    // Generate the HTML
+    const html = await generateNewsletter(introductionText);
+    
+    logger.info('Newsletter preview generated successfully', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'GET',
+        htmlLength: html.length
+      }
+    });
+
+    // Return the generated HTML
+    return new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    });
   } catch (error) {
-    console.error('Error fetching newsletter settings:', error);
+    logger.error(error as Error, {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'GET',
+        operation: 'generateNewsletterPreview'
+      }
+    });
+
+    return apiErrorResponse(error, 'Failed to generate newsletter preview');
   }
-  
-  // Return default settings if none found
-  return getDefaultNewsletterSettings();
-}
+});
 
-
-// POST create new newsletter with generated content
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/admin/newsletter/generate
+ * 
+ * Admin endpoint for generating a new newsletter with appointments and status reports.
+ * Creates a draft newsletter with generated HTML content.
+ * Returns the created newsletter object including its ID.
+ * Authentication required.
+ * 
+ * Request body:
+ * - subject: string (required) - Newsletter subject line
+ * - introductionText: string (optional) - Introduction HTML content
+ */
+export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    const { subject, introductionText = '' } = body;
+
+    logger.debug('Generating new newsletter', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'POST',
+        hasSubject: !!subject,
+        hasIntroduction: !!introductionText
+      }
+    });
+
+    // Validate required fields
+    if (!subject || subject.trim().length === 0) {
+      logger.warn('Newsletter generation failed - missing subject', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/generate',
+          method: 'POST'
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Subject is required' },
+        { status: 400 }
+      );
     }
 
-    const body = await request.json();
-    const { subject, introductionText } = body;
+    // Validate subject length
+    if (subject.length > 200) {
+      logger.warn('Newsletter generation failed - subject too long', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/generate',
+          method: 'POST',
+          subjectLength: subject.length
+        }
+      });
 
-    if (!subject || !introductionText) {
       return NextResponse.json(
-        { error: 'Subject and introduction text are required' },
+        { error: 'Subject must be 200 characters or less' },
         { status: 400 }
       );
     }
@@ -55,8 +133,21 @@ export async function POST(request: NextRequest) {
     // Fetch appointments and status reports for newsletter generation
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Start of today
-    
-    const [appointments, statusReports] = await Promise.all([
+    const twoWeeksAgo = subWeeks(today, 2);
+
+    logger.info('Fetching data for newsletter generation', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'POST',
+        dateRange: {
+          appointments: 'today onwards',
+          statusReports: 'last 2 weeks'
+        }
+      }
+    });
+
+    const [appointments, statusReports, newsletterSettings] = await Promise.all([
       // Get featured appointments first, then other accepted appointments (only today or future)
       prisma.appointment.findMany({
         where: {
@@ -76,7 +167,7 @@ export async function POST(request: NextRequest) {
         where: {
           status: 'ACTIVE',
           createdAt: {
-            gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) // Last 2 weeks
+            gte: twoWeeksAgo
           }
         },
         include: {
@@ -85,8 +176,22 @@ export async function POST(request: NextRequest) {
         orderBy: {
           createdAt: 'desc'
         }
-      })
+      }),
+
+      // Get newsletter settings using the service method with caching
+      getNewsletterSettings()
     ]);
+
+    logger.debug('Data fetched for newsletter generation', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'POST',
+        appointmentCount: appointments.length,
+        statusReportCount: statusReports.length,
+        hasSettings: !!newsletterSettings
+      }
+    });
 
     // Group status reports by group
     const groupedReports = statusReports.reduce((acc, report) => {
@@ -103,16 +208,20 @@ export async function POST(request: NextRequest) {
 
     const groupsWithReports = Object.values(groupedReports);
 
-    // Get newsletter settings from database
-    const newsletterSettings = await getNewsletterSettingsFromDB();
-    
-    // For new newsletters created via the UI (which already uses the template), 
-    // we use the subject as provided. The template is applied in the frontend.
-    const finalSubject = subject;
-    
     // Separate featured and regular appointments
     const featuredAppointments = appointments.filter(apt => apt.featured);
     const upcomingAppointments = appointments.filter(apt => !apt.featured);
+
+    logger.info('Generating newsletter HTML', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'POST',
+        featuredAppointments: featuredAppointments.length,
+        upcomingAppointments: upcomingAppointments.length,
+        groupsWithReports: groupsWithReports.length
+      }
+    });
 
     // Generate newsletter HTML
     const newsletterHtml = generateNewsletterHtml({
@@ -127,19 +236,50 @@ export async function POST(request: NextRequest) {
     // Create newsletter with generated content
     const newsletter = await prisma.newsletterItem.create({
       data: {
-        subject: finalSubject,
+        subject: subject.trim(),
         introductionText,
         content: newsletterHtml,
         status: 'draft',
       },
     });
 
-    return NextResponse.json(newsletter);
+    logger.info('Newsletter generated successfully', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'POST',
+        newsletterId: newsletter.id,
+        subject: newsletter.subject,
+        contentLength: newsletterHtml.length
+      }
+    });
+
+    return NextResponse.json({
+      id: newsletter.id,
+      subject: newsletter.subject,
+      introductionText: newsletter.introductionText,
+      status: newsletter.status,
+      createdAt: newsletter.createdAt,
+      updatedAt: newsletter.updatedAt
+    });
   } catch (error) {
-    console.error('Error creating newsletter:', error);
-    return NextResponse.json(
-      { error: 'Failed to create newsletter' },
-      { status: 500 }
-    );
+    logger.error(error as Error, {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/generate',
+        method: 'POST',
+        operation: 'generateNewsletter'
+      }
+    });
+
+    // Handle specific database errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      return apiErrorResponse(
+        handleDatabaseError(error, 'generateNewsletter'),
+        'Failed to generate newsletter'
+      );
+    }
+
+    return apiErrorResponse(error, 'Failed to generate newsletter');
   }
-}
+});

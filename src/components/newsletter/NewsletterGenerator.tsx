@@ -190,7 +190,7 @@ const NewsletterGenerator: React.FC<NewsletterGeneratorProps> = ({
       const encodedIntroductionText = encodeURIComponent(introductionText);
 
       // Fetch the newsletter HTML
-      const response = await fetch(`/api/admin/newsletter?introductionText=${encodedIntroductionText}`);
+      const response = await fetch(`/api/admin/newsletter/generate?introductionText=${encodedIntroductionText}`);
 
       if (response.ok) {
         const html = await response.text();

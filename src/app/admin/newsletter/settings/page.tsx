@@ -20,8 +20,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
-  FormControlLabel,
-  Switch,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SaveIcon from '@mui/icons-material/Save';
@@ -50,7 +48,6 @@ export default function NewsletterSettingsPage() {
     // Advanced performance settings
     chunkSize: 50,
     chunkDelay: 500,
-    emailDelay: 50,
     emailTimeout: 60000,
     connectionTimeout: 30000,
     greetingTimeout: 30000,
@@ -60,7 +57,6 @@ export default function NewsletterSettingsPage() {
     maxRetries: 3,
     maxBackoffDelay: 10000,
     retryChunkSizes: '10,5,1',
-    useBccSending: true,
   });
 
   useEffect(() => {
@@ -250,21 +246,8 @@ export default function NewsletterSettingsPage() {
               helperText="Vorlage für den E-Mail-Betreff. Verwende {date} für das Datum."
             />
             
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={settings.useBccSending || false}
-                  onChange={(e) => setSettings({ ...settings, useBccSending: e.target.checked })}
-                />
-              }
-              label="BCC-Versand verwenden"
-              sx={{ mt: 2, mb: 1 }}
-            />
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {settings.useBccSending 
-                ? "BCC-Modus: Alle Empfänger werden als BCC in wenige E-Mails versendet. Deutlich schneller, aber keine individuelle Verfolgung möglich."
-                : "Individueller Versand: Jeder Empfänger erhält eine separate E-Mail. Ermöglicht individuelle Verfolgung, aber langsamer."
-              }
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+              <strong>BCC-Modus aktiviert:</strong> Alle E-Mails werden automatisch im BCC-Modus versendet für optimale Performance.
             </Typography>
             
             <Divider sx={{ my: 3 }} />
@@ -488,23 +471,12 @@ export default function NewsletterSettingsPage() {
                       </Grid>
                     </Grid>
                     
-                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, fontWeight: 'bold', color: 'warning.main' }}>
-                      Einzelne E-Mail Verzögerung (OBSOLET - Nur für Non-BCC Modus)
+                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, fontWeight: 'bold', color: 'success.main' }}>
+                      ✅ Einzelne E-Mail Verzögerung (ENTFERNT)
                     </Typography>
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, md: 6 }}>
-                        <TextField
-                          label="E-Mail-Verzögerung (obsolet)"
-                          value={settings.emailDelay || 50}
-                          onChange={(e) => setSettings({ ...settings, emailDelay: parseInt(e.target.value) || 50 })}
-                          type="number"
-                          InputProps={{ inputProps: { min: 10, max: 1000 } }}
-                          fullWidth
-                          margin="normal"
-                          helperText="Nur verwendet wenn BCC deaktiviert ist (nicht empfohlen)"
-                        />
-                      </Grid>
-                    </Grid>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Diese Einstellung wurde entfernt, da alle E-Mails jetzt im BCC-Modus versendet werden.
+                    </Typography>
                     
                     <Typography variant="subtitle2" gutterBottom sx={{ mt: 3, fontWeight: 'bold', color: 'error.main' }}>
                       Nicht implementierte Einstellungen

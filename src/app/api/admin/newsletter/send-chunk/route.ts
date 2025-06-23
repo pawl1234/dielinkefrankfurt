@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
 import { withAdminAuth } from '@/lib/api-auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
-import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
-import { validateEmail, cleanEmail } from '@/lib/email-hashing';
-import { format } from 'date-fns';
+import { processSendingChunk } from '@/lib/newsletter-sending';
 import { ChunkResult } from '@/types/api-types';
 
 /**
@@ -20,16 +19,6 @@ interface ChunkRequest {
   chunkIndex: number;
   totalChunks: number;
   settings?: Record<string, unknown>;
-}
-
-/**
- * Interface for email sending result
- */
-interface EmailSendResult {
-  success: boolean;
-  messageId?: string;
-  error?: unknown;
-  isConnectionError?: boolean;
 }
 
 /**
@@ -47,38 +36,160 @@ interface ChunkResponse {
 }
 
 /**
- * Format subject line with template variables
+ * Start retry process for failed emails with progressively smaller chunk sizes
  */
-function formatSubject(template: string): string {
-  const currentDate = format(new Date(), 'dd.MM.yyyy');
-  return template.replace('{date}', currentDate);
+async function startRetryProcess(newsletterId: string, chunkResults: unknown[], currentSettings: Record<string, unknown>) {
+  try {
+    // Get newsletter settings for retry configuration
+    const newsletterSettings = await getNewsletterSettings();
+    const retryChunkSizes = (newsletterSettings.retryChunkSizes || '10,5,1')
+      .split(',')
+      .map(size => parseInt(size.trim()))
+      .filter(size => size > 0);
+
+    // Collect all failed emails from all chunks
+    const failedEmails: string[] = [];
+    chunkResults.forEach(chunk => {
+      const chunkData = chunk as { results?: Array<{ success?: boolean; email?: string }> };
+      if (chunkData?.results) {
+        chunkData.results.forEach((result: { success?: boolean; email?: string }) => {
+          if (!result.success && result.email) {
+            failedEmails.push(result.email);
+          }
+        });
+      }
+    });
+
+    if (failedEmails.length === 0) {
+      return; // No failed emails to retry
+    }
+
+    logger.info(`Starting retry process for ${failedEmails.length} failed emails`, {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/send-chunk',
+        newsletterId,
+        failedCount: failedEmails.length,
+        retryChunkSizes
+      }
+    });
+
+    // Prepare retry settings
+    const retrySettings = {
+      ...currentSettings,
+      retryInProgress: true,
+      retryStartedAt: new Date().toISOString(),
+      failedEmails,
+      retryChunkSizes,
+      currentRetryStage: 0,
+      retryResults: []
+    };
+
+    logger.info(`Updating newsletter with retry settings`, {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/send-chunk',
+        newsletterId,
+        retryInProgress: retrySettings.retryInProgress,
+        failedEmailsCount: retrySettings.failedEmails.length
+      }
+    });
+
+    // Store retry information in newsletter settings
+    await prisma.newsletterItem.update({
+      where: { id: newsletterId },
+      data: {
+        settings: JSON.stringify(retrySettings)
+      }
+    });
+
+    // Verify the update was successful
+    const updatedNewsletter = await prisma.newsletterItem.findUnique({
+      where: { id: newsletterId }
+    });
+
+    if (updatedNewsletter?.settings) {
+      const verifySettings = JSON.parse(updatedNewsletter.settings);
+      logger.info(`Verified newsletter update - retry process initialized`, {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/send-chunk',
+          newsletterId,
+          status: updatedNewsletter.status,
+          retryInProgress: verifySettings.retryInProgress,
+          failedEmailsCount: verifySettings.failedEmails?.length || 0,
+          currentRetryStage: verifySettings.currentRetryStage
+        }
+      });
+    }
+
+  } catch (error) {
+    logger.error(error as Error, {
+      module: 'api',
+      context: { 
+        endpoint: '/api/admin/newsletter/send-chunk',
+        operation: 'startRetryProcess',
+        newsletterId 
+      }
+    });
+  }
 }
 
 /**
- * Process a chunk of emails synchronously
+ * POST /api/admin/newsletter/send-chunk
+ * 
+ * Admin endpoint for processing a chunk of emails in a newsletter send operation.
+ * Uses the consolidated processSendingChunk method for actual sending.
+ * Tracks progress and handles retry initialization.
+ * Authentication required.
+ * 
+ * Request body:
+ * - newsletterId: string - Newsletter to send
+ * - html: string - Newsletter HTML content
+ * - subject: string - Email subject line
+ * - emails: string[] - Array of recipient emails for this chunk
+ * - chunkIndex: number - Current chunk index (0-based)
+ * - totalChunks: number - Total number of chunks
+ * - settings?: object - Optional email settings overrides
  */
-async function handleChunkProcessing(request: NextRequest): Promise<NextResponse> {
+export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
   try {
     const body: ChunkRequest = await request.json();
     const { newsletterId, html, subject, emails, chunkIndex, totalChunks, settings } = body;
 
+    logger.debug('Processing email chunk', {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/send-chunk',
+        method: 'POST',
+        newsletterId,
+        chunkIndex,
+        totalChunks,
+        emailCount: emails?.length
+      }
+    });
+
     // Validate required fields
     if (!newsletterId || !html || !subject || !emails || emails.length === 0) {
+      logger.warn('Send chunk validation failed - missing required fields', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/send-chunk',
+          method: 'POST',
+          hasNewsletterId: !!newsletterId,
+          hasHtml: !!html,
+          hasSubject: !!subject,
+          hasEmails: !!emails,
+          emailCount: emails?.length || 0
+        }
+      });
+
       return AppError.validation('Missing required fields').toResponse();
     }
 
     // Get newsletter settings
     const defaultSettings = await getNewsletterSettings();
     const emailSettings = { ...defaultSettings, ...settings };
-    
-    // Format subject line
-    const formattedSubject = formatSubject(subject);
-    
-    // Prepare sender information
-    const fromEmail = emailSettings.fromEmail || 'newsletter@die-linke-frankfurt.de';
-    const fromName = emailSettings.fromName || 'Die Linke Frankfurt';
-    const from = `${fromName} <${fromEmail}>`;
-    const replyTo = emailSettings.replyToEmail || fromEmail;
 
     // Verify newsletter exists and is in sending status
     const newsletter = await prisma.newsletterItem.findUnique({
@@ -86,290 +197,56 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     });
 
     if (!newsletter) {
+      logger.warn('Newsletter not found for send chunk', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/send-chunk',
+          method: 'POST',
+          newsletterId
+        }
+      });
+
       return AppError.validation('Newsletter not found').toResponse();
     }
 
     if (!['sending', 'draft'].includes(newsletter.status)) {
+      logger.warn('Newsletter not in sendable state', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/send-chunk',
+          method: 'POST',
+          newsletterId,
+          status: newsletter.status
+        }
+      });
+
       return AppError.validation('Newsletter is not in a sendable state').toResponse();
     }
 
     logger.info(`Processing chunk ${chunkIndex + 1}/${totalChunks} for newsletter ${newsletterId}`, {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/send-chunk',
+        method: 'POST',
         emailCount: emails.length,
         chunkIndex,
         totalChunks
       }
     });
 
-    // Create a single transporter for this entire chunk (connection pooling)
-    let transporter = createTransporter(emailSettings);
-    
-    // Verify transporter once per chunk with retry logic
-    let retryCount = 0;
-    const maxRetries = emailSettings.maxRetries || 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        await transporter.verify();
-        break; // No logging for successful verification
-      } catch (verifyError) {
-        retryCount++;
-        
-        // Check if it's a connection error
-        const errorObj = verifyError as { response?: string; code?: string; message?: string };
-        const isConnectionError = errorObj?.response?.includes('too many connections') || 
-                                 errorObj?.code === 'ECONNREFUSED' ||
-                                 errorObj?.code === 'ESOCKET' ||
-                                 errorObj?.code === 'EPROTOCOL';
-        
-        if (isConnectionError && retryCount < maxRetries) {
-          const maxBackoffDelay = emailSettings.maxBackoffDelay || 10000;
-          const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), maxBackoffDelay); // Exponential backoff
-          logger.warn(`SMTP verification failed for chunk ${chunkIndex + 1} (attempt ${retryCount}/${maxRetries}), retrying in ${backoffDelay}ms`, {
-            context: { error: errorObj?.message || String(verifyError) }
-          });
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
-        } else {
-          logger.error('SMTP transporter verification failed for chunk', {
-            context: { 
-              error: verifyError,
-              chunkIndex: chunkIndex + 1,
-              attempts: retryCount
-            }
-          });
-          return AppError.validation('SMTP connection failed').toResponse();
-        }
-      }
-    }
-
-    // Process emails in this chunk
-    let sentCount = 0;
-    let failedCount = 0;
-    const results: Array<{ email: string; success: boolean; error?: unknown }> = [];
-
-    // Check if BCC sending is enabled
-    if (emailSettings.useBccSending) {
-      // BCC mode: Send one email with all recipients in BCC
-      logger.info(`Processing chunk ${chunkIndex + 1}/${totalChunks} in BCC mode with ${emails.length} recipients`);
-      
-      // Clean and validate email addresses before creating BCC string
-      const validatedEmails = emails.map(email => {
-        const originalEmail = email;
-        const cleanedEmail = cleanEmail(email);
-        
-        // Log if cleaning changed the email (indicates invisible characters were present)
-        if (originalEmail !== cleanedEmail) {
-          logger.warn(`Cleaned email address`, {
-            context: {
-              original: JSON.stringify(originalEmail), // JSON.stringify shows invisible chars
-              cleaned: cleanedEmail,
-              originalLength: originalEmail.length,
-              cleanedLength: cleanedEmail.length
-            }
-          });
-        }
-        
-        return cleanedEmail;
-      }).filter(email => {
-        if (!validateEmail(email)) {
-          logger.warn(`Filtering out invalid email address after cleaning: ${JSON.stringify(email)}`);
-          return false;
-        }
-        return true;
-      });
-
-      if (validatedEmails.length !== emails.length) {
-        logger.warn(`Filtered out ${emails.length - validatedEmails.length} invalid email addresses from BCC`);
-      }
-
-      const bccString = validatedEmails.join(',');
-      logger.info(`BCC string created with ${validatedEmails.length} validated emails`);
-      
-      try {
-        const result = await sendEmailWithTransporter(transporter, {
-          to: from, // Use sender address as "To" (will be visible to all BCC recipients)
-          bcc: bccString, // All recipients as BCC
-          subject: formattedSubject,
-          html,
-          from,
-          replyTo,
-          settings: emailSettings
-        });
-
-        if (result.success) {
-          sentCount = emails.length; // All emails considered sent
-          emails.forEach(email => {
-            results.push({ email, success: true });
-          });
-          logger.info(`BCC email sent successfully to ${emails.length} recipients in chunk ${chunkIndex + 1}`);
-        } else {
-          // Check if this is a connection error after all retries were exhausted
-          if ((result as EmailSendResult).isConnectionError) {
-            logger.warn(`Connection error detected for BCC email in chunk ${chunkIndex + 1}, recreating transporter`);
-            
-            // Close the old transporter
-            transporter.close();
-            
-            // Create a new transporter
-            transporter = createTransporter(emailSettings);
-            
-            // Retry the BCC email once with the new transporter
-            try {
-              const retryResult = await sendEmailWithTransporter(transporter, {
-                to: from,
-                bcc: emails.join(','),
-                subject: formattedSubject,
-                html,
-                from,
-                replyTo,
-                settings: emailSettings
-              });
-              
-              if (retryResult.success) {
-                sentCount = emails.length;
-                emails.forEach(email => {
-                  results.push({ email, success: true });
-                });
-                logger.info(`BCC email succeeded after transporter recreation in chunk ${chunkIndex + 1}`);
-              } else {
-                failedCount = emails.length;
-                emails.forEach(email => {
-                  results.push({ email, success: false, error: retryResult.error });
-                });
-                logger.error(`BCC email failed even after transporter recreation in chunk ${chunkIndex + 1}`, {
-                  context: { error: retryResult.error }
-                });
-              }
-            } catch (recreateError) {
-              failedCount = emails.length;
-              emails.forEach(email => {
-                results.push({ email, success: false, error: recreateError });
-              });
-              logger.error(`BCC email threw exception after transporter recreation in chunk ${chunkIndex + 1}`, {
-                context: { error: recreateError }
-              });
-            }
-          } else {
-            failedCount = emails.length;
-            emails.forEach(email => {
-              results.push({ email, success: false, error: result.error });
-            });
-            logger.warn(`BCC email failed in chunk ${chunkIndex + 1}`, {
-              context: { error: result.error }
-            });
-          }
-        }
-      } catch (error) {
-        failedCount = emails.length;
-        emails.forEach(email => {
-          results.push({ email, success: false, error });
-        });
-        logger.error(`BCC email threw exception in chunk ${chunkIndex + 1}`, {
-          context: { error }
-        });
-      }
-    } else {
-      // Individual email mode: Send each email separately (existing logic)
-      for (let i = 0; i < emails.length; i++) {
-      const email = emails[i];
-      
-      try {
-        const result = await sendEmailWithTransporter(transporter, {
-          to: email,
-          subject: formattedSubject,
-          html,
-          from,
-          replyTo,
-          settings: emailSettings
-        });
-
-        if (result.success) {
-          sentCount++;
-          results.push({ email, success: true });
-        } else {
-          // Check if this is a connection error after all retries were exhausted
-          if ((result as EmailSendResult).isConnectionError) {
-            logger.warn(`Connection error detected for email ${i + 1}/${emails.length}, recreating transporter`, {
-              context: { 
-                recipientDomain: email.split('@')[1] || 'unknown',
-                error: result.error 
-              }
-            });
-            
-            // Close the old transporter
-            transporter.close();
-            
-            // Create a new transporter
-            transporter = createTransporter(emailSettings);
-            
-            // Retry the email once with the new transporter
-            try {
-              const retryResult = await sendEmailWithTransporter(transporter, {
-                to: email,
-                subject: formattedSubject,
-                html,
-                from,
-                replyTo,
-                settings: emailSettings
-              });
-              
-              if (retryResult.success) {
-                sentCount++;
-                results.push({ email, success: true });
-                logger.info(`Email ${i + 1}/${emails.length} succeeded after transporter recreation`, {
-                  context: { 
-                    recipientDomain: email.split('@')[1] || 'unknown'
-                  }
-                });
-              } else {
-                failedCount++;
-                results.push({ email, success: false, error: retryResult.error });
-                logger.error(`Email ${i + 1}/${emails.length} failed even after transporter recreation`, {
-                  context: { 
-                    recipientDomain: email.split('@')[1] || 'unknown',
-                    error: retryResult.error 
-                  }
-                });
-              }
-            } catch (recreateError) {
-              failedCount++;
-              results.push({ email, success: false, error: recreateError });
-              logger.error(`Email ${i + 1}/${emails.length} threw exception after transporter recreation`, {
-                context: { 
-                  recipientDomain: email.split('@')[1] || 'unknown',
-                  error: recreateError 
-                }
-              });
-            }
-          } else {
-            failedCount++;
-            results.push({ email, success: false, error: result.error });
-            logger.warn(`Email ${i + 1}/${emails.length} failed in chunk ${chunkIndex + 1}`, {
-              context: { 
-                recipientDomain: email.split('@')[1] || 'unknown',
-                error: result.error 
-              }
-            });
-          }
-        }
-
-        // Use configured delay between emails
-        if (i < emails.length - 1) {
-          const emailDelay = emailSettings.emailDelay || 50; // Use configured delay or default to 50ms
-          await new Promise(resolve => setTimeout(resolve, emailDelay));
-        }
-      } catch (error) {
-        failedCount++;
-        results.push({ email, success: false, error });
-        logger.error(`Email ${i + 1}/${emails.length} threw exception in chunk ${chunkIndex + 1}`, {
-          context: { 
-            recipientDomain: email.split('@')[1] || 'unknown',
-            error 
-          }
-        });
-      }
-    }
-    } // End of individual email mode
+    // Use the consolidated sending method
+    const chunkResult = await processSendingChunk(
+      emails,
+      newsletterId,
+      {
+        ...emailSettings,
+        html,
+        subject,
+        chunkIndex,
+        totalChunks
+      },
+      'initial'
+    );
 
     // Check if this is the last chunk
     const isComplete = chunkIndex === totalChunks - 1;
@@ -379,12 +256,7 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     const chunkResults = currentSettings.chunkResults || [];
     
     // Store this chunk's results
-    chunkResults[chunkIndex] = {
-      sentCount,
-      failedCount,
-      completedAt: new Date().toISOString(),
-      results: results // Store individual email results for retry logic
-    };
+    chunkResults[chunkIndex] = chunkResult;
 
     // Calculate total progress
     const totalSent = chunkResults.reduce((sum: number, chunk: ChunkResult) => sum + (chunk?.sentCount || 0), 0);
@@ -428,12 +300,14 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
           };
           
           logger.info(`Merged retry settings with chunk completion data`, {
+            module: 'api',
             context: {
+              endpoint: '/api/admin/newsletter/send-chunk',
+              method: 'POST',
               newsletterId,
               hasRetryInProgress: !!finalSettings.retryInProgress,
               hasFailedEmails: !!finalSettings.failedEmails,
-              failedEmailsCount: finalSettings.failedEmails?.length || 0,
-              retrySettingsKeys: Object.keys(retrySettings)
+              failedEmailsCount: finalSettings.failedEmails?.length || 0
             }
           });
         }
@@ -445,14 +319,18 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
       where: { id: newsletterId },
       data: {
         status: finalStatus,
-        settings: JSON.stringify(finalSettings)
+        settings: JSON.stringify(finalSettings),
+        sentAt: isComplete && finalStatus === 'sent' ? new Date() : null
       }
     });
 
     logger.info(`Chunk ${chunkIndex + 1}/${totalChunks} completed`, {
+      module: 'api',
       context: {
-        sent: sentCount,
-        failed: failedCount,
+        endpoint: '/api/admin/newsletter/send-chunk',
+        method: 'POST',
+        sent: chunkResult.sentCount,
+        failed: chunkResult.failedCount,
         totalSent,
         totalFailed,
         isComplete,
@@ -460,22 +338,26 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
       }
     });
 
-    // Close transporter connection pool
-    transporter.close();
-
     const response: ChunkResponse = {
       success: true,
       chunkIndex,
       totalChunks,
-      sentCount,
-      failedCount,
+      sentCount: chunkResult.sentCount,
+      failedCount: chunkResult.failedCount,
       isComplete,
       newsletterStatus: finalStatus
     };
 
     return NextResponse.json(response);
   } catch (error) {
-    logger.error('Error processing email chunk:', { context: { error } });
+    logger.error(error as Error, {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/send-chunk',
+        method: 'POST',
+        operation: 'processSendChunk'
+      }
+    });
     
     const response: ChunkResponse = {
       success: false,
@@ -489,105 +371,11 @@ async function handleChunkProcessing(request: NextRequest): Promise<NextResponse
     
     return NextResponse.json(response, { status: 500 });
   }
-}
-
-/**
- * Start retry process for failed emails with progressively smaller chunk sizes
- */
-async function startRetryProcess(newsletterId: string, chunkResults: unknown[], currentSettings: Record<string, unknown>) {
-  try {
-    // Get newsletter settings for retry configuration
-    const newsletterSettings = await getNewsletterSettings();
-    const retryChunkSizes = (newsletterSettings.retryChunkSizes || '10,5,1')
-      .split(',')
-      .map(size => parseInt(size.trim()))
-      .filter(size => size > 0);
-
-    // Collect all failed emails from all chunks
-    const failedEmails: string[] = [];
-    chunkResults.forEach(chunk => {
-      const chunkData = chunk as { results?: Array<{ success?: boolean; email?: string }> };
-      if (chunkData?.results) {
-        chunkData.results.forEach((result: { success?: boolean; email?: string }) => {
-          if (!result.success && result.email) {
-            failedEmails.push(result.email);
-          }
-        });
-      }
-    });
-
-    if (failedEmails.length === 0) {
-      return; // No failed emails to retry
-    }
-
-    logger.info(`Starting retry process for ${failedEmails.length} failed emails`, {
-      context: {
-        newsletterId,
-        failedCount: failedEmails.length,
-        retryChunkSizes
-      }
-    });
-
-    // Prepare retry settings
-    const retrySettings = {
-      ...currentSettings,
-      retryInProgress: true,
-      retryStartedAt: new Date().toISOString(),
-      failedEmails,
-      retryChunkSizes,
-      currentRetryStage: 0,
-      retryResults: []
-    };
-
-    logger.info(`Updating newsletter with retry settings`, {
-      context: {
-        newsletterId,
-        retryInProgress: retrySettings.retryInProgress,
-        failedEmailsCount: retrySettings.failedEmails.length,
-        settingsKeys: Object.keys(retrySettings)
-      }
-    });
-
-    // Store retry information in newsletter settings
-    await prisma.newsletterItem.update({
-      where: { id: newsletterId },
-      data: {
-        settings: JSON.stringify(retrySettings)
-      }
-    });
-
-    // Verify the update was successful
-    const updatedNewsletter = await prisma.newsletterItem.findUnique({
-      where: { id: newsletterId }
-    });
-
-    if (updatedNewsletter?.settings) {
-      const verifySettings = JSON.parse(updatedNewsletter.settings);
-      logger.info(`Verified newsletter update - retry process initialized`, {
-        context: {
-          newsletterId,
-          status: updatedNewsletter.status,
-          retryInProgress: verifySettings.retryInProgress,
-          failedEmailsCount: verifySettings.failedEmails?.length || 0,
-          currentRetryStage: verifySettings.currentRetryStage
-        }
-      });
-    }
-
-  } catch (error) {
-    logger.error('Error starting retry process:', { context: { error, newsletterId } });
-  }
-}
-
-/**
- * POST handler for processing email chunks
- * Requires admin authentication
- */
-export const POST = withAdminAuth(handleChunkProcessing);
+});
 
 /**
  * GET handler is not supported for this endpoint
  */
-export async function GET() {
+export const GET: ApiHandler<SimpleRouteContext> = async () => {
   return new NextResponse('Method not allowed', { status: 405 });
-}
+};

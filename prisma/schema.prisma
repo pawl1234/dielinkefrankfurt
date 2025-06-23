@@ -76,11 +76,9 @@ model Newsletter {
   emailSalt          String?    // Salt for email hashing
 
   // Newsletter sending performance settings
-  chunkSize          Int        @default(50)    // Number of emails processed per chunk (or BCC recipients per email)
+  chunkSize          Int        @default(50)    // Number of emails processed per chunk (BCC recipients per email)
   chunkDelay         Int        @default(500)   // Milliseconds between chunks
-  emailDelay         Int        @default(50)    // Milliseconds between individual emails
   emailTimeout       Int        @default(60000) // Email sending timeout in milliseconds
-  useBccSending      Boolean    @default(false) // Whether to use BCC sending instead of individual emails
 
   // SMTP connection settings
   connectionTimeout  Int        @default(30000) // SMTP connection timeout in milliseconds

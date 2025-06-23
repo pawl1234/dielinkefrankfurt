@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
-import { Appointment, Group, StatusReport } from '@prisma/client';
+import { Appointment, Group, StatusReport, NewsletterItem } from '@prisma/client';
 import { 
   NewsletterSettings, 
   generateNewsletterHtml, 
@@ -10,11 +10,17 @@ import { sendTestEmail } from './email';
 import { serverErrorResponse } from './api-auth';
 import { subWeeks } from 'date-fns';
 import { getBaseUrl } from './base-url';
+import { logger } from './logger';
+import { handleDatabaseError, NewsletterNotFoundError, NewsletterValidationError } from './errors';
+import { PaginatedResult } from './newsletter-archive';
+
+// Smart caching for newsletter settings
+let settingsCache: NewsletterSettings | null = null;
 
 /**
  * Fix URLs in newsletter HTML content to ensure they have proper protocol
  */
-function fixUrlsInNewsletterHtml(html: string): string {
+export function fixUrlsInNewsletterHtml(html: string): string {
   if (!html) return html;
   
   const baseUrl = getBaseUrl();
@@ -36,10 +42,16 @@ function fixUrlsInNewsletterHtml(html: string): string {
 }
 
 /**
- * Fetches newsletter settings from the database
+ * Fetches newsletter settings from the database with smart caching
  * Creates default settings if none exist
  */
 export async function getNewsletterSettings(): Promise<NewsletterSettings> {
+  // Return cached settings if available
+  if (settingsCache) {
+    logger.debug('Returning cached newsletter settings');
+    return settingsCache;
+  }
+
   try {
     // Default newsletter settings
     const defaultSettings = getDefaultNewsletterSettings();
@@ -48,7 +60,7 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
     const dbSettings = await prisma.newsletter.findFirst();
     
     if (dbSettings) {
-      return {
+      const settings: NewsletterSettings = {
         headerLogo: dbSettings.headerLogo ?? defaultSettings.headerLogo,
         headerBanner: dbSettings.headerBanner ?? defaultSettings.headerBanner,
         footerText: dbSettings.footerText ?? defaultSettings.footerText,
@@ -67,9 +79,7 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         // Newsletter sending performance settings
         chunkSize: dbSettings.chunkSize ?? defaultSettings.chunkSize,
         chunkDelay: dbSettings.chunkDelay ?? defaultSettings.chunkDelay,
-        emailDelay: dbSettings.emailDelay ?? defaultSettings.emailDelay,
         emailTimeout: dbSettings.emailTimeout ?? defaultSettings.emailTimeout,
-        useBccSending: dbSettings.useBccSending ?? defaultSettings.useBccSending,
 
         // SMTP connection settings
         connectionTimeout: dbSettings.connectionTimeout ?? defaultSettings.connectionTimeout,
@@ -88,6 +98,12 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         createdAt: dbSettings.createdAt,
         updatedAt: dbSettings.updatedAt
       };
+      
+      // Cache the settings
+      settingsCache = settings;
+      logger.info('Newsletter settings loaded and cached from database');
+      
+      return settings;
     } else {
       // Try to create default settings
       try {
@@ -95,16 +111,33 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
           data: defaultSettings
         });
         
-        return newSettings as NewsletterSettings;
+        // Cache the newly created settings
+        settingsCache = newSettings as NewsletterSettings;
+        logger.info('Newsletter settings created and cached');
+        
+        return settingsCache;
       } catch (createError) {
-        console.warn('Could not create newsletter settings:', createError);
-        // Return defaults if creation fails
-        return defaultSettings;
+        logger.warn('Could not create newsletter settings', {
+          module: 'newsletter-service',
+          context: { 
+            operation: 'getNewsletterSettings',
+            error: (createError as Error).message 
+          }
+        });
+        // Cache and return defaults if creation fails
+        settingsCache = defaultSettings;
+        return settingsCache;
       }
     }
   } catch (error) {
-    console.error('Error fetching newsletter settings:', error);
-    return getDefaultNewsletterSettings();
+    logger.error(error as Error, {
+      module: 'newsletter-service',
+      context: { operation: 'getNewsletterSettings' }
+    });
+    // Cache and return defaults on error
+    const defaultSettings = getDefaultNewsletterSettings();
+    settingsCache = defaultSettings;
+    return defaultSettings;
   }
 }
 
@@ -147,9 +180,7 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           // Newsletter sending performance settings
           chunkSize: data.chunkSize,
           chunkDelay: data.chunkDelay,
-          emailDelay: data.emailDelay,
           emailTimeout: data.emailTimeout,
-          useBccSending: data.useBccSending,
 
           // SMTP connection settings
           connectionTimeout: data.connectionTimeout,
@@ -187,9 +218,7 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           // Newsletter sending performance settings
           chunkSize: data.chunkSize || defaultSettings.chunkSize,
           chunkDelay: data.chunkDelay || defaultSettings.chunkDelay,
-          emailDelay: data.emailDelay || defaultSettings.emailDelay,
           emailTimeout: data.emailTimeout || defaultSettings.emailTimeout,
-          useBccSending: data.useBccSending ?? defaultSettings.useBccSending,
 
           // SMTP connection settings
           connectionTimeout: data.connectionTimeout || defaultSettings.connectionTimeout,
@@ -206,10 +235,17 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
       });
     }
     
+    // Invalidate cache immediately after update
+    settingsCache = null;
+    logger.info('Newsletter settings updated, cache invalidated');
+    
     return updatedSettings as NewsletterSettings;
   } catch (error) {
-    console.error('Error updating newsletter settings:', error);
-    throw error;
+    logger.error(error as Error, {
+      module: 'newsletter-service',
+      context: { operation: 'updateNewsletterSettings' }
+    });
+    throw handleDatabaseError(error, 'updateNewsletterSettings');
   }
 }
 
@@ -489,5 +525,566 @@ export async function handleSendTestNewsletter(request: NextRequest): Promise<Ne
   } catch (error) {
     console.error('Error sending test email:', error);
     return serverErrorResponse('Failed to send test email');
+  }
+}
+
+/**
+ * Interface for saving draft newsletter parameters
+ */
+export interface SaveDraftNewsletterParams {
+  subject: string;
+  introductionText: string;
+  content?: string;
+  settings?: Record<string, unknown>;
+}
+
+/**
+ * Interface for updating draft newsletter parameters
+ */
+export interface UpdateDraftNewsletterParams extends Partial<SaveDraftNewsletterParams> {
+  id: string;
+}
+
+/**
+ * Interface for listing draft newsletters parameters
+ */
+export interface ListDraftNewslettersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+/**
+ * Saves a draft newsletter
+ * @param params Newsletter draft parameters
+ * @returns Promise resolving to the created newsletter
+ */
+export async function saveDraftNewsletter(params: SaveDraftNewsletterParams): Promise<NewsletterItem> {
+  try {
+    const { subject, introductionText, content, settings } = params;
+
+    // Validate required fields
+    if (!subject || !introductionText) {
+      const details: Record<string, string> = {};
+      if (!subject) details.subject = 'Subject is required';
+      if (!introductionText) details.introductionText = 'Introduction text is required';
+      
+      throw new NewsletterValidationError('Subject and introduction text are required', details);
+    }
+
+    // Ensure settings is serialized as JSON string if provided
+    const settingsJson = settings 
+      ? (typeof settings === 'string' ? settings : JSON.stringify(settings))
+      : null;
+
+    // Create the draft newsletter
+    const newsletter = await prisma.newsletterItem.create({
+      data: {
+        subject,
+        introductionText,
+        content: content || null,
+        status: 'draft',
+        settings: settingsJson,
+        recipientCount: null,
+        sentAt: null
+      }
+    });
+
+    logger.info('Draft newsletter saved successfully', {
+      context: {
+        id: newsletter.id,
+        subject
+      }
+    });
+
+    return newsletter;
+  } catch (error) {
+    if (error instanceof NewsletterValidationError) {
+      throw error;
+    }
+    throw handleDatabaseError(error, 'saveDraftNewsletter');
+  }
+}
+
+/**
+ * Updates a draft newsletter
+ * @param params Update parameters including newsletter ID
+ * @returns Promise resolving to the updated newsletter
+ */
+export async function updateDraftNewsletter(params: UpdateDraftNewsletterParams): Promise<NewsletterItem> {
+  try {
+    const { id, subject, introductionText, content, settings } = params;
+
+    // Check if newsletter exists and is a draft
+    const existingNewsletter = await prisma.newsletterItem.findUnique({
+      where: { id }
+    });
+
+    if (!existingNewsletter) {
+      throw new NewsletterNotFoundError('Newsletter not found', { id });
+    }
+
+    if (existingNewsletter.status !== 'draft') {
+      throw new NewsletterValidationError('Only draft newsletters can be updated', {
+        status: existingNewsletter.status
+      });
+    }
+
+    // Prepare update data
+    const updateData: Partial<NewsletterItem> = {};
+    if (subject !== undefined) updateData.subject = subject;
+    if (introductionText !== undefined) updateData.introductionText = introductionText;
+    if (content !== undefined) updateData.content = content;
+    if (settings !== undefined) {
+      updateData.settings = typeof settings === 'string' 
+        ? settings 
+        : JSON.stringify(settings);
+    }
+
+    // Update the newsletter
+    const updatedNewsletter = await prisma.newsletterItem.update({
+      where: { id },
+      data: updateData
+    });
+
+    logger.info('Draft newsletter updated successfully', {
+      context: {
+        id: updatedNewsletter.id,
+        subject: updatedNewsletter.subject
+      }
+    });
+
+    return updatedNewsletter;
+  } catch (error) {
+    if (error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError) {
+      throw error;
+    }
+    throw handleDatabaseError(error, 'updateDraftNewsletter');
+  }
+}
+
+/**
+ * Retrieves a newsletter by ID (draft or sent)
+ * @param id Newsletter ID
+ * @returns Promise resolving to the newsletter or null if not found
+ */
+export async function getNewsletter(id: string): Promise<NewsletterItem | null> {
+  try {
+    const newsletter = await prisma.newsletterItem.findUnique({
+      where: { id }
+    });
+
+    return newsletter;
+  } catch (error) {
+    throw handleDatabaseError(error, 'getNewsletter');
+  }
+}
+
+/**
+ * Lists draft newsletters with pagination and search
+ * @param params Pagination and search parameters
+ * @returns Promise resolving to paginated result
+ */
+export async function listDraftNewsletters(params: ListDraftNewslettersParams = {}): Promise<PaginatedResult<NewsletterItem>> {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '' 
+    } = params;
+
+    // Validate pagination parameters
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(50, Math.max(1, limit)); // Limit between 1 and 50
+    const skip = (validPage - 1) * validLimit;
+
+    // Build filter conditions
+    const where = {
+      status: 'draft',
+      ...(search ? {
+        OR: [
+          {
+            subject: {
+              contains: search,
+              mode: 'insensitive' as const
+            }
+          },
+          {
+            introductionText: {
+              contains: search,
+              mode: 'insensitive' as const
+            }
+          }
+        ]
+      } : {})
+    };
+
+    // Fetch records and total count in parallel
+    const [newsletters, total] = await Promise.all([
+      prisma.newsletterItem.findMany({
+        where,
+        orderBy: {
+          updatedAt: 'desc'
+        },
+        skip,
+        take: validLimit
+      }),
+      prisma.newsletterItem.count({ where })
+    ]);
+
+    // Calculate total pages
+    const totalPages = Math.ceil(total / validLimit);
+
+    return {
+      items: newsletters,
+      total,
+      page: validPage,
+      limit: validLimit,
+      totalPages
+    };
+  } catch (error) {
+    throw handleDatabaseError(error, 'listDraftNewsletters');
+  }
+}
+
+/**
+ * Deletes a draft newsletter
+ * @param id Newsletter ID
+ * @returns Promise resolving to the deleted newsletter
+ */
+export async function deleteDraftNewsletter(id: string): Promise<NewsletterItem> {
+  try {
+    // Check if newsletter exists and is a draft
+    const existingNewsletter = await prisma.newsletterItem.findUnique({
+      where: { id }
+    });
+
+    if (!existingNewsletter) {
+      throw new NewsletterNotFoundError('Newsletter not found', { id });
+    }
+
+    if (existingNewsletter.status !== 'draft') {
+      throw new NewsletterValidationError('Only draft newsletters can be deleted', {
+        status: existingNewsletter.status
+      });
+    }
+
+    // Delete the newsletter
+    const deletedNewsletter = await prisma.newsletterItem.delete({
+      where: { id }
+    });
+
+    logger.info('Draft newsletter deleted successfully', {
+      context: {
+        id: deletedNewsletter.id,
+        subject: deletedNewsletter.subject
+      }
+    });
+
+    return deletedNewsletter;
+  } catch (error) {
+    if (error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError) {
+      throw error;
+    }
+    throw handleDatabaseError(error, 'deleteDraftNewsletter');
+  }
+}
+
+/**
+ * Retrieves a newsletter by ID with proper error handling
+ * @param id Newsletter ID
+ * @returns Promise resolving to the newsletter
+ * @throws NewsletterNotFoundError if newsletter doesn't exist
+ */
+export async function getNewsletterById(id: string): Promise<NewsletterItem> {
+  try {
+    const newsletter = await prisma.newsletterItem.findUnique({
+      where: { id }
+    });
+
+    if (!newsletter) {
+      throw new NewsletterNotFoundError(`Newsletter with ID ${id} not found`, { id });
+    }
+
+    logger.debug('Newsletter retrieved by ID', {
+      context: {
+        id: newsletter.id,
+        subject: newsletter.subject,
+        status: newsletter.status
+      }
+    });
+
+    return newsletter;
+  } catch (error) {
+    if (error instanceof NewsletterNotFoundError) {
+      throw error;
+    }
+    throw handleDatabaseError(error, 'getNewsletterById');
+  }
+}
+
+/**
+ * Lists newsletters with pagination and optional status filter
+ * @param params Pagination and filter parameters
+ * @returns Promise resolving to paginated result
+ */
+export async function listNewsletters(params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+} = {}): Promise<PaginatedResult<NewsletterItem>> {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      status
+    } = params;
+
+    // Validate pagination parameters
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(50, Math.max(1, limit)); // Limit between 1 and 50
+    const skip = (validPage - 1) * validLimit;
+
+    // Build filter conditions
+    const where = status 
+      ? { status }
+      : {};
+
+    // Get total count
+    const total = await prisma.newsletterItem.count({
+      where
+    });
+
+    // Get newsletters
+    const newsletters = await prisma.newsletterItem.findMany({
+      where,
+      skip,
+      take: validLimit,
+      orderBy: [
+        { createdAt: 'desc' }
+      ]
+    });
+
+    const totalPages = Math.ceil(total / validLimit);
+
+    logger.debug('Newsletters listed successfully', {
+      context: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages,
+        status
+      }
+    });
+
+    return {
+      items: newsletters,
+      total,
+      page: validPage,
+      limit: validLimit,
+      totalPages
+    };
+  } catch (error) {
+    throw handleDatabaseError(error, 'listNewsletters');
+  }
+}
+
+/**
+ * Creates a new newsletter
+ * @param data Newsletter data with subject and optional introduction
+ * @returns Promise resolving to the created newsletter
+ */
+export async function createNewsletter(data: { 
+  subject: string; 
+  introduction?: string;
+}): Promise<NewsletterItem> {
+  try {
+    const { subject, introduction } = data;
+
+    // Validate required fields
+    if (!subject || subject.trim().length === 0) {
+      throw new NewsletterValidationError('Newsletter subject is required', {
+        subject: 'Subject is required and cannot be empty'
+      });
+    }
+
+    // Validate subject length
+    if (subject.length > 200) {
+      throw new NewsletterValidationError('Newsletter subject is too long', {
+        subject: 'Subject must be 200 characters or less'
+      });
+    }
+
+    // Create the newsletter with draft status
+    const newsletter = await prisma.newsletterItem.create({
+      data: {
+        subject: subject.trim(),
+        introductionText: introduction || '',
+        content: null,
+        status: 'draft',
+        settings: null,
+        recipientCount: null,
+        sentAt: null
+      }
+    });
+
+    logger.info('Newsletter created successfully', {
+      module: 'newsletter-service',
+      context: {
+        id: newsletter.id,
+        subject: newsletter.subject,
+        operation: 'createNewsletter'
+      }
+    });
+
+    return newsletter;
+  } catch (error) {
+    if (error instanceof NewsletterValidationError) {
+      throw error;
+    }
+    throw handleDatabaseError(error, 'createNewsletter');
+  }
+}
+
+/**
+ * Updates an existing newsletter
+ * @param id Newsletter ID
+ * @param data Partial newsletter data to update
+ * @returns Promise resolving to the updated newsletter
+ */
+export async function updateNewsletter(
+  id: string, 
+  data: Partial<NewsletterItem>
+): Promise<NewsletterItem> {
+  try {
+    // Validate newsletter ID
+    if (!id || id.trim().length === 0) {
+      throw new NewsletterValidationError('Newsletter ID is required');
+    }
+
+    // Check if newsletter exists
+    const existingNewsletter = await prisma.newsletterItem.findUnique({
+      where: { id }
+    });
+
+    if (!existingNewsletter) {
+      throw new NewsletterNotFoundError(`Newsletter with ID ${id} not found`, { id });
+    }
+
+    // Prevent updating sent newsletters
+    if (existingNewsletter.status === 'sent') {
+      throw new NewsletterValidationError('Cannot update a sent newsletter', {
+        status: 'Newsletter has already been sent and cannot be modified'
+      });
+    }
+
+    // Validate subject if provided
+    if (data.subject !== undefined) {
+      if (!data.subject || data.subject.trim().length === 0) {
+        throw new NewsletterValidationError('Newsletter subject cannot be empty', {
+          subject: 'Subject is required and cannot be empty'
+        });
+      }
+      if (data.subject.length > 200) {
+        throw new NewsletterValidationError('Newsletter subject is too long', {
+          subject: 'Subject must be 200 characters or less'
+        });
+      }
+    }
+
+    // Prepare update data - only include allowed fields
+    const updateData: Partial<{
+      subject: string;
+      introductionText: string;
+      content: string | null;
+      settings: string | null;
+      status: string;
+    }> = {};
+    
+    if (data.subject !== undefined) updateData.subject = data.subject.trim();
+    if (data.introductionText !== undefined) updateData.introductionText = data.introductionText;
+    if (data.content !== undefined) updateData.content = data.content;
+    if (data.settings !== undefined) {
+      updateData.settings = typeof data.settings === 'string' 
+        ? data.settings 
+        : JSON.stringify(data.settings);
+    }
+    if (data.status !== undefined && ['draft', 'sending', 'sent'].includes(data.status)) {
+      updateData.status = data.status;
+    }
+
+    // Update the newsletter
+    const updatedNewsletter = await prisma.newsletterItem.update({
+      where: { id },
+      data: updateData
+    });
+
+    logger.info('Newsletter updated successfully', {
+      module: 'newsletter-service',
+      context: {
+        id: updatedNewsletter.id,
+        subject: updatedNewsletter.subject,
+        operation: 'updateNewsletter',
+        updatedFields: Object.keys(updateData)
+      }
+    });
+
+    return updatedNewsletter;
+  } catch (error) {
+    if (error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError) {
+      throw error;
+    }
+    throw handleDatabaseError(error, 'updateNewsletter');
+  }
+}
+
+/**
+ * Deletes a newsletter
+ * @param id Newsletter ID
+ * @returns Promise resolving to the deleted newsletter
+ */
+export async function deleteNewsletter(id: string): Promise<NewsletterItem> {
+  try {
+    // Validate newsletter ID
+    if (!id || id.trim().length === 0) {
+      throw new NewsletterValidationError('Newsletter ID is required');
+    }
+
+    // Check if newsletter exists
+    const existingNewsletter = await prisma.newsletterItem.findUnique({
+      where: { id }
+    });
+
+    if (!existingNewsletter) {
+      throw new NewsletterNotFoundError(`Newsletter with ID ${id} not found`, { id });
+    }
+
+    // Only allow deletion of draft newsletters
+    if (existingNewsletter.status !== 'draft') {
+      throw new NewsletterValidationError('Only draft newsletters can be deleted', {
+        status: `Cannot delete newsletter with status: ${existingNewsletter.status}`
+      });
+    }
+
+    // Delete the newsletter
+    const deletedNewsletter = await prisma.newsletterItem.delete({
+      where: { id }
+    });
+
+    logger.info('Newsletter deleted successfully', {
+      module: 'newsletter-service',
+      context: {
+        id: deletedNewsletter.id,
+        subject: deletedNewsletter.subject,
+        operation: 'deleteNewsletter'
+      }
+    });
+
+    return deletedNewsletter;
+  } catch (error) {
+    if (error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError) {
+      throw error;
+    }
+    throw handleDatabaseError(error, 'deleteNewsletter');
   }
 }

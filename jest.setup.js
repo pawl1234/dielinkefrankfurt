@@ -1,6 +1,13 @@
 // jest.setup.js
 import '@testing-library/jest-dom';
 
+// Mock next-auth modules that use jose
+jest.mock('next-auth/jwt', () => ({
+  getToken: jest.fn(),
+  encode: jest.fn(),
+  decode: jest.fn(),
+}));
+
 // Mock Next.js routing
 jest.mock('next/navigation', () => ({
   useRouter() {
@@ -58,3 +65,51 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
   unobserve: jest.fn(),
   disconnect: jest.fn(),
 }));
+
+// Set up test environment for API routes
+if (typeof Request === 'undefined') {
+  global.Request = class Request {
+    constructor(input, init) {
+      this.url = input;
+      this.method = init?.method || 'GET';
+      this.headers = new Map();
+      if (init?.headers) {
+        Object.entries(init.headers).forEach(([key, value]) => {
+          this.headers.set(key, value);
+        });
+      }
+      this.body = init?.body;
+    }
+    
+    async json() {
+      return JSON.parse(this.body);
+    }
+    
+    async text() {
+      return this.body;
+    }
+  };
+}
+
+if (typeof Response === 'undefined') {
+  global.Response = class Response {
+    constructor(body, init) {
+      this.body = body;
+      this.status = init?.status || 200;
+      this.headers = new Map();
+      if (init?.headers) {
+        Object.entries(init.headers).forEach(([key, value]) => {
+          this.headers.set(key, value);
+        });
+      }
+    }
+    
+    async json() {
+      return typeof this.body === 'string' ? JSON.parse(this.body) : this.body;
+    }
+    
+    async text() {
+      return typeof this.body === 'string' ? this.body : JSON.stringify(this.body);
+    }
+  };
+}

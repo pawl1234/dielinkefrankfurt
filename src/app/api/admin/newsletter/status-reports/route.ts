@@ -1,7 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
 import { withAdminAuth } from '@/lib/api-auth';
+import { apiErrorResponse } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { subWeeks } from 'date-fns';
+import type { StatusReport } from '@prisma/client';
+
+interface GroupWithReports {
+  group: {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    logoUrl: string | null;
+    metadata: string | null;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  reports: StatusReport[];
+}
 
 /**
  * GET /api/admin/newsletter/status-reports
@@ -10,13 +29,41 @@ import { subWeeks } from 'date-fns';
  * Returns status reports from the last 2 weeks, grouped by organization.
  * Groups are sorted alphabetically.
  * Authentication required.
+ * 
+ * Query parameters:
+ * - weeks: number (optional, default: 2) - Number of weeks back to fetch reports
+ * 
+ * Response:
+ * - statusReportsByGroup: GroupWithReports[] - Array of groups with their recent reports
  */
-export const GET = withAdminAuth(async () => {
+export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
   try {
-    // Get the date 2 weeks ago
-    const twoWeeksAgo = subWeeks(new Date(), 2);
+    const url = new URL(request.url);
+    const weeksParam = url.searchParams.get('weeks');
+    const weeks = weeksParam ? parseInt(weeksParam, 10) : 2;
     
-    // Get all active groups
+    // Validate weeks parameter
+    if (weeks < 1 || weeks > 12) {
+      logger.warn('Invalid weeks parameter for newsletter status reports', {
+        context: { 
+          operation: 'get_newsletter_status_reports',
+          weeks 
+        }
+      });
+      // Use default of 2 weeks if invalid
+    }
+    
+    // Get the date N weeks ago
+    const weeksAgo = subWeeks(new Date(), Math.min(Math.max(weeks, 1), 12));
+    
+    logger.info('Fetching newsletter status reports', {
+      context: { 
+        operation: 'get_newsletter_status_reports',
+        weeks: Math.min(Math.max(weeks, 1), 12)
+      }
+    });
+    
+    // Get all active groups with their recent status reports
     const groups = await prisma.group.findMany({
       where: {
         status: 'ACTIVE'
@@ -29,7 +76,7 @@ export const GET = withAdminAuth(async () => {
           where: {
             status: 'ACTIVE',
             createdAt: {
-              gte: twoWeeksAgo // Only reports from the last 2 weeks
+              gte: weeksAgo // Only reports from the specified time period
             }
           },
           orderBy: {
@@ -39,12 +86,12 @@ export const GET = withAdminAuth(async () => {
       }
     });
     
-    // Filter out groups with no reports
-    const statusReportsByGroup = groups
+    // Filter out groups with no reports and format response
+    const statusReportsByGroup: GroupWithReports[] = groups
       .filter(group => group.statusReports.length > 0)
       .map(group => ({
         group: {
-          id: group.id,
+          id: Number(group.id),
           name: group.name,
           slug: group.slug,
           description: group.description,
@@ -57,12 +104,22 @@ export const GET = withAdminAuth(async () => {
         reports: group.statusReports
       }));
     
+    logger.info('Newsletter status reports fetched successfully', {
+      context: {
+        operation: 'get_newsletter_status_reports',
+        groupsWithReports: statusReportsByGroup.length,
+        totalReports: statusReportsByGroup.reduce((sum, group) => sum + group.reports.length, 0)
+      }
+    });
+    
     return NextResponse.json({ statusReportsByGroup });
   } catch (error) {
-    console.error('Error fetching status reports:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch status reports' },
-      { status: 500 }
-    );
+    logger.error('Error fetching newsletter status reports', {
+      context: {
+        operation: 'get_newsletter_status_reports',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+    return apiErrorResponse(error, 'Failed to fetch status reports');
   }
 });

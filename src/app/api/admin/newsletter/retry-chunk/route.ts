@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
 import { withAdminAuth } from '@/lib/api-auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
-import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
-import { validateEmail, cleanEmail } from '@/lib/email-hashing';
+import { processSendingChunk } from '@/lib/newsletter-sending';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
-import { format } from 'date-fns';
 
 /**
  * Interface for retry processing request
@@ -19,7 +18,6 @@ interface RetryRequest {
     fromEmail?: string;
     fromName?: string;
     replyToEmail?: string;
-    emailDelay?: number;
     chunkDelay?: number;
     [key: string]: unknown;
   };
@@ -43,13 +41,6 @@ interface RetryResponse {
   error?: string;
 }
 
-/**
- * Format subject line with template variables
- */
-function formatSubject(template: string): string {
-  const currentDate = format(new Date(), 'dd.MM.yyyy');
-  return template.replace('{date}', currentDate);
-}
 
 /**
  * Process a single chunk of emails provided by the frontend
@@ -78,130 +69,44 @@ async function processFrontendChunk(params: {
     const defaultSettings = await getNewsletterSettings();
     const emailSettings = { ...defaultSettings, ...settings };
     
-    // Prepare sender information
-    const fromEmail = emailSettings.fromEmail || 'newsletter@die-linke-frankfurt.de';
-    const fromName = emailSettings.fromName || 'Die Linke Frankfurt';
-    const from = `${fromName} <${fromEmail}>`;
-    const replyTo = emailSettings.replyToEmail || fromEmail;
-    
-    
     logger.info(`Processing frontend chunk ${chunkIndex} with ${chunkEmails.length} emails`, {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
         newsletterId,
         chunkIndex,
         emailCount: chunkEmails.length
       }
     });
     
-    // Create transporter
-    const transporter = createTransporter(emailSettings);
+    // Use the consolidated sending method
+    const chunkResult = await processSendingChunk(
+      chunkEmails,
+      newsletterId,
+      {
+        ...emailSettings,
+        html,
+        subject,
+        chunkIndex,
+        totalChunks: 1 // Frontend chunks are processed individually
+      },
+      'retry'
+    );
     
-    // Verify transporter
-    try {
-      await transporter.verify();
-    } catch (verifyError) {
-      logger.error('SMTP transporter verification failed during chunk retry', {
-        context: { error: verifyError, newsletterId, chunkIndex }
-      });
-      return NextResponse.json({
-        success: false,
-        error: 'SMTP connection failed',
-        chunkIndex
-      }, { status: 500 });
-    }
-    
-    const chunkResults: Array<{ email: string; success: boolean; error?: unknown }> = [];
-    
-    // Always use BCC sending for retry chunks
-    if (chunkEmails.length > 1) {
-      // Clean and validate email addresses
-      const validatedEmails = chunkEmails.map(email => {
-        const cleanedEmail = cleanEmail(email);
-        if (email !== cleanedEmail) {
-          logger.warn(`Cleaned email address in chunk`, {
-            context: {
-              original: JSON.stringify(email),
-              cleaned: cleanedEmail,
-              chunkIndex
-            }
-          });
-        }
-        return cleanedEmail;
-      }).filter(email => {
-        if (!validateEmail(email)) {
-          logger.warn(`Invalid email in chunk: ${JSON.stringify(email)}`);
-          chunkResults.push({
-            email,
-            success: false,
-            error: new Error('Invalid email address')
-          });
-          return false;
-        }
-        return true;
-      });
-      
-      if (validatedEmails.length > 0) {
-        const bccString = validatedEmails.join(',');
-        
-        try {
-          const result = await sendEmailWithTransporter(transporter, {
-            to: fromEmail, // Sender address as "To"
-            bcc: bccString, // All recipients as BCC
-            subject,
-            html,
-            from,
-            replyTo,
-            settings: emailSettings
-          });
-          
-          if (result.success) {
-            validatedEmails.forEach((email: string) => {
-              chunkResults.push({
-                email,
-                success: true,
-                error: undefined
-              });
-            });
-          } else {
-            validatedEmails.forEach((email: string) => {
-              chunkResults.push({
-                email,
-                success: false,
-                error: result.error
-              });
-            });
-          }
-        } catch (error) {
-          validatedEmails.forEach(email => {
-            chunkResults.push({
-              email,
-              success: false,
-              error
-            });
-          });
-        }
-      }
-    }
-    // Note: All retry emails now use BCC sending for consistency and performance
-    
-    // Close transporter immediately to free connections
-    try {
-      transporter.close();
-      logger.info('Frontend chunk transporter closed successfully', {
-        context: { newsletterId, chunkIndex }
-      });
-    } catch (closeError) {
-      logger.warn('Error closing frontend chunk transporter', {
-        context: { error: closeError, newsletterId, chunkIndex }
-      });
-    }
-    
-    // Calculate results
-    const successfulEmails = chunkResults.filter(r => r.success).map(r => r.email);
-    const failedEmails = chunkResults.filter(r => !r.success).map(r => r.email);
+    // Extract successful and failed emails from results
+    const successfulEmails = chunkResult.results
+      .filter(r => r.success)
+      .map(r => r.email);
+    const failedEmails = chunkResult.results
+      .filter(r => !r.success)
+      .map(r => r.email);
     
     logger.info(`Frontend chunk ${chunkIndex} completed`, {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
         newsletterId,
         chunkIndex,
         successful: successfulEmails.length,
@@ -212,19 +117,19 @@ async function processFrontendChunk(params: {
     return NextResponse.json({
       success: true,
       chunkIndex,
-      processedCount: chunkResults.length,
+      processedCount: chunkResult.results.length,
       successfulEmails,
       failedEmails,
-      results: chunkResults
+      results: chunkResult.results
     });
     
   } catch (error) {
-    logger.error('Error processing frontend chunk:', {
+    logger.error(error as Error, {
+      module: 'api',
       context: {
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack
-        } : error,
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
+        operation: 'processFrontendChunk',
         newsletterId,
         chunkIndex
       }
@@ -239,15 +144,31 @@ async function processFrontendChunk(params: {
 }
 
 /**
- * Process retry for a newsletter with failed emails
+ * POST /api/admin/newsletter/retry-chunk
+ * 
+ * Admin endpoint for retrying failed email sends with smaller chunk sizes.
+ * Supports both full retry processing and frontend-driven chunk processing.
+ * Uses the consolidated processSendingChunk method for actual sending.
+ * Authentication required.
+ * 
+ * Request body:
+ * - newsletterId: string - Newsletter to retry
+ * - html: string - Newsletter HTML content
+ * - subject: string - Email subject line
+ * - settings?: object - Optional email settings overrides
+ * - chunkEmails?: string[] - Specific emails to process (frontend-driven mode)
+ * - chunkIndex?: number - Current chunk index for progress tracking
  */
-async function handleRetryProcessing(request: NextRequest): Promise<NextResponse> {
+export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
   try {
     const body: RetryRequest = await request.json();
     const { newsletterId, html, subject, settings, chunkEmails, chunkIndex } = body;
 
-    logger.info(`Retry-chunk API called for newsletter ${newsletterId}`, {
+    logger.debug('Processing retry chunk', {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
         newsletterId,
         hasHtml: !!html,
         hasSubject: !!subject,
@@ -260,8 +181,11 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
 
     // Validate required fields
     if (!newsletterId || !html || !subject) {
-      logger.error('Missing required fields in retry-chunk request', {
+      logger.warn('Retry chunk validation failed - missing required fields', {
+        module: 'api',
         context: {
+          endpoint: '/api/admin/newsletter/retry-chunk',
+          method: 'POST',
           hasNewsletterId: !!newsletterId,
           hasHtml: !!html,
           hasSubject: !!subject
@@ -275,8 +199,11 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
       where: { id: newsletterId }
     });
 
-    logger.info(`Newsletter found in database`, {
+    logger.debug('Newsletter loaded for retry', {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
         newsletterId,
         found: !!newsletter,
         status: newsletter?.status,
@@ -285,42 +212,58 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     });
 
     if (!newsletter) {
-      logger.error('Newsletter not found in database', { context: { newsletterId } });
-      logger.error('RETURNING 400: Newsletter not found', { context: { newsletterId } });
+      logger.warn('Newsletter not found for retry', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/retry-chunk',
+          method: 'POST',
+          newsletterId
+        }
+      });
       return AppError.validation('Newsletter not found').toResponse();
     }
 
     if (newsletter.status !== 'retrying') {
-      logger.error('Newsletter is not in retrying state', {
+      logger.warn('Newsletter not in retrying state', {
+        module: 'api',
         context: {
+          endpoint: '/api/admin/newsletter/retry-chunk',
+          method: 'POST',
           newsletterId,
           currentStatus: newsletter.status,
           expected: 'retrying'
         }
       });
-      logger.error('RETURNING 400: Newsletter is not in retry state', { context: { newsletterId, status: newsletter.status } });
       return AppError.validation('Newsletter is not in retry state').toResponse();
     }
 
     const currentSettings = newsletter.settings ? JSON.parse(newsletter.settings) : {};
     
-    logger.info(`Newsletter settings parsed`, {
+    logger.debug('Newsletter settings parsed for retry', {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
         newsletterId,
         hasRetryInProgress: !!currentSettings.retryInProgress,
         retryInProgress: currentSettings.retryInProgress,
         hasFailedEmails: !!currentSettings.failedEmails,
         failedEmailsCount: currentSettings.failedEmails?.length || 0,
         currentRetryStage: currentSettings.currentRetryStage,
-        retryChunkSizes: currentSettings.retryChunkSizes,
-        settingsKeys: Object.keys(currentSettings)
+        retryChunkSizes: currentSettings.retryChunkSizes
       }
     });
     
     // If retry is not in progress but status is retrying, wait a moment and retry
     if (!currentSettings.retryInProgress) {
-      logger.warn(`Retry not in progress, waiting for initialization`, {
-        context: { newsletterId, retryInProgress: currentSettings.retryInProgress }
+      logger.warn('Retry not in progress, waiting for initialization', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/retry-chunk',
+          method: 'POST',
+          newsletterId,
+          retryInProgress: currentSettings.retryInProgress
+        }
       });
       
       // Wait up to 5 seconds for the retry process to be initialized
@@ -331,8 +274,13 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
         await new Promise(resolve => setTimeout(resolve, 500));
         retryAttempts++;
         
-        logger.info(`Waiting for retry initialization, attempt ${retryAttempts}/${maxRetryAttempts}`, {
-          context: { newsletterId }
+        logger.debug(`Waiting for retry initialization, attempt ${retryAttempts}/${maxRetryAttempts}`, {
+          module: 'api',
+          context: {
+            endpoint: '/api/admin/newsletter/retry-chunk',
+            method: 'POST',
+            newsletterId
+          }
         });
         
         // Re-fetch newsletter to check if retry process is now initialized
@@ -343,16 +291,18 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
         if (refreshedNewsletter?.settings) {
           const refreshedSettings = JSON.parse(refreshedNewsletter.settings);
           
-          logger.info(`Refreshed newsletter settings`, {
+          logger.debug('Refreshed newsletter settings', {
+            module: 'api',
             context: {
+              endpoint: '/api/admin/newsletter/retry-chunk',
+              method: 'POST',
               newsletterId,
               attempt: retryAttempts,
               status: refreshedNewsletter.status,
               hasRetryInProgress: !!refreshedSettings.retryInProgress,
               retryInProgress: refreshedSettings.retryInProgress,
               hasFailedEmails: !!refreshedSettings.failedEmails,
-              failedEmailsCount: refreshedSettings.failedEmails?.length || 0,
-              settingsKeys: Object.keys(refreshedSettings)
+              failedEmailsCount: refreshedSettings.failedEmails?.length || 0
             }
           });
           
@@ -360,7 +310,13 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
             // Update currentSettings and break the loop
             Object.assign(currentSettings, refreshedSettings);
             logger.info(`Retry process found after ${retryAttempts} attempts`, {
-              context: { newsletterId, retryAttempts }
+              module: 'api',
+              context: {
+                endpoint: '/api/admin/newsletter/retry-chunk',
+                method: 'POST',
+                newsletterId,
+                retryAttempts
+              }
             });
             break;
           }
@@ -368,15 +324,15 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
       }
       
       if (!currentSettings.retryInProgress) {
-        logger.error(`No retry process in progress after ${maxRetryAttempts} attempts`, {
+        logger.error(new Error(`No retry process in progress after ${maxRetryAttempts} attempts`), {
+          module: 'api',
           context: {
+            endpoint: '/api/admin/newsletter/retry-chunk',
+            method: 'POST',
             newsletterId,
-            maxRetryAttempts,
-            currentSettings: JSON.stringify(currentSettings, null, 2)
+            maxRetryAttempts
           }
         });
-        
-        logger.error('RETURNING 400: No retry process in progress', { context: { newsletterId } });
         return AppError.validation('No retry process in progress').toResponse();
       }
     }
@@ -390,7 +346,7 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
         chunkEmails,
         chunkIndex: chunkIndex || 0,
         html,
-        subject: formatSubject(subject),
+        subject,
         settings,
         currentSettings
       });
@@ -416,207 +372,57 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     // Get newsletter settings
     const defaultSettings = await getNewsletterSettings();
     const emailSettings = { ...defaultSettings, ...settings };
-    
-    // Format subject line
-    const formattedSubject = formatSubject(subject);
-    
-    // Prepare sender information
-    const fromEmail = emailSettings.fromEmail || 'newsletter@die-linke-frankfurt.de';
-    const fromName = emailSettings.fromName || 'Die Linke Frankfurt';
-    const from = `${fromName} <${fromEmail}>`;
-    const replyTo = emailSettings.replyToEmail || fromEmail;
-
     const currentChunkSize = retryChunkSizes[currentRetryStage];
     
     logger.info(`Processing retry stage ${currentRetryStage + 1}/${retryChunkSizes.length} with chunk size ${currentChunkSize}`, {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
         newsletterId,
         failedEmailsCount: failedEmails.length,
         currentChunkSize
       }
     });
 
-    // Create transporter
-    const transporter = createTransporter(emailSettings);
-    
-    // Verify transporter
-    try {
-      await transporter.verify();
-    } catch (verifyError) {
-      logger.error('SMTP transporter verification failed during retry', {
-        context: { error: verifyError, newsletterId }
-      });
-      return AppError.validation('SMTP connection failed').toResponse();
-    }
-
-    
     // Process emails in chunks of current retry size
     const stageResults: Array<{ email: string; success: boolean; error?: unknown }> = [];
     let processedCount = 0;
 
-    // Check if BCC sending is enabled
-    const useBccSending = emailSettings.useBccSending !== false; // Default to true for retry
-    
-    logger.info(`Processing retry with BCC sending: ${useBccSending}`, {
-      context: {
-        newsletterId,
-        currentChunkSize,
-        useBccSending
-      }
-    });
-
     for (let i = 0; i < failedEmails.length; i += currentChunkSize) {
       const emailChunk = failedEmails.slice(i, i + currentChunkSize);
+      const chunkIndex = Math.floor(i / currentChunkSize);
       
-      if (useBccSending && emailChunk.length > 1) {
-        // BCC mode: Send one email with all recipients in BCC
-        logger.info(`Processing retry chunk with ${emailChunk.length} recipients in BCC mode`, {
-          context: {
-            newsletterId,
-            chunkIndex: Math.floor(i / currentChunkSize),
-            recipients: emailChunk.length
-          }
+      // Use the consolidated sending method
+      const chunkResult = await processSendingChunk(
+        emailChunk,
+        newsletterId,
+        {
+          ...emailSettings,
+          html,
+          subject,
+          chunkIndex,
+          totalChunks: Math.ceil(failedEmails.length / currentChunkSize)
+        },
+        'retry'
+      );
+      
+      // Add results to stage results
+      chunkResult.results.forEach(result => {
+        stageResults.push({
+          email: result.email,
+          success: result.success,
+          error: result.error
         });
-        
-        // Clean and validate email addresses
-        const validatedEmails = emailChunk.map((email: string) => {
-          const cleanedEmail = cleanEmail(email);
-          if (email !== cleanedEmail) {
-            logger.warn(`Cleaned email address during retry`, {
-              context: {
-                original: JSON.stringify(email),
-                cleaned: cleanedEmail
-              }
-            });
-          }
-          return cleanedEmail;
-        }).filter((email: string) => {
-          if (!validateEmail(email)) {
-            logger.warn(`Filtering out invalid email during retry: ${JSON.stringify(email)}`);
-            stageResults.push({
-              email,
-              success: false,
-              error: new Error('Invalid email address')
-            });
-            return false;
-          }
-          return true;
-        });
-
-        if (validatedEmails.length > 0) {
-          const bccString = validatedEmails.join(',');
-          
-          try {
-            const result = await sendEmailWithTransporter(transporter, {
-              to: fromEmail, // Use sender address as "To"
-              bcc: bccString, // All recipients as BCC
-              subject: formattedSubject,
-              html,
-              from,
-              replyTo,
-              settings: emailSettings
-            });
-
-            if (result.success) {
-              // All emails in chunk considered sent
-              validatedEmails.forEach((email: string) => {
-                stageResults.push({
-                  email,
-                  success: true,
-                  error: undefined
-                });
-              });
-              processedCount += validatedEmails.length;
-            } else {
-              // All emails in chunk failed
-              validatedEmails.forEach((email: string) => {
-                stageResults.push({
-                  email,
-                  success: false,
-                  error: result.error
-                });
-              });
-              processedCount += validatedEmails.length;
-            }
-          } catch (emailError) {
-            // All emails in chunk failed
-            validatedEmails.forEach((email: string) => {
-              stageResults.push({
-                email,
-                success: false,
-                error: emailError
-              });
-            });
-            processedCount += validatedEmails.length;
-          }
-        }
-      } else {
-        // Single email mode (for chunks of size 1 or when BCC is disabled)
-        for (const email of emailChunk) {
-          const cleanedEmail = cleanEmail(email);
-          
-          if (!validateEmail(cleanedEmail)) {
-            logger.warn(`Invalid email during retry: ${JSON.stringify(email)}`);
-            stageResults.push({
-              email,
-              success: false,
-              error: new Error('Invalid email address')
-            });
-            processedCount++;
-            continue;
-          }
-          
-          try {
-            const result = await sendEmailWithTransporter(transporter, {
-              to: fromEmail, // Always use sender address as "To"
-              bcc: cleanedEmail, // Recipient as BCC even for single emails
-              subject: formattedSubject,
-              html,
-              from,
-              replyTo,
-              settings: emailSettings
-            });
-
-            stageResults.push({
-              email: cleanedEmail,
-              success: result.success,
-              error: result.success ? undefined : result.error
-            });
-            processedCount++;
-
-            // Small delay between individual emails
-            if (emailChunk.length > 1) {
-              const emailDelay = emailSettings.emailDelay || 50;
-              await new Promise(resolve => setTimeout(resolve, emailDelay));
-            }
-          } catch (emailError) {
-            stageResults.push({
-              email: cleanedEmail,
-              success: false,
-              error: emailError
-            });
-            processedCount++;
-          }
-        }
-      }
+      });
+      
+      processedCount += chunkResult.results.length;
 
       // Delay between chunks
       if (i + currentChunkSize < failedEmails.length) {
         const chunkDelay = emailSettings.chunkDelay || 500;
         await new Promise(resolve => setTimeout(resolve, chunkDelay));
       }
-    }
-
-    // Close transporter immediately to free connections
-    try {
-      transporter.close();
-      logger.info('Legacy retry transporter closed successfully', {
-        context: { newsletterId }
-      });
-    } catch (closeError) {
-      logger.warn('Error closing legacy retry transporter', {
-        context: { error: closeError, newsletterId }
-      });
     }
 
     // Analyze results of this stage
@@ -639,7 +445,10 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     };
 
     logger.info(`Retry stage ${currentRetryStage + 1} completed`, {
+      module: 'api',
       context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
         newsletterId,
         processed: processedCount,
         successful: successfulEmails.length,
@@ -692,15 +501,13 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     return NextResponse.json(response);
 
   } catch (error) {
-    logger.error('Error processing retry:', { 
-      context: { 
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        } : error,
-        newsletterId: request.url
-      } 
+    logger.error(error as Error, {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/retry-chunk',
+        method: 'POST',
+        operation: 'handleRetryProcessing'
+      }
     });
     
     const response: RetryResponse = {
@@ -715,7 +522,7 @@ async function handleRetryProcessing(request: NextRequest): Promise<NextResponse
     
     return NextResponse.json(response, { status: 500 });
   }
-}
+});
 
 /**
  * Finalize retry process when all stages are completed
@@ -754,7 +561,11 @@ async function finalizeRetryProcess(
   });
 
   logger.info(`Retry process finalized for newsletter ${newsletterId}`, {
+    module: 'api',
     context: {
+      endpoint: '/api/admin/newsletter/retry-chunk',
+      method: 'POST',
+      newsletterId,
       finalStatus,
       finalFailedCount: finalFailedEmails.length
     }
@@ -775,14 +586,8 @@ async function finalizeRetryProcess(
 }
 
 /**
- * POST handler for processing retry chunks
- * Requires admin authentication
- */
-export const POST = withAdminAuth(handleRetryProcessing);
-
-/**
  * GET handler is not supported for this endpoint
  */
-export async function GET() {
+export const GET: ApiHandler<SimpleRouteContext> = async () => {
   return new NextResponse('Method not allowed', { status: 405 });
-}
+};
