@@ -220,15 +220,15 @@ describe('Email Notification System', () => {
       // Create mock group and status report
       const mockGroup = createMockGroup({
         id: 'group-123',
-        name: 'Test Political Group',
-        slug: 'test-political-group',
+        name: 'Test Group',
+        slug: 'test-group-group-123',
         status: 'ACTIVE',
         responsiblePersons: [
           {
             id: 'person-1',
-            firstName: 'Max',
-            lastName: 'Mustermann',
-            email: 'max@example.com',
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
             groupId: 'group-123'
           }
         ]
@@ -239,9 +239,8 @@ describe('Email Notification System', () => {
         title: 'Monthly Activity Update',
         status: 'ACTIVE',
         groupId: 'group-123',
-        group: mockGroup,
         createdAt: new Date('2025-05-15T12:00:00Z')
-      });
+      }, mockGroup);
 
       // Send acceptance email
       const result = await sendStatusReportAcceptanceEmail(mockReport);
@@ -253,7 +252,7 @@ describe('Email Notification System', () => {
       // Verify email recipients
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          to: 'max@example.com',
+          to: 'john.doe@example.com',
           subject: expect.stringContaining('Monthly Activity Update')
         })
       );
@@ -271,7 +270,7 @@ describe('Email Notification System', () => {
       );
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          html: expect.stringContaining('https://test.dielinke-frankfurt.de/gruppen/test-political-group#report-report-123')
+          html: expect.stringContaining('https://test.dielinke-frankfurt.de/gruppen/test-group-group-123#report-report-123')
         })
       );
     });
@@ -280,15 +279,15 @@ describe('Email Notification System', () => {
       // Create mock group and status report
       const mockGroup = createMockGroup({
         id: 'group-123',
-        name: 'Test Political Group',
-        slug: 'test-political-group',
+        name: 'Test Group',
+        slug: 'test-group-group-123',
         status: 'ACTIVE',
         responsiblePersons: [
           {
             id: 'person-1',
-            firstName: 'Max',
-            lastName: 'Mustermann',
-            email: 'max@example.com',
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
             groupId: 'group-123'
           }
         ]
@@ -299,9 +298,8 @@ describe('Email Notification System', () => {
         title: 'Monthly Activity Update',
         status: 'REJECTED',
         groupId: 'group-123',
-        group: mockGroup,
         createdAt: new Date('2025-05-15T12:00:00Z')
-      });
+      }, mockGroup);
 
       // Send rejection email
       const result = await sendStatusReportRejectionEmail(mockReport);
@@ -313,7 +311,7 @@ describe('Email Notification System', () => {
       // Verify email recipients
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
-          to: 'max@example.com',
+          to: 'john.doe@example.com',
           subject: expect.stringContaining('Monthly Activity Update')
         })
       );
@@ -340,15 +338,15 @@ describe('Email Notification System', () => {
       // Create mock group and status report with a specific date
       const mockGroup = createMockGroup({
         id: 'group-123',
-        name: 'Test Political Group',
-        slug: 'test-political-group',
+        name: 'Test Group',
+        slug: 'test-group-group-123',
         status: 'ACTIVE',
         responsiblePersons: [
           {
             id: 'person-1',
-            firstName: 'Max',
-            lastName: 'Mustermann',
-            email: 'max@example.com',
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
             groupId: 'group-123'
           }
         ]
@@ -359,9 +357,8 @@ describe('Email Notification System', () => {
         title: 'Monthly Activity Update',
         status: 'ACTIVE',
         groupId: 'group-123',
-        group: mockGroup,
-        createdAt: new Date('2025-12-31T23:59:59Z') // New Year's Eve
-      });
+        createdAt: new Date('2025-12-31T12:00:00Z') // New Year's Eve at noon UTC
+      }, mockGroup);
 
       // Send acceptance email
       await sendStatusReportAcceptanceEmail(mockReport);
@@ -378,7 +375,7 @@ describe('Email Notification System', () => {
       // Create mock group with no responsible persons
       const mockGroup = createMockGroup({
         id: 'group-123',
-        name: 'Test Political Group',
+        name: 'Test Group',
         status: 'ACTIVE',
         responsiblePersons: []
       });
@@ -387,9 +384,8 @@ describe('Email Notification System', () => {
         id: 'report-123',
         title: 'Monthly Activity Update',
         status: 'ACTIVE',
-        groupId: 'group-123',
-        group: mockGroup
-      });
+        groupId: 'group-123'
+      }, mockGroup);
 
       // Send acceptance email
       const result = await sendStatusReportAcceptanceEmail(mockReport);

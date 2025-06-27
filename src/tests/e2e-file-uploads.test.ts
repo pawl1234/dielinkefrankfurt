@@ -87,7 +87,7 @@ describe('File Upload System', () => {
         expect(() => validateFile(largeJpeg, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
         expect(() => validateFile(largeJpeg, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
-          .toThrow(/exceeds.*size limit/);
+          .toThrow(/File size exceeds.*limit/);
         
         expect(() => validateFile(hugePdf, ALLOWED_FILE_TYPES, MAX_FILE_SIZE))
           .toThrow(FileUploadError);
@@ -98,7 +98,7 @@ describe('File Upload System', () => {
         expect(() => validateFile(null, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
         expect(() => validateFile(null, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
-          .toThrow('Invalid file');
+          .toThrow('Invalid file provided');
         
         // @ts-expect-error: Intentionally passing undefined for testing
         expect(() => validateFile(undefined, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
@@ -129,7 +129,7 @@ describe('File Upload System', () => {
         
         // Should throw for oversized logos
         expect(() => validateGroupLogoFile(largeLogo)).toThrow(FileUploadError);
-        expect(() => validateGroupLogoFile(largeLogo)).toThrow(/exceeds.*logo size limit/);
+        expect(() => validateGroupLogoFile(largeLogo)).toThrow(/File size exceeds.*limit/);
       });
     });
 
@@ -256,12 +256,18 @@ describe('File Upload System', () => {
       it('should handle upload errors gracefully', async () => {
         const file = createMockImageFile('test.jpg');
         
-        // Mock a failure in put function
-        (put as jest.Mock).mockRejectedValueOnce(new Error('Storage service unavailable'));
+        // Mock a failure in put function for all retries
+        (put as jest.Mock).mockRejectedValue(new Error('Storage service unavailable'));
         
-        // Should throw a FileUploadError
-        await expect(uploadFile(file, 'groups', 'logo')).rejects.toThrow(FileUploadError);
-        await expect(uploadFile(file, 'groups', 'logo')).rejects.toThrow('Failed to upload file');
+        // Should throw a FileUploadError with short retry delays for testing
+        const config = { maxRetries: 1, retryDelay: 10 };
+        await expect(uploadFile(file, 'groups', 'logo', config)).rejects.toThrow(FileUploadError);
+        await expect(uploadFile(file, 'groups', 'logo', config)).rejects.toThrow('Failed to upload file after multiple attempts');
+        
+        // Reset mock to default behavior for other tests
+        (put as jest.Mock).mockImplementation((path) => {
+          return Promise.resolve({ url: `https://mock-blob-storage.vercel.app/${path}` });
+        });
       });
     });
 
@@ -310,14 +316,20 @@ describe('File Upload System', () => {
         const originalFile = createMockImageFile('original.jpg');
         const croppedFile = createMockImageFile('cropped.jpg');
         
-        // Mock a failure in put function
-        (put as jest.Mock).mockRejectedValueOnce(new Error('Storage service unavailable'));
+        // Mock a failure in put function for all retries
+        (put as jest.Mock).mockRejectedValue(new Error('Storage service unavailable'));
         
-        // Should throw a FileUploadError
-        await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo'))
+        // Should throw a FileUploadError with short retry delays for testing
+        const config = { maxRetries: 1, retryDelay: 10 };
+        await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo', config))
           .rejects.toThrow(FileUploadError);
-        await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo'))
-          .rejects.toThrow('Failed to upload images');
+        await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo', config))
+          .rejects.toThrow('Failed to upload images after multiple attempts');
+        
+        // Reset mock to default behavior for other tests
+        (put as jest.Mock).mockImplementation((path) => {
+          return Promise.resolve({ url: `https://mock-blob-storage.vercel.app/${path}` });
+        });
       });
     });
 
@@ -351,14 +363,20 @@ describe('File Upload System', () => {
           'https://mock-blob-storage.vercel.app/groups/123-logo-image1.jpg'
         ];
         
-        // Mock a failure in del function
-        (del as jest.Mock).mockRejectedValueOnce(new Error('Failed to delete'));
+        // Mock a failure in del function for all retries
+        (del as jest.Mock).mockRejectedValue(new Error('Failed to delete'));
         
-        const result = await deleteFiles(urls);
+        // Use shorter retry parameters for testing
+        const result = await deleteFiles(urls, 1, 10);
         
         // Should return failure but not throw
         expect(result.success).toBe(false);
         expect(del).toHaveBeenCalled();
+        
+        // Reset mock to default behavior for other tests
+        (del as jest.Mock).mockImplementation(() => {
+          return Promise.resolve({ success: true });
+        });
       });
     });
 

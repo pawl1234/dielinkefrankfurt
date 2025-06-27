@@ -32,41 +32,146 @@ jest.mock('@/lib/logger', () => ({
 // Mock error handling
 jest.mock('@/lib/errors', () => ({
   AppError: {
-    validation: jest.fn((message) => ({
+    validation: jest.fn((message, context) => ({
+      message,
+      statusCode: 400,
+      type: 'VALIDATION',
+      context,
       toResponse: jest.fn(() => ({
         status: 400,
-        json: jest.fn().mockResolvedValue({ error: message })
+        json: () => Promise.resolve({ error: message, type: 'VALIDATION' })
       }))
     })),
     notFound: jest.fn((message) => ({
+      message,
+      statusCode: 404,
+      type: 'NOT_FOUND',
       toResponse: jest.fn(() => ({
         status: 404,
-        json: jest.fn().mockResolvedValue({ error: message })
+        json: () => Promise.resolve({ error: message, type: 'NOT_FOUND' })
       }))
-    }))
+    })),
+    database: jest.fn((message, originalError) => {
+      const error = new Error(message);
+      error.statusCode = 500;
+      error.type = 'DATABASE';
+      error.originalError = originalError;
+      return error;
+    }),
+    fileUpload: jest.fn((message, originalError, context) => {
+      const error = new Error(message);
+      error.statusCode = 500;
+      error.type = 'FILE_UPLOAD';
+      error.originalError = originalError;
+      error.context = context;
+      return error;
+    })
   },
-  apiErrorResponse: jest.fn((error, message) => ({
-    status: 500,
-    json: jest.fn().mockResolvedValue({ error: message || 'An error occurred' })
-  }))
+  ErrorType: {
+    VALIDATION: 'VALIDATION',
+    DATABASE: 'DATABASE',
+    FILE_UPLOAD: 'FILE_UPLOAD',
+    NOT_FOUND: 'NOT_FOUND'
+  },
+  validationErrorResponse: jest.fn((fieldErrors) => ({
+    status: 400,
+    json: jest.fn().mockResolvedValue({ 
+      error: 'Validation failed',
+      type: 'VALIDATION',
+      fieldErrors 
+    })
+  })),
+  apiErrorResponse: jest.fn((error, message) => {
+    const response = {
+      status: error?.statusCode || 500,
+      json: jest.fn().mockResolvedValue({ 
+        error: message || error?.message || 'An error occurred' 
+      })
+    };
+    return response;
+  }),
+  handleFileUploadError: jest.fn((error, context) => {
+    const appError = new Error('File upload failed');
+    appError.statusCode = 500;
+    appError.type = 'FILE_UPLOAD';
+    appError.originalError = error;
+    appError.context = context;
+    return appError;
+  }),
+  handleDatabaseError: jest.fn((error, operation) => {
+    const appError = new Error(`Database error during ${operation}`);
+    appError.statusCode = 500;
+    appError.type = 'DATABASE';
+    appError.originalError = error;
+    return appError;
+  }),
+  getLocalizedErrorMessage: jest.fn((message) => message)
 }));
 
 // Mock newsletter service
 jest.mock('@/lib/newsletter-service', () => ({
-  sendNewsletterTestEmail: jest.fn(),
+  sendNewsletterTestEmail: jest.fn().mockResolvedValue({
+    success: true,
+    recipientCount: 1,
+    messageId: 'test-message'
+  }),
   fixUrlsInNewsletterHtml: jest.fn((html) => html),
-  getNewsletterSettings: jest.fn(),
-  updateNewsletterSettings: jest.fn(),
-  getNewsletterById: jest.fn(),
-  updateNewsletter: jest.fn(),
-  listDraftNewsletters: jest.fn(),
-  saveDraftNewsletter: jest.fn()
+  getNewsletterSettings: jest.fn().mockResolvedValue({}),
+  updateNewsletterSettings: jest.fn().mockResolvedValue({}),
+  getNewsletterById: jest.fn().mockResolvedValue(null),
+  updateNewsletter: jest.fn().mockResolvedValue({}),
+  listDraftNewsletters: jest.fn().mockResolvedValue([]),
+  saveDraftNewsletter: jest.fn().mockResolvedValue({}),
+  fetchNewsletterAppointments: jest.fn().mockResolvedValue({
+    featuredAppointments: [],
+    upcomingAppointments: []
+  }),
+  fetchNewsletterStatusReports: jest.fn().mockResolvedValue({
+    statusReportsByGroup: []
+  }),
+  generateNewsletter: jest.fn().mockResolvedValue('<html>Generated Newsletter HTML</html>'),
+  handleGetNewsletterSettings: jest.fn(),
+  handleUpdateNewsletterSettings: jest.fn(),
+  handleGenerateNewsletter: jest.fn(),
+  handleSendTestNewsletter: jest.fn(),
+  createNewsletter: jest.fn().mockResolvedValue({}),
+  deleteNewsletter: jest.fn().mockResolvedValue({}),
+  listNewsletters: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
+  getNewsletter: jest.fn().mockResolvedValue(null),
+  deleteDraftNewsletter: jest.fn().mockResolvedValue({}),
+  updateDraftNewsletter: jest.fn().mockResolvedValue({})
 }));
 
 // Mock newsletter sending
 jest.mock('@/lib/newsletter-sending', () => ({
-  processRecipientList: jest.fn(),
-  processSendingChunk: jest.fn()
+  processRecipientList: jest.fn().mockResolvedValue({
+    valid: 0,
+    invalid: 0,
+    new: 0,
+    existing: 0,
+    invalidEmails: []
+  }),
+  processSendingChunk: jest.fn().mockResolvedValue({
+    sentCount: 0,
+    failedCount: 0,
+    completedAt: new Date().toISOString(),
+    results: []
+  })
+}));
+
+// Mock newsletter template
+jest.mock('@/lib/newsletter-template', () => ({
+  generateNewsletterHtml: jest.fn().mockReturnValue('<html>Generated Newsletter HTML</html>'),
+  getDefaultNewsletterSettings: jest.fn(() => ({
+    headerLogo: '/default-logo.png',
+    footerText: 'Default footer',
+    unsubscribeLink: 'https://example.com/unsubscribe'
+  }))
+}));
+
+// Mock base URL
+jest.mock('@/lib/base-url', () => ({
+  getBaseUrl: jest.fn(() => 'https://example.com')
 }));
 
 // Mock email hashing
@@ -74,6 +179,21 @@ jest.mock('@/lib/email-hashing', () => ({
   cleanEmail: jest.fn((email) => email.trim().toLowerCase()),
   validateEmail: jest.fn((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)),
   validateAndHashEmails: jest.fn()
+}));
+
+// Mock email functionality
+jest.mock('@/lib/email', () => ({
+  createTransporter: jest.fn(),
+  sendEmailWithTransporter: jest.fn(),
+  sendTestEmail: jest.fn().mockResolvedValue({
+    success: true,
+    recipientCount: 1,
+    messageId: 'test-message'
+  }),
+  sendEmail: jest.fn().mockResolvedValue({
+    messageId: 'test-message',
+    response: 'Email sent successfully'
+  })
 }));
 
 // Mock the prisma connection check to prevent database connection attempts
@@ -116,8 +236,20 @@ jest.mock('@/lib/prisma', () => ({
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
+    responsiblePerson: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      createMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
     $queryRaw: jest.fn(),
+    $executeRaw: jest.fn(),
     $disconnect: jest.fn(),
   },
   __esModule: true,
@@ -159,8 +291,20 @@ jest.mock('@/lib/prisma', () => ({
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
+    responsiblePerson: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      createMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
     $queryRaw: jest.fn(),
+    $executeRaw: jest.fn(),
     $disconnect: jest.fn(),
   }
 }));

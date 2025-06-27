@@ -217,7 +217,7 @@ describe('Group Handlers', () => {
       const slug = createGroupSlug('Tést Gröüp & Name!');
       
       // Slug should be sanitized, lowercase with hyphens
-      expect(slug).toMatch(/^test-group-name-\d{4}$/);
+      expect(slug).toMatch(/^test-group-and-name-\d{4}$/);
     });
     
     it('should create unique slugs for the same name', () => {

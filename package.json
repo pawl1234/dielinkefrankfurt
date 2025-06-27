@@ -5,11 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "node prisma/vercel-build.js && next build",
-    "build:local": "next build",
+    "build": "npm test && next build",
     "start": "next start",
-    "lint:check": "next lint",
-    "lint:fix": "next lint --fix",
+    "check": "next lint && tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

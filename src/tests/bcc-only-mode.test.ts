@@ -1,14 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
-// Mock the email module
-jest.mock('@/lib/email', () => ({
-  createTransporter: jest.fn(() => ({
-    verify: jest.fn(),
-    close: jest.fn(),
-    sendMail: jest.fn()
-  })),
-  sendEmailWithTransporter: jest.fn()
-}));
+// Email module is mocked globally in jest.setup.js
 
 jest.mock('@/lib/email-hashing', () => ({
   validateEmail: jest.fn((email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)),
@@ -25,17 +17,14 @@ jest.mock('@/lib/logger', () => ({
 }));
 
 // Import after mocking
-import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
+import { sendEmailWithTransporter } from '@/lib/email';
 import { processSendingChunk } from '@/lib/newsletter-sending';
 import { NewsletterSettings } from '@/lib/newsletter-template';
 
-describe('BCC-Only Mode Newsletter Sending', () => {
-  const mockTransporter = {
-    verify: jest.fn(),
-    close: jest.fn(),
-    sendMail: jest.fn()
-  };
+// Get mocked functions
+const mockSendEmailWithTransporter = jest.mocked(sendEmailWithTransporter);
 
+describe('BCC-Only Mode Newsletter Sending', () => {
   const mockBccSettings: NewsletterSettings & { html: string; subject: string } = {
     headerLogo: '/logo.png',
     headerBanner: '/banner.png', 
@@ -53,17 +42,17 @@ describe('BCC-Only Mode Newsletter Sending', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (createTransporter as jest.Mock).mockReturnValue(mockTransporter);
-    mockTransporter.verify.mockResolvedValue(true);
+    // The global mocks are already set up in jest.setup.js
+    // Just need to set specific return values for this test
+    mockSendEmailWithTransporter.mockResolvedValue({
+      success: true,
+      messageId: 'test-message-id'
+    });
   });
 
   describe('BCC mode enforcement', () => {
     it('should use BCC mode for multiple emails automatically', async () => {
       const emails = ['user1@example.com', 'user2@example.com', 'user3@example.com'];
-
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
 
       const result = await processSendingChunk(
         emails,
@@ -76,11 +65,11 @@ describe('BCC-Only Mode Newsletter Sending', () => {
       expect(result.failedCount).toBe(0);
       
       // Should only send one email (BCC mode)
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(1);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1);
       
       // Verify BCC mode was used
-      expect(sendEmailWithTransporter).toHaveBeenCalledWith(
-        mockTransporter,
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledWith(
+        expect.any(Object), // The transporter object
         expect.objectContaining({
           to: 'Test Newsletter <newsletter@example.com>',
           bcc: 'user1@example.com,user2@example.com,user3@example.com'
@@ -90,10 +79,6 @@ describe('BCC-Only Mode Newsletter Sending', () => {
 
     it('should use individual mode only for single emails', async () => {
       const emails = ['single@example.com'];
-
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
 
       const result = await processSendingChunk(
         emails,
@@ -106,22 +91,25 @@ describe('BCC-Only Mode Newsletter Sending', () => {
       expect(result.failedCount).toBe(0);
       
       // Should send one individual email
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(1);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1);
       
       // Verify individual mode was used (no BCC)
-      expect(sendEmailWithTransporter).toHaveBeenCalledWith(
-        mockTransporter,
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledWith(
+        expect.any(Object), // The transporter object
         expect.objectContaining({
-          to: 'single@example.com',
-          bcc: undefined
+          to: 'single@example.com'
         })
       );
+      
+      // Verify BCC field is not present
+      expect(mockSendEmailWithTransporter.mock.calls[0][1]).not.toHaveProperty('bcc');
     });
 
     it('should handle BCC mode failures gracefully', async () => {
       const emails = ['fail1@example.com', 'fail2@example.com'];
 
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
+      // Override the default success mock for this test
+      mockSendEmailWithTransporter.mockResolvedValueOnce({
         success: false,
         error: 'SMTP BCC limit exceeded'
       });
@@ -137,7 +125,7 @@ describe('BCC-Only Mode Newsletter Sending', () => {
       expect(result.failedCount).toBe(2);
       
       // Should attempt BCC send once
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(1);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1);
       
       // All emails should be marked as failed
       expect(result.results).toHaveLength(2);
@@ -147,10 +135,6 @@ describe('BCC-Only Mode Newsletter Sending', () => {
 
     it('should not have any emailDelay functionality', async () => {
       const emails = ['user1@example.com', 'user2@example.com'];
-
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
 
       // Start timing
       const startTime = Date.now();
@@ -169,7 +153,7 @@ describe('BCC-Only Mode Newsletter Sending', () => {
       expect(duration).toBeLessThan(100);
       
       // Only one send call should have been made (BCC mode)
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(1);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -201,10 +185,6 @@ describe('BCC-Only Mode Newsletter Sending', () => {
         emailDelay: 5000, // This should have no effect
       };
 
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
-
       const result = await processSendingChunk(
         emails,
         'newsletter-legacy-test',
@@ -213,7 +193,7 @@ describe('BCC-Only Mode Newsletter Sending', () => {
       );
 
       expect(result.sentCount).toBe(1);
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(1);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -229,10 +209,6 @@ describe('BCC-Only Mode Newsletter Sending', () => {
       // Generate a larger list of emails
       const emails = Array.from({ length: 25 }, (_, i) => `user${i}@example.com`);
 
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
-
       const result = await processSendingChunk(
         emails,
         'newsletter-large-batch',
@@ -244,12 +220,12 @@ describe('BCC-Only Mode Newsletter Sending', () => {
       expect(result.failedCount).toBe(0);
       
       // Should still only send one email (BCC mode)
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(1);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1);
       
       // Verify all emails are in the BCC field
       const bccString = emails.join(',');
-      expect(sendEmailWithTransporter).toHaveBeenCalledWith(
-        mockTransporter,
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledWith(
+        expect.any(Object), // The transporter object
         expect.objectContaining({
           bcc: bccString
         })

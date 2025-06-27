@@ -69,7 +69,7 @@ export function validateGroupData(data: Partial<GroupCreateData>): string | null
   if (data.name.length < 3 || data.name.length > 100) return 'Group name must be between 3 and 100 characters';
   
   if (!data.description) return 'Group description is required';
-  if (data.description.length > 5000) return 'Group description must be below 5000 characters';
+  if (data.description.length < 50 || data.description.length > 5000) return 'Group description must be between 50 and 5000 characters';
   
   if (!data.responsiblePersons || data.responsiblePersons.length === 0) {
     return 'At least one responsible person is required';
@@ -102,7 +102,7 @@ export function validateStatusReportData(data: Partial<StatusReportCreateData>):
   if (data.title.length < 3 || data.title.length > 100) return 'Report title must be between 3 and 100 characters';
   
   if (!data.content) return 'Report content is required';
-  if (data.content.length > 5000) return 'Report content must not exceed 5000 characters';
+  if (data.content.length > 1000) return 'Report content must not exceed 1000 characters';
   
   if (!data.reporterFirstName || data.reporterFirstName.length < 2 || data.reporterFirstName.length > 50) {
     return 'Reporter first name must be between 2 and 50 characters';
@@ -123,11 +123,13 @@ export function createGroupSlug(name: string): string {
   const baseSlug = slugify(name, {
     lower: true,
     strict: true,
-    locale: 'de'
+    remove: /[*+~.()"!:@]/g
   });
   
-  // Add a timestamp to make it unique
-  const timestamp = new Date().getTime().toString().slice(-4);
+  // Add a timestamp with microseconds to make it unique
+  const now = Date.now();
+  const microseconds = Math.floor(Math.random() * 10000);
+  const timestamp = (now + microseconds).toString().slice(-4);
   return `${baseSlug}-${timestamp}`;
 }
 

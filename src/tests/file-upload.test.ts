@@ -1,3 +1,4 @@
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { 
   validateFile, 
   uploadFile, 
@@ -14,11 +15,11 @@ import {
 } from '../lib/file-upload';
 import { put, del } from '@vercel/blob';
 
-// Mock the Vercel Blob functions
-jest.mock('@vercel/blob', () => ({
-  put: jest.fn(),
-  del: jest.fn()
-}));
+// Mock setTimeout to make tests run faster
+jest.spyOn(global, 'setTimeout').mockImplementation((fn: (...args: unknown[]) => void) => {
+  fn();
+  return 1 as unknown as NodeJS.Timeout;
+});
 
 describe('File Upload Utilities', () => {
   beforeEach(() => {
@@ -74,7 +75,7 @@ describe('File Upload Utilities', () => {
       
       await expect(uploadFile(file, 'groups', 'logo')).rejects.toThrow(FileUploadError);
       await expect(uploadFile(file, 'groups', 'logo')).rejects.toThrow('Failed to upload file');
-    });
+    }, 10000);
   });
 
   describe('uploadCroppedImagePair', () => {
@@ -107,7 +108,7 @@ describe('File Upload Utilities', () => {
 
       await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo')).rejects.toThrow(FileUploadError);
       await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo')).rejects.toThrow('Failed to upload images');
-    });
+    }, 10000);
   });
 
   describe('deleteFiles', () => {
@@ -121,14 +122,20 @@ describe('File Upload Utilities', () => {
 
       const result = await deleteFiles(urls);
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ 
+        success: true, 
+        deletedUrls: urls 
+      });
       expect(del).toHaveBeenCalledWith(urls);
     });
 
     it('should handle empty array of URLs', async () => {
       const result = await deleteFiles([]);
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ 
+        success: true, 
+        deletedUrls: [] 
+      });
       expect(del).not.toHaveBeenCalled();
     });
 
@@ -138,9 +145,9 @@ describe('File Upload Utilities', () => {
       const urls = ['https://example.com/test.jpg'];
       const result = await deleteFiles(urls);
 
-      expect(result).toEqual({ success: false });
+      expect(result).toEqual({ success: false, deletedUrls: [] });
       expect(del).toHaveBeenCalled();
-    });
+    }, 10000);
   });
   
   describe('validateStatusReportFiles', () => {

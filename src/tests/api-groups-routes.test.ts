@@ -22,6 +22,9 @@ function mockAuthenticatedAdminUser() {
 }
 
 describe('Groups API Routes', () => {
+  // Fixed timestamp to avoid Date mismatch issues
+  const fixedDate = new Date('2025-06-24T10:42:23.251Z');
+  
   const mockGroups = [
     {
       id: 'group-1',
@@ -29,8 +32,8 @@ describe('Groups API Routes', () => {
       slug: 'test-group-1',
       description: 'Test description 1',
       status: 'ACTIVE',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: fixedDate.toISOString(),
+      updatedAt: fixedDate.toISOString(),
       logoUrl: null,
       responsiblePersons: [
         {
@@ -48,8 +51,8 @@ describe('Groups API Routes', () => {
       slug: 'test-group-2',
       description: 'Test description 2',
       status: 'NEW',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: fixedDate.toISOString(),
+      updatedAt: fixedDate.toISOString(),
       logoUrl: null,
       responsiblePersons: []
     }
@@ -62,7 +65,16 @@ describe('Groups API Routes', () => {
 
   describe('GET /api/admin/groups', () => {
     it('should return groups with proper filtering', async () => {
-      (groupHandlers.getGroups as jest.Mock).mockResolvedValue(mockGroups);
+      // Mock the paginated response structure that matches the actual API
+      const mockPaginatedResponse = {
+        items: mockGroups,
+        totalItems: 2,
+        page: 1,
+        pageSize: 10,
+        totalPages: 1
+      };
+      
+      (groupHandlers.getGroups as jest.Mock).mockResolvedValue(mockPaginatedResponse);
 
       const request = new NextRequest('https://example.com/api/admin/groups?status=ACTIVE&search=test&orderBy=name&orderDirection=asc');
       const response = await adminGroupsGet(request);
@@ -70,16 +82,31 @@ describe('Groups API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.groups).toEqual(mockGroups);
+      expect(data.totalItems).toBe(2);
+      expect(data.page).toBe(1);
+      expect(data.pageSize).toBe(10);
+      expect(data.totalPages).toBe(1);
       expect(groupHandlers.getGroups).toHaveBeenCalledWith(
         'ACTIVE',
         'test',
         'name',
-        'asc'
+        'asc',
+        1,
+        10
       );
     });
 
     it('should use default values when query parameters are missing', async () => {
-      (groupHandlers.getGroups as jest.Mock).mockResolvedValue(mockGroups);
+      // Mock the paginated response structure that matches the actual API
+      const mockPaginatedResponse = {
+        items: mockGroups,
+        totalItems: 2,
+        page: 1,
+        pageSize: 10,
+        totalPages: 1
+      };
+      
+      (groupHandlers.getGroups as jest.Mock).mockResolvedValue(mockPaginatedResponse);
 
       const request = new NextRequest('https://example.com/api/admin/groups');
       const response = await adminGroupsGet(request);
@@ -87,11 +114,17 @@ describe('Groups API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.groups).toEqual(mockGroups);
+      expect(data.totalItems).toBe(2);
+      expect(data.page).toBe(1);
+      expect(data.pageSize).toBe(10);
+      expect(data.totalPages).toBe(1);
       expect(groupHandlers.getGroups).toHaveBeenCalledWith(
         'ALL',
         '',
         'name',
-        'asc'
+        'asc',
+        1,
+        10
       );
     });
 
@@ -110,16 +143,25 @@ describe('Groups API Routes', () => {
 
   describe('GET /api/admin/groups/[id]', () => {
     it('should return a specific group by ID', async () => {
-      const mockGroup = mockGroups[0];
+      const mockGroup = {
+        ...mockGroups[0],
+        createdAt: fixedDate,
+        updatedAt: fixedDate,
+        statusReports: [] // Add missing statusReports property
+      };
       (groupHandlers.getGroupById as jest.Mock).mockResolvedValue(mockGroup);
 
       const request = new NextRequest('https://example.com/api/admin/groups/group-1');
-      const params = { id: 'group-1' };
+      const params = Promise.resolve({ id: 'group-1' });
       const response = await adminGroupDetailGet(request, { params });
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.group).toEqual(mockGroup);
+      expect(data.group).toEqual({
+        ...mockGroup,
+        createdAt: fixedDate.toISOString(),
+        updatedAt: fixedDate.toISOString()
+      });
       expect(groupHandlers.getGroupById).toHaveBeenCalledWith('group-1');
     });
 
@@ -127,7 +169,7 @@ describe('Groups API Routes', () => {
       (groupHandlers.getGroupById as jest.Mock).mockResolvedValue(null);
 
       const request = new NextRequest('https://example.com/api/admin/groups/non-existent');
-      const params = { id: 'non-existent' };
+      const params = Promise.resolve({ id: 'non-existent' });
       const response = await adminGroupDetailGet(request, { params });
       const data = await response.json();
 
@@ -139,7 +181,7 @@ describe('Groups API Routes', () => {
       (groupHandlers.getGroupById as jest.Mock).mockRejectedValue(new Error('Database error'));
 
       const request = new NextRequest('https://example.com/api/admin/groups/group-1');
-      const params = { id: 'group-1' };
+      const params = Promise.resolve({ id: 'group-1' });
       const response = await adminGroupDetailGet(request, { params });
       const data = await response.json();
 
@@ -156,28 +198,25 @@ describe('Groups API Routes', () => {
         slug: 'new-group',
         description: 'New description',
         status: 'NEW',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: fixedDate,
+        updatedAt: fixedDate,
         logoUrl: null
       };
       
       (groupHandlers.createGroup as jest.Mock).mockResolvedValue(newGroup);
       
-      const requestBody = {
-        name: 'New Group',
-        description: 'New description',
-        responsiblePersons: [
-          {
-            firstName: 'Jane',
-            lastName: 'Doe',
-            email: 'jane@example.com'
-          }
-        ]
-      };
+      // Create FormData to match the actual API expectations
+      const formData = new FormData();
+      formData.append('name', 'New Group');
+      formData.append('description', 'New description');
+      formData.append('responsiblePersonsCount', '1');
+      formData.append('responsiblePerson[0].firstName', 'Jane');
+      formData.append('responsiblePerson[0].lastName', 'Doe');
+      formData.append('responsiblePerson[0].email', 'jane@example.com');
       
       const request = new NextRequest('https://example.com/api/groups/submit', {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: formData
       });
       
       const response = await groupsSubmitPost(request);
@@ -191,6 +230,7 @@ describe('Groups API Routes', () => {
       expect(groupHandlers.createGroup).toHaveBeenCalledWith({
         name: 'New Group',
         description: 'New description',
+        logoMetadata: undefined,
         responsiblePersons: [
           {
             firstName: 'Jane',
@@ -206,21 +246,18 @@ describe('Groups API Routes', () => {
         new Error('Group name must be between 3 and 100 characters')
       );
       
-      const requestBody = {
-        name: 'A', // Too short
-        description: 'New description',
-        responsiblePersons: [
-          {
-            firstName: 'Jane',
-            lastName: 'Doe',
-            email: 'jane@example.com'
-          }
-        ]
-      };
+      // Create FormData with invalid data
+      const formData = new FormData();
+      formData.append('name', 'A'); // Too short
+      formData.append('description', 'New description');
+      formData.append('responsiblePersonsCount', '1');
+      formData.append('responsiblePerson[0].firstName', 'Jane');
+      formData.append('responsiblePerson[0].lastName', 'Doe');
+      formData.append('responsiblePerson[0].email', 'jane@example.com');
       
       const request = new NextRequest('https://example.com/api/groups/submit', {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: formData
       });
       
       const response = await groupsSubmitPost(request);
@@ -236,21 +273,18 @@ describe('Groups API Routes', () => {
         new Error('Unexpected database error')
       );
       
-      const requestBody = {
-        name: 'New Group',
-        description: 'New description',
-        responsiblePersons: [
-          {
-            firstName: 'Jane',
-            lastName: 'Doe',
-            email: 'jane@example.com'
-          }
-        ]
-      };
+      // Create FormData with valid data
+      const formData = new FormData();
+      formData.append('name', 'New Group');
+      formData.append('description', 'New description');
+      formData.append('responsiblePersonsCount', '1');
+      formData.append('responsiblePerson[0].firstName', 'Jane');
+      formData.append('responsiblePerson[0].lastName', 'Doe');
+      formData.append('responsiblePerson[0].email', 'jane@example.com');
       
       const request = new NextRequest('https://example.com/api/groups/submit', {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: formData
       });
       
       const response = await groupsSubmitPost(request);

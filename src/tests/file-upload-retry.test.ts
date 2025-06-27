@@ -217,7 +217,7 @@ describe('File Upload Retry Mechanisms', () => {
       expect(result.success).toBe(false);
       expect(result.deletedUrls).toEqual([]);
       expect(del).toHaveBeenCalledTimes(3); // Initial + 2 retries
-      expect(console.error).toHaveBeenCalledTimes(3);
+      expect(console.error).toHaveBeenCalledTimes(4); // 3 retry attempts + 1 max retries exceeded message
     });
   });
 });

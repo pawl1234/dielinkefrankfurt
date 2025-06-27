@@ -1,3 +1,6 @@
+// Unmock the errors module to test actual implementations
+jest.unmock('@/lib/errors');
+
 // Mock NextResponse before any imports
 jest.mock('next/server', () => ({
   NextResponse: {

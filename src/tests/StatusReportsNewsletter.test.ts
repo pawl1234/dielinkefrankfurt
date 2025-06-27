@@ -283,8 +283,8 @@ describe('Status Reports for Newsletter', () => {
     expect(statusReportsHtml).toContain('Lisa Weber');
     
     // Should include links to reports
-    expect(statusReportsHtml).toContain(`<a href="https://example.com/gruppen/buendnis-fuer-solidaritaet/berichte/report1" class="event-button">`);
-    expect(statusReportsHtml).toContain(`<a href="https://example.com/gruppen/antifa-frankfurt/berichte/report3" class="event-button">`);
+    expect(statusReportsHtml).toContain(`<a href="https://example.com/gruppen/buendnis-fuer-solidaritaet#report-report1" class="event-button">`);
+    expect(statusReportsHtml).toContain(`<a href="https://example.com/gruppen/antifa-frankfurt#report-report3" class="event-button">`);
   });
 
   test('generateNewsletterHtml should include status reports section', () => {

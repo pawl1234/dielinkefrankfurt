@@ -43,6 +43,15 @@ export function validateFile(
   allowedTypes: string[] = ALLOWED_FILE_TYPES,
   maxSize: number = MAX_FILE_SIZE
 ): void {
+  // Check if file exists
+  if (!file) {
+    throw new FileUploadError(
+      'Invalid file provided',
+      400,
+      'INVALID_FILE'
+    );
+  }
+
   // Check file type
   if (!allowedTypes.includes(file.type)) {
     const allowedExtensions = allowedTypes
@@ -515,4 +524,29 @@ export async function uploadStatusReportFiles(files: File[]): Promise<string[]> 
       'UPLOAD_FAILED'
     );
   }
+}
+
+/**
+ * Validates a group logo file specifically
+ * 
+ * @param file - The logo file to validate
+ * @returns void if valid, throws FileUploadError if invalid
+ */
+export function validateGroupLogoFile(file: File): void {
+  validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE);
+}
+
+/**
+ * Uploads a group logo file with validation
+ * 
+ * @param file - The logo file to upload
+ * @returns The URL of the uploaded logo
+ * @throws FileUploadError if validation or upload fails
+ */
+export async function uploadGroupLogoFile(file: File): Promise<string> {
+  // Validate the logo file first
+  validateGroupLogoFile(file);
+  
+  // Upload the file
+  return uploadFile(file, 'groups', 'logo');
 }

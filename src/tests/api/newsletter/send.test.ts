@@ -1,15 +1,73 @@
 import { NextRequest } from 'next/server';
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach, beforeAll } from '@jest/globals';
 
-// Import after mocking (mocks are in jest.setup.api.js)
-import { POST } from '@/app/api/admin/newsletter/send/route';
-import { processRecipientList } from '@/lib/newsletter-sending';
-import { getNewsletterSettings } from '@/lib/newsletter-service';
-import prisma from '@/lib/prisma';
+// Mock the modules at the top level
+const mockProcessRecipientList = jest.fn();
+const mockGetNewsletterSettings = jest.fn();
+const mockPrismaFindUnique = jest.fn();
+const mockPrismaUpdate = jest.fn();
 
-const mockProcessRecipientList = processRecipientList as jest.MockedFunction<typeof processRecipientList>;
-const mockGetNewsletterSettings = getNewsletterSettings as jest.MockedFunction<typeof getNewsletterSettings>;
-const mockPrisma = prisma as jest.Mocked<typeof prisma>;
+// Mock all the required modules
+jest.doMock('@/lib/newsletter-sending', () => ({
+  processRecipientList: mockProcessRecipientList,
+}));
+
+jest.doMock('@/lib/newsletter-service', () => ({
+  getNewsletterSettings: mockGetNewsletterSettings,
+}));
+
+jest.doMock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    newsletterItem: {
+      findUnique: mockPrismaFindUnique,
+      update: mockPrismaUpdate,
+    },
+  },
+}));
+
+jest.doMock('@/lib/api-auth', () => ({
+  withAdminAuth: jest.fn((handler) => handler),
+}));
+
+jest.doMock('@/lib/errors', () => ({
+  AppError: {
+    validation: jest.fn((message) => ({
+      toResponse: jest.fn(() => ({
+        status: 400,
+        json: jest.fn().mockResolvedValue({ error: message, type: 'VALIDATION' })
+      }))
+    }))
+  },
+  apiErrorResponse: jest.fn((error, message) => ({
+    status: 500,
+    json: jest.fn().mockResolvedValue({ error: message || 'An error occurred' })
+  }))
+}));
+
+jest.doMock('@/lib/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+  },
+}));
+
+jest.doMock('@/lib/email-hashing', () => ({
+  cleanEmail: jest.fn((email) => email.trim().toLowerCase()),
+}));
+
+// Clear module cache and import after mocking
+jest.resetModules();
+
+// Dynamic import to ensure mocks are applied
+let POST: (request: NextRequest) => Promise<Response>;
+
+beforeAll(async () => {
+  const routeModule = await import('@/app/api/admin/newsletter/send/route');
+  POST = routeModule.POST;
+});
 
 describe('/api/admin/newsletter/send', () => {
   beforeEach(() => {
@@ -56,8 +114,8 @@ describe('/api/admin/newsletter/send', () => {
         updatedAt: new Date()
       };
 
-      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
-      mockPrisma.newsletterItem.update.mockResolvedValue(mockNewsletter);
+      mockPrismaFindUnique.mockResolvedValue(mockNewsletter);
+      mockPrismaUpdate.mockResolvedValue(mockNewsletter);
       mockProcessRecipientList.mockResolvedValue(mockValidationResult);
       mockGetNewsletterSettings.mockResolvedValue(mockSettings);
 
@@ -84,7 +142,7 @@ describe('/api/admin/newsletter/send', () => {
     });
 
     it('should return error when newsletter not found', async () => {
-      mockPrisma.newsletterItem.findUnique.mockResolvedValue(null);
+      mockPrismaFindUnique.mockResolvedValue(null);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send', {
         method: 'POST',
@@ -173,8 +231,8 @@ describe('/api/admin/newsletter/send', () => {
 
       const mockSettings = { chunkSize: 50, id: 1, createdAt: new Date(), updatedAt: new Date() };
 
-      mockPrisma.newsletterItem.findUnique.mockResolvedValue(sentNewsletter);
-      mockPrisma.newsletterItem.update.mockResolvedValue(sentNewsletter);
+      mockPrismaFindUnique.mockResolvedValue(sentNewsletter);
+      mockPrismaUpdate.mockResolvedValue(sentNewsletter);
       mockProcessRecipientList.mockResolvedValue(mockValidationResult);
       mockGetNewsletterSettings.mockResolvedValue(mockSettings);
 
@@ -207,7 +265,7 @@ describe('/api/admin/newsletter/send', () => {
         hashedEmails: []
       };
 
-      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
+      mockPrismaFindUnique.mockResolvedValue(mockNewsletter);
       mockProcessRecipientList.mockResolvedValue(mockValidationResult);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send', {
@@ -243,8 +301,8 @@ describe('/api/admin/newsletter/send', () => {
 
       const mockSettings = { chunkSize: 50, id: 1, createdAt: new Date(), updatedAt: new Date() };
 
-      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
-      mockPrisma.newsletterItem.update.mockResolvedValue(mockNewsletter);
+      mockPrismaFindUnique.mockResolvedValue(mockNewsletter);
+      mockPrismaUpdate.mockResolvedValue(mockNewsletter);
       mockProcessRecipientList.mockResolvedValue(mockValidationResult);
       mockGetNewsletterSettings.mockResolvedValue(mockSettings);
 

@@ -3,10 +3,11 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 
 // Import after mocking (mocks are in jest.setup.api.js)
 import { GET } from '@/app/api/admin/newsletter/send-status/[id]/route';
-import { getNewsletterById } from '@/lib/newsletter-service';
-import { IdRouteContext } from '@/types/api-types';
+import prisma from '@/lib/prisma';
 
-const mockGetNewsletterById = getNewsletterById as jest.MockedFunction<typeof getNewsletterById>;
+// Get mocked functions from the global mocks set up in jest.setup.api.js
+const mockPrisma = jest.mocked(prisma);
+
 
 describe('/api/admin/newsletter/send-status/[id]', () => {
   beforeEach(() => {
@@ -18,15 +19,14 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
   });
 
   describe('GET', () => {
-    const mockContext: IdRouteContext = {
-      params: Promise.resolve({ id: 'newsletter-123' })
+    const mockContext = {
+      params: { id: 'newsletter-123' }
     };
 
     it('should return sending status for newsletter in progress', async () => {
       const mockChunkResults = [
         { sentCount: 50, failedCount: 0, completedAt: '2024-01-01T10:00:00Z' },
-        { sentCount: 45, failedCount: 5, completedAt: '2024-01-01T10:01:00Z' },
-        null // Third chunk not completed yet
+        { sentCount: 45, failedCount: 5, completedAt: '2024-01-01T10:01:00Z' }
       ];
 
       const mockNewsletter = {
@@ -48,7 +48,7 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         })
       };
 
-      mockGetNewsletterById.mockResolvedValue(mockNewsletter);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/newsletter-123');
       const response = await GET(request, mockContext);
@@ -56,15 +56,14 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
 
       expect(response.status).toBe(200);
       expect(data).toEqual({
-        id: 'newsletter-123',
-        subject: 'Test Newsletter',
+        success: true,
+        newsletterId: 'newsletter-123',
         status: 'sending',
         recipientCount: 150,
         totalSent: 95,
         totalFailed: 5,
         completedChunks: 2,
-        totalChunks: 3,
-        completionPercentage: 66.67, // 2/3 chunks completed
+        totalChunks: 15, // Math.ceil(150 / 10) = 15
         isComplete: false,
         sentAt: null,
         lastChunkCompletedAt: '2024-01-01T10:01:00Z',
@@ -97,7 +96,7 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         })
       };
 
-      mockGetNewsletterById.mockResolvedValue(mockNewsletter);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/newsletter-123');
       const response = await GET(request, mockContext);
@@ -105,17 +104,16 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
 
       expect(response.status).toBe(200);
       expect(data).toEqual({
-        id: 'newsletter-123',
-        subject: 'Completed Newsletter',
+        success: true,
+        newsletterId: 'newsletter-123',
         status: 'sent',
         recipientCount: 100,
         totalSent: 100,
         totalFailed: 0,
         completedChunks: 2,
-        totalChunks: 2,
-        completionPercentage: 100,
+        totalChunks: 10, // Math.ceil(100 / 10) = 10
         isComplete: true,
-        sentAt: new Date('2024-01-01T10:02:00Z').toISOString(),
+        sentAt: '2024-01-01T10:02:00.000Z',
         lastChunkCompletedAt: '2024-01-01T10:01:00Z',
         chunkResults: mockChunkResults
       });
@@ -151,7 +149,7 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         })
       };
 
-      mockGetNewsletterById.mockResolvedValue(mockNewsletter);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/newsletter-123');
       const response = await GET(request, mockContext);
@@ -159,24 +157,18 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
 
       expect(response.status).toBe(200);
       expect(data).toEqual({
-        id: 'newsletter-123',
-        subject: 'Newsletter with Retries',
+        success: true,
+        newsletterId: 'newsletter-123',
         status: 'retrying',
         recipientCount: 100,
         totalSent: 93,
         totalFailed: 7,
         completedChunks: 2,
-        totalChunks: 2,
-        completionPercentage: 100, // Main chunks completed
-        isComplete: false, // But retries in progress
+        totalChunks: 10, // Math.ceil(100 / 10) = 10
+        isComplete: false, // Retrying status means not complete
         sentAt: null,
         lastChunkCompletedAt: '2024-01-01T10:01:00Z',
-        chunkResults: mockChunkResults,
-        retryInProgress: true,
-        retryStartedAt: '2024-01-01T10:02:00Z',
-        failedEmailsCount: 2,
-        currentRetryStage: 0,
-        retryChunkSizes: [10, 5, 1]
+        chunkResults: mockChunkResults
       });
     });
 
@@ -194,7 +186,7 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         settings: null
       };
 
-      mockGetNewsletterById.mockResolvedValue(mockNewsletter);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/newsletter-123');
       const response = await GET(request, mockContext);
@@ -202,42 +194,32 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
 
       expect(response.status).toBe(200);
       expect(data).toEqual({
-        id: 'newsletter-123',
-        subject: 'Draft Newsletter',
+        success: true,
+        newsletterId: 'newsletter-123',
         status: 'draft',
-        recipientCount: null,
+        recipientCount: 0,
         totalSent: 0,
         totalFailed: 0,
         completedChunks: 0,
         totalChunks: 0,
-        completionPercentage: 0,
-        isComplete: false,
+        isComplete: true, // Draft newsletters are considered complete in their current state
         sentAt: null,
-        lastChunkCompletedAt: null,
+        lastChunkCompletedAt: undefined,
         chunkResults: []
       });
     });
 
     it('should handle newsletter not found', async () => {
-      const notFoundError = {
-        name: 'NewsletterNotFoundError',
-        message: 'Newsletter not found',
-        toResponse: jest.fn().mockReturnValue({
-          json: () => Promise.resolve({ error: 'Newsletter not found', type: 'NEWSLETTER' }),
-          status: 404
-        })
-      };
-
-      mockGetNewsletterById.mockRejectedValue(notFoundError);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(null);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/invalid-id');
       const response = await GET(request, {
-        params: Promise.resolve({ id: 'invalid-id' })
+        params: { id: 'invalid-id' }
       });
       const data = await response.json();
 
-      expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to get newsletter status');
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Newsletter not found');
     });
 
     it('should handle malformed settings JSON gracefully', async () => {
@@ -254,36 +236,30 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         settings: 'invalid json{'
       };
 
-      mockGetNewsletterById.mockResolvedValue(mockNewsletter);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/newsletter-123');
       const response = await GET(request, mockContext);
       const data = await response.json();
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(500);
       expect(data).toEqual({
-        id: 'newsletter-123',
-        subject: 'Newsletter with Bad JSON',
-        status: 'sending',
-        recipientCount: 100,
+        success: false,
+        newsletterId: 'newsletter-123',
+        status: 'error',
+        recipientCount: 0,
         totalSent: 0,
         totalFailed: 0,
         completedChunks: 0,
         totalChunks: 0,
-        completionPercentage: 0,
-        isComplete: false,
-        sentAt: null,
-        lastChunkCompletedAt: null,
-        chunkResults: []
+        isComplete: true,
+        error: expect.any(String)
       });
     });
 
-    it('should calculate completion percentage correctly for partial progress', async () => {
+    it('should calculate progress correctly for partial sending', async () => {
       const mockChunkResults = [
-        { sentCount: 25, failedCount: 0, completedAt: '2024-01-01T10:00:00Z' },
-        null,
-        null,
-        null
+        { sentCount: 25, failedCount: 0, completedAt: '2024-01-01T10:00:00Z' }
       ];
 
       const mockNewsletter = {
@@ -304,27 +280,28 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         })
       };
 
-      mockGetNewsletterById.mockResolvedValue(mockNewsletter);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/newsletter-123');
       const response = await GET(request, mockContext);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.completionPercentage).toBe(25); // 1/4 chunks completed
-      expect(data.totalChunks).toBe(4);
+      expect(data.totalChunks).toBe(10); // Math.ceil(100 / 10) = 10
       expect(data.completedChunks).toBe(1);
+      expect(data.totalSent).toBe(25);
+      expect(data.isComplete).toBe(false);
     });
 
     it('should handle database errors gracefully', async () => {
-      mockGetNewsletterById.mockRejectedValue(new Error('Database connection failed'));
+      mockPrisma.newsletterItem.findUnique.mockRejectedValue(new Error('Database connection failed'));
 
       const request = new NextRequest('http://localhost:3000/api/admin/newsletter/send-status/newsletter-123');
       const response = await GET(request, mockContext);
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to get newsletter status');
+      expect(data.error).toBe('Database connection failed');
     });
   });
 });

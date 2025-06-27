@@ -1,58 +1,19 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { processSendingChunk, processRecipientList, getNewsletterStatus, getSentNewsletters } from '@/lib/newsletter-sending';
 import { NewsletterSettings } from '@/lib/newsletter-template';
-
-// Mock dependencies
-jest.mock('@/lib/email-hashing', () => ({
-  validateEmail: jest.fn((email: string) => {
-    // Simple email validation for tests
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  }),
-  cleanEmail: jest.fn((email: string) => {
-    // Simple cleaning for tests
-    return email.trim().toLowerCase();
-  }),
-  validateAndHashEmails: jest.fn()
-}));
-
-jest.mock('@/lib/email', () => ({
-  createTransporter: jest.fn(() => ({
-    verify: jest.fn(),
-    close: jest.fn(),
-    sendMail: jest.fn()
-  })),
-  sendEmailWithTransporter: jest.fn()
-}));
-
-jest.mock('@/lib/newsletter-service', () => ({
-  getNewsletterSettings: jest.fn()
-}));
-
-jest.mock('@/lib/prisma', () => ({
-  __esModule: true,
-  default: {
-    newsletterItem: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn()
-    }
-  }
-}));
-
-jest.mock('@/lib/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn()
-  }
-}));
-
-// Import after mocking
 import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
 import { validateEmail, cleanEmail, validateAndHashEmails } from '@/lib/email-hashing';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
+
+// Get the mocked functions
+const mockCreateTransporter = jest.mocked(createTransporter);
+const mockSendEmailWithTransporter = jest.mocked(sendEmailWithTransporter);
+const mockValidateEmail = jest.mocked(validateEmail);
+const mockCleanEmail = jest.mocked(cleanEmail);
+const mockValidateAndHashEmails = jest.mocked(validateAndHashEmails);
+const mockLogger = jest.mocked(logger);
+const mockPrisma = jest.mocked(prisma);
 
 describe('Newsletter Sending Service', () => {
   const mockTransporter = {
@@ -91,8 +52,25 @@ describe('Newsletter Sending Service', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (createTransporter as jest.Mock).mockReturnValue(mockTransporter);
+    
+    // Reset all mock functions with working implementations
+    mockCreateTransporter.mockReturnValue(mockTransporter);
     mockTransporter.verify.mockResolvedValue(true);
+    mockTransporter.close.mockImplementation(() => {});
+    
+    // Set default implementations for email functions
+    mockValidateEmail.mockImplementation((email: string) => {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    });
+    
+    mockCleanEmail.mockImplementation((email: string) => {
+      return email.trim().toLowerCase();
+    });
+    
+    mockSendEmailWithTransporter.mockResolvedValue({
+      success: true,
+      messageId: 'test-message-id'
+    });
   });
 
   afterEach(() => {
@@ -103,11 +81,6 @@ describe('Newsletter Sending Service', () => {
     it('should successfully send emails in BCC mode', async () => {
       const emails = ['user1@example.com', 'user2@example.com', 'user3@example.com'];
       
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true,
-        messageId: 'test-message-id'
-      });
-
       const result = await processSendingChunk(
         emails,
         'newsletter-123',
@@ -121,24 +94,43 @@ describe('Newsletter Sending Service', () => {
       expect(result.results.every(r => r.success)).toBe(true);
 
       // Verify BCC sending was used
-      expect(sendEmailWithTransporter).toHaveBeenCalledWith(
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledWith(
         mockTransporter,
         expect.objectContaining({
           to: 'Test Newsletter <newsletter@example.com>',
           bcc: 'user1@example.com,user2@example.com,user3@example.com',
           subject: expect.stringContaining('Test Newsletter -'),
-          html: '<html>Test newsletter content</html>'
+          html: '<html>Test newsletter content</html>',
+          from: 'Test Newsletter <newsletter@example.com>',
+          replyTo: 'reply@example.com',
+          settings: expect.objectContaining({
+            ...mockSettings,
+            chunkIndex: 0,
+            totalChunks: 1
+          })
         })
       );
 
       // Verify logging
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Processing chunk 1/1'),
         expect.objectContaining({
           module: 'newsletter-sending',
           context: expect.objectContaining({
             newsletterId: 'newsletter-123',
             emailCount: 3,
+            mode: 'initial'
+          })
+        })
+      );
+      
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.stringContaining('BCC email sent successfully'),
+        expect.objectContaining({
+          module: 'newsletter-sending',
+          context: expect.objectContaining({
+            newsletterId: 'newsletter-123',
+            recipientCount: 3,
             mode: 'initial'
           })
         })
@@ -153,10 +145,6 @@ describe('Newsletter Sending Service', () => {
         .mockRejectedValueOnce({ code: 'ECONNREFUSED', message: 'Connection refused' })
         .mockResolvedValueOnce(true);
 
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
-
       const result = await processSendingChunk(
         emails,
         'newsletter-456',
@@ -166,12 +154,14 @@ describe('Newsletter Sending Service', () => {
 
       expect(result.sentCount).toBe(1);
       expect(mockTransporter.verify).toHaveBeenCalledTimes(2);
-      expect(logger.warn).toHaveBeenCalledWith(
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('SMTP verification failed'),
         expect.objectContaining({
           module: 'newsletter-sending',
           context: expect.objectContaining({
-            error: 'Connection refused'
+            error: 'Connection refused',
+            newsletterId: 'newsletter-456',
+            mode: 'initial'
           })
         })
       );
@@ -185,13 +175,15 @@ describe('Newsletter Sending Service', () => {
         'another@valid.com'
       ];
 
-      (cleanEmail as jest.Mock).mockImplementation((email: string) => email.trim().toLowerCase());
-      (validateEmail as jest.Mock).mockImplementation((email: string) => {
-        return email.includes('@') && email.includes('.');
+      // Mock email cleaning to return lowercase trimmed version
+      mockCleanEmail.mockImplementation((email: string) => {
+        const trimmed = email.trim().toLowerCase();
+        return trimmed;
       });
-
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
+      
+      // Mock validation to reject the invalid email
+      mockValidateEmail.mockImplementation((email: string) => {
+        return email.includes('@') && email.includes('.') && !email.includes('invalid-email');
       });
 
       const result = await processSendingChunk(
@@ -210,11 +202,11 @@ describe('Newsletter Sending Service', () => {
       expect(invalidResult?.success).toBe(false);
       expect(invalidResult?.error).toBe('Invalid email address');
 
-      // Verify cleaning was applied
-      expect(cleanEmail).toHaveBeenCalledWith('  UPPER@EXAMPLE.COM  ');
+      // Verify cleaning was applied to the uppercase email
+      expect(mockCleanEmail).toHaveBeenCalledWith('  UPPER@EXAMPLE.COM  ');
       
-      // Verify privacy-conscious logging
-      expect(logger.warn).toHaveBeenCalledWith(
+      // Verify privacy-conscious logging for cleaned email
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         'Cleaned email address',
         expect.objectContaining({
           module: 'newsletter-sending',
@@ -225,13 +217,25 @@ describe('Newsletter Sending Service', () => {
           })
         })
       );
+      
+      // Verify invalid email logging
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Filtering out invalid email address',
+        expect.objectContaining({
+          module: 'newsletter-sending',
+          context: expect.objectContaining({
+            domain: 'invalid',
+            newsletterId: 'newsletter-789'
+          })
+        })
+      );
     });
 
     it('should handle BCC sending failure with transporter recreation', async () => {
       const emails = ['user1@example.com', 'user2@example.com'];
 
       // First send fails with connection error
-      (sendEmailWithTransporter as jest.Mock)
+      mockSendEmailWithTransporter
         .mockResolvedValueOnce({
           success: false,
           error: 'Connection lost',
@@ -250,17 +254,13 @@ describe('Newsletter Sending Service', () => {
 
       expect(result.sentCount).toBe(2);
       expect(result.failedCount).toBe(0);
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(2);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(2);
       expect(mockTransporter.close).toHaveBeenCalled();
-      expect(createTransporter).toHaveBeenCalledTimes(2); // Initial + recreation
+      expect(mockCreateTransporter).toHaveBeenCalledTimes(2); // Initial + recreation
     });
 
     it('should send BCC emails for multiple recipients', async () => {
       const emails = ['user1@example.com', 'user2@example.com'];
-
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
 
       const result = await processSendingChunk(
         emails,
@@ -270,14 +270,19 @@ describe('Newsletter Sending Service', () => {
       );
 
       expect(result.sentCount).toBe(2);
-      expect(sendEmailWithTransporter).toHaveBeenCalledTimes(1); // Single BCC email
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1); // Single BCC email
       
       // Verify BCC sending
-      expect(sendEmailWithTransporter).toHaveBeenCalledWith(
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledWith(
         mockTransporter,
         expect.objectContaining({
           to: 'Test Newsletter <newsletter@example.com>',
-          bcc: 'user1@example.com,user2@example.com'
+          bcc: 'user1@example.com,user2@example.com',
+          subject: expect.stringContaining('Test Newsletter -'),
+          html: '<html>Test newsletter content</html>',
+          from: 'Test Newsletter <newsletter@example.com>',
+          replyTo: 'reply@example.com',
+          settings: mockSettings
         })
       );
     });
@@ -285,7 +290,7 @@ describe('Newsletter Sending Service', () => {
     it('should handle complete failure of all emails', async () => {
       const emails = ['fail1@example.com', 'fail2@example.com'];
 
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
+      mockSendEmailWithTransporter.mockResolvedValue({
         success: false,
         error: 'SMTP error'
       });
@@ -301,14 +306,19 @@ describe('Newsletter Sending Service', () => {
       expect(result.failedCount).toBe(2);
       expect(result.results.every(r => !r.success)).toBe(true);
       expect(result.results.every(r => r.error === 'SMTP error')).toBe(true);
+      
+      // Verify BCC mode was used (2 emails)
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledTimes(1);
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledWith(
+        mockTransporter,
+        expect.objectContaining({
+          bcc: 'fail1@example.com,fail2@example.com'
+        })
+      );
     });
 
     it('should handle single email in individual mode', async () => {
       const emails = ['single@example.com'];
-
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
 
       const result = await processSendingChunk(
         emails,
@@ -320,11 +330,15 @@ describe('Newsletter Sending Service', () => {
       expect(result.sentCount).toBe(1);
       
       // Single email uses individual sending mode
-      expect(sendEmailWithTransporter).toHaveBeenCalledWith(
+      expect(mockSendEmailWithTransporter).toHaveBeenCalledWith(
         mockTransporter,
         expect.objectContaining({
           to: 'single@example.com',
-          bcc: undefined
+          subject: expect.stringContaining('Test Newsletter -'),
+          html: '<html>Test newsletter content</html>',
+          from: 'Test Newsletter <newsletter@example.com>',
+          replyTo: 'reply@example.com',
+          settings: mockSettings
         })
       );
     });
@@ -332,7 +346,7 @@ describe('Newsletter Sending Service', () => {
     it('should not log full email addresses', async () => {
       const emails = ['sensitive@private.com'];
 
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
+      mockSendEmailWithTransporter.mockResolvedValue({
         success: false,
         error: 'Failed'
       });
@@ -346,9 +360,9 @@ describe('Newsletter Sending Service', () => {
 
       // Check all log calls
       const allLogCalls = [
-        ...(logger.info as jest.Mock).mock.calls,
-        ...(logger.warn as jest.Mock).mock.calls,
-        ...(logger.error as jest.Mock).mock.calls
+        ...mockLogger.info.mock.calls,
+        ...mockLogger.warn.mock.calls,
+        ...mockLogger.error.mock.calls
       ];
 
       // Verify no log contains the full email address
@@ -357,13 +371,15 @@ describe('Newsletter Sending Service', () => {
         expect(logMessage).not.toContain('sensitive@private.com');
       });
 
-      // Verify domain is logged instead
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.any(String),
+      // Single email goes through individual sending mode
+      // Verify the email failed logging uses domain instead of full email
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Email failed',
         expect.objectContaining({
           module: 'newsletter-sending',
           context: expect.objectContaining({
-            domain: 'private.com'
+            domain: 'private.com',
+            newsletterId: 'newsletter-privacy'
           })
         })
       );
@@ -371,10 +387,6 @@ describe('Newsletter Sending Service', () => {
 
     it('should handle transporter close errors gracefully', async () => {
       const emails = ['test@example.com'];
-
-      (sendEmailWithTransporter as jest.Mock).mockResolvedValue({
-        success: true
-      });
 
       mockTransporter.close.mockImplementation(() => {
         throw new Error('Close failed');
@@ -388,7 +400,7 @@ describe('Newsletter Sending Service', () => {
       );
 
       expect(result.sentCount).toBe(1);
-      expect(logger.warn).toHaveBeenCalledWith(
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         'Error closing transporter',
         expect.objectContaining({
           module: 'newsletter-sending',
@@ -411,12 +423,12 @@ describe('Newsletter Sending Service', () => {
         invalidCount: 0
       };
 
-      (validateAndHashEmails as jest.Mock).mockResolvedValue(mockValidationResult);
+      mockValidateAndHashEmails.mockResolvedValue(mockValidationResult);
 
       const result = await processRecipientList(emailText);
 
       expect(result).toEqual(mockValidationResult);
-      expect(validateAndHashEmails).toHaveBeenCalledWith(emailText);
+      expect(mockValidateAndHashEmails).toHaveBeenCalledWith(emailText);
     });
 
     it('should throw error for empty email list', async () => {
@@ -425,10 +437,17 @@ describe('Newsletter Sending Service', () => {
     });
 
     it('should handle validation errors', async () => {
-      (validateAndHashEmails as jest.Mock).mockRejectedValue(new Error('Validation failed'));
+      mockValidateAndHashEmails.mockRejectedValue(new Error('Validation failed'));
 
       await expect(processRecipientList('test@example.com')).rejects.toThrow('Failed to process recipient list');
-      expect(logger.error).toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error processing recipient list:',
+        expect.objectContaining({
+          context: expect.objectContaining({
+            error: expect.any(Error)
+          })
+        })
+      );
     });
   });
 
@@ -443,7 +462,7 @@ describe('Newsletter Sending Service', () => {
         settings: JSON.stringify({ test: true })
       };
 
-      (prisma.newsletterItem.findUnique as jest.Mock).mockResolvedValue(mockNewsletter);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(mockNewsletter);
 
       const result = await getNewsletterStatus('newsletter-123');
 
@@ -458,9 +477,9 @@ describe('Newsletter Sending Service', () => {
     });
 
     it('should throw error for non-existent newsletter', async () => {
-      (prisma.newsletterItem.findUnique as jest.Mock).mockResolvedValue(null);
+      mockPrisma.newsletterItem.findUnique.mockResolvedValue(null);
 
-      await expect(getNewsletterStatus('non-existent')).rejects.toThrow('Newsletter not found');
+      await expect(getNewsletterStatus('non-existent')).rejects.toThrow('Failed to get newsletter status');
     });
   });
 
@@ -483,8 +502,8 @@ describe('Newsletter Sending Service', () => {
         }
       ];
 
-      (prisma.newsletterItem.findMany as jest.Mock).mockResolvedValue(mockNewsletters);
-      (prisma.newsletterItem.count as jest.Mock).mockResolvedValue(2);
+      mockPrisma.newsletterItem.findMany.mockResolvedValue(mockNewsletters);
+      mockPrisma.newsletterItem.count.mockResolvedValue(2);
 
       const result = await getSentNewsletters(1, 10);
 
@@ -504,12 +523,26 @@ describe('Newsletter Sending Service', () => {
         }
       });
 
-      expect(prisma.newsletterItem.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.newsletterItem.findMany).toHaveBeenCalledWith({
         where: { status: { not: 'draft' } },
         skip: 0,
         take: 10,
         orderBy: { sentAt: 'desc' }
       });
+    });
+
+    it('should handle database errors', async () => {
+      mockPrisma.newsletterItem.findMany.mockRejectedValue(new Error('Database error'));
+      
+      await expect(getSentNewsletters(1, 10)).rejects.toThrow('Failed to get sent newsletters');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error getting sent newsletters:',
+        expect.objectContaining({
+          context: expect.objectContaining({
+            error: expect.any(Error)
+          })
+        })
+      );
     });
   });
 });

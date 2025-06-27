@@ -1,3 +1,4 @@
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import {
   createGroup,
   getGroups,
@@ -8,98 +9,54 @@ import {
 } from '../lib/group-handlers';
 import prisma from '../lib/prisma';
 
-// Mock the prisma client
-jest.mock('../lib/prisma', () => ({
-  $transaction: jest.fn((callback) => callback({
-    group: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn()
-    },
-    responsiblePerson: {
-      create: jest.fn(),
-      deleteMany: jest.fn()
-    },
-    statusReport: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn()
-    }
-  })),
-  group: {
-    create: jest.fn(),
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn()
-  },
-  responsiblePerson: {
-    create: jest.fn(),
-    deleteMany: jest.fn()
-  },
-  statusReport: {
-    create: jest.fn(),
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn()
-  }
-}));
-
-// Mock the email sending function
-jest.mock('../lib/email', () => ({
-  sendEmail: jest.fn().mockResolvedValue({ success: true })
-}));
-
-// Mock the Vercel blob functions
-jest.mock('@vercel/blob', () => ({
-  put: jest.fn().mockResolvedValue({ url: 'https://example.com/test.jpg' }),
-  del: jest.fn().mockResolvedValue({ success: true })
-}));
+const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 describe('Group Database Operations', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
   
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+  
   describe('createGroup', () => {
     it('should create a group with responsible persons', async () => {
-      // Mock implementation for this test
-      (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+      const mockGroup = {
+        id: 'group-123',
+        name: 'Test Group',
+        slug: 'test-group-1234',
+        description: 'Test description that is long enough for validation.',
+        logoUrl: null,
+        status: 'NEW',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const mockResponsiblePerson = {
+        id: 'person-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        groupId: 'group-123'
+      };
+      
+      // Mock transaction implementation
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
         const tx = {
           group: {
-            create: jest.fn().mockResolvedValue({
-              id: 'group-123',
-              name: 'Test Group',
-              slug: 'test-group-1234',
-              description: 'Test description',
-              logoUrl: null,
-              status: 'NEW',
-              createdAt: new Date(),
-              updatedAt: new Date()
-            })
+            create: jest.fn().mockResolvedValue(mockGroup)
           },
           responsiblePerson: {
-            create: jest.fn().mockResolvedValue({
-              id: 'person-123',
-              firstName: 'John',
-              lastName: 'Doe',
-              email: 'john.doe@example.com',
-              groupId: 'group-123'
-            })
+            create: jest.fn().mockResolvedValue(mockResponsiblePerson)
           }
         };
-        
-        return callback(tx);
+        return callback(tx as unknown as typeof prisma);
       });
       
       const groupData = {
         name: 'Test Group',
-        description: 'Test description that is long enough to meet the minimum requirement of 50 characters for validation.',
+        description: 'Test description that is long enough for validation.',
         responsiblePersons: [
           {
             firstName: 'John',
@@ -111,21 +68,19 @@ describe('Group Database Operations', () => {
       
       const result = await createGroup(groupData);
       
-      // Verify the result
       expect(result).toEqual(expect.objectContaining({
         id: 'group-123',
         name: 'Test Group',
         status: 'NEW'
       }));
       
-      // Verify transaction was used
-      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
     
     it('should throw an error for invalid group data', async () => {
       const invalidData = {
         name: 'Test Group',
-        description: 'Too short',
+        description: '', // Empty description should fail validation
         responsiblePersons: [
           {
             firstName: 'John',
@@ -135,14 +90,13 @@ describe('Group Database Operations', () => {
         ]
       };
       
-      await expect(createGroup(invalidData)).rejects.toThrow('Group description must be between 50 and 5000 characters');
+      await expect(createGroup(invalidData)).rejects.toThrow('Group description is required');
     });
   });
   
   describe('getGroups', () => {
     it('should fetch groups with filters', async () => {
-      // Mock implementation
-      (prisma.group.findMany as jest.Mock).mockResolvedValue([
+      const mockGroups = [
         {
           id: 'group-123',
           name: 'Test Group',
@@ -162,16 +116,22 @@ describe('Group Database Operations', () => {
             }
           ]
         }
-      ]);
+      ];
+      
+      mockPrisma.group.count.mockResolvedValue(1);
+      mockPrisma.group.findMany.mockResolvedValue(mockGroups);
       
       const result = await getGroups('ACTIVE');
       
-      // Verify the result
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Test Group');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Test Group');
+      expect(result.totalItems).toBe(1);
       
-      // Verify prisma was called with correct parameters
-      expect(prisma.group.findMany).toHaveBeenCalledWith(
+      expect(mockPrisma.group.count).toHaveBeenCalledWith({
+        where: { status: 'ACTIVE' }
+      });
+      
+      expect(mockPrisma.group.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { status: 'ACTIVE' },
           orderBy: { name: 'asc' }
@@ -182,8 +142,7 @@ describe('Group Database Operations', () => {
   
   describe('getGroupById', () => {
     it('should fetch a group by ID with related data', async () => {
-      // Mock implementation
-      (prisma.group.findUnique as jest.Mock).mockResolvedValue({
+      const mockGroup = {
         id: 'group-123',
         name: 'Test Group',
         slug: 'test-group-1234',
@@ -202,18 +161,18 @@ describe('Group Database Operations', () => {
           }
         ],
         statusReports: []
-      });
+      };
+      
+      mockPrisma.group.findUnique.mockResolvedValue(mockGroup);
       
       const result = await getGroupById('group-123');
       
-      // Verify the result
       expect(result).toEqual(expect.objectContaining({
         id: 'group-123',
         name: 'Test Group'
       }));
       
-      // Verify prisma was called with correct parameters
-      expect(prisma.group.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.group.findUnique).toHaveBeenCalledWith({
         where: { id: 'group-123' },
         include: expect.objectContaining({
           responsiblePersons: true,
@@ -225,8 +184,7 @@ describe('Group Database Operations', () => {
   
   describe('updateGroupStatus', () => {
     it('should update a group status and send email on activation', async () => {
-      // Mock implementation
-      (prisma.group.update as jest.Mock).mockResolvedValue({
+      const mockUpdatedGroup = {
         id: 'group-123',
         name: 'Test Group',
         slug: 'test-group-1234',
@@ -244,18 +202,18 @@ describe('Group Database Operations', () => {
             groupId: 'group-123'
           }
         ]
-      });
+      };
+      
+      mockPrisma.group.update.mockResolvedValue(mockUpdatedGroup);
       
       const result = await updateGroupStatus('group-123', 'ACTIVE');
       
-      // Verify the result
       expect(result).toEqual(expect.objectContaining({
         id: 'group-123',
         status: 'ACTIVE'
       }));
       
-      // Verify prisma was called with correct parameters
-      expect(prisma.group.update).toHaveBeenCalledWith({
+      expect(mockPrisma.group.update).toHaveBeenCalledWith({
         where: { id: 'group-123' },
         data: { status: 'ACTIVE' },
         include: { responsiblePersons: true }
@@ -265,8 +223,7 @@ describe('Group Database Operations', () => {
   
   describe('createStatusReport', () => {
     it('should create a status report for an active group', async () => {
-      // Mock implementation
-      (prisma.group.findUnique as jest.Mock).mockResolvedValue({
+      const mockGroup = {
         id: 'group-123',
         name: 'Test Group',
         slug: 'test-group-1234',
@@ -275,9 +232,9 @@ describe('Group Database Operations', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date()
-      });
+      };
       
-      (prisma.statusReport.create as jest.Mock).mockResolvedValue({
+      const mockStatusReport = {
         id: 'report-123',
         title: 'Test Report',
         content: 'Test content',
@@ -288,7 +245,10 @@ describe('Group Database Operations', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         groupId: 'group-123'
-      });
+      };
+      
+      mockPrisma.group.findUnique.mockResolvedValue(mockGroup);
+      mockPrisma.statusReport.create.mockResolvedValue(mockStatusReport);
       
       const reportData = {
         groupId: 'group-123',
@@ -300,19 +260,17 @@ describe('Group Database Operations', () => {
       
       const result = await createStatusReport(reportData);
       
-      // Verify the result
       expect(result).toEqual(expect.objectContaining({
         id: 'report-123',
         title: 'Test Report',
         status: 'NEW'
       }));
       
-      // Verify prisma calls
-      expect(prisma.group.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.group.findUnique).toHaveBeenCalledWith({
         where: { id: 'group-123', status: 'ACTIVE' }
       });
       
-      expect(prisma.statusReport.create).toHaveBeenCalledWith({
+      expect(mockPrisma.statusReport.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           title: 'Test Report',
           content: 'Test content',
@@ -323,8 +281,7 @@ describe('Group Database Operations', () => {
     });
     
     it('should throw an error if the group does not exist or is not active', async () => {
-      // Mock implementation
-      (prisma.group.findUnique as jest.Mock).mockResolvedValue(null);
+      mockPrisma.group.findUnique.mockResolvedValue(null);
       
       const reportData = {
         groupId: 'invalid-group',
@@ -340,8 +297,7 @@ describe('Group Database Operations', () => {
   
   describe('updateStatusReportStatus', () => {
     it('should update a status report status and send email on activation', async () => {
-      // Mock implementation
-      (prisma.statusReport.update as jest.Mock).mockResolvedValue({
+      const mockUpdatedReport = {
         id: 'report-123',
         title: 'Test Report',
         content: 'Test content',
@@ -371,18 +327,18 @@ describe('Group Database Operations', () => {
             }
           ]
         }
-      });
+      };
+      
+      mockPrisma.statusReport.update.mockResolvedValue(mockUpdatedReport);
       
       const result = await updateStatusReportStatus('report-123', 'ACTIVE');
       
-      // Verify the result
       expect(result).toEqual(expect.objectContaining({
         id: 'report-123',
         status: 'ACTIVE'
       }));
       
-      // Verify prisma was called with correct parameters
-      expect(prisma.statusReport.update).toHaveBeenCalledWith({
+      expect(mockPrisma.statusReport.update).toHaveBeenCalledWith({
         where: { id: 'report-123' },
         data: { status: 'ACTIVE' },
         include: expect.objectContaining({

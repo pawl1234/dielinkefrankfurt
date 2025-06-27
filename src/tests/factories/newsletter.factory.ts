@@ -78,10 +78,13 @@ export function createMockNewsletterSettings(overrides?: Partial<Record<string, 
     headerBanner: '/images/banner.png',
     footerText: 'Dies ist der Footer-Text für den Newsletter',
     testEmailRecipients: ['test@example.com'],
-    recipientLists: ['list1', 'list2'],
     unsubscribeLink: 'https://example.com/unsubscribe',
     chunkSize: 50,
     chunkDelayMs: 1000,
+    // Include id, createdAt, updatedAt to match service return type
+    id: 'settings-123',
+    createdAt: new Date('2025-06-26T06:37:57.935Z'),
+    updatedAt: new Date('2025-06-26T06:37:57.935Z'),
     ...overrides
   };
 }

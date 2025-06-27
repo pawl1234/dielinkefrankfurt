@@ -67,7 +67,7 @@ describe('Newsletter Service - Unit Tests', () => {
             subject: 'Subject is required and cannot be empty'
           });
         }
-      }).toThrow(NewsletterValidationError);
+      }).toThrow('Newsletter subject is required');
 
       // Subject too long
       const longSubject = 'a'.repeat(201);
@@ -77,7 +77,7 @@ describe('Newsletter Service - Unit Tests', () => {
             subject: 'Subject must be 200 characters or less'
           });
         }
-      }).toThrow(NewsletterValidationError);
+      }).toThrow('Newsletter subject is too long');
 
       // Valid subject
       expect(() => {
@@ -102,7 +102,7 @@ describe('Newsletter Service - Unit Tests', () => {
             status: 'Newsletter has already been sent and cannot be modified'
           });
         }
-      }).toThrow(NewsletterValidationError);
+      }).toThrow('Cannot update a sent newsletter');
 
       // Can update draft newsletter
       expect(() => {
@@ -124,7 +124,7 @@ describe('Newsletter Service - Unit Tests', () => {
             status: `Cannot delete newsletter with status: ${sentNewsletter.status}`
           });
         }
-      }).toThrow(NewsletterValidationError);
+      }).toThrow('Only draft newsletters can be deleted');
 
       // Cannot delete sending newsletter
       expect(() => {
@@ -133,7 +133,7 @@ describe('Newsletter Service - Unit Tests', () => {
             status: `Cannot delete newsletter with status: ${sendingNewsletter.status}`
           });
         }
-      }).toThrow(NewsletterValidationError);
+      }).toThrow('Only draft newsletters can be deleted');
 
       // Can delete draft newsletter
       expect(() => {

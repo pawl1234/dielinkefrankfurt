@@ -114,6 +114,7 @@ export function createNextRequest(url: string, method: string = 'GET', body?: un
   if (body) {
     if (body instanceof FormData) {
       options.body = body;
+      // Don't set Content-Type for FormData, let the browser set it with boundary
     } else {
       options.body = JSON.stringify(body);
       options.headers = {

@@ -32,81 +32,16 @@ This is a Next.js application for Die Linke Frankfurt that manages appointment s
 
 ## Development Commands
 
-### Basic Commands
-
 ```bash
 # Start development server with Turbopack
 npm run dev
 
-# Build for production (with database migration)
-npm run build
-
-# Build without linting (for local testing)
-npm run build:local
-
-# Start production server
-npm run start
-
-# Run linting
-npm run lint:check
-npm run lint:fix
-
-# Run type checking
-npm run typecheck
-```
-
-### Testing
-
-```bash
-# Run all tests
-npm run test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage report
-npm run test:coverage
-```
-
-### Database Commands
-
-```bash
-# Reset database
-npm run db:reset
+# Runs Linter, Typechecking, Tests
+npm run check
 
 # Push schema changes to database
+export DATABASE_URL="postgresql://devuser:devpassword@localhost:5432/mydatabase"
 npm run db:push
-
-# Open Prisma Studio to view/edit data
-npm run db:studio
-
-# Reset migrations
-npm run db:migrate
-
-# Generate Prisma client
-npm run db:generate
-
-# Validate Prisma schema
-npm run db:validate
-
-# Start local PostgreSQL database using Docker
-npm run db:start
-
-# Stop the database container
-npm run db:stop
-```
-
-### Local Infrastructure
-
-```bash
-# Start local Vercel Blob Storage server
-npm run blob:start
-
-# Stop the blob storage server
-npm run blob:stop
-
-# Start local mail server for testing emails
-npm run mail:dev
 ```
 
 ## Project Architecture
@@ -126,6 +61,7 @@ npm run mail:dev
   - `/admin`: Admin interface components
   - `/newsletter`: Newsletter-specific components
 - `/src/lib`: Utility functions and shared code
+- `/src/types`: Shared Types to be reused if possible
 - `/src/theme`: MUI theme configuration
 - `/prisma`: Database schema and migration tools
 - `/public`: Static assets and images

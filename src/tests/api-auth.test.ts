@@ -1,11 +1,16 @@
 import { NextRequest } from 'next/server';
-import { withAdminAuth, verifyAdminAccess } from '@/lib/api-auth';
 import { getToken } from 'next-auth/jwt';
 
 // Mock next-auth
 jest.mock('next-auth/jwt', () => ({
   getToken: jest.fn()
 }));
+
+// Remove the global api-auth mock for this test file
+jest.unmock('@/lib/api-auth');
+
+// Import after unmocking
+import { withAdminAuth, verifyAdminAccess } from '@/lib/api-auth';
 
 describe('API Authentication', () => {
   beforeEach(() => {
@@ -30,7 +35,7 @@ describe('API Authentication', () => {
       });
     });
     
-    it('should return 401 response for non-admin users', async () => {
+    it('should return 403 response for non-admin users', async () => {
       // Mock a non-admin user
       (getToken as jest.Mock).mockResolvedValue({
         role: 'user',
@@ -41,7 +46,7 @@ describe('API Authentication', () => {
       const result = await verifyAdminAccess(mockRequest);
       
       expect(result).not.toBeNull();
-      expect(result?.status).toBe(401);
+      expect(result?.status).toBe(403);
     });
     
     it('should return 401 response for unauthenticated users', async () => {
@@ -68,12 +73,13 @@ describe('API Authentication', () => {
       const mockHandler = jest.fn().mockResolvedValue(new Response('Success'));
       const protectedHandler = withAdminAuth(mockHandler);
       
-      // Call the protected handler
+      // Call the protected handler with context
       const mockRequest = new NextRequest('https://example.com/api/admin/groups');
-      await protectedHandler(mockRequest);
+      const mockContext = { params: { id: '123' } };
+      await protectedHandler(mockRequest, mockContext);
       
-      // Verify the handler was called
-      expect(mockHandler).toHaveBeenCalledWith(mockRequest);
+      // Verify the handler was called with request and context
+      expect(mockHandler).toHaveBeenCalledWith(mockRequest, mockContext);
     });
     
     it('should not call the handler for non-admin users', async () => {
@@ -89,11 +95,12 @@ describe('API Authentication', () => {
       
       // Call the protected handler
       const mockRequest = new NextRequest('https://example.com/api/admin/groups');
-      const response = await protectedHandler(mockRequest);
+      const mockContext = { params: { id: '123' } };
+      const response = await protectedHandler(mockRequest, mockContext);
       
-      // Verify the handler was not called and a 401 was returned
+      // Verify the handler was not called and a 403 was returned
       expect(mockHandler).not.toHaveBeenCalled();
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(403);
     });
     
     it('should not call the handler for unauthenticated users', async () => {
@@ -106,7 +113,8 @@ describe('API Authentication', () => {
       
       // Call the protected handler
       const mockRequest = new NextRequest('https://example.com/api/admin/groups');
-      const response = await protectedHandler(mockRequest);
+      const mockContext = { params: { id: '123' } };
+      const response = await protectedHandler(mockRequest, mockContext);
       
       // Verify the handler was not called and a 401 was returned
       expect(mockHandler).not.toHaveBeenCalled();
