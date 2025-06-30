@@ -54,7 +54,7 @@ describe('/api/admin/newsletter/send-test', () => {
         messageId: 'test-message-id',
         recipientCount: 2
       });
-      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html);
+      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html, undefined);
       expect(logger.info).toHaveBeenCalledWith(
         'Sending test newsletter email',
         expect.objectContaining({
@@ -107,7 +107,7 @@ describe('/api/admin/newsletter/send-test', () => {
       expect(mockPrisma.newsletterItem.findUnique).toHaveBeenCalledWith({
         where: { id: newsletterId }
       });
-      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(newsletterContent);
+      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(newsletterContent, undefined);
       expect(logger.info).toHaveBeenCalledWith(
         'Fetching newsletter content for test email',
         expect.objectContaining({
@@ -195,7 +195,7 @@ describe('/api/admin/newsletter/send-test', () => {
       expect(response.status).toBe(500);
       expect(data.error).toBe('Failed to send test email');
       expect(data.details).toBe('SMTP connection failed');
-      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html);
+      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html, undefined);
       expect(logger.error).toHaveBeenCalledWith(
         'Failed to send test newsletter email',
         expect.objectContaining({
@@ -226,7 +226,7 @@ describe('/api/admin/newsletter/send-test', () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe('Failed to send test email');
-      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html);
+      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html, undefined);
       expect(logger.error).toHaveBeenCalledWith(
         'Error sending test newsletter email',
         expect.objectContaining({
@@ -291,7 +291,7 @@ describe('/api/admin/newsletter/send-test', () => {
       expect(data.success).toBe(true);
       // Should use the provided HTML, not fetch from database
       expect(mockPrisma.newsletterItem.findUnique).not.toHaveBeenCalled();
-      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html);
+      expect(mockSendNewsletterTestEmail).toHaveBeenCalledWith(html, undefined);
     });
 
   });

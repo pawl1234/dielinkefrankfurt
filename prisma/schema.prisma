@@ -43,13 +43,15 @@ model Appointment {
   metadata       String?   // JSON string for additional metadata (cover images, etc.)
 
   // System fields
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  processed      Boolean   @default(false)
-  processingDate DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  processed        Boolean   @default(false)
+  processingDate   DateTime?
+  statusChangeDate DateTime? // Track when appointment status was last changed
 
   // Appointment status
-  status         String    @default("pending") // possible values: pending, accepted, rejected
+  status           String    @default("pending") // possible values: pending, accepted, rejected
+  rejectionReason  String?   // Reason for rejection if status is rejected
 
   @@index([processed]) // Add index for common query filter
   @@index([status]) // Add index for status filtering

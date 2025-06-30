@@ -28,6 +28,7 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
     const { html, newsletterId } = await request.json();
     
     let newsletterHtml = html;
+    let testRecipients: string | undefined;
     
     // If newsletterId is provided, fetch the newsletter content
     if (newsletterId && !html) {
@@ -53,6 +54,22 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
       }
       
       newsletterHtml = fixUrlsInNewsletterHtml(newsletter.content || '');
+      
+      // Extract test recipients from newsletter settings if available
+      if (newsletter.settings) {
+        try {
+          const newsletterSettings = JSON.parse(newsletter.settings);
+          testRecipients = newsletterSettings.testEmailRecipients;
+        } catch (error) {
+          logger.warn('Failed to parse newsletter settings', {
+            context: { 
+              operation: 'send_test_newsletter',
+              newsletterId,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            }
+          });
+        }
+      }
     } else if (html) {
       // Fix URLs in the provided HTML as well
       newsletterHtml = fixUrlsInNewsletterHtml(html);
@@ -71,7 +88,7 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
       }
     });
     
-    const result = await sendNewsletterTestEmail(newsletterHtml);
+    const result = await sendNewsletterTestEmail(newsletterHtml, testRecipients);
     
     if (result.success) {
       logger.info('Test newsletter email sent successfully', {

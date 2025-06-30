@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createGroup, ResponsiblePersonCreateData } from '@/lib/group-handlers';
 import { validateFile, uploadCroppedImagePair, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
+import { logger } from '@/lib/logger';
 
 /**
  * Response type for group submission
  */
 export interface GroupSubmitResponse {
   success: boolean;
+  message?: string;
   group?: {
     id: string;
     name: string;
+    slug: string;
+    description: string;
+    status: string;
+    logoUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   };
   error?: string;
 }
@@ -89,11 +97,26 @@ export async function POST(request: NextRequest) {
     
     const newGroup = await createGroup(groupData);
     
+    // Log successful group request submission
+    logger.info('Group request submitted', {
+      context: {
+        groupId: newGroup.id,
+        name: newGroup.name
+      }
+    });
+    
     const response: GroupSubmitResponse = {
       success: true,
+      message: 'Gruppenanfrage erfolgreich übermittelt',
       group: {
         id: newGroup.id,
-        name: newGroup.name
+        name: newGroup.name,
+        slug: newGroup.slug,
+        description: newGroup.description,
+        status: newGroup.status,
+        logoUrl: newGroup.logoUrl,
+        createdAt: newGroup.createdAt.toISOString(),
+        updatedAt: newGroup.updatedAt.toISOString()
       }
     };
     

@@ -39,7 +39,18 @@ describe('Group Logo Upload API', () => {
     (groupHandlers.createGroup as jest.Mock).mockResolvedValue({
       id: 'group-123',
       name: 'Test Group',
-      slug: 'test-group'
+      slug: 'test-group',
+      description: 'This is a test group description',
+      status: 'NEW',
+      logoUrl: 'https://example.com/cropped-logo.jpg',
+      metadata: JSON.stringify({
+        originalUrl: 'https://example.com/original-logo.jpg',
+        croppedUrl: 'https://example.com/cropped-logo.jpg'
+      }),
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+      statusReports: [],
+      responsiblePersons: []
     });
     
     // Create mock files
@@ -109,7 +120,15 @@ describe('Group Logo Upload API', () => {
     (groupHandlers.createGroup as jest.Mock).mockResolvedValue({
       id: 'group-123',
       name: 'Test Group',
-      slug: 'test-group'
+      slug: 'test-group',
+      description: 'This is a test group description',
+      status: 'NEW',
+      logoUrl: null,
+      metadata: null,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-01T00:00:00Z'),
+      statusReports: [],
+      responsiblePersons: []
     });
     
     // Create form data

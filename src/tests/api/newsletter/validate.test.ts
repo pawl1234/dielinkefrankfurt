@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { validateAndHashEmails } from '@/lib/email-hashing';
+import { processRecipientList } from '@/lib/newsletter-sending';
 
 // Import after dependencies for proper mocking
 import { POST } from '@/app/api/admin/newsletter/validate/route';
@@ -9,8 +9,8 @@ describe('/api/admin/newsletter/validate', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Mock validateAndHashEmails function
-    (validateAndHashEmails as jest.Mock).mockResolvedValue({
+    // Mock processRecipientList function (used by the actual route)
+    (processRecipientList as jest.Mock).mockResolvedValue({
       valid: 2,
       invalid: 1,
       new: 1,
@@ -43,8 +43,8 @@ describe('/api/admin/newsletter/validate', () => {
         invalidEmails: ['invalid-email']
       });
       
-      // Verify email validation was called with the email text
-      expect(validateAndHashEmails).toHaveBeenCalledWith(emailText);
+      // Verify processRecipientList was called with the email text
+      expect(processRecipientList).toHaveBeenCalledWith(emailText);
     });
 
     it('should return validation error when emailText is missing', async () => {

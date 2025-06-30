@@ -126,7 +126,7 @@ describe('File Upload API', () => {
     
     // Verify the response
     expect(responseData.success).toBe(true);
-    expect(responseData.id).toBe(1);
+    expect(responseData.appointmentId).toBe(1);
     
     // Verify blob upload was called
     expect(mockPut).toHaveBeenCalledWith(

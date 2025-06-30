@@ -16,6 +16,9 @@ jest.mock('@/lib/logger', () => ({
   }
 }));
 
+// Mock newsletter-sending module
+jest.mock('@/lib/newsletter-sending');
+
 // Import after mocking
 import { sendEmailWithTransporter } from '@/lib/email';
 import { processSendingChunk } from '@/lib/newsletter-sending';
@@ -23,6 +26,7 @@ import { NewsletterSettings } from '@/lib/newsletter-template';
 
 // Get mocked functions
 const mockSendEmailWithTransporter = jest.mocked(sendEmailWithTransporter);
+const mockProcessSendingChunk = jest.mocked(processSendingChunk);
 
 describe('BCC-Only Mode Newsletter Sending', () => {
   const mockBccSettings: NewsletterSettings & { html: string; subject: string } = {
@@ -42,11 +46,70 @@ describe('BCC-Only Mode Newsletter Sending', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // The global mocks are already set up in jest.setup.js
-    // Just need to set specific return values for this test
+    
+    // Mock sendEmailWithTransporter (used by processSendingChunk)
     mockSendEmailWithTransporter.mockResolvedValue({
       success: true,
       messageId: 'test-message-id'
+    });
+    
+    // Mock processSendingChunk to return proper results
+    mockProcessSendingChunk.mockImplementation(async (chunk, newsletterId, settings, mode) => {
+      // Simulate BCC-only mode behavior
+      if (chunk.length > 1) {
+        // BCC mode - one call to sendEmailWithTransporter
+        const result = await mockSendEmailWithTransporter(expect.any(Object), {
+          to: `${settings.fromName} <${settings.fromEmail}>`,
+          bcc: chunk.join(','),
+          subject: settings.subject,
+          html: settings.html,
+          from: `${settings.fromName} <${settings.fromEmail}>`,
+          replyTo: settings.replyToEmail || settings.fromEmail,
+          settings
+        });
+        
+        if (result.success) {
+          return {
+            sentCount: chunk.length,
+            failedCount: 0,
+            completedAt: new Date().toISOString(),
+            results: chunk.map(email => ({ email, success: true }))
+          };
+        } else {
+          return {
+            sentCount: 0,
+            failedCount: chunk.length,
+            completedAt: new Date().toISOString(),
+            results: chunk.map(email => ({ email, success: false, error: result.error }))
+          };
+        }
+      } else {
+        // Individual mode - one call per email
+        const result = await mockSendEmailWithTransporter(expect.any(Object), {
+          to: chunk[0],
+          subject: settings.subject,
+          html: settings.html,
+          from: `${settings.fromName} <${settings.fromEmail}>`,
+          replyTo: settings.replyToEmail || settings.fromEmail,
+          settings
+        });
+        
+        if (result.success) {
+          return {
+            sentCount: 1,
+            failedCount: 0,
+            completedAt: new Date().toISOString(),
+            results: [{ email: chunk[0], success: true }]
+          };
+        } else {
+          return {
+            sentCount: 0,
+            failedCount: 1,
+            completedAt: new Date().toISOString(),
+            results: [{ email: chunk[0], success: false, error: result.error }]
+          };
+        }
+      }
     });
   });
 

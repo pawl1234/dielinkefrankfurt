@@ -3,6 +3,8 @@ import { withAdminAuth } from '@/lib/api-auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
+import { sendEmail } from '@/lib/email';
+import { ChunkResult, NewsletterSendingSettings } from '../../../../../../types/api-types';
 
 /**
  * Interface for newsletter status response
@@ -28,6 +30,73 @@ interface NewsletterStatusResponse {
 }
 
 /**
+ * Send admin notification email for newsletter completion
+ */
+async function sendAdminNotificationEmail(newsletterId: string, settings: NewsletterSendingSettings, newsletterSubject?: string): Promise<{ success: boolean; error?: Error | unknown }> {
+  try {
+    const adminNotificationEmail = settings.adminNotificationEmail;
+    
+    if (!adminNotificationEmail) {
+      console.log('No admin notification email configured');
+      return { success: false, error: 'No admin notification email configured' };
+    }
+
+    const totalRecipients = settings.totalRecipients || 0;
+    const successfulSends = settings.successfulSends || 0;
+    const failedSends = settings.failedSends || 0;
+    const successRate = totalRecipients > 0 ? Math.round((successfulSends / totalRecipients) * 100) : 0;
+    
+    // Get failed email addresses
+    const failedEmails: string[] = [];
+    const chunkResults = settings.chunkResults || [];
+    chunkResults.forEach((chunk: ChunkResult) => {
+      if (chunk.results) {
+        chunk.results.forEach((result) => {
+          if (!result.success && result.email) {
+            failedEmails.push(result.email);
+          }
+        });
+      }
+    });
+
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Newsletter Delivery Complete</title>
+</head>
+<body>
+  <h2>Newsletter Delivery Complete${newsletterSubject ? `: ${newsletterSubject}` : ''}</h2>
+  <p>Der Newsletter-Versand wurde abgeschlossen.</p>
+  <p><strong>Gesamt-Empfänger:</strong> ${totalRecipients} Empfänger</p>
+  <p><strong>Erfolgreich versendet:</strong> ${successfulSends} erfolgreich</p>
+  <p><strong>Fehlgeschlagen:</strong> ${failedSends} fehlgeschlagen</p>
+  <p><strong>Erfolgsrate:</strong> ${successRate}%</p>
+  ${failedEmails.length > 0 ? `
+  <h3>Fehlgeschlagene E-Mails:</h3>
+  <ul>
+    ${failedEmails.slice(0, 10).map(email => `<li>${email}</li>`).join('')}
+    ${failedEmails.length > 10 ? `<li><em>... und ${failedEmails.length - 10} weitere</em></li>` : ''}
+  </ul>
+  ` : ''}
+</body>
+</html>
+    `;
+
+    const result = await sendEmail({
+      to: adminNotificationEmail,
+      subject: 'Newsletter Delivery Complete',
+      html
+    });
+
+    return result;
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+/**
  * Get newsletter sending status
  */
 async function handleGetNewsletterStatus(
@@ -40,6 +109,10 @@ async function handleGetNewsletterStatus(
     if (!newsletterId) {
       return AppError.validation('Newsletter ID is required').toResponse();
     }
+
+    // Check if admin notification should be triggered
+    const url = new URL(request.url);
+    const triggerNotification = url.searchParams.get('triggerNotification') === 'true';
 
     // Get newsletter record
     const newsletter = await prisma.newsletterItem.findUnique({
@@ -65,6 +138,7 @@ async function handleGetNewsletterStatus(
     const isComplete = ['sent', 'partially_failed', 'failed'].includes(newsletter.status) || 
                       completedChunks >= totalChunks;
 
+
     logger.info(`Newsletter status requested for ${newsletterId}`, {
       context: {
         status: newsletter.status,
@@ -76,6 +150,20 @@ async function handleGetNewsletterStatus(
         isComplete
       }
     });
+
+    // Trigger admin notification if requested and sending is complete
+    if (triggerNotification && isComplete) {
+      logger.info(`Triggering admin notification for newsletter ${newsletterId}`);
+      
+      // Send admin notification synchronously for testing
+      try {
+        await sendAdminNotificationEmail(newsletterId, settings, newsletter.subject);
+      } catch (error) {
+        logger.error('Failed to send admin notification:', {
+          context: { newsletterId, error }
+        });
+      }
+    }
 
     const response: NewsletterStatusResponse = {
       success: true,

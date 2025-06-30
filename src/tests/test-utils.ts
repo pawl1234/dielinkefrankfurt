@@ -44,7 +44,7 @@ export function createMockGroup(overrides: Partial<Group> = {}): Group {
     id,
     name: overrides.name || 'Test Group',
     slug: overrides.slug || `test-group-${id}`,
-    description: overrides.description || 'This is a test group description',
+    description: overrides.description || 'This is a test group description with enough content to meet the minimum character requirement for group descriptions.',
     status: overrides.status || 'NEW',
     logoUrl: overrides.logoUrl || null,
     createdAt: overrides.createdAt || new Date(),
@@ -52,9 +52,9 @@ export function createMockGroup(overrides: Partial<Group> = {}): Group {
     responsiblePersons: overrides.responsiblePersons || [
       {
         id: `person-${Math.floor(Math.random() * 1000)}`,
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
+        firstName: 'Anna',
+        lastName: 'Schmidt',
+        email: 'anna.schmidt@example.com',
         groupId: id
       }
     ]

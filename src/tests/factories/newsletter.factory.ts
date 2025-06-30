@@ -1,4 +1,4 @@
-import { Newsletter } from '@prisma/client';
+import { Newsletter, NewsletterItem } from '@prisma/client';
 import { subDays } from 'date-fns';
 
 export function createMockNewsletter(overrides?: Partial<Newsletter>): Newsletter {
@@ -102,4 +102,68 @@ export function createMockChunkResult(overrides?: Partial<Record<string, unknown
     ],
     ...overrides
   };
+}
+
+// NewsletterItem factories (for actual newsletter instances)
+export function createMockNewsletterItem(overrides?: Partial<NewsletterItem>): NewsletterItem {
+  const now = new Date();
+  
+  return {
+    id: 'newsletter-item-123',
+    subject: 'Test Newsletter Subject',
+    introductionText: 'This is the introduction text for the newsletter',
+    content: '<html><body><h1>Test Newsletter</h1><p>This is test content</p></body></html>',
+    status: 'draft',
+    createdAt: subDays(now, 7),
+    updatedAt: subDays(now, 7),
+    sentAt: null,
+    recipientCount: null,
+    settings: null,
+    ...overrides
+  };
+}
+
+export function createMockNewsletterItemWithSendingData(overrides?: Partial<NewsletterItem>): NewsletterItem {
+  const now = new Date();
+  const sentAt = subDays(now, 1);
+  
+  return createMockNewsletterItem({
+    status: 'sent',
+    sentAt,
+    recipientCount: 3,
+    settings: JSON.stringify({
+      headerLogo: '/images/logo.png',
+      headerBanner: '/images/banner.png',
+      footerText: 'Dies ist der Footer-Text für den Newsletter',
+      testEmailRecipients: ['test@example.com'],
+      recipientLists: ['list1', 'list2'],
+      unsubscribeLink: 'https://example.com/unsubscribe',
+      chunkSize: 50,
+      chunkDelayMs: 1000,
+      maxRetryAttempts: 3,
+      retryDelayMs: 5000,
+      retryBackoffMultiplier: 2,
+      chunkResults: [
+        {
+          chunkNumber: 0,
+          startedAt: sentAt.toISOString(),
+          completedAt: new Date(sentAt.getTime() + 2000).toISOString(),
+          success: true,
+          error: null,
+          results: [
+            { email: 'success1@example.com', success: true, error: null },
+            { email: 'success2@example.com', success: true, error: null },
+            { email: 'failed@example.com', success: false, error: 'Failed to send', attempts: 1 }
+          ]
+        }
+      ],
+      totalRecipients: 3,
+      successfulSends: 2,
+      failedSends: 1,
+      sendingStartedAt: sentAt.toISOString(),
+      sendingCompletedAt: new Date(sentAt.getTime() + 2000).toISOString(),
+      statusReportIds: ['report-1', 'report-2']
+    }),
+    ...overrides
+  });
 }

@@ -15,6 +15,9 @@ jest.mock('next-auth/jwt', () => ({
   decode: jest.fn(),
 }));
 
+// Mock api-auth module - uses __mocks__ folder
+jest.mock('@/lib/api-auth');
+
 // Mock Next.js routing
 jest.mock('next/navigation', () => ({
   useRouter() {
@@ -403,35 +406,478 @@ jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     appointment: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
+      findMany: jest.fn().mockImplementation(({ where, include, orderBy, take, skip }) => {
+        const appointmentState = global._mockAppointmentState || new Map();
+        let appointments = Array.from(appointmentState.values());
+        
+        // Apply filters
+        if (where) {
+          if (where.status) {
+            appointments = appointments.filter(a => a.status === where.status);
+          }
+          if (where.startDateTime && where.startDateTime.gte) {
+            appointments = appointments.filter(a => a.startDateTime >= where.startDateTime.gte);
+          }
+          if (where.featured !== undefined) {
+            appointments = appointments.filter(a => a.featured === where.featured);
+          }
+        }
+        
+        // Apply ordering
+        if (orderBy) {
+          if (Array.isArray(orderBy)) {
+            // Multiple sort criteria
+            appointments.sort((a, b) => {
+              for (const sort of orderBy) {
+                const field = Object.keys(sort)[0];
+                const direction = sort[field];
+                let aVal = a[field];
+                let bVal = b[field];
+                
+                if (direction === 'desc') {
+                  [aVal, bVal] = [bVal, aVal];
+                }
+                
+                if (aVal < bVal) return -1;
+                if (aVal > bVal) return 1;
+              }
+              return 0;
+            });
+          } else {
+            const field = Object.keys(orderBy)[0];
+            const direction = orderBy[field];
+            appointments.sort((a, b) => {
+              let aVal = a[field];
+              let bVal = b[field];
+              
+              if (direction === 'desc') {
+                [aVal, bVal] = [bVal, aVal];
+              }
+              
+              if (aVal < bVal) return -1;
+              if (aVal > bVal) return 1;
+              return 0;
+            });
+          }
+        }
+        
+        // Apply pagination
+        if (skip) {
+          appointments = appointments.slice(skip);
+        }
+        if (take) {
+          appointments = appointments.slice(0, take);
+        }
+        
+        return Promise.resolve(appointments);
+      }),
+      findUnique: jest.fn().mockImplementation(({ where }) => {
+        // If querying by ID, return the appointment from global state
+        if (where && where.id) {
+          const appointmentState = global._mockAppointmentState || new Map();
+          const appointment = appointmentState.get(where.id);
+          if (appointment) {
+            return Promise.resolve(appointment);
+          }
+          
+          // Fallback for tests that don't create appointments
+          return Promise.resolve({
+            id: where.id,
+            title: 'Test Appointment',
+            slug: 'test-appointment-slug',
+            mainText: 'Test content',
+            startDateTime: new Date(),
+            endDateTime: new Date(),
+            location: 'Test Location',
+            street: 'Test Street',
+            city: 'Test City',
+            state: 'Test State',
+            postalCode: '12345',
+            firstName: 'Test',
+            lastName: 'User',
+            email: 'test@example.com',
+            phone: '+49 123 456789',
+            status: 'pending',
+            processed: false,
+            featured: false,
+            coverImageUrl: null,
+            fileUrls: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            processingDate: null,
+            statusChangeDate: null,
+            rejectionReason: null
+          });
+        }
+        return Promise.resolve(null);
+      }),
+      create: jest.fn().mockImplementation((createData) => {
+        const title = createData.data.title || 'Test Appointment';
+        const slug = title.toLowerCase()
+          .replace(/[äöüß]/g, (match) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' }[match]))
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+        
+        const newAppointment = {
+          id: Math.floor(Math.random() * 10000),
+          title: title,
+          slug: slug,
+          mainText: createData.data.mainText || 'Test content',
+          startDateTime: createData.data.startDateTime || new Date(),
+          endDateTime: createData.data.endDateTime || new Date(),
+          location: createData.data.location || 'Test Location',
+          street: createData.data.street || 'Test Street',
+          city: createData.data.city || 'Test City',
+          state: createData.data.state || 'Test State',
+          postalCode: createData.data.postalCode || '12345',
+          firstName: createData.data.firstName || 'Test',
+          lastName: createData.data.lastName || 'User',
+          email: createData.data.email || 'test@example.com',
+          phone: createData.data.phone || '+49 123 456789',
+          status: 'pending',
+          processed: false,
+          featured: createData.data.featured || false,
+          coverImageUrl: null,
+          fileUrls: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          processingDate: null,
+          statusChangeDate: null,
+          rejectionReason: null
+        };
+        
+        // Store in a global appointment state for retrieval
+        global._mockAppointmentState = global._mockAppointmentState || new Map();
+        global._mockAppointmentState.set(newAppointment.id, newAppointment);
+        
+        return Promise.resolve(newAppointment);
+      }),
+      update: jest.fn().mockImplementation(({ where, data }) => {
+        const appointmentState = global._mockAppointmentState || new Map();
+        const existingAppointment = appointmentState.get(where.id);
+        
+        if (existingAppointment) {
+          const updatedAppointment = {
+            ...existingAppointment,
+            ...data,
+            updatedAt: new Date()
+          };
+          appointmentState.set(where.id, updatedAppointment);
+          return Promise.resolve(updatedAppointment);
+        }
+        
+        return Promise.resolve(null);
+      }),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
       count: jest.fn(),
     },
     group: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
+      findMany: jest.fn().mockImplementation(({ where, include, orderBy, take, skip }) => {
+        const groupState = global._mockGroupState || new Map();
+        let groups = Array.from(groupState.values());
+        
+        // Apply filters
+        if (where) {
+          if (where.status) {
+            groups = groups.filter(g => g.status === where.status);
+          }
+          if (where.id) {
+            groups = groups.filter(g => g.id === where.id);
+          }
+        }
+        
+        // Apply ordering
+        if (orderBy && orderBy.name) {
+          const direction = orderBy.name;
+          groups.sort((a, b) => {
+            let aVal = a.name;
+            let bVal = b.name;
+            
+            if (direction === 'desc') {
+              [aVal, bVal] = [bVal, aVal];
+            }
+            
+            if (aVal < bVal) return -1;
+            if (aVal > bVal) return 1;
+            return 0;
+          });
+        }
+        
+        // Apply pagination
+        if (skip) {
+          groups = groups.slice(skip);
+        }
+        if (take) {
+          groups = groups.slice(0, take);
+        }
+        
+        return Promise.resolve(groups);
+      }),
+      findUnique: jest.fn().mockImplementation(({ where, include }) => {
+        const groupState = global._mockGroupState || new Map();
+        
+        // If querying by ID, check the global state first
+        if (where && where.id) {
+          const group = groupState.get(where.id);
+          if (group) {
+            // Apply status filter if specified
+            if (where.status && group.status !== where.status) {
+              return Promise.resolve(null);
+            }
+            
+            // Add responsible persons if include is specified
+            if (include && include.responsiblePersons && group.responsiblePersons) {
+              return Promise.resolve({
+                ...group,
+                responsiblePersons: group.responsiblePersons
+              });
+            }
+            
+            return Promise.resolve(group);
+          }
+          
+          // Fallback for tests that don't create groups
+          const fallbackGroup = {
+            id: where.id,
+            name: 'Test Group',
+            slug: 'test-group-slug',
+            description: 'Test Description',
+            logoUrl: null,
+            status: 'NEW',
+            metadata: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+          
+          // Add empty responsible persons array if include is specified
+          if (include && include.responsiblePersons) {
+            fallbackGroup.responsiblePersons = [];
+          }
+          
+          return Promise.resolve(fallbackGroup);
+        }
+        
+        // Handle status-only queries
+        if (where && where.status) {
+          const matchingGroups = Array.from(groupState.values()).filter(g => g.status === where.status);
+          if (matchingGroups.length > 0) {
+            const group = matchingGroups[0];
+            if (include && include.responsiblePersons) {
+              return Promise.resolve({
+                ...group,
+                responsiblePersons: group.responsiblePersons || []
+              });
+            }
+            return Promise.resolve(group);
+          }
+          return Promise.resolve(null);
+        }
+        
+        return Promise.resolve(null);
+      }),
+      create: jest.fn().mockImplementation(({ data, include }) => {
+        const newGroup = {
+          id: Math.random().toString(36).substring(2, 15),
+          name: data.name || 'Test Group',
+          slug: data.slug || data.name?.toLowerCase().replace(/\s+/g, '-') || 'test-group-slug',
+          description: data.description || 'Test Description',
+          logoUrl: data.logoUrl || null,
+          status: data.status || 'NEW',
+          metadata: data.metadata || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          responsiblePersons: data.responsiblePersons?.create || []
+        };
+        
+        // Store in a global group state for retrieval
+        global._mockGroupState = global._mockGroupState || new Map();
+        global._mockGroupState.set(newGroup.id, newGroup);
+        
+        return Promise.resolve(newGroup);
+      }),
+      update: jest.fn().mockImplementation(({ where, data }) => {
+        const groupState = global._mockGroupState || new Map();
+        const existingGroup = groupState.get(where.id);
+        
+        if (existingGroup) {
+          const updatedGroup = {
+            ...existingGroup,
+            ...data,
+            updatedAt: new Date()
+          };
+          groupState.set(where.id, updatedGroup);
+          return Promise.resolve(updatedGroup);
+        }
+        
+        return Promise.resolve({
+          id: 'test-group-id',
+          name: 'Test Group',
+          slug: 'test-group-slug',
+          description: 'Test Description',
+          logoUrl: null,
+          status: 'REJECTED',
+          metadata: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          responsiblePersons: [{
+            id: 'test-person-id',
+            firstName: 'Test',
+            lastName: 'Person',
+            email: 'test@example.com',
+            groupId: 'test-group-id'
+          }]
+        });
+      }),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
       count: jest.fn(),
     },
     responsiblePerson: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
-      create: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn().mockImplementation(({ data }) => {
+        const newPerson = {
+          id: Math.random().toString(36).substring(2, 15),
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          groupId: data.groupId
+        };
+        return Promise.resolve(newPerson);
+      }),
       update: jest.fn(),
       delete: jest.fn(),
       deleteMany: jest.fn(),
     },
     statusReport: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
+      findMany: jest.fn().mockImplementation(({ where, include, orderBy, take, skip }) => {
+        const statusReportState = global._mockStatusReportState || new Map();
+        let statusReports = Array.from(statusReportState.values());
+        
+        // Apply filters
+        if (where) {
+          if (where.status) {
+            statusReports = statusReports.filter(sr => sr.status === where.status);
+          }
+          if (where.groupId) {
+            statusReports = statusReports.filter(sr => sr.groupId === where.groupId);
+          }
+          if (where.id) {
+            statusReports = statusReports.filter(sr => sr.id === where.id);
+          }
+        }
+        
+        // Apply ordering
+        if (orderBy && orderBy.createdAt) {
+          const direction = orderBy.createdAt;
+          statusReports.sort((a, b) => {
+            let aVal = a.createdAt;
+            let bVal = b.createdAt;
+            
+            if (direction === 'desc') {
+              [aVal, bVal] = [bVal, aVal];
+            }
+            
+            if (aVal < bVal) return -1;
+            if (aVal > bVal) return 1;
+            return 0;
+          });
+        }
+        
+        // Apply pagination
+        if (skip) {
+          statusReports = statusReports.slice(skip);
+        }
+        if (take) {
+          statusReports = statusReports.slice(0, take);
+        }
+        
+        return Promise.resolve(statusReports);
+      }),
+      findUnique: jest.fn().mockImplementation(({ where, include }) => {
+        if (where && where.id) {
+          const statusReportState = global._mockStatusReportState || new Map();
+          const statusReport = statusReportState.get(where.id);
+          if (statusReport) {
+            // Add group relation if include is specified
+            if (include && include.group) {
+              const groupState = global._mockGroupState || new Map();
+              const group = groupState.get(statusReport.groupId);
+              return Promise.resolve({
+                ...statusReport,
+                group: group || {
+                  id: statusReport.groupId,
+                  name: 'Test Group',
+                  slug: 'test-group',
+                  status: 'ACTIVE',
+                  responsiblePersons: []
+                }
+              });
+            }
+            return Promise.resolve(statusReport);
+          }
+        }
+        return Promise.resolve(null);
+      }),
+      create: jest.fn().mockImplementation(({ data }) => {
+        const newStatusReport = {
+          id: Math.random().toString(36).substring(2, 15),
+          title: data.title || 'Test Status Report',
+          content: data.content || 'Test content',
+          reporterFirstName: data.reporterFirstName || 'Test',
+          reporterLastName: data.reporterLastName || 'User',
+          fileUrls: data.fileUrls || null,
+          status: data.status || 'NEW',
+          groupId: data.groupId || 'test-group-id',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        // Store in a global status report state for retrieval
+        global._mockStatusReportState = global._mockStatusReportState || new Map();
+        global._mockStatusReportState.set(newStatusReport.id, newStatusReport);
+        
+        return Promise.resolve(newStatusReport);
+      }),
+      update: jest.fn().mockImplementation(({ where, data, include }) => {
+        const statusReportState = global._mockStatusReportState || new Map();
+        const existingStatusReport = statusReportState.get(where.id);
+        
+        if (existingStatusReport) {
+          const updatedStatusReport = {
+            ...existingStatusReport,
+            ...data,
+            updatedAt: new Date()
+          };
+          statusReportState.set(where.id, updatedStatusReport);
+          
+          // Add group relation if include is specified
+          if (include && include.group) {
+            const groupState = global._mockGroupState || new Map();
+            const group = groupState.get(updatedStatusReport.groupId);
+            return Promise.resolve({
+              ...updatedStatusReport,
+              group: group || {
+                id: updatedStatusReport.groupId,
+                name: 'Test Group',
+                slug: 'test-group',
+                status: 'ACTIVE',
+                responsiblePersons: []
+              }
+            });
+          }
+          
+          return Promise.resolve(updatedStatusReport);
+        }
+        
+        return Promise.resolve(null);
+      }),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
       count: jest.fn(),
     },
     newsletter: {
@@ -442,15 +888,95 @@ jest.mock('@/lib/prisma', () => ({
       update: jest.fn(),
       upsert: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
       count: jest.fn(),
     },
     newsletterItem: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
+      findUnique: jest.fn().mockImplementation(({ where }) => {
+        // Create a mock newsletter item if one is requested
+        return Promise.resolve({
+          id: where.id || 'test-newsletter-item-id',
+          subject: 'Test Newsletter Subject',
+          introductionText: 'Test introduction',
+          content: '<html><body><h1>Test Newsletter</h1></body></html>',
+          status: 'draft',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: null,
+          recipientCount: null,
+          settings: JSON.stringify({
+            headerLogo: '/images/logo.png',
+            footerText: 'Newsletter Footer',
+            unsubscribeLink: 'https://example.com/unsubscribe',
+            chunkSize: 50,
+            chunkDelayMs: 1000,
+            chunkResults: [],
+            totalRecipients: 0,
+            successfulSends: 0,
+            failedSends: 0,
+            sendingStartedAt: null,
+            sendingCompletedAt: null
+          })
+        });
+      }),
+      create: jest.fn().mockImplementation(({ data }) => {
+        // Return the created newsletter item with merged data
+        return Promise.resolve({
+          id: data.id || 'test-newsletter-item-id',
+          subject: data.subject || 'Test Newsletter Subject',
+          introductionText: data.introductionText || 'Test introduction',
+          content: data.content || '<html><body><h1>Test Newsletter</h1></body></html>',
+          status: data.status || 'draft',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: data.sentAt || null,
+          recipientCount: data.recipientCount || null,
+          settings: data.settings || JSON.stringify({
+            headerLogo: '/images/logo.png',
+            footerText: 'Newsletter Footer',
+            unsubscribeLink: 'https://example.com/unsubscribe',
+            chunkSize: 50,
+            chunkDelayMs: 1000,
+            chunkResults: [],
+            totalRecipients: 0,
+            successfulSends: 0,
+            failedSends: 0,
+            sendingStartedAt: null,
+            sendingCompletedAt: null
+          })
+        });
+      }),
+      update: jest.fn().mockImplementation(({ where, data }) => {
+        // Return updated newsletter item
+        return Promise.resolve({
+          id: where.id,
+          subject: data.subject || 'Test Newsletter Subject',
+          introductionText: data.introductionText || 'Test introduction',
+          content: data.content || '<html><body><h1>Test Newsletter</h1></body></html>',
+          status: data.status || 'draft',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sentAt: data.sentAt || null,
+          recipientCount: data.recipientCount || null,
+          settings: data.settings || JSON.stringify({
+            headerLogo: '/images/logo.png',
+            footerText: 'Newsletter Footer',
+            unsubscribeLink: 'https://example.com/unsubscribe',
+            chunkSize: 50,
+            chunkDelayMs: 1000,
+            chunkResults: [],
+            totalRecipients: 0,
+            successfulSends: 0,
+            failedSends: 0,
+            sendingStartedAt: null,
+            sendingCompletedAt: null
+          })
+        });
+      }),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
       count: jest.fn(),
     },
     hashedRecipient: {
@@ -463,7 +989,127 @@ jest.mock('@/lib/prisma', () => ({
       deleteMany: jest.fn(),
       count: jest.fn(),
     },
-    $transaction: jest.fn(),
+    $transaction: jest.fn().mockImplementation(async (callback) => {
+      // Mock transaction with proper context
+      let currentGroup = null;
+      const currentResponsiblePersons = [];
+      
+      const tx = {
+        group: {
+          create: jest.fn().mockImplementation(({ data }) => {
+            const groupId = Math.random().toString(36).substring(2, 15);
+            currentGroup = {
+              id: groupId,
+              name: data.name || 'Test Group',
+              slug: data.slug || data.name?.toLowerCase().replace(/\s+/g, '-') || 'test-group-slug',
+              description: data.description || 'Test Description',
+              logoUrl: data.logoUrl || null,
+              status: data.status || 'NEW',
+              metadata: data.metadata || null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              responsiblePersons: []
+            };
+            
+            return Promise.resolve(currentGroup);
+          }),
+          update: jest.fn().mockResolvedValue({
+            id: 'test-group-id',
+            name: 'Test Group',
+            slug: 'test-group-slug',
+            description: 'Test Description',
+            logoUrl: null,
+            status: 'REJECTED',
+            metadata: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }),
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'test-group-id',
+            name: 'Test Group',
+            slug: 'test-group-slug',
+            description: 'Test Description',
+            logoUrl: null,
+            status: 'REJECTED',
+            metadata: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            responsiblePersons: [{
+              id: 'test-person-id',
+              firstName: 'Test',
+              lastName: 'Person',
+              email: 'test@example.com',
+              groupId: 'test-group-id'
+            }]
+          }),
+          findMany: jest.fn().mockResolvedValue([]),
+          delete: jest.fn(),
+          deleteMany: jest.fn()
+        },
+        responsiblePerson: {
+          create: jest.fn().mockImplementation(({ data }) => {
+            const newPerson = {
+              id: Math.random().toString(36).substring(2, 15),
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email,
+              groupId: data.groupId
+            };
+            
+            // Add to current group if it exists
+            if (currentGroup && currentGroup.id === data.groupId) {
+              currentGroup.responsiblePersons.push(newPerson);
+            }
+            
+            currentResponsiblePersons.push(newPerson);
+            return Promise.resolve(newPerson);
+          }),
+          deleteMany: jest.fn()
+        },
+        statusReport: {
+          create: jest.fn().mockImplementation(({ data }) => {
+            const newStatusReport = {
+              id: Math.random().toString(36).substring(2, 15),
+              title: data.title || 'Test Status Report',
+              content: data.content || 'Test content',
+              reporterFirstName: data.reporterFirstName || 'Test',
+              reporterLastName: data.reporterLastName || 'User',
+              fileUrls: data.fileUrls || null,
+              status: data.status || 'NEW',
+              groupId: data.groupId || 'test-group-id',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+            
+            // Store in a global status report state for retrieval
+            global._mockStatusReportState = global._mockStatusReportState || new Map();
+            global._mockStatusReportState.set(newStatusReport.id, newStatusReport);
+            
+            return Promise.resolve(newStatusReport);
+          }),
+          deleteMany: jest.fn()
+        },
+        appointment: {
+          deleteMany: jest.fn()
+        },
+        newsletter: {
+          deleteMany: jest.fn()
+        },
+        newsletterItem: {
+          deleteMany: jest.fn()
+        }
+      };
+      
+      const result = await callback(tx);
+      
+      // After transaction completes, store the group with responsible persons in global state
+      if (currentGroup) {
+        global._mockGroupState = global._mockGroupState || new Map();
+        global._mockGroupState.set(currentGroup.id, currentGroup);
+      }
+      
+      return result;
+    }),
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
     $disconnect: jest.fn(),
@@ -523,7 +1169,31 @@ jest.mock('crypto', () => ({
 
 // Mock API authentication for API tests
 jest.mock('@/lib/api-auth', () => ({
-  withAdminAuth: jest.fn((handler) => handler)
+  withAdminAuth: jest.fn((handler) => async (request, context) => {
+    const { getToken } = require('next-auth/jwt');
+    const token = await getToken({ req: request });
+    
+    if (!token || token.role !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    return handler(request, context);
+  }),
+  serverErrorResponse: jest.fn((message) => 
+    new Response(JSON.stringify({ error: message }), { 
+      status: 500, 
+      headers: { 'Content-Type': 'application/json' } 
+    })
+  ),
+  validationErrorResponse: jest.fn((errors) => 
+    new Response(JSON.stringify({ error: 'Validation failed', errors }), { 
+      status: 400, 
+      headers: { 'Content-Type': 'application/json' } 
+    })
+  )
 }));
 
 // Mock error handling for API tests
@@ -627,6 +1297,14 @@ jest.mock('@/lib/errors', () => ({
     };
     return translations[message] || message;
   })
+}));
+
+// Mock newsletter-sending service
+jest.mock('@/lib/newsletter-sending', () => ({
+  processSendingChunk: jest.fn(),
+  processRecipientList: jest.fn(),
+  getSentNewsletters: jest.fn(),
+  getNewsletterStatus: jest.fn()
 }));
 
 // Mock newsletter service

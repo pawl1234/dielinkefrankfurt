@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createStatusReport } from '@/lib/group-handlers';
 import { uploadStatusReportFiles, FileUploadError } from '@/lib/file-upload';
+import { logger } from '@/lib/logger';
+import { del } from '@vercel/blob';
 
 /**
  * POST /api/status-reports/submit
@@ -66,15 +68,37 @@ export async function POST(request: NextRequest) {
       fileUrls
     };
     
-    const newStatusReport = await createStatusReport(statusReportData);
-    
-    return NextResponse.json({
-      success: true,
-      statusReport: {
-        id: newStatusReport.id,
-        title: newStatusReport.title
+    try {
+      const newStatusReport = await createStatusReport(statusReportData);
+      
+      // Log successful submission
+      logger.info('Status report submitted successfully', {
+        context: {
+          reportId: newStatusReport.id,
+          groupId: newStatusReport.groupId,
+          title: newStatusReport.title
+        }
+      });
+      
+      return NextResponse.json({
+        success: true,
+        statusReport: {
+          id: newStatusReport.id,
+          title: newStatusReport.title
+        }
+      });
+    } catch (createError) {
+      // If database operation failed and we uploaded files, clean them up
+      if (fileUrls.length > 0) {
+        try {
+          await del(fileUrls);
+          console.log('Cleaned up uploaded files after database error');
+        } catch (deleteError) {
+          console.error('Error cleaning up uploaded files:', deleteError);
+        }
       }
-    });
+      throw createError; // Re-throw to be handled by outer catch
+    }
   } catch (error) {
     console.error('Error submitting status report:', error);
     

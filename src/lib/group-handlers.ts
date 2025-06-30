@@ -2,8 +2,14 @@ import prisma from './prisma';
 import { Group, GroupStatus, ResponsiblePerson, StatusReport, StatusReportStatus, Prisma } from '@prisma/client';
 import { del } from '@vercel/blob';
 import slugify from 'slugify';
-import { getBaseUrl } from './base-url';
-import { sendEmail } from './email';
+import { 
+  sendStatusReportAcceptanceEmail, 
+  sendStatusReportRejectionEmail, 
+  sendStatusReportArchivingEmail,
+  sendGroupAcceptanceEmail,
+  sendGroupRejectionEmail,
+  sendGroupArchivingEmail
+} from './email-notifications';
 
 /**
  * Types for group operations
@@ -174,9 +180,9 @@ export async function createGroup(data: GroupCreateData): Promise<Group> {
       for (const person of data.responsiblePersons) {
         await tx.responsiblePerson.create({
           data: {
-            firstName: person.firstName,
-            lastName: person.lastName,
-            email: person.email,
+            firstName: person.firstName.trim(),
+            lastName: person.lastName.trim(),
+            email: person.email.trim(),
             groupId: newGroup.id
           }
         });
@@ -617,10 +623,10 @@ export async function createStatusReport(data: StatusReportCreateData): Promise<
   try {
     // Check if the group exists and is active
     const group = await prisma.group.findUnique({
-      where: { id: data.groupId, status: 'ACTIVE' as GroupStatus }
+      where: { id: data.groupId }
     });
     
-    if (!group) {
+    if (!group || group.status !== 'ACTIVE') {
       throw new Error('Group not found or not active');
     }
     
@@ -820,6 +826,35 @@ export async function updateStatusReportStatus(id: string, status: StatusReportS
  */
 export async function updateStatusReport(data: StatusReportUpdateData): Promise<StatusReport> {
   try {
+    // Get current status report to check for status changes
+    const currentReport = await prisma.statusReport.findUnique({
+      where: { id: data.id },
+      include: {
+        group: {
+          include: {
+            responsiblePersons: true
+          }
+        }
+      }
+    });
+    
+    if (!currentReport) {
+      throw new Error(`Status report with ID ${data.id} not found`);
+    }
+    
+    // Validate status if provided
+    if (data.status) {
+      const validStatuses = ['NEW', 'ACTIVE', 'ARCHIVED', 'REJECTED'];
+      if (!validStatuses.includes(data.status)) {
+        throw new Error(`Invalid status: ${data.status}. Valid statuses are: ${validStatuses.join(', ')}`);
+      }
+    }
+    
+    // If status is being changed to ACTIVE, validate that the group is active
+    if (data.status === 'ACTIVE' && currentReport.group.status !== 'ACTIVE' && currentReport.group.status !== 'ARCHIVED') {
+      throw new Error('Gruppe ist nicht aktiv');
+    }
+    
     // Prepare update data
     const updateData: Prisma.StatusReportUpdateInput = {};
     
@@ -851,6 +886,22 @@ export async function updateStatusReport(data: StatusReportUpdateData): Promise<
         }
       }
     });
+    
+    // If status changed, handle notifications
+    if (data.status && data.status !== currentReport.status) {
+      try {
+        if (data.status === 'ACTIVE') {
+          await sendStatusReportAcceptanceEmail(statusReport);
+        } else if (data.status === 'REJECTED') {
+          await sendStatusReportRejectionEmail(statusReport);
+        } else if (data.status === 'ARCHIVED') {
+          await sendStatusReportArchivingEmail(statusReport);
+        }
+      } catch (emailError) {
+        console.error(`Error sending notification email for status report ${data.id}:`, emailError);
+        // Continue without failing the update
+      }
+    }
        
     return statusReport;
   } catch (error) {
@@ -930,320 +981,6 @@ export async function getRecentStatusReportsForNewsletter(): Promise<(StatusRepo
   }
 }
 
-/**
- * Send email notification when a group is accepted
- * @param group The group with its responsible persons
- * @returns Promise resolving to the email sending result
- */
-export async function sendGroupAcceptanceEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: Error | string }> {
-  try {
-    if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
-      console.error(`No responsible persons found for group ${group.id}`);
-      return { success: false, error: 'No responsible persons found' };
-    }
-    
-    const recipients = group.responsiblePersons.map(person => person.email).join(',');
-    const statusReportFormUrl = `${getBaseUrl()}/gruppen-bericht`;
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Ihre Gruppe "${group.name}" wurde freigeschaltet</h2>
-        
-        <p>Liebe Verantwortliche der Gruppe "${group.name}",</p>
-        
-        <p>wir freuen uns, Ihnen mitteilen zu können, dass Ihre Gruppe nun freigeschaltet wurde und auf unserer Website sichtbar ist.</p>
-        
-        <p>Sie können ab sofort Statusberichte für Ihre Gruppe einreichen unter: <a href="${statusReportFormUrl}">${statusReportFormUrl}</a></p>
-        
-        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
-        
-        <p>
-          Mit freundlichen Grüßen,<br>
-          Das Team von Die Linke Frankfurt
-        </p>
-      </div>
-    `;
-    
-    await sendEmail({
-      to: recipients,
-      subject: `Ihre Gruppe "${group.name}" wurde freigeschaltet`,
-      html
-    });
-    
-    console.log(`✅ Group acceptance email sent to ${recipients}`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending group acceptance email:', error);
-    // Don't throw, to avoid interrupting the main process
-    return { success: false, error: error instanceof Error ? error : String(error) };
-  }
-}
+// Re-export email notification functions
+export { sendGroupAcceptanceEmail, sendGroupArchivingEmail };
 
-/**
- * Send email notification when a group is archived
- * @param group The group with its responsible persons
- * @returns Promise resolving to the email sending result
- */
-export async function sendGroupArchivingEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: Error | string }> {
-  try {
-    if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
-      console.error(`No responsible persons found for group ${group.id}`);
-      return { success: false, error: 'No responsible persons found' };
-    }
-    
-    const recipients = group.responsiblePersons.map(person => person.email).join(',');
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Ihre Gruppe "${group.name}" wurde archiviert</h2>
-        
-        <p>Liebe Verantwortliche der Gruppe "${group.name}",</p>
-        
-        <p>wir möchten Sie darüber informieren, dass Ihre Gruppe auf unserer Website archiviert wurde und nicht mehr öffentlich sichtbar ist.</p>
-        
-        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
-        
-        <p>
-          Mit freundlichen Grüßen,<br>
-          Das Team von Die Linke Frankfurt
-        </p>
-      </div>
-    `;
-    
-    await sendEmail({
-      to: recipients,
-      subject: `Ihre Gruppe "${group.name}" wurde archiviert`,
-      html
-    });
-    
-    console.log(`✅ Group archiving email sent to ${recipients}`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending group archiving email:', error);
-    // Don't throw, to avoid interrupting the main process
-    return { success: false, error: error instanceof Error ? error : String(error) };
-  }
-}
-
-/**
- * Send email notification when a status report is accepted
- * @param statusReport The status report with its group and responsible persons
- * @returns Promise resolving to the email sending result
- */
-export async function sendStatusReportAcceptanceEmail(
-  statusReport: StatusReport & { group: Group & { responsiblePersons: ResponsiblePerson[] } }
-): Promise<{ success: boolean; error?: Error | string }> {
-  try {
-    if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
-      console.error(`No responsible persons found for group ${statusReport.group.id}`);
-      return { success: false, error: 'No responsible persons found' };
-    }
-    
-    const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
-    const reportUrl = `${getBaseUrl()}/gruppen/${statusReport.group.slug}#report-${statusReport.id}`;
-    const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Statusbericht "${statusReport.title}" wurde freigeschaltet</h2>
-        
-        <p>Liebe Verantwortliche der Gruppe "${statusReport.group.name}",</p>
-        
-        <p>wir möchten Sie darüber informieren, dass der Statusbericht "${statusReport.title}" vom ${date} nun freigeschaltet wurde und auf unserer Website sichtbar ist.</p>
-        
-        <p>Sie können den Bericht hier einsehen: <a href="${reportUrl}">${reportUrl}</a></p>
-        
-        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
-        
-        <p>
-          Mit freundlichen Grüßen,<br>
-          Das Team von Die Linke Frankfurt
-        </p>
-      </div>
-    `;
-    
-    await sendEmail({
-      to: recipients,
-      subject: `Statusbericht "${statusReport.title}" wurde freigeschaltet`,
-      html
-    });
-    
-    console.log(`✅ Status report acceptance email sent to ${recipients}`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending status report acceptance email:', error);
-    // Don't throw, to avoid interrupting the main process
-    return { success: false, error: error instanceof Error ? error : String(error) };
-  }
-}
-
-/**
- * Send email notification when a group is rejected
- * @param group The group with its responsible persons
- * @returns Promise resolving to the email sending result
- */
-export async function sendGroupRejectionEmail(group: Group & { responsiblePersons: ResponsiblePerson[] }): Promise<{ success: boolean; error?: Error | string }> {
-  try {
-    if (!group.responsiblePersons || group.responsiblePersons.length === 0) {
-      console.error(`No responsible persons found for group ${group.id}`);
-      return { success: false, error: 'No responsible persons found' };
-    }
-    
-    const recipients = group.responsiblePersons.map(person => person.email).join(',');
-    const contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de';
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Ihre Gruppenanfrage "${group.name}" wurde abgelehnt</h2>
-        
-        <p>Liebe Verantwortliche der Gruppe "${group.name}",</p>
-        
-        <p>wir müssen Ihnen leider mitteilen, dass Ihre Anfrage zur Erstellung einer Gruppe auf unserer Website nicht genehmigt werden konnte.</p>
-        
-        <p>Für weitere Informationen oder Fragen wenden Sie sich bitte an: <a href="mailto:${contactEmail}">${contactEmail}</a></p>
-        
-        <p>
-          Mit freundlichen Grüßen,<br>
-          Das Team von Die Linke Frankfurt
-        </p>
-      </div>
-    `;
-    
-    await sendEmail({
-      to: recipients,
-      subject: `Ihre Gruppenanfrage "${group.name}" wurde abgelehnt`,
-      html
-    });
-    
-    console.log(`✅ Group rejection email sent to ${recipients}`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending group rejection email:', error);
-    // Don't throw, to avoid interrupting the main process
-    return { success: false, error: error instanceof Error ? error : String(error) };
-  }
-}
-
-/**
- * Send email notification when a status report is rejected
- * @param statusReport The status report with its group and responsible persons
- * @returns Promise resolving to the email sending result
- */
-export async function sendStatusReportRejectionEmail(
-  statusReport: StatusReport & { group: Group & { responsiblePersons: ResponsiblePerson[] } }
-): Promise<{ success: boolean; error?: Error | string }> {
-  try {
-    if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
-      console.error(`No responsible persons found for group ${statusReport.group.id}`);
-      return { success: false, error: 'No responsible persons found' };
-    }
-    
-    const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
-    const contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de';
-    const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Ihr Statusbericht "${statusReport.title}" wurde abgelehnt</h2>
-        
-        <p>Liebe Verantwortliche der Gruppe "${statusReport.group.name}",</p>
-        
-        <p>wir müssen Ihnen leider mitteilen, dass Ihr Statusbericht "${statusReport.title}" vom ${date} für die Veröffentlichung auf unserer Website nicht genehmigt werden konnte.</p>
-        
-        <p>Sie können gerne einen überarbeiteten Bericht einreichen oder für weitere Informationen und Fragen wenden Sie sich bitte an: <a href="mailto:${contactEmail}">${contactEmail}</a></p>
-        
-        <p>
-          Mit freundlichen Grüßen,<br>
-          Das Team von Die Linke Frankfurt
-        </p>
-      </div>
-    `;
-    
-    await sendEmail({
-      to: recipients,
-      subject: `Ihr Statusbericht "${statusReport.title}" wurde abgelehnt`,
-      html
-    });
-    
-    console.log(`✅ Status report rejection email sent to ${recipients}`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending status report rejection email:', error);
-    // Don't throw, to avoid interrupting the main process
-    return { success: false, error: error instanceof Error ? error : String(error) };
-  }
-}
-
-/**
- * Send email notification when a status report is archived
- * @param statusReport The status report with its group and responsible persons
- * @returns Promise resolving to the email sending result
- */
-export async function sendStatusReportArchivingEmail(
-  statusReport: StatusReport & { group: Group & { responsiblePersons: ResponsiblePerson[] } }
-): Promise<{ success: boolean; error?: Error | string }> {
-  try {
-    if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
-      console.error(`No responsible persons found for group ${statusReport.group.id}`);
-      return { success: false, error: 'No responsible persons found' };
-    }
-    
-    const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
-    const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
-    
-    // Parse file URLs to list them in the email
-    let fileList = '';
-    if (statusReport.fileUrls) {
-      try {
-        const files = JSON.parse(statusReport.fileUrls);
-        if (Array.isArray(files) && files.length > 0) {
-          fileList = `
-            <div style="margin-top: 20px; margin-bottom: 20px;">
-              <p><strong>Angehängte Dateien, die nicht mehr öffentlich verfügbar sind:</strong></p>
-              <ul>
-                ${files.map(file => {
-                  const fileName = file.split('/').pop();
-                  return `<li>${fileName}</li>`;
-                }).join('')}
-              </ul>
-            </div>
-          `;
-        }
-      } catch (parseError) {
-        console.error('Error parsing file URLs:', parseError);
-      }
-    }
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Ihr Statusbericht "${statusReport.title}" wurde archiviert</h2>
-        
-        <p>Liebe Verantwortliche der Gruppe "${statusReport.group.name}",</p>
-        
-        <p>wir möchten Sie darüber informieren, dass Ihr Statusbericht "${statusReport.title}" vom ${date} nun archiviert wurde und nicht mehr öffentlich auf unserer Website sichtbar ist.</p>
-        
-        ${fileList}
-        
-        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
-        
-        <p>
-          Mit freundlichen Grüßen,<br>
-          Das Team von Die Linke Frankfurt
-        </p>
-      </div>
-    `;
-    
-    await sendEmail({
-      to: recipients,
-      subject: `Ihr Statusbericht "${statusReport.title}" wurde archiviert`,
-      html
-    });
-    
-    console.log(`✅ Status report archiving email sent to ${recipients}`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending status report archiving email:', error);
-    // Don't throw, to avoid interrupting the main process
-    return { success: false, error: error instanceof Error ? error : String(error) };
-  }
-}

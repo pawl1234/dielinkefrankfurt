@@ -66,5 +66,9 @@ export interface NewsletterSendingSettings {
   totalFailed: number;
   lastChunkCompletedAt: string;
   completedChunks: number;
+  totalRecipients?: number;
+  successfulSends?: number;
+  failedSends?: number;
+  adminNotificationEmail?: string;
   [key: string]: unknown;
 }

@@ -116,7 +116,11 @@ jest.mock('@/lib/newsletter-service', () => ({
     messageId: 'test-message'
   }),
   fixUrlsInNewsletterHtml: jest.fn((html) => html),
-  getNewsletterSettings: jest.fn().mockResolvedValue({}),
+  getNewsletterSettings: jest.fn().mockResolvedValue({
+    chunkSize: 50,
+    fromEmail: 'newsletter@die-linke-frankfurt.de',
+    fromName: 'Die Linke Frankfurt'
+  }),
   updateNewsletterSettings: jest.fn().mockResolvedValue({}),
   getNewsletterById: jest.fn().mockResolvedValue(null),
   updateNewsletter: jest.fn().mockResolvedValue({}),
@@ -149,7 +153,8 @@ jest.mock('@/lib/newsletter-sending', () => ({
     invalid: 0,
     new: 0,
     existing: 0,
-    invalidEmails: []
+    invalidEmails: [],
+    hashedEmails: []
   }),
   processSendingChunk: jest.fn().mockResolvedValue({
     sentCount: 0,
@@ -184,7 +189,24 @@ jest.mock('@/lib/email-hashing', () => ({
 // Mock email functionality
 jest.mock('@/lib/email', () => ({
   createTransporter: jest.fn(),
-  sendEmailWithTransporter: jest.fn(),
+  sendEmailWithTransporter: jest.fn().mockImplementation(async (transporter, options) => {
+    try {
+      const result = await transporter.sendMail(options);
+      // Check if we have accepted/rejected arrays (BCC mode simulation)
+      if (result.accepted && result.rejected) {
+        return { 
+          success: result.accepted.length > 0, 
+          messageId: result.messageId || 'mock-message-id',
+          accepted: result.accepted,
+          rejected: result.rejected
+        };
+      } else {
+        return { success: true, messageId: result.messageId || 'mock-message-id' };
+      }
+    } catch (error) {
+      return { success: false, error };
+    }
+  }),
   sendTestEmail: jest.fn().mockResolvedValue({
     success: true,
     recipientCount: 1,

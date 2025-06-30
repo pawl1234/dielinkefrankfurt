@@ -280,3 +280,76 @@ export async function sendStatusReportRejectionEmail(
     return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }
+
+/**
+ * Send notification email when a status report is archived
+ * @param statusReport Status report with group information
+ * @returns Result with success status and optional error
+ */
+export async function sendStatusReportArchivingEmail(
+  statusReport: StatusReportWithGroup
+): Promise<{ success: boolean; error?: Error | string }> {
+  try {
+    if (!statusReport.group.responsiblePersons || statusReport.group.responsiblePersons.length === 0) {
+      console.error(`No responsible persons found for group ${statusReport.group.id}`);
+      return { success: false, error: 'No responsible persons found' };
+    }
+    
+    const recipients = statusReport.group.responsiblePersons.map(person => person.email).join(',');
+    const date = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
+    
+    // Parse file URLs to list them in the email
+    let fileList = '';
+    if (statusReport.fileUrls) {
+      try {
+        const files = JSON.parse(statusReport.fileUrls);
+        if (Array.isArray(files) && files.length > 0) {
+          fileList = `
+            <div style="margin-top: 20px; margin-bottom: 20px;">
+              <p><strong>Angehängte Dateien, die nicht mehr öffentlich verfügbar sind:</strong></p>
+              <ul>
+                ${files.map(file => {
+                  const fileName = file.split('/').pop();
+                  return `<li>${fileName}</li>`;
+                }).join('')}
+              </ul>
+            </div>
+          `;
+        }
+      } catch (parseError) {
+        console.error('Error parsing file URLs:', parseError);
+      }
+    }
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Ihr Statusbericht "${statusReport.title}" wurde archiviert</h2>
+        
+        <p>Liebe Verantwortliche der Gruppe "${statusReport.group.name}",</p>
+        
+        <p>wir möchten Sie darüber informieren, dass Ihr Statusbericht "${statusReport.title}" vom ${date} nun archiviert wurde und nicht mehr öffentlich auf unserer Website sichtbar ist.</p>
+        
+        ${fileList}
+        
+        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+        
+        <p>
+          Mit freundlichen Grüßen,<br>
+          Das Team von Die Linke Frankfurt
+        </p>
+      </div>
+    `;
+    
+    await sendEmail({
+      to: recipients,
+      subject: `Ihr Statusbericht "${statusReport.title}" wurde archiviert`,
+      html
+    });
+    
+    console.log(`✅ Status report archiving email sent to ${recipients}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending status report archiving email:', error);
+    return { success: false, error: error instanceof Error ? error : String(error) };
+  }
+}

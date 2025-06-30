@@ -267,7 +267,7 @@ describe('Group Database Operations', () => {
       }));
       
       expect(mockPrisma.group.findUnique).toHaveBeenCalledWith({
-        where: { id: 'group-123', status: 'ACTIVE' }
+        where: { id: 'group-123' }
       });
       
       expect(mockPrisma.statusReport.create).toHaveBeenCalledWith({

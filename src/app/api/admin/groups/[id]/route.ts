@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/group-handlers';
 import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
+import { GroupWithResponsiblePersons } from '@/lib/email-notifications';
 import { validateFile, uploadCroppedImagePair, deleteFiles, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
 
 
@@ -208,8 +209,68 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       updateData.id = id; // Ensure ID is set correctly
     }
     
+    // Validate responsible persons if they are being updated
+    if (updateData.responsiblePersons !== undefined) {
+      if (!updateData.responsiblePersons || updateData.responsiblePersons.length === 0) {
+        const response: GroupUpdateResponse = {
+          success: false,
+          error: 'At least one responsible person is required'
+        };
+        return NextResponse.json(response, { status: 400 });
+      }
+      
+      // Validate email formats
+      for (const person of updateData.responsiblePersons) {
+        if (!person.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email)) {
+          const response: GroupUpdateResponse = {
+            success: false,
+            error: 'Valid email is required for all responsible persons'
+          };
+          return NextResponse.json(response, { status: 400 });
+        }
+      }
+    }
+    
     // Update the group
     const updatedGroup = await updateGroup(updateData);
+    
+    // If status was changed, send appropriate notification emails
+    if (updateData.status && updateData.status !== existingGroup.status) {
+      try {
+        // Import email functions
+        const { sendGroupAcceptanceEmail, sendGroupArchivingEmail } = await import('@/lib/group-handlers');
+        
+        // Send emails based on new status
+        let emailResult;
+        if (updateData.status === 'ACTIVE') {
+          emailResult = await sendGroupAcceptanceEmail(updatedGroup as GroupWithResponsiblePersons);
+        } else if (updateData.status === 'ARCHIVED') {
+          emailResult = await sendGroupArchivingEmail(updatedGroup as GroupWithResponsiblePersons);
+        }
+        
+        // Check if email sending failed
+        if (emailResult && !emailResult.success) {
+          const { logger } = await import('@/lib/logger');
+          logger.error('Failed to send notification email for group approval', {
+            context: {
+              groupId: id,
+              error: emailResult.error instanceof Error ? emailResult.error : new Error(String(emailResult.error))
+            }
+          });
+        }
+        
+        // Note: No emails sent for REJECTED status per business requirements
+      } catch (emailError) {
+        // Log the error but don't fail the update
+        const { logger } = await import('@/lib/logger');
+        logger.error('Failed to send notification email for group approval', {
+          context: {
+            groupId: id,
+            error: emailError instanceof Error ? emailError : new Error(String(emailError))
+          }
+        });
+      }
+    }
     
     const response: GroupUpdateResponse = {
       success: true,

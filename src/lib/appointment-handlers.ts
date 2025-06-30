@@ -38,6 +38,7 @@ export interface AppointmentUpdateData {
   fileUrls?: string | null;
   featured?: boolean;
   metadata?: string | null;
+  rejectionReason?: string | null;
 }
 
 export interface AppointmentCreateData {
@@ -579,7 +580,7 @@ export async function createAppointment(request: NextRequest) {
       console.log('✅ Appointment successfully saved to database with ID:', newAppointment.id);
       return NextResponse.json({ 
         success: true, 
-        id: newAppointment.id,
+        appointmentId: newAppointment.id,
         message: 'Terminanfrage erfolgreich eingereicht' 
       });
     } catch (dbError) {
@@ -883,7 +884,8 @@ export async function updateAppointment(request: NextRequest) {
       lastName,
       recurringText,
       fileUrls,
-      featured
+      featured,
+      rejectionReason
     } = data;
 
     if (!id) {
@@ -917,6 +919,7 @@ export async function updateAppointment(request: NextRequest) {
       if (status !== 'pending') {
         updateData.processed = true;
         updateData.processingDate = new Date();
+        updateData.statusChangeDate = new Date();
       }
     }
     
@@ -935,6 +938,7 @@ export async function updateAppointment(request: NextRequest) {
     if (recurringText !== undefined) updateData.recurringText = recurringText;
     if (fileUrls !== undefined) updateData.fileUrls = fileUrls;
     if (featured !== undefined) updateData.featured = featured;
+    if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason;
     if (data.metadata !== undefined) {
       updateData.metadata = data.metadata;
       console.log("📝 Adding metadata to update:", data.metadata);
