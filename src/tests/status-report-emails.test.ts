@@ -19,12 +19,12 @@ process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.example.com';
 process.env.CONTACT_EMAIL = 'test@example.com';
 
 import { sendEmail } from '../lib/email';
+import { updateStatusReportStatus } from '../lib/group-handlers';
 import { 
-  updateStatusReportStatus, 
   sendStatusReportAcceptanceEmail, 
   sendStatusReportRejectionEmail, 
   sendStatusReportArchivingEmail 
-} from '../lib/group-handlers';
+} from '../lib/email-notifications';
 import prisma from '../lib/prisma';
 import { StatusReport, Group, ResponsiblePerson, StatusReportStatus } from '@prisma/client';
 
