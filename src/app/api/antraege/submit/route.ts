@@ -1,0 +1,279 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createAntrag } from '@/lib/db/antrag-operations';
+import { uploadAntragFiles, deleteAntragFiles } from '@/lib/antrag-file-utils';
+import { FileUploadError } from '@/lib/file-upload';
+import { logger } from '@/lib/logger';
+import { 
+  validateAntragFormData, 
+  validateRecaptcha, 
+  shouldRateLimit,
+  cleanupRateLimitMap,
+  type AntragFormData 
+} from '@/lib/validators/antrag-validator';
+import { apiErrorResponse } from '@/lib/errors';
+import { getRecipientEmails } from '@/lib/db/antrag-config-operations';
+import { sendAntragSubmissionEmail } from '@/lib/email-notifications';
+
+/**
+ * Response type for Antrag submission
+ */
+export interface AntragSubmitResponse {
+  success: boolean;
+  message?: string;
+  antrag?: {
+    id: string;
+    title: string;
+    summary: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  error?: string;
+  fieldErrors?: Record<string, string>;
+}
+
+// Rate limiting: Store request counts per IP
+export const requestCounts = new Map<string, { count: number; firstRequest: number }>();
+
+// Clean up old entries every 5 minutes
+const cleanupInterval = setInterval(() => {
+  cleanupRateLimitMap(requestCounts, 60000); // 1 minute window
+}, 5 * 60 * 1000);
+
+// Clear interval on process exit to prevent memory leaks in tests
+if (process.env.NODE_ENV === 'test') {
+  process.on('exit', () => clearInterval(cleanupInterval));
+}
+
+/**
+ * POST /api/antraege/submit
+ * 
+ * Public endpoint for submitting a new Antrag an Kreisvorstand.
+ * Handles both form data with file uploads and JSON data without files.
+ * Includes rate limiting and reCAPTCHA verification.
+ */
+export async function POST(request: NextRequest) {
+  let uploadedFileUrls: string[] = [];
+  
+  try {
+    // Rate limiting check
+    const ip = request.headers.get('x-forwarded-for') || 
+                request.headers.get('x-real-ip') || 
+                'unknown';
+    
+    if (shouldRateLimit(ip, requestCounts, 5, 60000)) { // 5 requests per minute
+      logger.warn('Rate limit exceeded for Antrag submission', {
+        context: { ip }
+      });
+      
+      const response: AntragSubmitResponse = {
+        success: false,
+        error: 'Zu viele Anfragen. Bitte versuchen Sie es in einer Minute erneut.'
+      };
+      return NextResponse.json(response, { status: 429 });
+    }
+    // Check content type to determine parsing method
+    const contentType = request.headers.get('content-type') || '';
+    let formData: AntragFormData;
+    const files: File[] = [];
+    let recaptchaToken: string | undefined;
+    
+    if (contentType.includes('multipart/form-data')) {
+      // Parse form data for file upload handling
+      const formDataRaw = await request.formData();
+      
+      // Extract basic fields
+      const firstName = formDataRaw.get('firstName') as string;
+      const lastName = formDataRaw.get('lastName') as string;
+      const email = formDataRaw.get('email') as string;
+      const title = formDataRaw.get('title') as string;
+      const summary = formDataRaw.get('summary') as string;
+      recaptchaToken = formDataRaw.get('recaptchaToken') as string;
+      
+      // Parse purposes JSON
+      const purposesStr = formDataRaw.get('purposes') as string;
+      const purposes = purposesStr ? JSON.parse(purposesStr) : {};
+      
+      // Collect files
+      const fileCount = parseInt(formDataRaw.get('fileCount') as string, 10) || 0;
+      for (let i = 0; i < fileCount; i++) {
+        const file = formDataRaw.get(`file-${i}`) as File | null;
+        if (file && file.size > 0) {
+          files.push(file);
+        }
+      }
+      
+      formData = { firstName, lastName, email, title, summary, purposes, files, recaptchaToken };
+    } else {
+      // Parse JSON data from request body
+      const jsonData = await request.json();
+      formData = {
+        ...jsonData,
+        files: [] // No files in JSON requests
+      };
+      recaptchaToken = jsonData.recaptchaToken;
+    }
+    
+    // Verify reCAPTCHA if enabled
+    if (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
+      const isHuman = await validateRecaptcha(recaptchaToken);
+      if (!isHuman) {
+        logger.warn('reCAPTCHA validation failed for Antrag submission', {
+          context: { ip, email: formData.email }
+        });
+        
+        const response: AntragSubmitResponse = {
+          success: false,
+          error: 'reCAPTCHA-Überprüfung fehlgeschlagen. Bitte versuchen Sie es erneut.'
+        };
+        return NextResponse.json(response, { status: 400 });
+      }
+    }
+    
+    // Validate form data
+    const validationResult = validateAntragFormData(formData);
+    if (!validationResult.isValid) {
+      const response: AntragSubmitResponse = {
+        success: false,
+        error: 'Validierung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.',
+        fieldErrors: validationResult.errors
+      };
+      return NextResponse.json(response, { status: 400 });
+    }
+    
+    // Prepare Antrag data for database
+    const antragData = {
+      firstName: formData.firstName!.trim(),
+      lastName: formData.lastName!.trim(),
+      email: formData.email!.trim(),
+      title: formData.title!.trim(),
+      summary: formData.summary!.trim(),
+      purposes: formData.purposes!
+    };
+    
+    // Upload files if present
+    if (files.length > 0) {
+      try {
+        uploadedFileUrls = await uploadAntragFiles(files);
+        console.log(`✅ Successfully uploaded ${uploadedFileUrls.length} files for Antrag`);
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        
+        // Handle FileUploadError with appropriate status code
+        if (error instanceof FileUploadError) {
+          const response: AntragSubmitResponse = {
+            success: false,
+            error: error.message
+          };
+          return NextResponse.json(response, { status: error.status });
+        }
+        
+        // Generic error for other types
+        const response: AntragSubmitResponse = {
+          success: false,
+          error: 'Fehler beim Hochladen der Dateien'
+        };
+        return NextResponse.json(response, { status: 500 });
+      }
+    }
+    
+    // Create the Antrag with file URLs
+    const antragDataWithFiles = {
+      ...antragData,
+      fileUrls: uploadedFileUrls
+    };
+    
+    let newAntrag;
+    try {
+      newAntrag = await createAntrag(antragDataWithFiles);
+    } catch (createError) {
+      // If database operation failed and we uploaded files, clean them up
+      if (uploadedFileUrls.length > 0) {
+        console.log('🧹 Cleaning up uploaded files after database error...');
+        await deleteAntragFiles(uploadedFileUrls).catch(deleteError => {
+          console.error('Error cleaning up uploaded files:', deleteError);
+        });
+      }
+      throw createError; // Re-throw to be handled by outer catch
+    }
+    
+    // Log successful submission
+    logger.info('Antrag submitted successfully', {
+      context: {
+        antragId: newAntrag.id,
+        title: newAntrag.title,
+        email: newAntrag.email
+      }
+    });
+    
+    // Send email notification - don't fail the request if email fails
+    try {
+      const recipientEmails = await getRecipientEmails();
+      const emailResult = await sendAntragSubmissionEmail(
+        newAntrag,
+        uploadedFileUrls,
+        recipientEmails
+      );
+      
+      if (!emailResult.success) {
+        logger.error('Failed to send Antrag submission email', {
+          context: {
+            antragId: newAntrag.id,
+            error: emailResult.error
+          }
+        });
+      }
+    } catch (emailError) {
+      // Log error but don't fail the submission
+      logger.error('Error sending Antrag submission email', {
+        context: {
+          antragId: newAntrag.id,
+          error: emailError
+        }
+      });
+    }
+    
+    const response: AntragSubmitResponse = {
+      success: true,
+      message: 'Antrag erfolgreich übermittelt',
+      antrag: {
+        id: newAntrag.id,
+        title: newAntrag.title,
+        summary: newAntrag.summary,
+        status: newAntrag.status,
+        createdAt: newAntrag.createdAt.toISOString(),
+        updatedAt: newAntrag.updatedAt.toISOString()
+      }
+    };
+    
+    return NextResponse.json(response);
+  } catch (error: unknown) {
+    // Clean up uploaded files if any error occurred
+    if (uploadedFileUrls.length > 0) {
+      console.log('🧹 Cleaning up uploaded files after error...');
+      await deleteAntragFiles(uploadedFileUrls).catch(deleteError => {
+        console.error('Error cleaning up uploaded files:', deleteError);
+      });
+    }
+    
+    // Handle specific error types
+    if (error instanceof FileUploadError) {
+      const response: AntragSubmitResponse = {
+        success: false,
+        error: error.message
+      };
+      return NextResponse.json(response, { status: error.status });
+    }
+    
+    // Check if error looks like AppError (for test compatibility)
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'AppError') {
+      return apiErrorResponse(error, 'Fehler beim Übermitteln des Antrags');
+    }
+    
+    // Log unexpected errors
+    console.error('Error submitting Antrag:', error);
+    
+    // Return generic error response
+    return apiErrorResponse(error, 'Fehler beim Übermitteln des Antrags');
+  }
+}

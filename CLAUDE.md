@@ -11,11 +11,13 @@ This is a Next.js application for Die Linke Frankfurt that manages appointment s
 - Public appointment submission form with rich text editor
 - Public group request form for organizations
 - Public status report submission form for active groups
+- Public Anträge (Applications) submission form
 - File uploads for event attachments and group documents using Vercel Blob Storage
-- Admin dashboard for reviewing and managing appointments, groups, and status reports
+- Admin dashboard for reviewing and managing appointments, groups, status reports, and anträge
+- Admin email configuration for Anträge notifications
 - Newsletter generation functionality that includes appointments and status reports
 - RSS feed for approved appointments
-- Email notifications for status changes
+- Email notifications for status changes and Anträge decisions
 - PostgreSQL database with Prisma ORM
 
 ## Tech Stack
@@ -55,11 +57,15 @@ npm run db:push
   - `/neue-anfrage`: Public appointment submission form
   - `/neue-gruppe`: Public group request form
   - `/gruppen-bericht`: Public status report submission form
+  - `/antrag-an-kreisvorstand`: Public Anträge submission form
   - `/termine`: Public appointment viewing pages
   - `/gruppen`: Public group listing and viewing pages
 - `/src/components`: Reusable React components
   - `/admin`: Admin interface components
+  - `/admin/antraege`: Anträge admin management components
+  - `/forms/antraege`: Anträge form components
   - `/newsletter`: Newsletter-specific components
+  - `/shared`: Enhanced error boundaries and shared utilities
 - `/src/lib`: Utility functions and shared code
 - `/src/types`: Shared Types to be reused if possible
 - `/src/theme`: MUI theme configuration
@@ -71,18 +77,28 @@ npm run db:push
 - `AppointmentForm.tsx`: Main form for creating and editing appointments
 - `GroupRequestForm.tsx`: Form for submitting new group requests
 - `StatusReportForm.tsx`: Form for submitting group status reports
+- `AntragForm.tsx`: Main form for submitting Anträge with multi-purpose support
 - `GroupLogoUpload.tsx`: Component for handling group logo uploads with cropping
-- `FileUpload.tsx`: Component for handling file uploads
+- `FileUpload.tsx`: Enhanced component for handling file uploads with loading states
 - `RichTextEditor.tsx`: Rich text editor using TipTap
 - `NewsletterGenerator.tsx`: Component for generating newsletter content
 - `EditGroupForm.tsx`: Admin component for editing group details
 - `EditStatusReportForm.tsx`: Admin component for editing status reports
+- `AntraegeTable.tsx`: Admin table for managing Anträge
+- `ConfigurationDialog.tsx`: Admin dialog for configuring email recipients
+- `ErrorBoundary.tsx`: Enhanced error boundary with logging and recovery
+- `FormErrorBoundary.tsx`: Form-specific error boundary
 
 ### API Routes
 
 - `/api/submit-appointment`: Handles new appointment submissions
 - `/api/appointments`: Retrieves appointment data for public display
 - `/api/admin/appointments`: Protected route for appointment management
+- `/api/antraege/submit`: Handles new Anträge submissions with file upload
+- `/api/admin/antraege`: Protected route for Anträge management (CRUD)
+- `/api/admin/antraege/[id]/accept`: Accept an Antrag with email notification
+- `/api/admin/antraege/[id]/reject`: Reject an Antrag with email notification
+- `/api/admin/antraege/configuration`: Email recipient configuration management
 - `/api/groups/submit`: Handles new group requests
 - `/api/groups`: Retrieves active groups for public display
 - `/api/groups/[slug]`: Retrieves specific group details
@@ -122,7 +138,19 @@ The application uses several main database models:
    - Timestamps: createdAt, updatedAt
    - Relation: group (many-to-one)
 
-5. **Newsletter**:
+5. **Antrag** (NEW):
+   - Core fields: firstName, lastName, email, title, summary
+   - Purpose configuration: purposes (JSON string with multiple purpose types)
+   - File attachments: fileUrls (stored as JSON string)
+   - Status tracking: status (NEU, AKZEPTIERT, ABGELEHNT)
+   - Decision tracking: decisionComment, decidedBy, decidedAt
+   - Timestamps: createdAt, updatedAt
+
+6. **AntragConfiguration** (NEW):
+   - Email configuration: recipientEmails (comma-separated list)
+   - Timestamps: createdAt, updatedAt
+
+7. **Newsletter**:
    - Configuration settings: headerLogo, headerBanner, footerText
    - Email settings: testEmailRecipients, unsubscribeLink
 
@@ -175,14 +203,24 @@ The application uses Material UI with a custom theme defined in `/src/theme/them
 - Responsive layouts for all screen sizes
 
 ## Testing
-
-The project uses Jest and React Testing Library:
-
-- Test files are located in `/src/tests/`
-- Component tests for forms, uploads, and interactions
-- API route tests for backend functionality
-- End-to-end tests for complete workflows
-- Mock setups for forms, file uploads, and API interactions
+# What NOT to Mock
+- Never mock modules in /src/lib/ unless they directly interact with external services
+- Do not mock pure utility functions, error handlers, or data transformers
+- Do not mock modules just because they import other modules - mock the root dependency instead
+# What to Mock
+- External services: Database (Prisma), Email providers, File storage (Vercel Blob)
+- Browser/Node incompatibilities: next/server, next/navigation, browser APIs
+- Network requests: APIs, webhooks, third-party services
+# Mock Principles
+- Mock at the boundary: Mock external dependencies, not your own code
+- Keep mocks minimal: Only mock the specific methods you need, not entire modules
+- Use real implementations: For /src/lib/ modules, use the actual code in tests
+- Mock once, centrally: If NextResponse needs mocking, do it in jest.setup.js, not everywhere
+- Never mock anything outside the folder /src/tests everything test related should stay in /src/tests
+# Red Flags
+- If you're copying mock implementations from the real code - stop and use the real code
+- If your mock is more than 10 lines - consider if you're mocking too much
+- If tests pass but production fails - your mocks are lying to you
 
 ## Environment Variables
 

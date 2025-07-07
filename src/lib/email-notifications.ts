@@ -1,6 +1,9 @@
-import { ResponsiblePerson, Group, StatusReport } from '@prisma/client';
-import { sendEmail } from './email';
+import { ResponsiblePerson, Group, StatusReport, Antrag } from '@prisma/client';
+import { sendEmail, type EmailAttachment } from './email';
 import { getBaseUrl } from './base-url';
+import { prepareEmailAttachments } from './email-attachment-utils';
+import { logger } from './logger';
+import type { AntragPurposes } from '@/types/api-types';
 
 // Types for extended models
 export type GroupWithResponsiblePersons = Group & {
@@ -10,6 +13,248 @@ export type GroupWithResponsiblePersons = Group & {
 export type StatusReportWithGroup = StatusReport & {
   group: GroupWithResponsiblePersons;
 };
+
+/**
+ * Format purposes for email display
+ * @param purposes The purposes object from Antrag
+ * @returns HTML formatted string showing selected purposes
+ */
+function formatPurposesForEmail(purposes: string | AntragPurposes): string {
+  let purposesObj: AntragPurposes;
+  
+  // Parse purposes if it's a string (from database)
+  if (typeof purposes === 'string') {
+    try {
+      purposesObj = JSON.parse(purposes);
+    } catch (e) {
+      console.error('Error parsing purposes:', e);
+      return '<p>Fehler beim Anzeigen der Zwecke</p>';
+    }
+  } else {
+    purposesObj = purposes;
+  }
+  
+  const purposesList: string[] = [];
+  
+  // Financial support
+  if (purposesObj.zuschuss?.enabled) {
+    purposesList.push(`
+      <li>
+        <strong>Finanzieller Zuschuss:</strong> ${purposesObj.zuschuss.amount} €
+      </li>
+    `);
+  }
+  
+  // Personnel support
+  if (purposesObj.personelleUnterstuetzung?.enabled) {
+    purposesList.push(`
+      <li>
+        <strong>Personelle Unterstützung:</strong><br/>
+        ${purposesObj.personelleUnterstuetzung.details}
+      </li>
+    `);
+  }
+  
+  // Room booking
+  if (purposesObj.raumbuchung?.enabled) {
+    purposesList.push(`
+      <li>
+        <strong>Raumbuchung:</strong><br/>
+        Ort: ${purposesObj.raumbuchung.location}<br/>
+        Anzahl Personen: ${purposesObj.raumbuchung.numberOfPeople}<br/>
+        Details: ${purposesObj.raumbuchung.details}
+      </li>
+    `);
+  }
+  
+  // Other
+  if (purposesObj.weiteres?.enabled) {
+    purposesList.push(`
+      <li>
+        <strong>Weiteres:</strong><br/>
+        ${purposesObj.weiteres.details}
+      </li>
+    `);
+  }
+  
+  if (purposesList.length === 0) {
+    return '<p>Keine Zwecke ausgewählt</p>';
+  }
+  
+  return `<ul style="margin-top: 10px; margin-bottom: 20px;">${purposesList.join('')}</ul>`;
+}
+
+/**
+ * Send notification email when an Antrag is submitted
+ * @param antrag The submitted Antrag
+ * @param fileUrls Array of uploaded file URLs
+ * @param recipientEmails Array of recipient email addresses
+ * @returns Result with success status and optional error
+ */
+export async function sendAntragSubmissionEmail(
+  antrag: Antrag,
+  fileUrls: string[],
+  recipientEmails: string[]
+): Promise<{ success: boolean; error?: Error | string }> {
+  try {
+    if (!recipientEmails || recipientEmails.length === 0) {
+      console.error('No recipient emails provided for Antrag submission');
+      return { success: false, error: 'No recipient emails provided' };
+    }
+    
+    const recipients = recipientEmails.join(',');
+    const adminUrl = `${getBaseUrl()}/admin/antraege/${antrag.id}`;
+    const submissionDate = new Date(antrag.createdAt).toLocaleString('de-DE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Prepare file attachments
+    let attachments: EmailAttachment[] = [];
+    let fileList = '';
+    
+    if (fileUrls && fileUrls.length > 0) {
+      try {
+        const attachmentResult = await prepareEmailAttachments(fileUrls);
+        attachments = attachmentResult.attachments;
+        
+        // Create file list for email body
+        if (attachmentResult.attachments.length > 0 || attachmentResult.skippedFiles.length > 0) {
+          const attachedFilesHtml = attachmentResult.attachments.map(att => {
+            const sizeKB = Math.round(att.content.length / 1024);
+            return `<li>📎 ${att.filename} (${sizeKB} KB) - Als Anhang beigefügt</li>`;
+          }).join('');
+          
+          const skippedFilesHtml = attachmentResult.skippedFiles.map(file => {
+            return `<li>⚠️ ${file.filename} - Nicht angehängt: ${file.reason}</li>`;
+          }).join('');
+          
+          fileList = `
+            <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+              <p style="margin-top: 0;"><strong>Dateien:</strong></p>
+              <ul style="margin-bottom: 0;">
+                ${attachedFilesHtml}${skippedFilesHtml}
+              </ul>
+            </div>
+          `;
+        }
+        
+        // Log attachment preparation results
+        if (attachmentResult.attachments.length > 0) {
+          logger.info('Antrag email attachments prepared', {
+            context: {
+              antragId: antrag.id,
+              attachmentCount: attachmentResult.attachments.length,
+              totalSize: attachmentResult.totalSize,
+              skippedCount: attachmentResult.skippedFiles.length
+            }
+          });
+        }
+        
+        // Add warnings for skipped files
+        if (attachmentResult.skippedFiles.length > 0) {
+          logger.warn('Some files could not be attached to Antrag email', {
+            context: {
+              antragId: antrag.id,
+              skippedFiles: attachmentResult.skippedFiles.map(f => ({
+                filename: f.filename,
+                reason: f.reason
+              }))
+            }
+          });
+        }
+        
+      } catch (attachmentError) {
+        // If attachment preparation fails completely, fall back to file links
+        logger.error('Failed to prepare attachments for Antrag email', {
+          context: {
+            antragId: antrag.id,
+            error: attachmentError instanceof Error ? attachmentError.message : String(attachmentError)
+          }
+        });
+        
+        fileList = `
+          <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+            <p style="margin-top: 0;"><strong>Angehängte Dateien (Links):</strong></p>
+            <ul style="margin-bottom: 0;">
+              ${fileUrls.map(url => {
+                const fileName = url.split('/').pop() || 'Datei';
+                return `<li><a href="${url}" target="_blank" style="color: #0066cc;">${fileName}</a></li>`;
+              }).join('')}
+            </ul>
+            <p style="margin-bottom: 0; color: #666; font-size: 12px;"><em>Hinweis: Dateien konnten nicht als Anhang beigefügt werden und sind als Links verfügbar.</em></p>
+          </div>
+        `;
+      }
+    }
+    
+    // Format purposes section
+    const purposesHtml = formatPurposesForEmail(antrag.purposes);
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+          <h1 style="color: #333; margin-top: 0;">Neuer Antrag an Kreisvorstand</h1>
+          <p style="color: #666; margin-bottom: 0;">Eingegangen am: ${submissionDate}</p>
+        </div>
+        
+        <div style="background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Antragsteller</h2>
+          <table style="width: 100%; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 5px 0; color: #666; width: 150px;">Name:</td>
+              <td style="padding: 5px 0;"><strong>${antrag.firstName} ${antrag.lastName}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #666;">E-Mail:</td>
+              <td style="padding: 5px 0;"><a href="mailto:${antrag.email}" style="color: #0066cc;">${antrag.email}</a></td>
+            </tr>
+          </table>
+          
+          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Antrag</h2>
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #333; margin-bottom: 10px;">${antrag.title}</h3>
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+              <p style="margin: 0; color: #666;"><strong>Zusammenfassung:</strong></p>
+              <p style="margin: 5px 0 0 0;">${antrag.summary}</p>
+            </div>
+          </div>
+          
+          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Anliegen/Zwecke</h2>
+          ${purposesHtml}
+          
+          ${fileList}
+          
+          <div style="margin-top: 30px; padding: 20px; background-color: #e3f2fd; border-radius: 5px; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #333;">Diesen Antrag im Admin-Bereich bearbeiten:</p>
+            <a href="${adminUrl}" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Antrag ansehen</a>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p>Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht direkt auf diese E-Mail.</p>
+          <p>© ${new Date().getFullYear()} Die Linke Frankfurt</p>
+        </div>
+      </div>
+    `;
+    
+    await sendEmail({
+      to: recipients,
+      subject: `Neuer Antrag: ${antrag.title}`,
+      html,
+      attachments: attachments.length > 0 ? attachments : undefined
+    });
+    
+    console.log(`✅ Antrag submission email sent to ${recipients}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending Antrag submission email:', error);
+    return { success: false, error: error instanceof Error ? error : String(error) };
+  }
+}
 
 /**
  * Send notification email when a group is accepted
@@ -350,6 +595,203 @@ export async function sendStatusReportArchivingEmail(
     return { success: true };
   } catch (error) {
     console.error('Error sending status report archiving email:', error);
+    return { success: false, error: error instanceof Error ? error : String(error) };
+  }
+}
+
+/**
+ * Send notification email when an Antrag is accepted
+ * @param antrag The accepted Antrag
+ * @param decisionComment Optional comment from the admin
+ * @returns Result with success status and optional error
+ */
+export async function sendAntragAcceptanceEmail(
+  antrag: Antrag,
+  decisionComment?: string
+): Promise<{ success: boolean; error?: Error | string }> {
+  try {
+    if (!antrag.email) {
+      console.error('No email address found for antrag applicant');
+      return { success: false, error: 'No email address found for applicant' };
+    }
+    
+    const date = new Date(antrag.createdAt).toLocaleDateString('de-DE');
+    const contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de';
+    
+    // Format purposes section
+    const purposesHtml = formatPurposesForEmail(antrag.purposes);
+    
+    // Format decision comment if provided
+    const decisionSection = decisionComment ? `
+      <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #e8f5e8; border-left: 4px solid #4caf50; border-radius: 5px;">
+        <p style="margin: 0; color: #333;"><strong>Kommentar der Entscheidung:</strong></p>
+        <p style="margin: 5px 0 0 0;">${decisionComment}</p>
+      </div>
+    ` : '';
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #e8f5e8; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
+          <h1 style="color: #2e7d32; margin-top: 0;">✅ Ihr Antrag wurde angenommen</h1>
+          <p style="color: #666; margin-bottom: 0;">Entscheidung vom: ${new Date().toLocaleDateString('de-DE')}</p>
+        </div>
+        
+        <div style="background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Antragsdetails</h2>
+          <table style="width: 100%; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 5px 0; color: #666; width: 150px;">Titel:</td>
+              <td style="padding: 5px 0;"><strong>${antrag.title}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #666;">Eingereicht am:</td>
+              <td style="padding: 5px 0;">${date}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #666;">Antragsteller:</td>
+              <td style="padding: 5px 0;">${antrag.firstName} ${antrag.lastName}</td>
+            </tr>
+          </table>
+          
+          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+            <p style="margin: 0; color: #666;"><strong>Zusammenfassung:</strong></p>
+            <p style="margin: 5px 0 0 0;">${antrag.summary}</p>
+          </div>
+          
+          <h3 style="color: #333; margin-bottom: 10px;">Anliegen/Zwecke</h3>
+          ${purposesHtml}
+          
+          ${decisionSection}
+          
+          <div style="margin-top: 30px; padding: 20px; background-color: #e3f2fd; border-radius: 5px;">
+            <h3 style="color: #333; margin-top: 0;">Nächste Schritte</h3>
+            <p style="margin: 10px 0;">
+              Ihr Antrag wurde von unserem Team geprüft und angenommen. 
+              Sie werden in Kürze von uns kontaktiert, um die weiteren Details zu besprechen.
+            </p>
+            <p style="margin: 10px 0;">
+              Bei Fragen können Sie sich gerne an uns wenden: 
+              <a href="mailto:${contactEmail}" style="color: #0066cc;">${contactEmail}</a>
+            </p>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p>Diese E-Mail wurde automatisch generiert. Sie können auf diese E-Mail antworten.</p>
+          <p>© ${new Date().getFullYear()} Die Linke Frankfurt</p>
+        </div>
+      </div>
+    `;
+    
+    await sendEmail({
+      to: antrag.email,
+      subject: `✅ Ihr Antrag "${antrag.title}" wurde angenommen`,
+      html
+    });
+    
+    console.log(`✅ Antrag acceptance email sent to ${antrag.email}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending Antrag acceptance email:', error);
+    return { success: false, error: error instanceof Error ? error : String(error) };
+  }
+}
+
+/**
+ * Send notification email when an Antrag is rejected
+ * @param antrag The rejected Antrag
+ * @param decisionComment Optional comment from the admin explaining the rejection
+ * @returns Result with success status and optional error
+ */
+export async function sendAntragRejectionEmail(
+  antrag: Antrag,
+  decisionComment?: string
+): Promise<{ success: boolean; error?: Error | string }> {
+  try {
+    if (!antrag.email) {
+      console.error('No email address found for antrag applicant');
+      return { success: false, error: 'No email address found for applicant' };
+    }
+    
+    const date = new Date(antrag.createdAt).toLocaleDateString('de-DE');
+    const contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de';
+    
+    // Format purposes section
+    const purposesHtml = formatPurposesForEmail(antrag.purposes);
+    
+    // Format decision comment if provided
+    const decisionSection = decisionComment ? `
+      <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #ffebee; border-left: 4px solid #f44336; border-radius: 5px;">
+        <p style="margin: 0; color: #333;"><strong>Begründung der Entscheidung:</strong></p>
+        <p style="margin: 5px 0 0 0;">${decisionComment}</p>
+      </div>
+    ` : '';
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #ffebee; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #f44336;">
+          <h1 style="color: #c62828; margin-top: 0;">❌ Ihr Antrag wurde abgelehnt</h1>
+          <p style="color: #666; margin-bottom: 0;">Entscheidung vom: ${new Date().toLocaleDateString('de-DE')}</p>
+        </div>
+        
+        <div style="background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Antragsdetails</h2>
+          <table style="width: 100%; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 5px 0; color: #666; width: 150px;">Titel:</td>
+              <td style="padding: 5px 0;"><strong>${antrag.title}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #666;">Eingereicht am:</td>
+              <td style="padding: 5px 0;">${date}</td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #666;">Antragsteller:</td>
+              <td style="padding: 5px 0;">${antrag.firstName} ${antrag.lastName}</td>
+            </tr>
+          </table>
+          
+          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+            <p style="margin: 0; color: #666;"><strong>Zusammenfassung:</strong></p>
+            <p style="margin: 5px 0 0 0;">${antrag.summary}</p>
+          </div>
+          
+          <h3 style="color: #333; margin-bottom: 10px;">Anliegen/Zwecke</h3>
+          ${purposesHtml}
+          
+          ${decisionSection}
+          
+          <div style="margin-top: 30px; padding: 20px; background-color: #fff3e0; border-radius: 5px;">
+            <h3 style="color: #333; margin-top: 0;">Weitere Möglichkeiten</h3>
+            <p style="margin: 10px 0;">
+              Wir bedauern, dass wir Ihrem Antrag nicht entsprechen konnten. 
+              Gerne können Sie einen überarbeiteten Antrag einreichen oder sich mit uns in Verbindung setzen, 
+              um mögliche Alternativen zu besprechen.
+            </p>
+            <p style="margin: 10px 0;">
+              Bei Fragen zur Entscheidung oder für weitere Informationen wenden Sie sich bitte an: 
+              <a href="mailto:${contactEmail}" style="color: #0066cc;">${contactEmail}</a>
+            </p>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
+          <p>Diese E-Mail wurde automatisch generiert. Sie können auf diese E-Mail antworten.</p>
+          <p>© ${new Date().getFullYear()} Die Linke Frankfurt</p>
+        </div>
+      </div>
+    `;
+    
+    await sendEmail({
+      to: antrag.email,
+      subject: `❌ Ihr Antrag "${antrag.title}" wurde abgelehnt`,
+      html
+    });
+    
+    console.log(`✅ Antrag rejection email sent to ${antrag.email}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending Antrag rejection email:', error);
     return { success: false, error: error instanceof Error ? error : String(error) };
   }
 }

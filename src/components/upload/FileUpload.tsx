@@ -13,7 +13,9 @@ import {
   CardActions,
   styled,
   BoxProps,
-  Grid
+  Grid,
+  CircularProgress,
+  LinearProgress
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
@@ -27,6 +29,9 @@ interface FileUploadProps {
   maxFileSize?: number;
   allowedFileTypes?: string[];
   multiple?: boolean;
+  isUploading?: boolean;
+  uploadProgress?: number;
+  disabled?: boolean;
 }
 
 // Styled component for the upload box
@@ -53,6 +58,7 @@ interface FileItem {
   type: string;
   preview?: string;
   file: File | Blob;
+  isProcessing?: boolean;
 }
 
 const FileUpload = ({ 
@@ -61,10 +67,14 @@ const FileUpload = ({
   maxFiles = 5, 
   maxFileSize = 5 * 1024 * 1024, // Default 5MB
   allowedFileTypes = ['.jpg', '.jpeg', '.png', '.pdf'],
-  multiple = true
+  multiple = true,
+  isUploading = false,
+  uploadProgress = 0,
+  disabled = false
 }: FileUploadProps) => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [processingFiles, setProcessingFiles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle file input change
@@ -111,8 +121,12 @@ const FileUpload = ({
         id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: file.name,
         type: file.type,
-        file: file
+        file: file,
+        isProcessing: true
       };
+
+      // Mark this file as being processed
+      setProcessingFiles(prev => [...prev, fileItem.id]);
 
       // Generate preview for image files
       if (file.type.startsWith('image/')) {
@@ -120,14 +134,23 @@ const FileUpload = ({
         reader.onload = (e) => {
           const updatedFiles = [...files, ...newFiles].map(f => {
             if (f.id === fileItem.id) {
-              return { ...f, preview: e.target?.result as string };
+              return { ...f, preview: e.target?.result as string, isProcessing: false };
             }
             return f;
           });
           setFiles(updatedFiles);
+          setProcessingFiles(prev => prev.filter(id => id !== fileItem.id));
           onFilesSelect?.(updatedFiles.map(f => f.file));
         };
         reader.readAsDataURL(file);
+      } else {
+        // For non-image files, mark as processed immediately
+        setTimeout(() => {
+          setFiles(prev => prev.map(f => 
+            f.id === fileItem.id ? { ...f, isProcessing: false } : f
+          ));
+          setProcessingFiles(prev => prev.filter(id => id !== fileItem.id));
+        }, 500); // Small delay to show processing state
       }
 
       newFiles.push(fileItem);
@@ -167,13 +190,13 @@ const FileUpload = ({
 
   // Handle click on upload box
   const handleUploadClick = () => {
-    if (fileInputRef.current) {
+    if (!disabled && !isUploading && fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box sx={{ mb: 3 }} data-testid="file-upload">
       <Typography
         variant="subtitle1"
         component="label"
@@ -182,16 +205,53 @@ const FileUpload = ({
         Dateien hochladen ({allowedFileTypes.join(', ')}, max. {maxFileSize / (1024 * 1024)}MB)
       </Typography>
 
-      <Paper variant="outlined" sx={{ p: 2 }}>
-        {files.length < maxFiles && (
-          <Box>
-            <UploadBox onClick={handleUploadClick}>
-              <CloudUploadIcon color="primary" sx={{ fontSize: 48, mb: 2 }} />
-              <Typography variant="subtitle1" gutterBottom>
-                {files.length > 0 
-                  ? `Weitere Dateien auswählen (${files.length}/${maxFiles})`
-                  : 'Dateien auswählen oder hierher ziehen'}
+      <Paper variant="outlined" sx={{ p: 2, opacity: disabled ? 0.6 : 1 }}>
+        {/* Upload Progress Indicator */}
+        {isUploading && (
+          <Box sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" color="primary">
+                Upload läuft...
               </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {uploadProgress}%
+              </Typography>
+            </Box>
+            <LinearProgress 
+              variant="determinate" 
+              value={uploadProgress} 
+              sx={{ height: 6, borderRadius: 3 }}
+            />
+          </Box>
+        )}
+
+        {files.length < maxFiles && !isUploading && (
+          <Box>
+            <UploadBox 
+              onClick={handleUploadClick}
+              sx={{
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                opacity: disabled ? 0.6 : 1,
+                '&:hover': disabled ? {} : undefined
+              }}
+            >
+              {processingFiles.length > 0 ? (
+                <>
+                  <CircularProgress size={48} sx={{ mb: 2 }} />
+                  <Typography variant="subtitle1" gutterBottom>
+                    Dateien werden verarbeitet...
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <CloudUploadIcon color="primary" sx={{ fontSize: 48, mb: 2 }} />
+                  <Typography variant="subtitle1" gutterBottom>
+                    {files.length > 0 
+                      ? `Weitere Dateien auswählen (${files.length}/${maxFiles})`
+                      : 'Dateien auswählen oder hierher ziehen'}
+                  </Typography>
+                </>
+              )}
               <Typography variant="body2" color="text.secondary">
                 {allowedFileTypes.join(', ')} (max. {maxFileSize / (1024 * 1024)}MB)
               </Typography>
@@ -202,6 +262,7 @@ const FileUpload = ({
                 onChange={handleFileChange} 
                 accept={allowedFileTypes.join(',')}
                 multiple={multiple && files.length < maxFiles - 1}
+                disabled={disabled || isUploading}
               />
             </UploadBox>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
@@ -218,8 +279,23 @@ const FileUpload = ({
             <Grid container spacing={2}>
               {files.map((file) => (
                 <Grid size={{ xs: 12, sm: 6, md: 4 }} key={file.id}>
-                  <Card variant="outlined">
-                    {file.preview ? (
+                  <Card variant="outlined" sx={{ opacity: file.isProcessing ? 0.7 : 1 }}>
+                    {file.isProcessing ? (
+                      <Box sx={{ 
+                        p: 3, 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        bgcolor: 'grey.50',
+                        aspectRatio: '4/3'
+                      }}>
+                        <CircularProgress size={32} sx={{ mb: 1 }} />
+                        <Typography variant="caption" color="text.secondary">
+                          Wird verarbeitet...
+                        </Typography>
+                      </Box>
+                    ) : file.preview ? (
                       <CardMedia
                         component="img"
                         image={file.preview}
@@ -235,7 +311,8 @@ const FileUpload = ({
                         display: 'flex', 
                         justifyContent: 'center', 
                         alignItems: 'center',
-                        bgcolor: 'grey.100'
+                        bgcolor: 'grey.100',
+                        aspectRatio: '4/3'
                       }}>
                         {file.type === 'application/pdf' ? (
                           <PictureAsPdfIcon sx={{ fontSize: 48, color: 'error.main' }} />
@@ -249,7 +326,10 @@ const FileUpload = ({
                         {file.name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {file.type === 'application/pdf' ? 'PDF' : file.type.split('/')[1].toUpperCase()}
+                        {file.isProcessing 
+                          ? 'Wird verarbeitet...'
+                          : file.type === 'application/pdf' ? 'PDF' : file.type.split('/')[1].toUpperCase()
+                        }
                       </Typography>
                     </CardContent>
                     <CardActions>
@@ -257,9 +337,10 @@ const FileUpload = ({
                         size="small" 
                         color="error" 
                         onClick={() => handleRemoveFile(file.id)}
-                        startIcon={<DeleteIcon />}
+                        startIcon={file.isProcessing ? <CircularProgress size={16} /> : <DeleteIcon />}
+                        disabled={file.isProcessing || disabled || isUploading}
                       >
-                        Entfernen
+                        {file.isProcessing ? 'Verarbeitung...' : 'Entfernen'}
                       </Button>
                     </CardActions>
                   </Card>
@@ -275,6 +356,14 @@ const FileUpload = ({
           </FormHelperText>
         )}
       </Paper>
+      
+      {/* Hidden elements for testing configuration */}
+      <Box sx={{ display: 'none' }}>
+        <span data-testid="max-files">{maxFiles}</span>
+        <span data-testid="max-file-size">{maxFileSize}</span>
+        <span data-testid="allowed-file-types">{allowedFileTypes.join(',')}</span>
+        <span data-testid="multiple">{multiple.toString()}</span>
+      </Box>
     </Box>
   );
 };

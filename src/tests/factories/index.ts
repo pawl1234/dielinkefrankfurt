@@ -1,5 +1,6 @@
 // Central export point for all test factories
 
+export * from './antrag.factory';
 export * from './appointment.factory';
 export * from './group.factory';
 export * from './newsletter.factory';

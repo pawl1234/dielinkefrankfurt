@@ -15,6 +15,7 @@ const customJestConfig = {
     '^@/app/(.*)$': '<rootDir>/src/app/$1',
     '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
     '^@/types/(.*)$': '<rootDir>/src/types/$1',
+    '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
     // Handle relative imports for components
     '^../components/(.*)$': '<rootDir>/src/components/$1',
     // Handle MUI X Date Pickers internal imports

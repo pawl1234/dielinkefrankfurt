@@ -218,3 +218,54 @@ model NewsletterItem {
   @@index([sentAt])
   @@map("newsletter_item") // Lowercase table name for PostgreSQL convention
 }
+
+// Enum for Antrag status
+enum AntragStatus {
+  NEU        // New submission
+  AKZEPTIERT // Accepted
+  ABGELEHNT  // Rejected
+}
+
+// Antrag model for board requests
+model Antrag {
+  id                String       @id @default(cuid())
+  
+  // User Information
+  firstName         String       @db.VarChar(50)
+  lastName          String       @db.VarChar(50)
+  email             String
+  
+  // Antrag Details
+  title             String       @db.VarChar(200)
+  summary           String       @db.VarChar(300)
+  
+  // Purpose Details (JSON structure for flexibility)
+  purposes          String       @db.Text // JSON object with selected purposes and details
+  
+  // File Attachments
+  fileUrls          String?      // JSON string array of file URLs
+  
+  // Status and Decision
+  status            AntragStatus @default(NEU)
+  decisionComment   String?      @db.Text
+  decidedBy         String?      // Username of admin who made decision
+  decidedAt         DateTime?
+  
+  // System fields
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  @@index([status])
+  @@index([createdAt])
+  @@map("antrag")
+}
+
+// Configuration for Antrag email recipients
+model AntragConfiguration {
+  id                 Int      @id @default(autoincrement())
+  recipientEmails    String   // Comma-separated email addresses
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@map("antrag_configuration")
+}

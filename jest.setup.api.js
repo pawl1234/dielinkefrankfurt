@@ -29,49 +29,52 @@ jest.mock('@/lib/logger', () => ({
   }
 }));
 
-// Mock error handling
+// Mock error handling - Create real classes for instanceof checks
+class MockAppError extends Error {
+  constructor(message, type = 'UNKNOWN', statusCode = 500, originalError, context) {
+    super(message);
+    this.name = 'AppError';
+    this.type = type;
+    this.statusCode = statusCode;
+    this.originalError = originalError;
+    this.context = context;
+  }
+  
+  static validation(message, context) {
+    return new MockAppError(message, 'VALIDATION', 400, undefined, context);
+  }
+  
+  static notFound(message) {
+    return new MockAppError(message, 'NOT_FOUND', 404);
+  }
+  
+  static database(message, originalError) {
+    return new MockAppError(message, 'DATABASE', 500, originalError);
+  }
+  
+  static fileUpload(message, originalError, context) {
+    return new MockAppError(message, 'FILE_UPLOAD', 500, originalError, context);
+  }
+  
+  toResponse() {
+    return {
+      status: this.statusCode,
+      json: () => Promise.resolve({ 
+        error: this.message, 
+        type: this.type 
+      })
+    };
+  }
+}
+
 jest.mock('@/lib/errors', () => ({
-  AppError: {
-    validation: jest.fn((message, context) => ({
-      message,
-      statusCode: 400,
-      type: 'VALIDATION',
-      context,
-      toResponse: jest.fn(() => ({
-        status: 400,
-        json: () => Promise.resolve({ error: message, type: 'VALIDATION' })
-      }))
-    })),
-    notFound: jest.fn((message) => ({
-      message,
-      statusCode: 404,
-      type: 'NOT_FOUND',
-      toResponse: jest.fn(() => ({
-        status: 404,
-        json: () => Promise.resolve({ error: message, type: 'NOT_FOUND' })
-      }))
-    })),
-    database: jest.fn((message, originalError) => {
-      const error = new Error(message);
-      error.statusCode = 500;
-      error.type = 'DATABASE';
-      error.originalError = originalError;
-      return error;
-    }),
-    fileUpload: jest.fn((message, originalError, context) => {
-      const error = new Error(message);
-      error.statusCode = 500;
-      error.type = 'FILE_UPLOAD';
-      error.originalError = originalError;
-      error.context = context;
-      return error;
-    })
-  },
+  AppError: MockAppError,
   ErrorType: {
     VALIDATION: 'VALIDATION',
     DATABASE: 'DATABASE',
     FILE_UPLOAD: 'FILE_UPLOAD',
-    NOT_FOUND: 'NOT_FOUND'
+    NOT_FOUND: 'NOT_FOUND',
+    UNKNOWN: 'UNKNOWN'
   },
   validationErrorResponse: jest.fn((fieldErrors) => ({
     status: 400,
@@ -82,28 +85,21 @@ jest.mock('@/lib/errors', () => ({
     })
   })),
   apiErrorResponse: jest.fn((error, message) => {
-    const response = {
-      status: error?.statusCode || 500,
+    if (error instanceof MockAppError) {
+      return error.toResponse();
+    }
+    return {
+      status: 500,
       json: jest.fn().mockResolvedValue({ 
-        error: message || error?.message || 'An error occurred' 
+        error: message || 'An error occurred' 
       })
     };
-    return response;
   }),
   handleFileUploadError: jest.fn((error, context) => {
-    const appError = new Error('File upload failed');
-    appError.statusCode = 500;
-    appError.type = 'FILE_UPLOAD';
-    appError.originalError = error;
-    appError.context = context;
-    return appError;
+    return MockAppError.fileUpload('File upload failed', error, context);
   }),
   handleDatabaseError: jest.fn((error, operation) => {
-    const appError = new Error(`Database error during ${operation}`);
-    appError.statusCode = 500;
-    appError.type = 'DATABASE';
-    appError.originalError = error;
-    return appError;
+    return MockAppError.database(`Database error during ${operation}`, error);
   }),
   getLocalizedErrorMessage: jest.fn((message) => message)
 }));

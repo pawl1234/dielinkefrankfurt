@@ -9,6 +9,7 @@ interface FormSectionProps {
   helpTitle?: string;
   helpText?: React.ReactNode;
   children: ReactNode;
+  'data-testid'?: string;
 }
 
 /**
@@ -22,15 +23,22 @@ export default function FormSection({
   title,
   helpTitle,
   helpText,
-  children
+  children,
+  'data-testid': dataTestId
 }: FormSectionProps) {
+  // Generate a default test id from title if not provided
+  const testId = dataTestId || `form-section-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+  
   return (
-    <Card variant="outlined" sx={{
-      mb: 3,
-      borderLeft: 4,
-      borderLeftColor: 'primary.main',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
-    }}>
+    <Card 
+      variant="outlined" 
+      data-testid={testId}
+      sx={{
+        mb: 3,
+        borderLeft: 4,
+        borderLeftColor: 'primary.main',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
+      }}>
       <CardContent>
         <SectionHeader
           title={title}

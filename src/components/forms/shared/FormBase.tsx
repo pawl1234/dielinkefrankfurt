@@ -90,7 +90,45 @@ export default function FormBase<TFormValues extends FieldValues>({
         {/* ... rest of JSX ... */}
         {submissionError && ( <Box sx={{ mb: 3, p:2, border: '1px solid', borderColor: 'error.main', borderRadius: 1, backgroundColor: 'error.lighter' }}> <Typography variant="subtitle1" color="error" component="div" fontWeight="bold"> Fehler beim Absenden des Formulars: </Typography> <Typography variant="body2" color="error">{submissionError}</Typography> </Box> )}
         {submissionSuccess && ( <FormSuccessMessage title={successTitle} message={successMessage} resetForm={resetForm} resetButtonText={mode === 'create' ? "Neuen Eintrag erstellen" : "Zurück zum Formular"}/> )}
-        {!submissionSuccess && ( <> {children} <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}> {mode === 'create' && ( <Button type="button" variant="outlined" color="inherit" onClick={resetForm} disabled={isSubmitting}> {resetButtonText} </Button> )} {mode === 'edit' && onCancel && ( <Button type="button" variant="outlined" color="inherit" onClick={onCancel} disabled={isSubmitting}> Abbrechen </Button> )} <Button type="submit" variant="contained" color="primary" disabled={isSubmitting} endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}> {isSubmitting ? 'Wird gesendet...' : submitButtonText} </Button> </Box> </> )}
+        {!submissionSuccess && (
+          <>
+            {children}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
+              {mode === 'create' && (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  color="inherit"
+                  onClick={resetForm}
+                  disabled={isSubmitting}
+                >
+                  {resetButtonText}
+                </Button>
+              )}
+              {mode === 'edit' && onCancel && (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  color="inherit"
+                  onClick={onCancel}
+                  disabled={isSubmitting}
+                >
+                  Abbrechen
+                </Button>
+              )}
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={isSubmitting}
+                data-testid="submit-button"
+                endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+              >
+                {isSubmitting ? 'Wird gesendet...' : submitButtonText}
+              </Button>
+            </Box>
+          </>
+        )}
       </Box>
     </FormProvider>
   );

@@ -72,3 +72,54 @@ export interface NewsletterSendingSettings {
   adminNotificationEmail?: string;
   [key: string]: unknown;
 }
+
+/**
+ * Purpose details for Antrag an Kreisvorstand
+ */
+export interface AntragPurposes {
+  zuschuss?: {
+    enabled: boolean;
+    amount: number; // Amount in euros
+  };
+  personelleUnterstuetzung?: {
+    enabled: boolean;
+    details: string; // Free text describing personnel needs
+  };
+  raumbuchung?: {
+    enabled: boolean;
+    location: string;
+    numberOfPeople: number;
+    details: string; // Additional details like time, duration, special requirements
+  };
+  weiteres?: {
+    enabled: boolean;
+    details: string; // Free text for other requirements
+  };
+}
+
+/**
+ * Form data for Antrag submission
+ */
+export interface AntragFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  title: string;
+  summary: string;
+  purposes: AntragPurposes;
+  files?: File[];
+}
+
+/**
+ * Antrag with database ID and system fields
+ */
+export interface AntragWithId extends Omit<AntragFormData, 'files'> {
+  id: string;
+  status: 'NEU' | 'AKZEPTIERT' | 'ABGELEHNT';
+  fileUrls?: string[];
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  decisionComment?: string;
+  decidedBy?: string;
+  decidedAt?: Date | string;
+}

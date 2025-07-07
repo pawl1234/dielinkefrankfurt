@@ -989,6 +989,26 @@ jest.mock('@/lib/prisma', () => ({
       deleteMany: jest.fn(),
       count: jest.fn(),
     },
+    antrag: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    antragConfiguration: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
     $transaction: jest.fn().mockImplementation(async (callback) => {
       // Mock transaction with proper context
       let currentGroup = null;

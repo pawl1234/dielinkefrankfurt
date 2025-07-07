@@ -13,6 +13,12 @@ interface EmailSettings {
   maxBackoffDelay?: number;
 }
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
 interface MailOptions {
   from: string;
   to: string;
@@ -21,6 +27,7 @@ interface MailOptions {
   html: string;
   replyTo?: string;
   headers?: Record<string, string>;
+  attachments?: EmailAttachment[];
 }
 
 interface TransporterType {
@@ -97,6 +104,7 @@ export const sendEmailWithTransporter = async (transporter: TransporterType, {
   from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
   replyTo,
   bcc,
+  attachments,
   settings,
 }: {
   to: string;
@@ -105,6 +113,7 @@ export const sendEmailWithTransporter = async (transporter: TransporterType, {
   from?: string;
   replyTo?: string;
   bcc?: string;
+  attachments?: EmailAttachment[];
   settings?: EmailSettings;
 }) => {
   const startTime = Date.now();
@@ -120,7 +129,8 @@ export const sendEmailWithTransporter = async (transporter: TransporterType, {
       replyTo: replyTo || from,
       headers: {
         'Content-Type': 'text/html; charset=utf-8'
-      }
+      },
+      ...(attachments && attachments.length > 0 && { attachments })
     };
     
     try {
@@ -213,6 +223,7 @@ export const sendEmail = async ({
   html,
   from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
   replyTo,
+  attachments,
   settings,
 }: {
   to: string;
@@ -220,6 +231,7 @@ export const sendEmail = async ({
   html: string;
   from?: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
   settings?: EmailSettings;
 }) => {
   const startTime = Date.now();
@@ -288,7 +300,8 @@ export const sendEmail = async ({
       replyTo: replyTo || from,
       headers: {
         'Content-Type': 'text/html; charset=utf-8'
-      }
+      },
+      ...(attachments && attachments.length > 0 && { attachments })
     });
     
     const info = await Promise.race([sendMailPromise, sendMailTimeout]);

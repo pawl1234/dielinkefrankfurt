@@ -9,6 +9,7 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Groups';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import MailIcon from '@mui/icons-material/Mail';
+import GavelIcon from '@mui/icons-material/Gavel';
 
 interface AdminNavigationProps {
   title?: string;
@@ -22,6 +23,7 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
   // Determine which page is active
   const isNewsletterActive = pathname === '/admin';
   const isAppointmentsActive = pathname === '/admin/appointments';
+  const isAntraegeActive = pathname?.startsWith('/admin/antraege') || false;
   const isGroupsActive = pathname?.startsWith('/admin/groups') || false;
   const isStatusReportsActive = pathname?.startsWith('/admin/status-reports') || false;
   const isUsersActive = pathname?.startsWith('/admin/users') || false
@@ -38,6 +40,12 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
       icon: <EventIcon />,
       href: '/admin/appointments',
       isActive: isAppointmentsActive
+    },
+    {
+      label: 'Anträge',
+      icon: <GavelIcon />,
+      href: '/admin/antraege',
+      isActive: isAntraegeActive
     },
     {
       label: 'Gruppen',
