@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -43,7 +43,7 @@ interface Antrag {
   decidedAt?: string | null;
 }
 
-export default function AdminAntraegePage() {
+function AdminAntraegePageContent() {
   const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -311,5 +311,17 @@ export default function AdminAntraegePage() {
         onShowNotification={adminState.showNotification}
       />
     </MainLayout>
+  );
+}
+
+export default function AdminAntraegePage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <AdminAntraegePageContent />
+    </Suspense>
   );
 }
