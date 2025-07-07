@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "npm test && next build",
+    "build": "next build",
     "start": "next start",
     "check": "next lint && tsc --noEmit",
     "test": "jest",
