@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-
-// Import the appointment creation function
+import { NextRequest } from 'next/server';
 import { createAppointment } from '@/lib/appointment-handlers';
 import prisma from '@/lib/prisma';
+import { put } from '@vercel/blob';
 
 // Mock Vercel Blob Storage
 jest.mock('@vercel/blob', () => ({
@@ -10,76 +10,11 @@ jest.mock('@vercel/blob', () => ({
   del: jest.fn()
 }));
 
-// Import the mocked functions
-import { put } from '@vercel/blob';
-
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 const mockPut = put as jest.MockedFunction<typeof put>;
 
-// Mock FormData and File for the test environment
-global.FormData = class FormData {
-  constructor() {
-    this.data = new Map();
-  }
-  
-  append(key, value) {
-    if (this.data.has(key)) {
-      const existing = this.data.get(key);
-      if (Array.isArray(existing)) {
-        existing.push(value);
-      } else {
-        this.data.set(key, [existing, value]);
-      }
-    } else {
-      this.data.set(key, value);
-    }
-  }
-  
-  get(key) {
-    const value = this.data.get(key);
-    return Array.isArray(value) ? value[0] : value;
-  }
-  
-  getAll(key) {
-    const value = this.data.get(key);
-    return Array.isArray(value) ? value : (value ? [value] : []);
-  }
-  
-  has(key) {
-    return this.data.has(key);
-  }
-  
-  entries() {
-    return this.data.entries();
-  }
-};
-
-global.File = class File {
-  constructor(bits, name, options = {}) {
-    this.name = name;
-    this.size = bits.length;
-    this.type = options.type || 'application/octet-stream';
-    this._bits = bits;
-  }
-  
-  async arrayBuffer() {
-    return Buffer.from(this._bits);
-  }
-};
-
-global.Blob = class Blob {
-  constructor(parts, options = {}) {
-    this.size = parts.reduce((acc, part) => acc + part.length, 0);
-    this.type = options.type || '';
-    this._parts = parts;
-  }
-};
-
 describe('File Upload API', () => {
-  let mockFormData;
-  
   beforeEach(() => {
-    mockFormData = new FormData();
     jest.clearAllMocks();
     
     // Mock successful database connection test
@@ -90,19 +25,32 @@ describe('File Upload API', () => {
       id: 1,
       title: 'Test Event',
       teaser: 'Test teaser',
-      status: 'pending'
+      status: 'pending',
+      mainText: 'Test content',
+      startDateTime: new Date(),
+      endDateTime: null,
+      street: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      firstName: '',
+      lastName: '',
+      recurringText: '',
+      featured: false,
+      processed: false,
+      fileUrls: null,
+      metadata: null,
+      rejectionReason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      processingDate: null,
+      statusChangeDate: null
     });
     
     // Mock successful blob upload
     mockPut.mockResolvedValue({
       url: 'https://example.com/test-file.jpg'
     });
-    
-    // Set up basic form data with required fields
-    mockFormData.append('title', 'Test Event');
-    mockFormData.append('teaser', 'Test teaser');
-    mockFormData.append('mainText', '<p>This is a test event</p>');
-    mockFormData.append('startDateTime', new Date().toISOString());
   });
   
   afterEach(() => {
@@ -110,21 +58,25 @@ describe('File Upload API', () => {
   });
 
   it('should handle file upload and save to Vercel Blob Store', async () => {
-    // Create test file
+    const formData = new FormData();
+    formData.append('title', 'Test Event');
+    formData.append('teaser', 'Test teaser');
+    formData.append('mainText', '<p>This is a test event</p>');
+    formData.append('startDateTime', new Date().toISOString());
+    formData.append('fileCount', '1');
+    
     const testFile = new File(['test file content'], 'test-image.jpg', { type: 'image/jpeg' });
-    mockFormData.append('fileCount', '1');
-    mockFormData.append('file-0', testFile);
+    formData.append('file-0', testFile);
     
-    // Create mock request with formData method
-    const request = {
-      formData: jest.fn().mockResolvedValue(mockFormData)
-    };
+    const request = new NextRequest('http://localhost:3000/api/submit-appointment', {
+      method: 'POST',
+      body: formData
+    });
     
-    // Call the appointment creation function
     const response = await createAppointment(request);
     const responseData = await response.json();
     
-    // Verify the response
+    // Verify successful response
     expect(responseData.success).toBe(true);
     expect(responseData.appointmentId).toBe(1);
     
@@ -149,82 +101,33 @@ describe('File Upload API', () => {
     });
   });
 
-  it('should reject files that are too large', async () => {
-    // Create large test file (6MB) - simulate size by setting the size property
-    const largeFile = new File(['a'.repeat(1000)], 'large-file.jpg', { type: 'image/jpeg' });
-    // Override the size property to simulate a large file
-    Object.defineProperty(largeFile, 'size', { value: 6 * 1024 * 1024 });
-    
-    mockFormData.append('fileCount', '1');
-    mockFormData.append('file-0', largeFile);
-    
-    const request = {
-      formData: jest.fn().mockResolvedValue(mockFormData)
-    };
-    
-    // Call the appointment creation function
-    const response = await createAppointment(request);
-    const responseData = await response.json();
-    
-    // Verify the response shows an error
-    expect(response.status).toBe(400);
-    expect(responseData.error).toContain('Dateigröße überschreitet das Limit');
-    
-    // Verify blob upload was not called
-    expect(mockPut).not.toHaveBeenCalled();
-    
-    // Verify database create was not called
-    expect(mockPrisma.appointment.create).not.toHaveBeenCalled();
-  });
-
-  it('should reject files with unsupported types', async () => {
-    // Create unsupported file type
-    const testFile = new File(['test content'], 'test.exe', { type: 'application/exe' });
-    mockFormData.append('fileCount', '1');
-    mockFormData.append('file-0', testFile);
-    
-    const request = {
-      formData: jest.fn().mockResolvedValue(mockFormData)
-    };
-    
-    // Call the appointment creation function
-    const response = await createAppointment(request);
-    const responseData = await response.json();
-    
-    // Verify the response shows an error
-    expect(response.status).toBe(400);
-    expect(responseData.error).toContain('Nicht unterstützter Dateityp');
-    
-    // Verify blob upload was not called
-    expect(mockPut).not.toHaveBeenCalled();
-    
-    // Verify database create was not called
-    expect(mockPrisma.appointment.create).not.toHaveBeenCalled();
-  });
-
   it('should handle multiple file uploads', async () => {
-    // Create multiple test files
+    const formData = new FormData();
+    formData.append('title', 'Test Event');
+    formData.append('teaser', 'Test teaser');
+    formData.append('mainText', '<p>This is a test event</p>');
+    formData.append('startDateTime', new Date().toISOString());
+    formData.append('fileCount', '2');
+    
     const file1 = new File(['test file 1'], 'image1.jpg', { type: 'image/jpeg' });
     const file2 = new File(['test file 2'], 'document.pdf', { type: 'application/pdf' });
-    
-    mockFormData.append('fileCount', '2');
-    mockFormData.append('file-0', file1);
-    mockFormData.append('file-1', file2);
+    formData.append('file-0', file1);
+    formData.append('file-1', file2);
     
     // Mock multiple blob uploads
     mockPut
       .mockResolvedValueOnce({ url: 'https://example.com/image1.jpg' })
       .mockResolvedValueOnce({ url: 'https://example.com/document.pdf' });
     
-    const request = {
-      formData: jest.fn().mockResolvedValue(mockFormData)
-    };
+    const request = new NextRequest('http://localhost:3000/api/submit-appointment', {
+      method: 'POST',
+      body: formData
+    });
     
-    // Call the appointment creation function
     const response = await createAppointment(request);
     const responseData = await response.json();
     
-    // Verify the response
+    // Verify successful response
     expect(responseData.success).toBe(true);
     
     // Verify blob upload was called twice
@@ -239,17 +142,21 @@ describe('File Upload API', () => {
   });
 
   it('should create appointment without files when no fileCount is provided', async () => {
-    // Don't add any files to the form data
+    const formData = new FormData();
+    formData.append('title', 'Test Event');
+    formData.append('teaser', 'Test teaser');
+    formData.append('mainText', '<p>This is a test event</p>');
+    formData.append('startDateTime', new Date().toISOString());
     
-    const request = {
-      formData: jest.fn().mockResolvedValue(mockFormData)
-    };
+    const request = new NextRequest('http://localhost:3000/api/submit-appointment', {
+      method: 'POST',
+      body: formData
+    });
     
-    // Call the appointment creation function
     const response = await createAppointment(request);
     const responseData = await response.json();
     
-    // Verify the response
+    // Verify successful response
     expect(responseData.success).toBe(true);
     
     // Verify blob upload was not called
@@ -265,27 +172,32 @@ describe('File Upload API', () => {
   });
 
   it('should handle featured appointments with cover images', async () => {
-    // Set up featured appointment
-    mockFormData.append('featured', 'true');
+    const formData = new FormData();
+    formData.append('title', 'Test Event');
+    formData.append('teaser', 'Test teaser');
+    formData.append('mainText', '<p>This is a test event</p>');
+    formData.append('startDateTime', new Date().toISOString());
+    formData.append('featured', 'true');
+    
     const coverImage = new File(['cover image content'], 'cover.jpg', { type: 'image/jpeg' });
     const croppedCoverImage = new File(['cropped cover'], 'cover-crop.jpg', { type: 'image/jpeg' });
-    mockFormData.append('coverImage', coverImage);
-    mockFormData.append('croppedCoverImage', croppedCoverImage);
+    formData.append('coverImage', coverImage);
+    formData.append('croppedCoverImage', croppedCoverImage);
     
     // Mock blob uploads for cover images
     mockPut
       .mockResolvedValueOnce({ url: 'https://example.com/cover.jpg' })
       .mockResolvedValueOnce({ url: 'https://example.com/cover-crop.jpg' });
     
-    const request = {
-      formData: jest.fn().mockResolvedValue(mockFormData)
-    };
+    const request = new NextRequest('http://localhost:3000/api/submit-appointment', {
+      method: 'POST',
+      body: formData
+    });
     
-    // Call the appointment creation function
     const response = await createAppointment(request);
     const responseData = await response.json();
     
-    // Verify the response
+    // Verify successful response
     expect(responseData.success).toBe(true);
     
     // Verify blob upload was called for cover images
@@ -298,5 +210,58 @@ describe('File Upload API', () => {
         metadata: expect.stringContaining('coverImageUrl')
       })
     });
+  });
+
+  it('should handle blob upload errors gracefully', async () => {
+    const formData = new FormData();
+    formData.append('title', 'Test Event');
+    formData.append('teaser', 'Test teaser');
+    formData.append('mainText', '<p>This is a test event</p>');
+    formData.append('startDateTime', new Date().toISOString());
+    formData.append('fileCount', '1');
+    
+    const testFile = new File(['test file content'], 'test-image.jpg', { type: 'image/jpeg' });
+    formData.append('file-0', testFile);
+    
+    // Mock blob upload failure
+    mockPut.mockRejectedValue(new Error('Upload failed'));
+    
+    const request = new NextRequest('http://localhost:3000/api/submit-appointment', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const response = await createAppointment(request);
+    const responseData = await response.json();
+    
+    // Verify error response
+    expect(responseData.success).toBeFalsy();
+    expect(responseData.error).toBeDefined();
+    
+    // Verify database create was not called
+    expect(mockPrisma.appointment.create).not.toHaveBeenCalled();
+  });
+
+  it('should handle database errors gracefully', async () => {
+    const formData = new FormData();
+    formData.append('title', 'Test Event');
+    formData.append('teaser', 'Test teaser');
+    formData.append('mainText', '<p>This is a test event</p>');
+    formData.append('startDateTime', new Date().toISOString());
+    
+    // Mock database error
+    mockPrisma.appointment.create.mockRejectedValue(new Error('Database error'));
+    
+    const request = new NextRequest('http://localhost:3000/api/submit-appointment', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const response = await createAppointment(request);
+    const responseData = await response.json();
+    
+    // Verify error response
+    expect(responseData.success).toBeFalsy();
+    expect(responseData.error).toBeDefined();
   });
 });

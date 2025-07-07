@@ -1,4 +1,54 @@
 // jest.setup.js
+
+// Mock next/server before any imports to ensure NextResponse is available
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (data, init) => ({
+      status: init?.status || 200,
+      json: async () => data,
+      headers: new Map(Object.entries(init?.headers || {}))
+    }),
+    redirect: (url, init) => ({
+      status: init?.status || 307,
+      headers: new Map([['Location', url.toString()]])
+    })
+  },
+  NextRequest: class NextRequest {
+    constructor(input, init = {}) {
+      this.url = input;
+      this.method = init.method || 'GET';
+      // Create a proper headers object with get method
+      const headerEntries = Object.entries(init.headers || {});
+      this.headers = {
+        get: (name) => {
+          const entry = headerEntries.find(([key]) => key.toLowerCase() === name.toLowerCase());
+          return entry ? entry[1] : null;
+        },
+        has: (name) => {
+          return headerEntries.some(([key]) => key.toLowerCase() === name.toLowerCase());
+        }
+      };
+      this.body = init.body;
+      this.nextUrl = new URL(input);
+      this._formData = init.body instanceof FormData ? init.body : null;
+    }
+    
+    async json() {
+      if (typeof this.body === 'string') {
+        return JSON.parse(this.body);
+      }
+      return this.body;
+    }
+    
+    async formData() {
+      if (this._formData) {
+        return this._formData;
+      }
+      throw new Error('Body is not FormData');
+    }
+  }
+}));
+
 import '@testing-library/jest-dom';
 
 // Polyfill TextEncoder/TextDecoder for Node.js environment
@@ -15,8 +65,7 @@ jest.mock('next-auth/jwt', () => ({
   decode: jest.fn(),
 }));
 
-// Mock api-auth module - uses __mocks__ folder
-jest.mock('@/lib/api-auth');
+// api-auth module - now using real implementation
 
 // Mock Next.js routing
 jest.mock('next/navigation', () => ({
@@ -1161,11 +1210,18 @@ jest.mock('@vercel/blob', () => ({
   del: jest.fn().mockResolvedValue({ success: true })
 }));
 
-// Mock email hashing functions
-jest.mock('@/lib/email-hashing', () => ({
-  cleanEmail: jest.fn((email) => email.trim().toLowerCase()),
-  validateEmail: jest.fn((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)),
-  validateAndHashEmails: jest.fn()
+// email-hashing - now using real implementation
+
+// Mock errors module - only mock the apiErrorResponse function
+jest.mock('@/lib/errors', () => ({
+  ...jest.requireActual('@/lib/errors'),
+  apiErrorResponse: jest.fn().mockImplementation((error, message = 'An error occurred') => {
+    return {
+      status: 500,
+      json: async () => ({ error: message }),
+      headers: new Map()
+    };
+  })
 }));
 
 // Mock logger
@@ -1187,179 +1243,22 @@ jest.mock('crypto', () => ({
   })),
 }));
 
-// Mock API authentication for API tests
-jest.mock('@/lib/api-auth', () => ({
-  withAdminAuth: jest.fn((handler) => async (request, context) => {
-    const { getToken } = require('next-auth/jwt');
-    const token = await getToken({ req: request });
-    
-    if (!token || token.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    return handler(request, context);
-  }),
-  serverErrorResponse: jest.fn((message) => 
-    new Response(JSON.stringify({ error: message }), { 
-      status: 500, 
-      headers: { 'Content-Type': 'application/json' } 
-    })
-  ),
-  validationErrorResponse: jest.fn((errors) => 
-    new Response(JSON.stringify({ error: 'Validation failed', errors }), { 
-      status: 400, 
-      headers: { 'Content-Type': 'application/json' } 
-    })
-  )
-}));
+// API authentication - now using real implementation from @/lib/api-auth
 
-// Mock error handling for API tests
-jest.mock('@/lib/errors', () => ({
-  AppError: {
-    validation: jest.fn((message, context) => ({
-      message,
-      statusCode: 400,
-      type: 'VALIDATION',
-      context,
-      toResponse: jest.fn(() => ({
-        status: 400,
-        json: () => Promise.resolve({ error: message, type: 'VALIDATION' })
-      }))
-    })),
-    authentication: jest.fn((message = 'Authentication failed') => ({
-      message,
-      statusCode: 401,
-      type: 'AUTHENTICATION',
-      toResponse: jest.fn(() => ({
-        status: 401,
-        json: () => Promise.resolve({ error: message, type: 'AUTHENTICATION' })
-      }))
-    })),
-    authorization: jest.fn((message = 'Not authorized') => ({
-      message,
-      statusCode: 403,
-      type: 'AUTHORIZATION',
-      toResponse: jest.fn(() => ({
-        status: 403,
-        json: () => Promise.resolve({ error: message, type: 'AUTHORIZATION' })
-      }))
-    })),
-    notFound: jest.fn((message) => ({
-      message,
-      statusCode: 404,
-      type: 'NOT_FOUND',
-      toResponse: jest.fn(() => ({
-        status: 404,
-        json: () => Promise.resolve({ error: message, type: 'NOT_FOUND' })
-      }))
-    })),
-    database: jest.fn((message, originalError) => ({
-      message,
-      statusCode: 500,
-      type: 'DATABASE',
-      originalError,
-      toResponse: jest.fn(() => ({
-        status: 500,
-        json: () => Promise.resolve({ error: message, type: 'DATABASE' })
-      }))
-    }))
-  },
-  NewsletterNotFoundError: jest.fn().mockImplementation((message = 'Newsletter not found', context) => ({
-    message,
-    name: 'NewsletterNotFoundError',
-    type: 'NEWSLETTER',
-    statusCode: 404,
-    context,
-    toResponse: jest.fn(() => ({
-      status: 404,
-      json: () => Promise.resolve({ error: message, type: 'NEWSLETTER' })
-    }))
-  })),
-  NewsletterValidationError: jest.fn().mockImplementation((message = 'Newsletter validation failed', details, context) => ({
-    message,
-    name: 'NewsletterValidationError',
-    type: 'NEWSLETTER',
-    statusCode: 400,
-    details,
-    context,
-    toResponse: jest.fn(() => ({
-      status: 400,
-      json: () => Promise.resolve({ 
-        error: message, 
-        type: 'NEWSLETTER',
-        fieldErrors: details
-      })
-    }))
-  })),
-  apiErrorResponse: jest.fn((error, message) => {
-    // Mock the logic from the real apiErrorResponse function
-    if (error && typeof error === 'object' && 'toResponse' in error && typeof error.toResponse === 'function') {
-      // This is an AppError with toResponse method
-      return error.toResponse();
-    }
-    
-    // Fallback for other errors
-    const response = {
-      status: error?.statusCode || 500,
-      json: jest.fn().mockResolvedValue({ 
-        error: message || error?.message || 'An error occurred' 
-      })
-    };
-    return response;
-  }),
-  getLocalizedErrorMessage: jest.fn((message) => {
-    const translations = {
-      'File size exceeds limit': 'Dateigröße überschreitet das Limit',
-      'Unsupported file type': 'Nicht unterstützter Dateityp'
-    };
-    return translations[message] || message;
-  })
-}));
 
-// Mock newsletter-sending service
-jest.mock('@/lib/newsletter-sending', () => ({
-  processSendingChunk: jest.fn(),
-  processRecipientList: jest.fn(),
-  getSentNewsletters: jest.fn(),
-  getNewsletterStatus: jest.fn()
-}));
+// newsletter-sending - now using real implementation
 
-// Mock newsletter service
-jest.mock('@/lib/newsletter-service', () => ({
-  sendNewsletterTestEmail: jest.fn().mockResolvedValue({
-    success: true,
-    recipientCount: 1,
-    messageId: 'test-message'
-  }),
-  fixUrlsInNewsletterHtml: jest.fn((html) => html),
-  getNewsletterSettings: jest.fn().mockResolvedValue({}),
-  updateNewsletterSettings: jest.fn().mockResolvedValue({}),
-  getNewsletterById: jest.fn().mockResolvedValue(null),
-  updateNewsletter: jest.fn().mockResolvedValue({}),
-  listDraftNewsletters: jest.fn().mockResolvedValue([]),
-  saveDraftNewsletter: jest.fn().mockResolvedValue({}),
-  fetchNewsletterAppointments: jest.fn().mockResolvedValue({
-    featuredAppointments: [],
-    upcomingAppointments: []
-  }),
-  fetchNewsletterStatusReports: jest.fn().mockResolvedValue({
-    statusReportsByGroup: []
-  }),
-  generateNewsletter: jest.fn().mockResolvedValue('<html>Generated Newsletter HTML</html>'),
-  handleGetNewsletterSettings: jest.fn(),
-  handleUpdateNewsletterSettings: jest.fn(),
-  handleGenerateNewsletter: jest.fn(),
-  handleSendTestNewsletter: jest.fn(),
-  createNewsletter: jest.fn().mockResolvedValue({}),
-  deleteNewsletter: jest.fn().mockResolvedValue({}),
-  listNewsletters: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
-  getNewsletter: jest.fn().mockResolvedValue(null),
-  deleteDraftNewsletter: jest.fn().mockResolvedValue({}),
-  updateDraftNewsletter: jest.fn().mockResolvedValue({})
-}));
+// Newsletter service is NOT mocked - we want to test real business logic
+// Only external dependencies like email sending are mocked
+// However, we need to mock getNewsletterSettings to avoid caching issues in tests
+jest.mock('@/lib/newsletter-service', () => {
+  const actual = jest.requireActual('@/lib/newsletter-service');
+  return {
+    ...actual,
+    getNewsletterSettings: jest.fn(),
+    sendNewsletterTestEmail: jest.fn()
+  };
+});
 
 // Mock MUI X Date Pickers
 jest.mock('@mui/x-date-pickers/DateTimePicker', () => ({

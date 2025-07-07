@@ -264,3 +264,26 @@ All documentation has been organized into the `/docs` directory:
 - `/docs/features/`: Feature planning and documentation
 
 **Important Note**: Documentation should be revisited and updated whenever changes are made to the application. Keeping documentation in sync with code changes is critical for maintainability.
+
+## Testing Guidelines - Mocking
+
+### What NOT to Mock
+- **Never mock modules in `/src/lib/` unless they directly interact with external services**
+- Do not mock pure utility functions, error handlers, or data transformers
+- Do not mock modules just because they import other modules - mock the root dependency instead
+
+### What to Mock
+- External services: Database (Prisma), Email providers, File storage (Vercel Blob)
+- Browser/Node incompatibilities: `next/server`, `next/navigation`, browser APIs
+- Network requests: APIs, webhooks, third-party services
+
+### Mock Principles
+- **Mock at the boundary**: Mock external dependencies, not your own code
+- **Keep mocks minimal**: Only mock the specific methods you need, not entire modules
+- **Use real implementations**: For `/src/lib/` modules, use the actual code in tests
+- **Mock once, centrally**: If NextResponse needs mocking, do it in jest.setup.js, not everywhere
+
+### Red Flags
+- If you're copying mock implementations from the real code - stop and use the real code
+- If your mock is more than 10 lines - consider if you're mocking too much
+- If tests pass but production fails - your mocks are lying to you

@@ -1,15 +1,36 @@
+/**
+ * Tests for Status Report API endpoints
+ * 
+ * What we're testing:
+ * - Request validation and error handling
+ * - Business logic execution (status changes, file handling)
+ * - Side effects are attempted (emails, file operations)
+ * - Proper response formatting
+ * 
+ * What we're NOT testing (due to mocks):
+ * - Actual database operations
+ * - Real file uploads/deletions
+ * - Emails actually being sent
+ * - Real authentication
+ */
 import { NextRequest } from 'next/server';
 import { GET as adminStatusReportsGet, PUT as adminStatusReportsPut, DELETE as adminStatusReportsDelete } from '@/app/api/admin/status-reports/[id]/route';
 import { PUT as updateStatusReportStatusPut } from '@/app/api/admin/status-reports/[id]/status/route';
 import { GET as groupStatusReportsGet } from '@/app/api/groups/[slug]/status-reports/route';
-import * as groupHandlers from '@/lib/group-handlers';
-import * as fileUpload from '@/lib/file-upload';
+import { MAX_FILE_SIZE, MAX_STATUS_REPORT_FILES_SIZE } from '@/lib/file-upload';
 import { getToken } from 'next-auth/jwt';
 import { StatusReportStatus } from '@prisma/client';
+import prisma from '@/lib/prisma';
+import { put, del } from '@vercel/blob';
+import * as emailNotifications from '@/lib/email-notifications';
 
-// Mock dependencies
-jest.mock('@/lib/group-handlers');
-jest.mock('@/lib/file-upload');
+// Note: External dependencies are mocked in jest.setup.js:
+// - @vercel/blob (file storage)
+// - @/lib/prisma (database)
+// - @/lib/email (email sending)
+// We're NOT mocking internal business logic modules
+
+// Mock authentication
 jest.mock('next-auth/jwt', () => ({
   getToken: jest.fn()
 }));
@@ -17,6 +38,13 @@ jest.mock('next-auth/jwt', () => ({
 // Mock API auth to bypass authentication by default
 jest.mock('@/lib/api-auth', () => ({
   withAdminAuth: jest.fn((handler) => handler)
+}));
+
+// Mock email notifications to track calls
+jest.mock('@/lib/email-notifications', () => ({
+  sendStatusReportAcceptanceEmail: jest.fn(),
+  sendStatusReportRejectionEmail: jest.fn(),
+  sendStatusReportArchivingEmail: jest.fn()
 }));
 
 // Import mocked functions for overriding in specific tests
@@ -35,7 +63,9 @@ class MockFormData {
   private data = new Map<string, unknown>();
 
   get(key: string): unknown {
-    return this.data.get(key);
+    const value = this.data.get(key);
+    // FormData.get() returns null for non-existent keys, not undefined
+    return value !== undefined ? value : null;
   }
 
   has(key: string): boolean {
@@ -44,6 +74,12 @@ class MockFormData {
 
   append(key: string, value: unknown) {
     this.data.set(key, value);
+  }
+  
+  // Add getAll method for completeness
+  getAll(key: string): unknown[] {
+    const value = this.data.get(key);
+    return value !== undefined ? [value] : [];
   }
 }
 
@@ -55,7 +91,20 @@ class MockFile {
     public type: string = 'application/pdf',
     public arrayBuffer = jest.fn().mockResolvedValue(new ArrayBuffer(1024))
   ) {}
+  
+  // Add stream method required by some file operations
+  stream() {
+    return new ReadableStream();
+  }
+  
+  // Add text method
+  async text() {
+    return '';
+  }
 }
+
+// Type-safe mock for Prisma
+const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 describe('Status Report API Routes', () => {
   // Fixed timestamp to avoid Date serialization issues
@@ -100,6 +149,38 @@ describe('Status Report API Routes', () => {
     
     // Reset withAdminAuth to pass through by default
     (withAdminAuth as jest.Mock).mockImplementation((handler) => handler);
+    
+    // Mock Prisma transaction to execute callback immediately
+    (mockPrisma.$transaction as jest.Mock) = jest.fn().mockImplementation(async (callback) => {
+      // Create a mock transaction context
+      const txMock = {
+        statusReport: {
+          findUnique: jest.fn(),
+          findMany: jest.fn(),
+          create: jest.fn(),
+          update: jest.fn(),
+          delete: jest.fn()
+        },
+        group: {
+          findUnique: jest.fn()
+        }
+      };
+      return callback(txMock);
+    });
+    
+    // Set up default Prisma mocks
+    mockPrisma.statusReport = {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn()
+    } as any;
+    
+    mockPrisma.group = {
+      findUnique: jest.fn()
+    } as any;
   });
   
   afterEach(() => {
@@ -109,7 +190,11 @@ describe('Status Report API Routes', () => {
 
   describe('GET /api/admin/status-reports/[id]', () => {
     it('should return a specific status report by ID', async () => {
-      (groupHandlers.getStatusReportById as jest.Mock).mockResolvedValue(mockStatusReport);
+      // Mock Prisma to return the test data
+      mockPrisma.statusReport.findUnique.mockResolvedValue({
+        ...mockStatusReport,
+        group: mockStatusReport.group
+      });
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/report-1');
       const params = Promise.resolve({ id: 'report-1' });
@@ -117,18 +202,22 @@ describe('Status Report API Routes', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      // Convert dates to strings to match JSON serialization
-      const expectedData = {
-        ...mockStatusReport,
-        createdAt: mockStatusReport.createdAt.toISOString(),
-        updatedAt: mockStatusReport.updatedAt.toISOString()
-      };
-      expect(data).toEqual(expectedData);
-      expect(groupHandlers.getStatusReportById).toHaveBeenCalledWith('report-1');
+      // Verify the response includes the status report data
+      expect(data.id).toBe('report-1');
+      expect(data.title).toBe('Test Report');
+      expect(data.content).toBe('Test content');
+      expect(data.group.name).toBe('Test Group');
+      
+      // Verify Prisma was called correctly
+      expect(mockPrisma.statusReport.findUnique).toHaveBeenCalledWith({
+        where: { id: 'report-1' },
+        include: { group: true }
+      });
     });
 
     it('should return 404 when status report is not found', async () => {
-      (groupHandlers.getStatusReportById as jest.Mock).mockResolvedValue(null);
+      // Mock Prisma to return null (not found)
+      mockPrisma.statusReport.findUnique.mockResolvedValue(null);
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/non-existent');
       const params = Promise.resolve({ id: 'non-existent' });
@@ -137,6 +226,12 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(404);
       expect(data.error).toBe('Status Report not found');
+      
+      // Verify Prisma was called
+      expect(mockPrisma.statusReport.findUnique).toHaveBeenCalledWith({
+        where: { id: 'non-existent' },
+        include: { group: true }
+      });
     });
 
     it('should require admin authentication', async () => {
@@ -179,22 +274,27 @@ describe('Status Report API Routes', () => {
 
   describe('PUT /api/admin/status-reports/[id]', () => {
     it('should update a status report with JSON data', async () => {
-      (groupHandlers.getStatusReportById as jest.Mock).mockResolvedValue(mockStatusReport);
-      (groupHandlers.updateStatusReport as jest.Mock).mockResolvedValue({
+      // Mock finding the existing report
+      mockPrisma.statusReport.findUnique.mockResolvedValue(mockStatusReport);
+      
+      // Mock the update result
+      mockPrisma.statusReport.update.mockResolvedValue({
         ...mockStatusReport,
         title: 'Updated Title',
         content: 'Updated content'
       });
 
+      const body = JSON.stringify({
+        title: 'Updated Title',
+        content: 'Updated content'
+      });
+      
       const request = new NextRequest('https://example.com/api/admin/status-reports/report-1', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          title: 'Updated Title',
-          content: 'Updated content'
-        })
+        body: body
       });
       
       const params = Promise.resolve({ id: 'report-1' });
@@ -205,19 +305,35 @@ describe('Status Report API Routes', () => {
       expect(data.success).toBe(true);
       expect(data.statusReport.title).toBe('Updated Title');
       expect(data.statusReport.content).toBe('Updated content');
-      expect(groupHandlers.updateStatusReport).toHaveBeenCalledWith({
-        id: 'report-1',
-        title: 'Updated Title',
-        content: 'Updated content'
+      
+      // Verify Prisma was called correctly
+      expect(mockPrisma.statusReport.update).toHaveBeenCalledWith({
+        where: { id: 'report-1' },
+        data: expect.objectContaining({
+          title: 'Updated Title',
+          content: 'Updated content'
+        }),
+        include: expect.objectContaining({
+          group: expect.objectContaining({
+            include: expect.objectContaining({
+              responsiblePersons: true
+            })
+          })
+        })
       });
     });
 
     it('should update a status report with form data and file uploads', async () => {
-      (groupHandlers.getStatusReportById as jest.Mock).mockResolvedValue(mockStatusReport);
-      (fileUpload.uploadStatusReportFiles as jest.Mock).mockResolvedValue([
-        'https://example.com/new-file.pdf'
-      ]);
-      (groupHandlers.updateStatusReport as jest.Mock).mockResolvedValue({
+      // Mock finding the existing report
+      mockPrisma.statusReport.findUnique.mockResolvedValue(mockStatusReport);
+      
+      // Mock successful file upload
+      (put as jest.Mock).mockResolvedValue({
+        url: 'https://example.com/new-file.pdf'
+      });
+      
+      // Mock the update result
+      mockPrisma.statusReport.update.mockResolvedValue({
         ...mockStatusReport,
         title: 'Updated Title',
         fileUrls: JSON.stringify([
@@ -246,35 +362,46 @@ describe('Status Report API Routes', () => {
       const params = Promise.resolve({ id: 'report-1' });
       const response = await adminStatusReportsPut(request, { params });
       const data = await response.json();
+      
+      // Debug the error
+      if (response.status !== 200) {
+        console.log('Form data test - Response status:', response.status);
+        console.log('Form data test - Response data:', data);
+      }
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(fileUpload.uploadStatusReportFiles).toHaveBeenCalled();
-      expect(groupHandlers.updateStatusReport).toHaveBeenCalled();
-      expect(groupHandlers.updateStatusReport).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'report-1',
-        title: 'Updated Title',
-        fileUrls: expect.arrayContaining([
-          'https://example.com/file1.pdf',
-          'https://example.com/new-file.pdf'
-        ])
-      }));
+      expect(data.statusReport.title).toBe('Updated Title');
+      
+      // Verify file was uploaded
+      expect(put).toHaveBeenCalled();
+      
+      // Verify update was called with combined file URLs (as JSON string)
+      expect(mockPrisma.statusReport.update).toHaveBeenCalledWith({
+        where: { id: 'report-1' },
+        data: {
+          title: 'Updated Title',
+          fileUrls: JSON.stringify(['https://example.com/file1.pdf', 'https://example.com/new-file.pdf'])
+        },
+        include: {
+          group: {
+            include: {
+              responsiblePersons: true
+            }
+          }
+        }
+      });
     });
 
-    it('should handle form data with file uploads', async () => {
-      (groupHandlers.getStatusReportById as jest.Mock).mockResolvedValue(mockStatusReport);
-      (fileUpload.uploadStatusReportFiles as jest.Mock).mockResolvedValue([
-        'https://example.com/new-file.pdf'
-      ]);
-      (groupHandlers.updateStatusReport as jest.Mock).mockResolvedValue({
-        ...mockStatusReport,
-        title: 'Updated Title'
-      });
+    it('should reject files that exceed size limit', async () => {
+      // Mock finding the existing report
+      mockPrisma.statusReport.findUnique.mockResolvedValue(mockStatusReport);
 
-      // Create a mock request with FormData
+      // Create a mock request with FormData containing a large file
       const formData = new MockFormData();
       formData.append('title', 'Updated Title');
       formData.append('fileCount', '1');
+      // Create a file larger than MAX_FILE_SIZE (5MB)
       formData.append('file-0', new MockFile('large-file.pdf', 10 * 1024 * 1024)); // 10MB file
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/report-1', {
@@ -291,16 +418,23 @@ describe('Status Report API Routes', () => {
       const response = await adminStatusReportsPut(request, { params });
       const data = await response.json();
 
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('exceeds 5MB limit');
+      
+      // Verify no upload was attempted
+      expect(put).not.toHaveBeenCalled();
+      expect(mockPrisma.statusReport.update).not.toHaveBeenCalled();
     });
 
     it('should handle removing existing files', async () => {
-      (groupHandlers.getStatusReportById as jest.Mock).mockResolvedValue(mockStatusReport);
-      (fileUpload.deleteFiles as jest.Mock).mockResolvedValue({ success: true });
-      (groupHandlers.updateStatusReport as jest.Mock).mockResolvedValue({
+      // Mock finding the existing report with files
+      mockPrisma.statusReport.findUnique.mockResolvedValue(mockStatusReport);
+      
+      // Mock the update result with no files
+      mockPrisma.statusReport.update.mockResolvedValue({
         ...mockStatusReport,
-        fileUrls: null
+        fileUrls: '[]'
       });
 
       // Create a mock request with FormData
@@ -325,19 +459,35 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(groupHandlers.updateStatusReport).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'report-1',
-        title: 'Updated Title',
-        fileUrls: []
-      }));
+      
+      // Verify update was called with null fileUrls (when no files)
+      expect(mockPrisma.statusReport.update).toHaveBeenCalledWith({
+        where: { id: 'report-1' },
+        data: {
+          title: 'Updated Title',
+          fileUrls: null
+        },
+        include: {
+          group: {
+            include: {
+              responsiblePersons: true
+            }
+          }
+        }
+      });
     });
   });
 
   describe('PUT /api/admin/status-reports/[id]/status', () => {
-    it('should update status report to ACTIVE status', async () => {
-      (groupHandlers.updateStatusReportStatus as jest.Mock).mockResolvedValue({
+    it('should update status report to ACTIVE status and send notification email', async () => {
+      // Mock the update result
+      mockPrisma.statusReport.update.mockResolvedValue({
         ...mockStatusReport,
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        group: {
+          ...mockStatusReport.group,
+          responsiblePersons: mockStatusReport.group.responsiblePersons
+        }
       });
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/report-1/status', {
@@ -356,13 +506,38 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.status).toBe('ACTIVE');
-      expect(groupHandlers.updateStatusReportStatus).toHaveBeenCalledWith('report-1', 'ACTIVE');
+      
+      // Verify database update was called
+      expect(mockPrisma.statusReport.update).toHaveBeenCalledWith({
+        where: { id: 'report-1' },
+        data: { status: 'ACTIVE' },
+        include: {
+          group: {
+            include: {
+              responsiblePersons: true
+            }
+          }
+        }
+      });
+      
+      // Verify email notification was attempted
+      expect(emailNotifications.sendStatusReportAcceptanceEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'report-1',
+          status: 'ACTIVE'
+        })
+      );
     });
     
-    it('should update status report to REJECTED status', async () => {
-      (groupHandlers.updateStatusReportStatus as jest.Mock).mockResolvedValue({
+    it('should update status report to REJECTED status and send notification email', async () => {
+      // Mock the update result
+      mockPrisma.statusReport.update.mockResolvedValue({
         ...mockStatusReport,
-        status: 'REJECTED'
+        status: 'REJECTED',
+        group: {
+          ...mockStatusReport.group,
+          responsiblePersons: mockStatusReport.group.responsiblePersons
+        }
       });
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/report-1/status', {
@@ -381,13 +556,25 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.status).toBe('REJECTED');
-      expect(groupHandlers.updateStatusReportStatus).toHaveBeenCalledWith('report-1', 'REJECTED');
+      
+      // Verify email notification was attempted
+      expect(emailNotifications.sendStatusReportRejectionEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'report-1',
+          status: 'REJECTED'
+        })
+      );
     });
     
-    it('should update status report to ARCHIVED status', async () => {
-      (groupHandlers.updateStatusReportStatus as jest.Mock).mockResolvedValue({
+    it('should update status report to ARCHIVED status and send notification email', async () => {
+      // Mock the update result
+      mockPrisma.statusReport.update.mockResolvedValue({
         ...mockStatusReport,
-        status: 'ARCHIVED'
+        status: 'ARCHIVED',
+        group: {
+          ...mockStatusReport.group,
+          responsiblePersons: mockStatusReport.group.responsiblePersons
+        }
       });
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/report-1/status', {
@@ -406,7 +593,14 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.status).toBe('ARCHIVED');
-      expect(groupHandlers.updateStatusReportStatus).toHaveBeenCalledWith('report-1', 'ARCHIVED');
+      
+      // Verify email notification was attempted
+      expect(emailNotifications.sendStatusReportArchivingEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'report-1',
+          status: 'ARCHIVED'
+        })
+      );
     });
 
     it('should validate status value', async () => {
@@ -430,8 +624,15 @@ describe('Status Report API Routes', () => {
   });
 
   describe('DELETE /api/admin/status-reports/[id]', () => {
-    it('should delete a status report', async () => {
-      (groupHandlers.deleteStatusReport as jest.Mock).mockResolvedValue(true);
+    it('should delete a status report and its files', async () => {
+      // Mock finding the status report with files
+      mockPrisma.statusReport.findUnique.mockResolvedValue(mockStatusReport);
+      
+      // Mock successful deletion
+      mockPrisma.statusReport.delete.mockResolvedValue(mockStatusReport);
+      
+      // Mock successful file deletion
+      (del as jest.Mock).mockResolvedValue(undefined);
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/report-1', {
         method: 'DELETE'
@@ -443,13 +644,24 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(groupHandlers.deleteStatusReport).toHaveBeenCalledWith('report-1');
+      
+      // Verify status report was found
+      expect(mockPrisma.statusReport.findUnique).toHaveBeenCalledWith({
+        where: { id: 'report-1' }
+      });
+      
+      // Verify deletion was called
+      expect(mockPrisma.statusReport.delete).toHaveBeenCalledWith({
+        where: { id: 'report-1' }
+      });
+      
+      // Verify files were deleted
+      expect(del).toHaveBeenCalledWith(['https://example.com/file1.pdf']);
     });
 
     it('should handle not found errors', async () => {
-      (groupHandlers.deleteStatusReport as jest.Mock).mockRejectedValue(
-        new Error('Status report with ID non-existent not found')
-      );
+      // Mock status report not found
+      mockPrisma.statusReport.findUnique.mockResolvedValue(null);
 
       const request = new NextRequest('https://example.com/api/admin/status-reports/non-existent', {
         method: 'DELETE'
@@ -462,6 +674,10 @@ describe('Status Report API Routes', () => {
       expect(response.status).toBe(404);
       expect(data.success).toBe(false);
       expect(data.error).toBe('Status Report not found');
+      
+      // Verify no deletion was attempted
+      expect(mockPrisma.statusReport.delete).not.toHaveBeenCalled();
+      expect(del).not.toHaveBeenCalled();
     });
   });
 
@@ -472,19 +688,43 @@ describe('Status Report API Routes', () => {
           id: 'report-1',
           title: 'Test Report 1',
           content: 'Test content 1',
+          reporterFirstName: 'John',
+          reporterLastName: 'Doe',
+          groupId: 'group-1',
+          status: 'ACTIVE' as StatusReportStatus,
+          fileUrls: null,
           createdAt: new Date(),
-          status: 'ACTIVE'
+          updatedAt: new Date()
         },
         {
           id: 'report-2',
           title: 'Test Report 2',
           content: 'Test content 2',
+          reporterFirstName: 'Jane',
+          reporterLastName: 'Smith',
+          groupId: 'group-1',
+          status: 'ACTIVE' as StatusReportStatus,
+          fileUrls: null,
           createdAt: new Date(),
-          status: 'ACTIVE'
+          updatedAt: new Date()
         }
       ];
 
-      (groupHandlers.getStatusReportsByGroupSlug as jest.Mock).mockResolvedValue(mockStatusReports);
+      // Mock finding the group
+      mockPrisma.group.findUnique.mockResolvedValue({
+        id: 'group-1',
+        name: 'Test Group',
+        slug: 'test-group',
+        description: 'Test group description',
+        status: 'ACTIVE',
+        logoUrl: null,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // Mock finding the status reports
+      mockPrisma.statusReport.findMany.mockResolvedValue(mockStatusReports);
 
       const request = new NextRequest('https://example.com/api/groups/test-group/status-reports');
       const params = Promise.resolve({ slug: 'test-group' });
@@ -497,13 +737,26 @@ describe('Status Report API Routes', () => {
       expect(data[0].title).toBe('Test Report 1');
       expect(data[1].id).toBe('report-2');
       expect(data[1].title).toBe('Test Report 2');
-      expect(groupHandlers.getStatusReportsByGroupSlug).toHaveBeenCalledWith('test-group');
+      
+      // Verify database queries
+      expect(mockPrisma.group.findUnique).toHaveBeenCalledWith({
+        where: { slug: 'test-group' }
+      });
+      
+      expect(mockPrisma.statusReport.findMany).toHaveBeenCalledWith({
+        where: {
+          groupId: 'group-1',
+          status: 'ACTIVE'
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
     });
 
     it('should handle group not found error', async () => {
-      (groupHandlers.getStatusReportsByGroupSlug as jest.Mock).mockRejectedValue(
-        new Error('Group with slug non-existent not found')
-      );
+      // Mock group not found
+      mockPrisma.group.findUnique.mockResolvedValue(null);
 
       const request = new NextRequest('https://example.com/api/groups/non-existent/status-reports');
       const params = Promise.resolve({ slug: 'non-existent' });
@@ -512,6 +765,9 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe('Failed to fetch status reports');
+      
+      // Verify no attempt to fetch status reports
+      expect(mockPrisma.statusReport.findMany).not.toHaveBeenCalled();
     });
   });
 });

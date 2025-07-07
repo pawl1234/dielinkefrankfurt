@@ -6,19 +6,6 @@ import { ThemeProvider } from '@mui/material/styles';
 import theme from '../../theme/theme';
 import FileUpload from '../../components/upload/FileUpload';
 
-// Mock the file upload library
-jest.mock('@vercel/blob', () => ({
-  put: jest.fn(),
-  del: jest.fn()
-}));
-
-jest.mock('../../lib/file-upload', () => ({
-  uploadStatusReportFiles: jest.fn(),
-  validateStatusReportFiles: jest.fn(),
-  MAX_STATUS_REPORT_FILES_COUNT: 5,
-  MAX_STATUS_REPORT_FILES_SIZE: 10 * 1024 * 1024 // 10MB
-}));
-
 const renderWithTheme = (component: React.ReactElement) => {
   return render(
     <ThemeProvider theme={theme}>
@@ -29,67 +16,33 @@ const renderWithTheme = (component: React.ReactElement) => {
 
 describe('FileUpload Component', () => {
   const mockOnFilesSelect = jest.fn();
+  const mockOnFilesAdded = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders file upload area correctly', () => {
+  it('renders upload area with correct information', () => {
     renderWithTheme(
       <FileUpload 
         onFilesSelect={mockOnFilesSelect}
         maxFiles={5}
         maxFileSize={10 * 1024 * 1024}
+        allowedFileTypes={['.pdf', '.jpg']}
       />
     );
 
-    expect(screen.getByText(/dateien auswählen oder hierher ziehen/i)).toBeInTheDocument();
     expect(screen.getByText(/dateien hochladen/i)).toBeInTheDocument();
-  });
-
-  it('handles file selection via input', async () => {
-    renderWithTheme(
-      <FileUpload 
-        onFilesSelect={mockOnFilesSelect}
-        maxFiles={5}
-        maxFileSize={10 * 1024 * 1024}
-      />
-    );
+    expect(screen.getByText(/dateien auswählen oder hierher ziehen/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/\.pdf, \.jpg/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/max\. 10MB/).length).toBeGreaterThan(0);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = new File(['file content'], 'test.pdf', { type: 'application/pdf' });
-
-    fireEvent.change(fileInput, { target: { files: [file] } });
-
-    await waitFor(() => {
-      expect(mockOnFilesSelect).toHaveBeenCalled();
-    });
+    expect(fileInput).toHaveAttribute('accept', '.pdf,.jpg');
+    expect(fileInput).toHaveAttribute('multiple');
   });
 
-  it('displays selected files', async () => {
-    renderWithTheme(
-      <FileUpload 
-        onFilesSelect={mockOnFilesSelect}
-        maxFiles={5}
-        maxFileSize={10 * 1024 * 1024}
-      />
-    );
-
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const files = [
-      new File(['content1'], 'test1.pdf', { type: 'application/pdf' }),
-      new File(['content2'], 'test2.jpg', { type: 'image/jpeg' })
-    ];
-
-    fireEvent.change(fileInput, { target: { files } });
-
-    await waitFor(() => {
-      expect(screen.getByText('test1.pdf')).toBeInTheDocument();
-      expect(screen.getByText('test2.jpg')).toBeInTheDocument();
-    });
-  });
-
-  it('allows removing selected files', async () => {
+  it('handles file selection and displays files', async () => {
     renderWithTheme(
       <FileUpload 
         onFilesSelect={mockOnFilesSelect}
@@ -104,8 +57,34 @@ describe('FileUpload Component', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     await waitFor(() => {
+      expect(mockOnFilesSelect).toHaveBeenCalled();
       expect(screen.getByText('test.pdf')).toBeInTheDocument();
     });
+  });
+
+  it('allows removing files after processing completes', async () => {
+    renderWithTheme(
+      <FileUpload 
+        onFilesSelect={mockOnFilesSelect}
+        maxFiles={5}
+        maxFileSize={10 * 1024 * 1024}
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['content'], 'test.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Wait for file processing to complete
+    await waitFor(() => {
+      expect(screen.getByText('test.pdf')).toBeInTheDocument();
+    }, { timeout: 1000 });
+
+    // Wait for processing to finish and remove button to appear
+    await waitFor(() => {
+      expect(screen.getByText(/entfernen/i)).toBeInTheDocument();
+    }, { timeout: 1000 });
 
     const removeButton = screen.getByText(/entfernen/i);
     fireEvent.click(removeButton);
@@ -138,74 +117,52 @@ describe('FileUpload Component', () => {
     });
   });
 
-  it('displays file type information correctly', () => {
-    renderWithTheme(
-      <FileUpload 
-        onFilesSelect={mockOnFilesSelect}
-        maxFiles={3}
-        maxFileSize={5 * 1024 * 1024}
-        allowedFileTypes={['.pdf', '.doc']}
-      />
-    );
-
-    // Verify the component shows the correct file type restrictions
-    expect(screen.getAllByText(/\.pdf, \.doc/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/max\. 5MB/).length).toBeGreaterThan(0);
-    
-    // Verify the file input has the correct accept attribute
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(fileInput).toHaveAttribute('accept', '.pdf,.doc');
-  });
-
-  it('supports drag and drop functionality', async () => {
+  it('shows upload progress when uploading', () => {
     renderWithTheme(
       <FileUpload 
         onFilesSelect={mockOnFilesSelect}
         maxFiles={5}
         maxFileSize={10 * 1024 * 1024}
+        isUploading={true}
+        uploadProgress={50}
       />
     );
 
-    const dropZone = screen.getByText(/dateien auswählen oder hierher ziehen/i).closest('div');
-    const file = new File(['content'], 'dropped.pdf', { type: 'application/pdf' });
+    expect(screen.getByText(/upload läuft/i)).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+  });
 
-    // Test clicking the upload area to trigger file selection
-    fireEvent.click(dropZone!);
-    
-    // Note: Actual drag and drop testing in JSDOM is complex, so we focus on the core functionality
+  it('calls onFilesAdded callback when files are added', async () => {
+    renderWithTheme(
+      <FileUpload 
+        onFilesSelect={mockOnFilesSelect}
+        onFilesAdded={mockOnFilesAdded}
+        maxFiles={5}
+        maxFileSize={10 * 1024 * 1024}
+      />
+    );
+
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['content'], 'test.pdf', { type: 'application/pdf' });
+
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(mockOnFilesSelect).toHaveBeenCalled();
+      expect(mockOnFilesAdded).toHaveBeenCalledWith([file]);
     });
   });
 
-  it('shows upload area with file type and size info', () => {
+  it('disables interaction when disabled prop is true', () => {
     renderWithTheme(
       <FileUpload 
         onFilesSelect={mockOnFilesSelect}
         maxFiles={5}
         maxFileSize={10 * 1024 * 1024}
-        allowedFileTypes={['.pdf', '.jpg', '.png']}
-      />
-    );
-
-    expect(screen.getAllByText(/\.pdf, \.jpg, \.png/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/max\. 10MB/).length).toBeGreaterThan(0);
-  });
-
-  it('handles multiple file selection correctly', () => {
-    renderWithTheme(
-      <FileUpload 
-        onFilesSelect={mockOnFilesSelect}
-        maxFiles={5}
-        maxFileSize={10 * 1024 * 1024}
-        multiple={true}
+        disabled={true}
       />
     );
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(fileInput).toHaveAttribute('multiple');
+    expect(fileInput).toBeDisabled();
   });
 });

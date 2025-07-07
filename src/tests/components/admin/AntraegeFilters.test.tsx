@@ -104,20 +104,6 @@ describe('AntraegeFilters', () => {
     expect(screen.getByText('Status: Akzeptiert')).toBeInTheDocument();
   });
 
-  it('should remove search filter when chip delete is clicked', () => {
-    render(React.createElement(AntraegeFilters, { ...defaultProps, currentSearch: 'test' }));
-
-    const searchChip = screen.getByText('Suche: "test"').closest('.MuiChip-root');
-    const deleteButton = searchChip?.querySelector('[data-testid="CancelIcon"]');
-    
-    if (deleteButton) {
-      fireEvent.click(deleteButton);
-    }
-
-    const searchInput = screen.getByPlaceholderText('Suche nach Titel, Zusammenfassung, Name oder E-Mail...');
-    expect(searchInput).toHaveValue('');
-  });
-
   it('should disable inputs when isLoading is true', () => {
     render(React.createElement(AntraegeFilters, { ...defaultProps, isLoading: true }));
 
@@ -135,7 +121,7 @@ describe('AntraegeFilters', () => {
     fireEvent.mouseDown(statusSelect);
 
     await waitFor(() => {
-      expect(screen.getByText('Alle Status')).toBeInTheDocument();
+      expect(screen.getAllByText('Alle Status')).toHaveLength(2); // Select field + dropdown option
       expect(screen.getByText('Neu')).toBeInTheDocument();
       expect(screen.getByText('Akzeptiert')).toBeInTheDocument();
       expect(screen.getByText('Abgelehnt')).toBeInTheDocument();

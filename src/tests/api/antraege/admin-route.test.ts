@@ -45,7 +45,7 @@ describe('/api/admin/antraege', () => {
       
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toBe('Authentication token missing');
     });
 
     it('should return paginated anträge with default parameters', async () => {
@@ -230,7 +230,7 @@ describe('/api/admin/antraege', () => {
       
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toBe('Authentication token missing');
     });
 
     it('should update antrag status', async () => {
@@ -304,7 +304,8 @@ describe('/api/admin/antraege', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.error).toBe('Antrag ID is required');
+      expect(data.error).toBe('Validation failed');
+      expect(data.fieldErrors).toEqual({ id: 'Antrag ID is required' });
     });
   });
 
@@ -320,7 +321,7 @@ describe('/api/admin/antraege', () => {
       
       expect(response.status).toBe(401);
       const data = await response.json();
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toBe('Authentication token missing');
     });
 
     it('should delete an antrag', async () => {

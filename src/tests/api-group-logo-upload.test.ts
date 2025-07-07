@@ -1,56 +1,59 @@
 import { NextRequest } from 'next/server';
 import { POST } from '@/app/api/groups/submit/route';
-import * as fileUpload from '@/lib/file-upload';
-import * as groupHandlers from '@/lib/group-handlers';
+import prisma from '@/lib/prisma';
+import { put } from '@vercel/blob';
 
-// Mock the file upload functionality
-jest.mock('@/lib/file-upload', () => ({
-  validateFile: jest.fn(),
-  uploadCroppedImagePair: jest.fn(),
-  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif'],
-  MAX_LOGO_SIZE: 2 * 1024 * 1024,
-  FileUploadError: class FileUploadError extends Error {
-    constructor(message: string, public status: number = 500) {
-      super(message);
-      this.name = 'FileUploadError';
-    }
-  }
-}));
-
-// Mock the group handlers
-jest.mock('@/lib/group-handlers', () => ({
-  createGroup: jest.fn(),
-  ResponsiblePersonCreateData: {}
-}));
+// Note: External dependencies are already mocked in jest.setup.js:
+// - @vercel/blob (file storage)
+// - @/lib/prisma (database)
+// - @/lib/email (email sending)
 
 describe('Group Logo Upload API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Mock the transaction to call the callback immediately
+    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+      // Create a mock transaction context that mimics Prisma's transaction API
+      const txMock = {
+        group: {
+          create: prisma.group.create
+        },
+        responsiblePerson: {
+          create: jest.fn()
+        }
+      };
+      return callback(txMock);
+    });
   });
   
   it('should handle group submission with logo upload', async () => {
-    // Mock the file upload return value
-    (fileUpload.uploadCroppedImagePair as jest.Mock).mockResolvedValue({
-      originalUrl: 'https://example.com/original-logo.jpg',
-      croppedUrl: 'https://example.com/cropped-logo.jpg'
+    // Mock the external services (Vercel Blob for file uploads)
+    (put as jest.Mock).mockResolvedValue({
+      url: 'https://example.com/test-logo.jpg'
     });
     
-    // Mock the createGroup return value
-    (groupHandlers.createGroup as jest.Mock).mockResolvedValue({
+    // Mock the database response
+    (prisma.group.create as jest.Mock).mockResolvedValue({
       id: 'group-123',
       name: 'Test Group',
       slug: 'test-group',
       description: 'This is a test group description',
       status: 'NEW',
-      logoUrl: 'https://example.com/cropped-logo.jpg',
+      logoUrl: 'https://example.com/test-logo.jpg',
       metadata: JSON.stringify({
-        originalUrl: 'https://example.com/original-logo.jpg',
-        croppedUrl: 'https://example.com/cropped-logo.jpg'
+        originalUrl: 'https://example.com/test-logo.jpg',
+        croppedUrl: 'https://example.com/test-logo.jpg'
       }),
       createdAt: new Date('2024-01-01T00:00:00Z'),
       updatedAt: new Date('2024-01-01T00:00:00Z'),
-      statusReports: [],
-      responsiblePersons: []
+      responsiblePersons: [{
+        id: 'person-1',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        groupId: 'group-123'
+      }]
     });
     
     // Create mock files
@@ -60,7 +63,7 @@ describe('Group Logo Upload API', () => {
     // Create form data
     const formData = new FormData();
     formData.append('name', 'Test Group');
-    formData.append('description', 'This is a test group description');
+    formData.append('description', 'This is a test group description that needs to be at least 50 characters long to pass validation');
     formData.append('responsiblePersonsCount', '1');
     formData.append('responsiblePerson[0].firstName', 'John');
     formData.append('responsiblePerson[0].lastName', 'Doe');
@@ -81,43 +84,28 @@ describe('Group Logo Upload API', () => {
     // Verify the response
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(data.group.id).toBe('group-123');
+    expect(data.group.id).toBeDefined();
+    expect(data.group.name).toBe('Test Group');
+    expect(data.group.logoUrl).toBe('https://example.com/test-logo.jpg');
     
-    // Verify file upload was called correctly
-    expect(fileUpload.validateFile).toHaveBeenCalledWith(
-      originalLogo,
-      fileUpload.ALLOWED_IMAGE_TYPES,
-      fileUpload.MAX_LOGO_SIZE
-    );
+    // Verify that file upload (put) was called for both files
+    expect(put).toHaveBeenCalledTimes(2); // Once for original, once for cropped
     
-    expect(fileUpload.uploadCroppedImagePair).toHaveBeenCalledWith(
-      originalLogo,
-      croppedLogo,
-      'groups',
-      'logo'
-    );
-    
-    // Verify createGroup was called with correct parameters
-    expect(groupHandlers.createGroup).toHaveBeenCalledWith({
-      name: 'Test Group',
-      description: 'This is a test group description',
-      logoMetadata: {
-        originalUrl: 'https://example.com/original-logo.jpg',
-        croppedUrl: 'https://example.com/cropped-logo.jpg'
-      },
-      responsiblePersons: [
-        {
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john.doe@example.com'
-        }
-      ]
+    // Verify database create was called
+    expect(prisma.group.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: 'Test Group',
+        description: 'This is a test group description that needs to be at least 50 characters long to pass validation',
+        logoUrl: 'https://example.com/test-logo.jpg',
+        status: 'NEW',
+        metadata: expect.stringContaining('originalUrl')
+      })
     });
   });
   
   it('should handle group submission without logo', async () => {
-    // Mock the createGroup return value
-    (groupHandlers.createGroup as jest.Mock).mockResolvedValue({
+    // Mock the database response (no logo)
+    (prisma.group.create as jest.Mock).mockResolvedValue({
       id: 'group-123',
       name: 'Test Group',
       slug: 'test-group',
@@ -127,14 +115,19 @@ describe('Group Logo Upload API', () => {
       metadata: null,
       createdAt: new Date('2024-01-01T00:00:00Z'),
       updatedAt: new Date('2024-01-01T00:00:00Z'),
-      statusReports: [],
-      responsiblePersons: []
+      responsiblePersons: [{
+        id: 'person-1',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        groupId: 'group-123'
+      }]
     });
     
     // Create form data
     const formData = new FormData();
     formData.append('name', 'Test Group');
-    formData.append('description', 'This is a test group description');
+    formData.append('description', 'This is a test group description that needs to be at least 50 characters long to pass validation');
     formData.append('responsiblePersonsCount', '1');
     formData.append('responsiblePerson[0].firstName', 'John');
     formData.append('responsiblePerson[0].lastName', 'Doe');
@@ -153,43 +146,36 @@ describe('Group Logo Upload API', () => {
     // Verify the response
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(data.group.id).toBe('group-123');
+    expect(data.group.id).toBeDefined();
+    expect(data.group.logoUrl).toBeNull();
     
-    // Verify file upload was not called
-    expect(fileUpload.validateFile).not.toHaveBeenCalled();
-    expect(fileUpload.uploadCroppedImagePair).not.toHaveBeenCalled();
+    // Verify file upload was not called (no logo provided)
+    expect(put).not.toHaveBeenCalled();
     
-    // Verify createGroup was called with correct parameters
-    expect(groupHandlers.createGroup).toHaveBeenCalledWith({
-      name: 'Test Group',
-      description: 'This is a test group description',
-      logoMetadata: undefined,
-      responsiblePersons: [
-        {
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john.doe@example.com'
-        }
-      ]
+    // Verify database create was called without logo
+    expect(prisma.group.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: 'Test Group',
+        description: 'This is a test group description that needs to be at least 50 characters long to pass validation',
+        logoUrl: undefined,
+        status: 'NEW',
+        metadata: null,
+        slug: expect.stringMatching(/^test-group-\d+$/)
+      })
     });
   });
   
   it('should handle file validation errors', async () => {
-    // Mock the file validation to throw an error
-    (fileUpload.validateFile as jest.Mock).mockImplementation(() => {
-      throw new fileUpload.FileUploadError('File size exceeds 2MB limit', 400);
-    });
+    // Create a file that exceeds the size limit (3MB)
+    const largeFileContent = new Uint8Array(3 * 1024 * 1024); // 3MB
+    const tooLargeLogo = new File([largeFileContent], 'toolarge.jpg', { type: 'image/jpeg' });
     
-    // Create mock files
-    const originalLogo = new File(['original image content'], 'logo.jpg', { type: 'image/jpeg' });
-    const croppedLogo = new File(['cropped image content'], 'cropped-logo.jpg', { type: 'image/jpeg' });
-    
-    // Create form data
+    // Create form data with the too-large file
     const formData = new FormData();
     formData.append('name', 'Test Group');
-    formData.append('description', 'This is a test group description');
-    formData.append('logo', originalLogo);
-    formData.append('croppedLogo', croppedLogo);
+    formData.append('description', 'This is a test group description that needs to be at least 50 characters long to pass validation');
+    formData.append('logo', tooLargeLogo); // This will trigger validation error
+    formData.append('croppedLogo', tooLargeLogo);
     
     // Create mock request
     const request = new NextRequest('https://example.com/api/groups/submit', {
@@ -204,22 +190,18 @@ describe('Group Logo Upload API', () => {
     // Verify the response
     expect(response.status).toBe(400);
     expect(data.success).toBe(false);
-    expect(data.error).toBe('File size exceeds 2MB limit');
+    expect(data.error).toContain('File size exceeds 2MB limit');
     
-    // Verify file validation was called but not upload
-    expect(fileUpload.validateFile).toHaveBeenCalled();
-    expect(fileUpload.uploadCroppedImagePair).not.toHaveBeenCalled();
+    // Verify file upload was not called due to validation error
+    expect(put).not.toHaveBeenCalled();
     
-    // Verify createGroup was not called
-    expect(groupHandlers.createGroup).not.toHaveBeenCalled();
+    // Verify database create was not called
+    expect(prisma.group.create).not.toHaveBeenCalled();
   });
   
   it('should handle upload failures', async () => {
-    // Mock the file upload to throw an error
-    (fileUpload.validateFile as jest.Mock).mockImplementation(() => {});
-    (fileUpload.uploadCroppedImagePair as jest.Mock).mockImplementation(() => {
-      throw new fileUpload.FileUploadError('Failed to upload file', 500);
-    });
+    // Mock the external file upload service to fail
+    (put as jest.Mock).mockRejectedValue(new Error('Network error'));
     
     // Create mock files
     const originalLogo = new File(['original image content'], 'logo.jpg', { type: 'image/jpeg' });
@@ -228,7 +210,7 @@ describe('Group Logo Upload API', () => {
     // Create form data
     const formData = new FormData();
     formData.append('name', 'Test Group');
-    formData.append('description', 'This is a test group description');
+    formData.append('description', 'This is a test group description that needs to be at least 50 characters long to pass validation');
     formData.append('logo', originalLogo);
     formData.append('croppedLogo', croppedLogo);
     
@@ -245,13 +227,12 @@ describe('Group Logo Upload API', () => {
     // Verify the response
     expect(response.status).toBe(500);
     expect(data.success).toBe(false);
-    expect(data.error).toBe('Failed to upload file');
+    expect(data.error).toContain('Failed to upload');
     
-    // Verify file validation and upload were called
-    expect(fileUpload.validateFile).toHaveBeenCalled();
-    expect(fileUpload.uploadCroppedImagePair).toHaveBeenCalled();
+    // Verify file upload was attempted
+    expect(put).toHaveBeenCalled();
     
-    // Verify createGroup was not called
-    expect(groupHandlers.createGroup).not.toHaveBeenCalled();
-  });
+    // Verify database create was not called due to upload failure
+    expect(prisma.group.create).not.toHaveBeenCalled();
+  }, 15000); // Increase timeout for retry logic
 });

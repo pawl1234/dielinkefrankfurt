@@ -83,9 +83,9 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         introductionText: 'Test intro',
         content: '<html>Content</html>',
         status: 'sent',
-        createdAt: new Date('2024-01-01T09:00:00Z'),
-        updatedAt: new Date('2024-01-01T10:02:00Z'),
-        sentAt: new Date('2024-01-01T10:02:00Z'),
+        createdAt: '2024-01-01T09:00:00Z',
+        updatedAt: '2024-01-01T10:02:00Z',
+        sentAt: '2024-01-01T10:02:00Z',
         recipientCount: 100,
         settings: JSON.stringify({
           chunkResults: mockChunkResults,
@@ -113,7 +113,7 @@ describe('/api/admin/newsletter/send-status/[id]', () => {
         completedChunks: 2,
         totalChunks: 10, // Math.ceil(100 / 10) = 10
         isComplete: true,
-        sentAt: '2024-01-01T10:02:00.000Z',
+        sentAt: '2024-01-01T10:02:00Z',
         lastChunkCompletedAt: '2024-01-01T10:01:00Z',
         chunkResults: mockChunkResults
       });
