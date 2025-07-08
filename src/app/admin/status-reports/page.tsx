@@ -373,27 +373,69 @@ export default function AdminStatusReportsPage() {
                                 setEditingReportId(null);
                             }
                         }}
+                        sx={{}}
                     >
                       <AccordionSummary
                          expandIcon={<ExpandMoreIcon />}
                         aria-controls={`report-${report.id}-content`}
                         id={`report-${report.id}-header`}
+                        sx={{
+                          '& .MuiAccordionSummary-content': {
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            boxSizing: 'border-box',
+                            flex: '1 1 0',
+                            width: '100%'
+                          }
+                        }}
                       >
-                         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                          <Box sx={{ flexGrow: 1, pr: 2, overflow: 'hidden' }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} noWrap>{report.title}</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {getReporterName(report)} • {format(new Date(report.createdAt), 'PPP', { locale: de })}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
+                         <Grid container spacing={1} alignItems="center" sx={{ minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
+                          <Grid size={{ xs: 12, sm: 7, md: 8, lg: 9 }} sx={{ minWidth: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+                            <Box sx={{ 
+                              minWidth: 0,
+                              width: '100%',
+                              maxWidth: '100%',
+                              overflow: 'hidden',
+                              boxSizing: 'border-box',
+                              flex: '1 1 0',
+                              display: 'block',
+                              '& > *': {
+                                minWidth: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '100%',
+                                boxSizing: 'border-box',
+                                display: 'block'
+                              }
+                            }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                                {report.title}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {getReporterName(report)} • {format(new Date(report.createdAt), 'PPP', { locale: de })}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 5, md: 4, lg: 3 }} sx={{ minWidth: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              gap: 0.5, 
+                              alignItems: 'center',
+                              justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+                              minWidth: 0,
+                              maxWidth: '100%',
+                              overflow: 'hidden',
+                              boxSizing: 'border-box',
+                              flexShrink: 0
+                            }}>
                              {currentView === StatusReportStatus.NEW && report.status === StatusReportStatus.NEW && (
                               <>
-                                <IconButton component="span" color="success" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(46, 125, 50, 0.08)', '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE); }}>
-                                  <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} /><Typography variant="button">Aktivieren</Typography>
+                                <IconButton component="span" color="success" size="small" sx={{ minWidth: 40, minHeight: 40 }} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.ACTIVE); }}>
+                                  <CheckCircleIcon fontSize="small" />
                                 </IconButton>
-                                <IconButton component="span" color="error" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(211, 47, 47, 0.08)', '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.12)'}, px:1}} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.REJECTED); }}>
-                                  <CancelIcon fontSize="small" sx={{ mr: 0.5 }} /><Typography variant="button">Ablehnen</Typography>
+                                <IconButton component="span" color="error" size="small" sx={{ minWidth: 40, minHeight: 40 }} onClick={(e) => { e.stopPropagation(); handleUpdateReportStatus(report.id, StatusReportStatus.REJECTED); }}>
+                                  <CancelIcon fontSize="small" />
                                 </IconButton>
                               </>
                             )}
@@ -403,7 +445,7 @@ export default function AdminStatusReportsPage() {
                                currentView === 'ALL') 
                               && <Chip label={statusInfo.label} color={statusInfo.color as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'} variant="outlined" size="small" sx={{mr:0.5}}/>}
                             
-                            <IconButton component="span" color="primary" size="small" sx={{ borderRadius: 1, bgcolor: 'rgba(25, 118, 210, 0.08)', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.12)'}, px:1}} 
+                            <IconButton component="span" color="primary" size="small" sx={{ minWidth: 40, minHeight: 40 }}
                               onClick={(e) => {
                                 e.stopPropagation(); 
                                 if (isEditingThisReport) {
@@ -414,11 +456,11 @@ export default function AdminStatusReportsPage() {
                                 }
                               }}
                             >
-                              <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
-                              <Typography variant="button">{isEditingThisReport ? "Abbrechen" : "Bearbeiten"}</Typography>
+                              <EditIcon fontSize="small" />
                             </IconButton>
-                          </Box>
-                        </Box>
+                            </Box>
+                          </Grid>
+                        </Grid>
                       </AccordionSummary>
                       <AccordionDetails>
                         <Divider sx={{ mb: 2 }} />
