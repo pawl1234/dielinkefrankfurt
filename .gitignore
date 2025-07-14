@@ -4,6 +4,7 @@
 
 screenshots/
 PRPs/
+.claude/
 
 # dependencies
 /node_modules
