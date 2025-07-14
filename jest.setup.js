@@ -2,16 +2,43 @@
 
 // Mock next/server before any imports to ensure NextResponse is available
 jest.mock('next/server', () => ({
-  NextResponse: {
-    json: (data, init) => ({
-      status: init?.status || 200,
-      json: async () => data,
-      headers: new Map(Object.entries(init?.headers || {}))
-    }),
-    redirect: (url, init) => ({
-      status: init?.status || 307,
-      headers: new Map([['Location', url.toString()]])
-    })
+  NextResponse: class NextResponse {
+    constructor(body, init = {}) {
+      this.body = body;
+      this.status = init.status || 200;
+      this.headers = new Map();
+      
+      // Set headers from init
+      if (init.headers) {
+        Object.entries(init.headers).forEach(([key, value]) => {
+          this.headers.set(key, value);
+        });
+      }
+    }
+    
+    static json(data, init) {
+      const response = new NextResponse(JSON.stringify(data), init);
+      response.headers.set('Content-Type', 'application/json');
+      return response;
+    }
+    
+    static redirect(url, init) {
+      const response = new NextResponse(null, { status: 302, ...init });
+      response.headers.set('location', url.toString());
+      
+      // Set additional headers from init if provided
+      if (init && init.headers) {
+        Object.entries(init.headers).forEach(([key, value]) => {
+          response.headers.set(key.toLowerCase(), value);
+        });
+      }
+      
+      return response;
+    }
+    
+    async json() {
+      return typeof this.body === 'string' ? JSON.parse(this.body) : this.body;
+    }
   },
   NextRequest: class NextRequest {
     constructor(input, init = {}) {
@@ -1054,6 +1081,61 @@ jest.mock('@/lib/prisma', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    newsletterAnalytics: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    newsletterFingerprint: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    newsletterOpenEvent: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    newsletterLinkClick: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    newsletterLinkClickFingerprint: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
       delete: jest.fn(),
       deleteMany: jest.fn(),
       count: jest.fn(),
