@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import SettingsIcon from '@mui/icons-material/Settings';
+import BarChartIcon from '@mui/icons-material/BarChart';
 
 interface NewsletterItem {
   id: string;
@@ -127,6 +128,15 @@ export default function AdminPage() {
                 onClick={() => router.push('/admin/newsletter/settings')}
               >
                 Einstellungen
+              </Button>
+              
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<BarChartIcon />}
+                onClick={() => router.push('/admin/newsletter/analytics')}
+              >
+                Analytics Dashboard
               </Button>
             </Box>
             
