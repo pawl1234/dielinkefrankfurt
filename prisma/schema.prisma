@@ -202,22 +202,101 @@ model HashedRecipient {
 
 // Unified Newsletter model for the complete lifecycle
 model NewsletterItem {
-  id               String    @id @default(cuid())
+  id               String               @id @default(cuid())
   subject          String
-  introductionText String    @db.Text
-  content          String?   @db.Text // Generated HTML content
-  status           String    @default("draft") // draft, sending, sent, failed, partially_failed, retrying
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  introductionText String               @db.Text
+  content          String?              @db.Text // Generated HTML content
+  status           String               @default("draft") // draft, sending, sent, failed, partially_failed, retrying
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
   sentAt           DateTime?
   recipientCount   Int?
-  settings         String?   @db.Text // JSON of settings used for sending
+  settings         String?              @db.Text // JSON of settings used for sending
+  analytics        NewsletterAnalytics?
 
   @@index([status])
   @@index([createdAt])
   @@index([sentAt])
   @@map("newsletter_item") // Lowercase table name for PostgreSQL convention
 }
+
+// Newsletter Analytics for tracking opens and clicks
+model NewsletterAnalytics {
+  id              String                  @id @default(cuid())
+  newsletterId    String                  @unique
+  newsletter      NewsletterItem          @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+  totalRecipients Int                     @default(0)
+  totalOpens      Int                     @default(0)
+  uniqueOpens     Int                     @default(0)
+  pixelToken      String                  @unique @default(cuid())
+  createdAt       DateTime                @default(now())
+  linkClicks      NewsletterLinkClick[]
+  fingerprints    NewsletterFingerprint[]
+
+  @@index([pixelToken])
+  @@index([newsletterId])
+  @@index([createdAt])
+  @@map("newsletter_analytics") // Lowercase table name for PostgreSQL convention
+}
+
+// Track individual link clicks for analytics
+model NewsletterLinkClick {
+  id          String               @id @default(cuid())
+  analyticsId String
+  analytics   NewsletterAnalytics  @relation(fields: [analyticsId], references: [id], onDelete: Cascade)
+  url         String               @db.Text
+  linkType    String               // 'appointment' or 'statusreport'
+  linkId      String?              // ID of the linked item
+  clickCount  Int                  @default(0)
+  uniqueClicks Int                 @default(0)
+  firstClick  DateTime?
+  lastClick   DateTime?
+  fingerprints NewsletterLinkClickFingerprint[]
+  
+  @@unique([analyticsId, url])
+  @@index([analyticsId])
+  @@index([linkType])
+  @@index([clickCount])
+  @@map("newsletter_link_click") // Lowercase table name for PostgreSQL convention
+}
+
+
+// Track unique fingerprints for privacy-friendly open tracking
+model NewsletterFingerprint {
+  id              String               @id @default(cuid())
+  analyticsId     String
+  analytics       NewsletterAnalytics  @relation(fields: [analyticsId], references: [id], onDelete: Cascade)
+  fingerprint     String               // SHA256 hash of headers + IP
+  openCount       Int                  @default(0)
+  firstOpenAt     DateTime             @default(now())
+  lastOpenAt      DateTime             @default(now())
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  
+  @@unique([analyticsId, fingerprint])
+  @@index([analyticsId])
+  @@index([fingerprint])
+  @@map("newsletter_fingerprint") // Lowercase table name for PostgreSQL convention
+}
+
+// Track unique click fingerprints for privacy-friendly link click tracking
+model NewsletterLinkClickFingerprint {
+  id              String               @id @default(cuid())
+  linkClickId     String
+  linkClick       NewsletterLinkClick  @relation(fields: [linkClickId], references: [id], onDelete: Cascade)
+  fingerprint     String               // SHA256 hash from request
+  clickCount      Int                  @default(0)
+  firstClickAt    DateTime             @default(now())
+  lastClickAt     DateTime             @default(now())
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  
+  @@unique([linkClickId, fingerprint])
+  @@index([linkClickId])
+  @@index([fingerprint])
+  @@map("newsletter_link_click_fingerprint")
+}
+
 
 // Enum for Antrag status
 enum AntragStatus {

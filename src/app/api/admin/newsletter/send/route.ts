@@ -6,6 +6,9 @@ import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { getNewsletterSettings } from '@/lib/newsletter-service';
 import { cleanEmail } from '@/lib/email-hashing';
+import { createNewsletterAnalytics } from '@/lib/newsletter-analytics';
+import { addTrackingToNewsletter } from '@/lib/newsletter-tracking';
+import { getBaseUrl } from '@/lib/base-url';
 
 /**
  * Process and send a newsletter to recipients
@@ -91,6 +94,26 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
     // Prepare recipient IDs from validation results
     const recipientIds = validationResult.hashedEmails.map(recipient => recipient.id);
 
+    // Create analytics record for this newsletter (optional - don't fail if it doesn't work)
+    let trackedHtml = html;
+    try {
+      const analytics = await createNewsletterAnalytics(newsletterId, recipientIds.length);
+      
+      // Add tracking to the HTML content
+      const baseUrl = getBaseUrl();
+      trackedHtml = addTrackingToNewsletter(html, analytics.pixelToken, baseUrl);
+      
+      logger.info('Newsletter analytics created successfully', {
+        context: { newsletterId, analyticsId: analytics.id }
+      });
+    } catch (analyticsError) {
+      logger.warn('Failed to create newsletter analytics, proceeding without tracking', {
+        context: { newsletterId, error: analyticsError }
+      });
+      // Continue with original HTML if analytics fails
+      trackedHtml = html;
+    }
+    
     // Update newsletter to sending status
     logger.info(`Starting newsletter sending process to ${recipientIds.length} recipients`);
     
@@ -98,7 +121,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       where: { id: newsletterId },
       data: {
         status: 'sending',
-        content: html,
+        content: trackedHtml,
         recipientCount: recipientIds.length,
         sentAt: new Date(),
         settings: JSON.stringify({
@@ -154,7 +177,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
       emailChunks: emailChunks,
       totalChunks: emailChunks.length,
       chunkSize: chunkSize,
-      html: html,
+      html: trackedHtml,
       subject: subject,
       settings: settings
     });

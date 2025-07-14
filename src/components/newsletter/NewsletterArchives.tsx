@@ -27,6 +27,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import ReplayIcon from '@mui/icons-material/Replay';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import NewsletterDetail from './NewsletterDetail';
+import NewsletterAnalyticsButton from './NewsletterAnalyticsButton';
 
 // Interface for newsletter item
 interface NewsletterItem {
@@ -420,15 +421,24 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
                               <VisibilityIcon fontSize="small" />
                             </Button>
                             {(newsletter.status === 'sent' || newsletter.status === 'failed' || newsletter.status === 'partially_failed') && (
-                              <Button
-                                onClick={() => onResendNewsletter?.(newsletter)}
-                                variant="outlined"
-                                size="small"
-                                color="primary"
-                                title="Erneut versenden"
-                              >
-                                <ReplayIcon fontSize="small" />
-                              </Button>
+                              <>
+                                <Button
+                                  onClick={() => onResendNewsletter?.(newsletter)}
+                                  variant="outlined"
+                                  size="small"
+                                  color="primary"
+                                  title="Erneut versenden"
+                                >
+                                  <ReplayIcon fontSize="small" />
+                                </Button>
+                                {newsletter.status === 'sent' && (
+                                  <NewsletterAnalyticsButton
+                                    newsletterId={newsletter.id}
+                                    variant="outlined"
+                                    size="small"
+                                  />
+                                )}
+                              </>
                             )}
                             <Button
                               onClick={() => handleDelete(newsletter)}
