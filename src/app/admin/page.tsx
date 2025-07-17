@@ -22,6 +22,7 @@ import {
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import SettingsIcon from '@mui/icons-material/Settings';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import EmailIcon from '@mui/icons-material/Email';
 
 interface NewsletterItem {
   id: string;
@@ -137,6 +138,15 @@ export default function AdminPage() {
                 onClick={() => router.push('/admin/newsletter/analytics')}
               >
                 Analytics Dashboard
+              </Button>
+              
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<EmailIcon />}
+                onClick={() => router.push('/admin/email-preview')}
+              >
+                Email Template
               </Button>
             </Box>
             

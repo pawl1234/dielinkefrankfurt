@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { addDays, subDays } from 'date-fns';
 import prisma from '@/lib/prisma';
-import { generateNewsletterHtml, getDefaultNewsletterSettings } from '@/lib/newsletter-template';
+import { generateNewsletterHtml, getDefaultNewsletterSettings } from '../../lib/newsletter-template';
 
 // Mock only external dependencies
 jest.mock('@/lib/email', () => ({

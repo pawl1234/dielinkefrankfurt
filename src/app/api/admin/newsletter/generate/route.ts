@@ -4,10 +4,8 @@ import { withAdminAuth } from '@/lib/api-auth';
 import { apiErrorResponse, handleDatabaseError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
-import { 
-  generateNewsletterHtml, 
-  GroupWithReports 
-} from '@/lib/newsletter-template';
+import { generateNewsletterHtml } from '@/lib/newsletter-template';
+import { GroupWithReports } from '@/types/newsletter-types';
 import { getNewsletterSettings, generateNewsletter } from '@/lib/newsletter-service';
 import { getBaseUrl } from '@/lib/base-url';
 import { subWeeks } from 'date-fns';
@@ -224,7 +222,7 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
     });
 
     // Generate newsletter HTML
-    const newsletterHtml = generateNewsletterHtml({
+    const newsletterHtml = await generateNewsletterHtml({
       newsletterSettings,
       introductionText,
       featuredAppointments,

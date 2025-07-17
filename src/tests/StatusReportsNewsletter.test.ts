@@ -1,10 +1,7 @@
 import { subDays, subWeeks } from 'date-fns';
 import prisma from '../lib/prisma';
-import { 
-  truncateText, 
-  generateStatusReportsHtml, 
-  generateNewsletterHtml 
-} from '../lib/newsletter-template';
+import { truncateText, generateStatusReportsHtml } from '../lib/newsletter-helpers';
+import { generateNewsletterHtml } from '../lib/newsletter-template';
 
 // Mock the Prisma client
 jest.mock('../lib/prisma', () => ({

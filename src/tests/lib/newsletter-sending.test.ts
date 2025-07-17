@@ -26,7 +26,7 @@ jest.mock('@/lib/logger', () => ({
 // Only external dependencies (email, database) are mocked
 
 import { processSendingChunk, processRecipientList, getNewsletterStatus, getSentNewsletters } from '@/lib/newsletter-sending';
-import { NewsletterSettings } from '@/lib/newsletter-template';
+import { NewsletterSettings } from '../types/newsletter-types';
 import { createTransporter, sendEmailWithTransporter } from '@/lib/email';
 import prisma from '@/lib/prisma';
 

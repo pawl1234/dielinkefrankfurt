@@ -104,43 +104,14 @@ export async function sendAntragSubmissionEmail(
     
     const recipients = recipientEmails.join(',');
     const adminUrl = `${getBaseUrl()}/admin/antraege/${antrag.id}`;
-    const submissionDate = new Date(antrag.createdAt).toLocaleString('de-DE', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
     
     // Prepare file attachments
     let attachments: EmailAttachment[] = [];
-    let fileList = '';
     
     if (fileUrls && fileUrls.length > 0) {
       try {
         const attachmentResult = await prepareEmailAttachments(fileUrls);
         attachments = attachmentResult.attachments;
-        
-        // Create file list for email body
-        if (attachmentResult.attachments.length > 0 || attachmentResult.skippedFiles.length > 0) {
-          const attachedFilesHtml = attachmentResult.attachments.map(att => {
-            const sizeKB = Math.round(att.content.length / 1024);
-            return `<li>📎 ${att.filename} (${sizeKB} KB) - Als Anhang beigefügt</li>`;
-          }).join('');
-          
-          const skippedFilesHtml = attachmentResult.skippedFiles.map(file => {
-            return `<li>⚠️ ${file.filename} - Nicht angehängt: ${file.reason}</li>`;
-          }).join('');
-          
-          fileList = `
-            <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
-              <p style="margin-top: 0;"><strong>Dateien:</strong></p>
-              <ul style="margin-bottom: 0;">
-                ${attachedFilesHtml}${skippedFilesHtml}
-              </ul>
-            </div>
-          `;
-        }
         
         // Log attachment preparation results
         if (attachmentResult.attachments.length > 0) {
@@ -168,78 +139,23 @@ export async function sendAntragSubmissionEmail(
         }
         
       } catch (attachmentError) {
-        // If attachment preparation fails completely, fall back to file links
+        // If attachment preparation fails completely, log the error
         logger.error('Failed to prepare attachments for Antrag email', {
           context: {
             antragId: antrag.id,
             error: attachmentError instanceof Error ? attachmentError.message : String(attachmentError)
           }
         });
-        
-        fileList = `
-          <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
-            <p style="margin-top: 0;"><strong>Angehängte Dateien (Links):</strong></p>
-            <ul style="margin-bottom: 0;">
-              ${fileUrls.map(url => {
-                const fileName = url.split('/').pop() || 'Datei';
-                return `<li><a href="${url}" target="_blank" style="color: #0066cc;">${fileName}</a></li>`;
-              }).join('')}
-            </ul>
-            <p style="margin-bottom: 0; color: #666; font-size: 12px;"><em>Hinweis: Dateien konnten nicht als Anhang beigefügt werden und sind als Links verfügbar.</em></p>
-          </div>
-        `;
       }
     }
     
-    // Format purposes section
-    const purposesHtml = formatPurposesForEmail(antrag.purposes);
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-          <h1 style="color: #333; margin-top: 0;">Neuer Antrag an Kreisvorstand</h1>
-          <p style="color: #666; margin-bottom: 0;">Eingegangen am: ${submissionDate}</p>
-        </div>
-        
-        <div style="background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Antragsteller</h2>
-          <table style="width: 100%; margin-bottom: 20px;">
-            <tr>
-              <td style="padding: 5px 0; color: #666; width: 150px;">Name:</td>
-              <td style="padding: 5px 0;"><strong>${antrag.firstName} ${antrag.lastName}</strong></td>
-            </tr>
-            <tr>
-              <td style="padding: 5px 0; color: #666;">E-Mail:</td>
-              <td style="padding: 5px 0;"><a href="mailto:${antrag.email}" style="color: #0066cc;">${antrag.email}</a></td>
-            </tr>
-          </table>
-          
-          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Antrag</h2>
-          <div style="margin-bottom: 20px;">
-            <h3 style="color: #333; margin-bottom: 10px;">${antrag.title}</h3>
-            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
-              <p style="margin: 0; color: #666;"><strong>Zusammenfassung:</strong></p>
-              <p style="margin: 5px 0 0 0;">${antrag.summary}</p>
-            </div>
-          </div>
-          
-          <h2 style="color: #333; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">Anliegen/Zwecke</h2>
-          ${purposesHtml}
-          
-          ${fileList}
-          
-          <div style="margin-top: 30px; padding: 20px; background-color: #e3f2fd; border-radius: 5px; text-align: center;">
-            <p style="margin: 0 0 10px 0; color: #333;">Diesen Antrag im Admin-Bereich bearbeiten:</p>
-            <a href="${adminUrl}" style="display: inline-block; background-color: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Antrag ansehen</a>
-          </div>
-        </div>
-        
-        <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p>Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht direkt auf diese E-Mail.</p>
-          <p>© ${new Date().getFullYear()} Die Linke Frankfurt</p>
-        </div>
-      </div>
-    `;
+    // Generate HTML using React Email
+    const { renderNotificationEmail } = await import('./email-render');
+    const html = await renderNotificationEmail('AntragSubmission', {
+      antrag,
+      fileUrls,
+      adminUrl
+    });
     
     await sendEmail({
       to: recipients,

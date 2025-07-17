@@ -25,7 +25,7 @@ import SendIcon from '@mui/icons-material/Send';
 import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import RichTextEditor from '../editor/RichTextEditor';
-import { NewsletterSettings } from '@/lib/newsletter-template';
+import { NewsletterSettings } from '@/types/newsletter-types';
 import { format } from 'date-fns';
 import NewsletterSendingForm from './NewsletterSendingForm';
 import NewsletterArchives, { NewsletterArchivesRef } from './NewsletterArchives';

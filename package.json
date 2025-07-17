@@ -28,7 +28,8 @@
     "db:stop": "docker stop postgres-dev && docker rm postgres-dev",
     "blob:start": "docker run --name vercel-blob-server --restart unless-stopped -p 9966:3000 -v ./dev/vercel-blob-store:/var/vercel-blob-store vercel-blob-server",
     "blob:stop": "docker stop vercel-blob-server && docker rm vercel-blob-server",
-    "mail:dev": "maildev --web 1080 --smtp 1025"
+    "mail:dev": "maildev --web 1080 --smtp 1025",
+    "email": "email dev --dir src/emails"
   },
   "keywords": [],
   "author": "",
@@ -43,6 +44,8 @@
     "@mui/material-nextjs": "^7.1.0",
     "@mui/x-date-pickers": "^8.3.0",
     "@prisma/client": "^6.7.0",
+    "@react-email/components": "^0.0.25",
+    "@react-email/render": "^1.1.3",
     "@tiptap/extension-link": "^2.12.0",
     "@tiptap/react": "^2.12.0",
     "@tiptap/starter-kit": "^2.12.0",
@@ -77,6 +80,7 @@
     "react": "^18.2.0",
     "react-datepicker": "^8.3.0",
     "react-dom": "^18.2.0",
+    "react-email": "^4.1.3",
     "react-hook-form": "^7.56.2",
     "react-image-crop": "^11.0.10",
     "react-virtualized-auto-sizer": "^1.0.26",
@@ -87,6 +91,7 @@
   "devDependencies": {
     "@faker-js/faker": "^9.8.0",
     "@next/bundle-analyzer": "^15.3.2",
+    "@react-email/preview-server": "^4.1.3",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.2",

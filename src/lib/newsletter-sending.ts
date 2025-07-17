@@ -4,7 +4,7 @@ import prisma from './prisma';
 import { createTransporter, sendEmailWithTransporter } from './email';
 import { format } from 'date-fns';
 import { ChunkResult, EmailSendResult } from '@/types/api-types';
-import { NewsletterSettings } from './newsletter-template';
+import { NewsletterSettings } from '../types/newsletter-types';
 
 /**
  * Interface for newsletter status response
