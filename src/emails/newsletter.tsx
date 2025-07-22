@@ -128,7 +128,8 @@ const contentSection = {
 };
 
 const sectionSpacing = {
-  //marginBottom: '10px',
+  marginBottom: '20px',
+  textAlign: 'left' as const,
 };
 
 const sectionHeading = {
