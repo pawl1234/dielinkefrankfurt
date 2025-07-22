@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { put } from '@vercel/blob';
 import crypto from 'crypto';
-import { CompositeGenerationRequest, CompositeGenerationResponse } from '@/types/api-types';
+import { CompositeGenerationRequest } from '@/types/api-types';
 import { AppError, ErrorType } from './errors';
 import { logger } from './logger';
 
