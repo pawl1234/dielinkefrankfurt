@@ -50,14 +50,14 @@ const upcomingSection = {
 };
 
 const headingStyle = {
-  fontSize: '20px',
+  fontSize: '26px',
   color: "#333333",
   marginTop: '0px',
   marginBottom: '10px',
 };
 
 const dateStyle = {
-  fontSize: '16px',
+  fontSize: '22px',
   fontWeight: 'bold',
   color: '#666666',
   marginTop: '0px',

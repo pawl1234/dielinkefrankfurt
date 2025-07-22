@@ -163,28 +163,28 @@ const nameColumn = {
 };
 
 const groupHeading = {
-  fontSize: '20px',
+  fontSize: '26px',
   color: "#333333",
   marginTop: '18px',
   marginBottom: '10px',
 };
 
 const reportHeading = {
-  fontSize: "18px",
+  fontSize: "22px",
   fontWeight: "bold",
   color: "#333333",
   margin: '0 0 10px 0',
 };
 
 const reportMeta = {
-  fontSize: '14px',
+  fontSize: '22px',
   fontWeight: 'bold',
   color: '#666666',
   margin: '0 0 10px 0'
 };
 
 const reportContent = {
-  fontSize: '16px',
+  fontSize: '22px',
   color: '#333333',
   lineHeight: '1.5',
   margin: '0 0 15px 0'

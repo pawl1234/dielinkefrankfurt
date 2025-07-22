@@ -19,6 +19,9 @@ export function EmailWrapper({ children, title }: EmailWrapperProps) {
     <Html lang="de">
       <Head>
         {title && <title>{title}</title>}
+        <meta name="x-apple-disable-message-reformatting" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
         <style>{responsiveStyles}</style>
       </Head>
         <Body style={bodyStyle}>
@@ -47,7 +50,7 @@ const typographyConfig = {
     }
   },
   color: '#333333',
-  fontFamily: '"Inter", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif',
   margin: {
     mobile: '22px',
     tablet: '18px',
@@ -61,7 +64,12 @@ const bodyStyle = {
   fontFamily: typographyConfig.fontFamily,
   fontSize: typographyConfig.bodyText.mobile.fontSize,  // Start with mobile size
   lineHeight: typographyConfig.bodyText.mobile.lineHeight,
-  color: typographyConfig.color
+  color: typographyConfig.color,
+  margin: 0,
+  padding: 0,  // Critical when using x-apple-disable-message-reformatting
+  width: '100%',
+  WebkitTextSizeAdjust: '100%',  // Inline Apple Mail fix
+  msTextSizeAdjust: '100%'
 };
 
 const containerStyle = {
@@ -73,11 +81,16 @@ const containerStyle = {
 
 // Generate responsive styles from central config - mobile-first approach
 const responsiveStyles = `
-  /* Apple Mail specific optimizations */
+  /* Apple Mail specific optimizations - consistent 100% values */
+  body, table, td, a, p, span {
+    -webkit-text-size-adjust: 100% !important;
+    -ms-text-size-adjust: 100% !important;
+  }
+  
+  /* Complete coverage for all elements */
   * {
-    -webkit-text-size-adjust: none !important;
-    -ms-text-size-adjust: none !important;
-    text-size-adjust: none !important;
+    -webkit-text-size-adjust: 100% !important;
+    -ms-text-size-adjust: 100% !important;
   }
 
   /* Mobile-first base styles - default for all screens */
@@ -124,6 +137,8 @@ export const emailTypography = {
     lineHeight: typographyConfig.bodyText.mobile.lineHeight,
     color: typographyConfig.color,
     fontFamily: typographyConfig.fontFamily,
-    margin: `0 0 ${typographyConfig.margin.mobile} 0`
+    margin: `0 0 ${typographyConfig.margin.mobile} 0`,
+    WebkitTextSizeAdjust: '100%',  // Critical inline Apple Mail fix
+    msTextSizeAdjust: '100%'       // Outlook compatibility
   }
 };
