@@ -33,6 +33,7 @@ import { EmailWrapper } from './components/EmailWrapper';
 export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
   const {
     newsletterSettings,
+    subject,
     introductionText,
     featuredAppointments,
     upcomingAppointments,
@@ -41,7 +42,7 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
   } = props;
 
   return (
-    <EmailWrapper>
+    <EmailWrapper title={subject}>
       {/* Header with banner and logo */}
       <Header 
         logo={newsletterSettings.headerLogo}

@@ -114,6 +114,7 @@ export async function PUT(request: NextRequest, { params }: Props) {
     // Generate newsletter HTML
     const newsletterHtml = await generateNewsletterHtml({
       newsletterSettings,
+      subject,
       introductionText,
       featuredAppointments,
       upcomingAppointments,

@@ -64,6 +64,7 @@ export interface GroupWithReports {
  */
 export interface EmailTemplateParams {
   newsletterSettings: NewsletterSettings;
+  subject?: string;
   introductionText: string;
   featuredAppointments: Appointment[];
   upcomingAppointments: Appointment[];

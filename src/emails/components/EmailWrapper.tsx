@@ -7,16 +7,19 @@ import {
 
 interface EmailWrapperProps {
   children: React.ReactNode;
+  title?: string;
 }
 
 /**
  * Base email wrapper component providing consistent structure and styling for all emails.
  * Uses React Email components optimized for email client compatibility.
  */
-export function EmailWrapper({ children }: EmailWrapperProps) {
+export function EmailWrapper({ children, title }: EmailWrapperProps) {
   return (
     <Html lang="de">
-      <Head />
+      <Head>
+        {title && <title>{title}</title>}
+      </Head>
         <Body style={bodyStyle}>
           <Container style={containerStyle}>
             {children}

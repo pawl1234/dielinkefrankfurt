@@ -15,6 +15,9 @@ export interface NewsletterEmailProps {
   /** Newsletter display and sending settings from database */
   newsletterSettings: NewsletterSettings;
   
+  /** Newsletter subject line for email title and metadata */
+  subject?: string;
+  
   /** Introduction text content for the newsletter */
   introductionText: string;
   

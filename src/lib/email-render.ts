@@ -22,6 +22,7 @@ export async function renderNewsletter(params: EmailTemplateParams): Promise<str
     // Convert EmailTemplateParams to NewsletterEmailProps with proper type safety
     const newsletterProps: NewsletterEmailProps = {
       newsletterSettings: params.newsletterSettings,
+      subject: params.subject,
       introductionText: params.introductionText,
       featuredAppointments: params.featuredAppointments,
       upcomingAppointments: params.upcomingAppointments,
