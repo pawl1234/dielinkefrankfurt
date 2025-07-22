@@ -36,6 +36,7 @@ export const emailTextStyles = {
     lineHeight: '1.4',
     margin: '15px 0 10px 0',
     fontWeight: 'bold',
+    textAlign: 'left' as const,  // Prevent Gmail from centering headings
     ...baseConfig.appleMailFix
   },
 
@@ -49,6 +50,7 @@ export const emailTextStyles = {
     lineHeight: '1.4',
     margin: '0px 0 10px 0',
     fontWeight: 'bold',
+    textAlign: 'left' as const,  // Prevent Gmail from centering sub headings
     ...baseConfig.appleMailFix
   },
 
@@ -62,6 +64,7 @@ export const emailTextStyles = {
     lineHeight: baseConfig.lineHeight,
     margin: '0px 0 10px 0',
     fontWeight: 'bold',
+    textAlign: 'left' as const,  // Prevent Gmail from centering meta data
     ...baseConfig.appleMailFix
   },
 
@@ -74,6 +77,7 @@ export const emailTextStyles = {
     color: baseConfig.color.primary,
     lineHeight: baseConfig.lineHeight,
     margin: '0 0 22px 0',
+    textAlign: 'left' as const,  // Prevent Gmail from centering text content
     ...baseConfig.appleMailFix
   }
 };

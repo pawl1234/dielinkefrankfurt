@@ -139,5 +139,3 @@ const sectionSpacing = {
   marginBottom: '20px',
   textAlign: 'left' as const,
 };
-
-// Remove old sectionHeading - now using centralized styles from styling.ts
