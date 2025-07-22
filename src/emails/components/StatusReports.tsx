@@ -83,9 +83,11 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
                       <Text style={reportContent}>
                         {truncatedContent.replace(/<[^>]*>/g, '')}
                       </Text>
-                      
-                      <Button href={reportUrl}>Mehr Infos</Button>
+
                     </Column>
+                  </Row>
+                  <Row> 
+                    <Button href={reportUrl}>Mehr Infos</Button>
                   </Row>
                 </Section>
               );

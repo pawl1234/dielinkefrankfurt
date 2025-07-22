@@ -30,8 +30,10 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
           </Text>
           
           <Text dangerouslySetInnerHTML={{ __html: truncatedText }} />
-          <Button href={detailUrl}>Mehr Infos</Button>
         </Column>
+      </Row>
+      <Row> 
+        <Button href={detailUrl}>Mehr Infos</Button>
       </Row>
     </Section>
   );
