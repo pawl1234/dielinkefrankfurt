@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { sendEmail } from '@/lib/email';
-import { sendGroupAcceptanceEmail, sendStatusReportAcceptanceEmail } from '@/lib/email-notifications';
+import { sendGroupAcceptanceEmail, sendStatusReportAcceptanceEmail } from '@/lib/email-senders';
 
 // Mock email module
 jest.mock('@/lib/email', () => ({

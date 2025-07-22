@@ -44,7 +44,9 @@ export async function renderNewsletter(params: EmailTemplateParams): Promise<str
  * Uses type-safe overloads for different template types.
  */
 export async function renderNotificationEmail(
-  templateName: 'AntragSubmission' | 'GroupAcceptance' | 'StatusReportAcceptance',
+  templateName: 'AntragSubmission' | 'GroupAcceptance' | 'GroupRejection' | 'GroupArchiving' | 
+               'StatusReportAcceptance' | 'StatusReportRejection' | 'StatusReportArchiving' |
+               'AntragAcceptance' | 'AntragRejection',
   props: Record<string, unknown>
 ): Promise<string> {
   try {
@@ -56,10 +58,28 @@ export async function renderNotificationEmail(
         TemplateComponent = (await import('../emails/antrag-submission')).default;
         break;
       case 'GroupAcceptance':
-        TemplateComponent = (await import('../emails/group-acceptance')).default;
+        TemplateComponent = (await import('../emails/notifications/group-acceptance')).default;
+        break;
+      case 'GroupRejection':
+        TemplateComponent = (await import('../emails/notifications/group-rejection')).default;
+        break;
+      case 'GroupArchiving':
+        TemplateComponent = (await import('../emails/notifications/group-archiving')).default;
         break;
       case 'StatusReportAcceptance':
-        TemplateComponent = (await import('../emails/status-report-acceptance')).default;
+        TemplateComponent = (await import('../emails/notifications/status-report-acceptance')).default;
+        break;
+      case 'StatusReportRejection':
+        TemplateComponent = (await import('../emails/notifications/status-report-rejection')).default;
+        break;
+      case 'StatusReportArchiving':
+        TemplateComponent = (await import('../emails/notifications/status-report-archiving')).default;
+        break;
+      case 'AntragAcceptance':
+        TemplateComponent = (await import('../emails/notifications/antrag-acceptance')).default;
+        break;
+      case 'AntragRejection':
+        TemplateComponent = (await import('../emails/notifications/antrag-rejection')).default;
         break;
       default:
         throw new Error(`Unknown template: ${templateName}`);
@@ -79,7 +99,9 @@ export async function renderNotificationEmail(
  * Useful for creating text versions of email templates
  */
 export async function renderToPlainText(
-  templateName: 'Newsletter' | 'AntragSubmission' | 'GroupAcceptance' | 'StatusReportAcceptance',
+  templateName: 'Newsletter' | 'AntragSubmission' | 'GroupAcceptance' | 'GroupRejection' | 'GroupArchiving' |
+               'StatusReportAcceptance' | 'StatusReportRejection' | 'StatusReportArchiving' |
+               'AntragAcceptance' | 'AntragRejection',
   props: Record<string, unknown>
 ): Promise<string> {
   try {
@@ -94,10 +116,28 @@ export async function renderToPlainText(
         TemplateComponent = (await import('../emails/antrag-submission')).default;
         break;
       case 'GroupAcceptance':
-        TemplateComponent = (await import('../emails/group-acceptance')).default;
+        TemplateComponent = (await import('../emails/notifications/group-acceptance')).default;
+        break;
+      case 'GroupRejection':
+        TemplateComponent = (await import('../emails/notifications/group-rejection')).default;
+        break;
+      case 'GroupArchiving':
+        TemplateComponent = (await import('../emails/notifications/group-archiving')).default;
         break;
       case 'StatusReportAcceptance':
-        TemplateComponent = (await import('../emails/status-report-acceptance')).default;
+        TemplateComponent = (await import('../emails/notifications/status-report-acceptance')).default;
+        break;
+      case 'StatusReportRejection':
+        TemplateComponent = (await import('../emails/notifications/status-report-rejection')).default;
+        break;
+      case 'StatusReportArchiving':
+        TemplateComponent = (await import('../emails/notifications/status-report-archiving')).default;
+        break;
+      case 'AntragAcceptance':
+        TemplateComponent = (await import('../emails/notifications/antrag-acceptance')).default;
+        break;
+      case 'AntragRejection':
+        TemplateComponent = (await import('../emails/notifications/antrag-rejection')).default;
         break;
       default:
         throw new Error(`Unknown template for plain text: ${templateName}`);

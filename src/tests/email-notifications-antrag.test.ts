@@ -1,6 +1,8 @@
-import { sendAntragAcceptanceEmail, sendAntragRejectionEmail } from '@/lib/email-notifications';
+import { sendAntragAcceptanceEmail, sendAntragRejectionEmail } from '@/lib/email-senders';
 import { sendEmail } from '@/lib/email';
 import { getBaseUrl } from '@/lib/base-url';
+import { getNewsletterSettings } from '@/lib/newsletter-service';
+import { renderNotificationEmail } from '@/lib/email-render';
 
 // Mock dependencies
 jest.mock('@/lib/email', () => ({
@@ -9,6 +11,10 @@ jest.mock('@/lib/email', () => ({
 
 jest.mock('@/lib/base-url', () => ({
   getBaseUrl: jest.fn(),
+}));
+
+jest.mock('@/lib/email-render', () => ({
+  renderNotificationEmail: jest.fn(),
 }));
 
 const mockAntrag = {
@@ -36,6 +42,11 @@ describe('Antrag Email Notifications', () => {
     jest.clearAllMocks();
     (getBaseUrl as jest.Mock).mockReturnValue('https://example.com');
     (sendEmail as jest.Mock).mockResolvedValue(undefined);
+    (getNewsletterSettings as jest.Mock).mockResolvedValue({
+      headerLogo: 'https://example.com/logo.png',
+      contactEmail: 'info@die-linke-frankfurt.de'
+    });
+    (renderNotificationEmail as jest.Mock).mockResolvedValue('<html>Mock email content</html>');
     
     // Mock environment variable
     process.env.CONTACT_EMAIL = 'info@die-linke-frankfurt.de';
@@ -49,16 +60,20 @@ describe('Antrag Email Notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'john@example.com',
         subject: '✅ Ihr Antrag "Test Antrag for Community Event" wurde angenommen',
-        html: expect.stringContaining('Ihr Antrag wurde angenommen'),
+        html: expect.any(String),
       });
 
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('Test Antrag for Community Event');
-      expect(emailCall.html).toContain('John Doe');
-      expect(emailCall.html).toContain('1.1.2024'); // German date format
-      expect(emailCall.html).toContain('<strong>Finanzieller Zuschuss:</strong> 500 €');
-      expect(emailCall.html).toContain('Raumbuchung');
-      expect(emailCall.html).toContain('Community Center');
+      // Verify that renderNotificationEmail was called with correct template and data
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragAcceptance', 
+        expect.objectContaining({
+          antrag: mockAntrag,
+          recipientEmail: 'john@example.com',
+          recipientName: 'John Doe',
+          baseUrl: 'https://example.com',
+          headerLogo: 'https://example.com/logo.png',
+          contactEmail: 'info@die-linke-frankfurt.de'
+        })
+      );
     });
 
     it('should send acceptance email with comment', async () => {
@@ -69,12 +84,21 @@ describe('Antrag Email Notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'john@example.com',
         subject: '✅ Ihr Antrag "Test Antrag for Community Event" wurde angenommen',
-        html: expect.stringContaining(comment),
+        html: expect.any(String),
       });
 
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('Kommentar der Entscheidung');
-      expect(emailCall.html).toContain(comment);
+      // Verify that renderNotificationEmail was called with the comment
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragAcceptance', 
+        expect.objectContaining({
+          antrag: mockAntrag,
+          recipientEmail: 'john@example.com',
+          recipientName: 'John Doe',
+          decisionComment: comment,
+          baseUrl: 'https://example.com',
+          headerLogo: 'https://example.com/logo.png',
+          contactEmail: 'info@die-linke-frankfurt.de'
+        })
+      );
     });
 
     it('should handle missing email address', async () => {
@@ -94,37 +118,6 @@ describe('Antrag Email Notifications', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
     });
-
-    it('should format purposes correctly in email', async () => {
-      const antragWithComplexPurposes = {
-        ...mockAntrag,
-        purposes: JSON.stringify({
-          zuschuss: { enabled: true, amount: 1000 },
-          personelleUnterstuetzung: { enabled: true, details: 'Need volunteers for setup' },
-          raumbuchung: { enabled: true, location: 'Main Hall', numberOfPeople: 100, details: 'Full day event' },
-          weiteres: { enabled: true, details: 'Additional equipment needed' }
-        })
-      };
-
-      await sendAntragAcceptanceEmail(antragWithComplexPurposes);
-
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('<strong>Finanzieller Zuschuss:</strong> 1000 €');
-      expect(emailCall.html).toContain('Personelle Unterstützung');
-      expect(emailCall.html).toContain('Need volunteers for setup');
-      expect(emailCall.html).toContain('Main Hall');
-      expect(emailCall.html).toContain('Weiteres');
-      expect(emailCall.html).toContain('Additional equipment needed');
-    });
-
-    it('should use default contact email when not set', async () => {
-      delete process.env.CONTACT_EMAIL;
-      
-      await sendAntragAcceptanceEmail(mockAntrag);
-
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('info@die-linke-frankfurt.de');
-    });
   });
 
   describe('sendAntragRejectionEmail', () => {
@@ -136,14 +129,20 @@ describe('Antrag Email Notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'john@example.com',
         subject: '❌ Ihr Antrag "Test Antrag for Community Event" wurde abgelehnt',
-        html: expect.stringContaining('Ihr Antrag wurde abgelehnt'),
+        html: expect.any(String),
       });
 
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('Test Antrag for Community Event');
-      expect(emailCall.html).toContain('John Doe');
-      expect(emailCall.html).toContain('1.1.2024'); // German date format
-      expect(emailCall.html).toContain('Weitere Möglichkeiten');
+      // Verify that renderNotificationEmail was called with correct template and data
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragRejection', 
+        expect.objectContaining({
+          antrag: rejectedAntrag,
+          recipientEmail: 'john@example.com',
+          recipientName: 'John Doe',
+          baseUrl: 'https://example.com',
+          headerLogo: 'https://example.com/logo.png',
+          contactEmail: 'info@die-linke-frankfurt.de'
+        })
+      );
     });
 
     it('should send rejection email with reason', async () => {
@@ -155,12 +154,21 @@ describe('Antrag Email Notifications', () => {
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'john@example.com',
         subject: '❌ Ihr Antrag "Test Antrag for Community Event" wurde abgelehnt',
-        html: expect.stringContaining(reason),
+        html: expect.any(String),
       });
 
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('Begründung der Entscheidung');
-      expect(emailCall.html).toContain(reason);
+      // Verify that renderNotificationEmail was called with the reason
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragRejection', 
+        expect.objectContaining({
+          antrag: rejectedAntrag,
+          recipientEmail: 'john@example.com',
+          recipientName: 'John Doe',
+          decisionComment: reason,
+          baseUrl: 'https://example.com',
+          headerLogo: 'https://example.com/logo.png',
+          contactEmail: 'info@die-linke-frankfurt.de'
+        })
+      );
     });
 
     it('should handle missing email address', async () => {
@@ -181,75 +189,29 @@ describe('Antrag Email Notifications', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
     });
-
-    it('should include contact information for further questions', async () => {
-      const rejectedAntrag = { ...mockAntrag, status: 'ABGELEHNT' as const };
-      await sendAntragRejectionEmail(rejectedAntrag);
-
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('Bei Fragen zur Entscheidung');
-      expect(emailCall.html).toContain('info@die-linke-frankfurt.de');
-      expect(emailCall.html).toContain('mailto:info@die-linke-frankfurt.de');
-    });
-
-    it('should handle malformed purposes JSON gracefully', async () => {
-      const antragWithBadPurposes = {
-        ...mockAntrag,
-        status: 'ABGELEHNT' as const,
-        purposes: 'invalid json'
-      };
-
-      const result = await sendAntragRejectionEmail(antragWithBadPurposes);
-
-      expect(result.success).toBe(true);
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      expect(emailCall.html).toContain('Fehler beim Anzeigen der Zwecke');
-    });
   });
 
-  describe('Email HTML structure', () => {
-    it('should include proper HTML structure for acceptance email', async () => {
+  describe('Integration tests', () => {
+    it('should call getNewsletterSettings to get header logo', async () => {
       await sendAntragAcceptanceEmail(mockAntrag);
 
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      const html = emailCall.html;
-      
-      // Check for proper HTML structure
-      expect(html).toContain('<div style="font-family: Arial, sans-serif');
-      expect(html).toContain('✅ Ihr Antrag wurde angenommen');
-      expect(html).toContain('Antragsdetails');
-      expect(html).toContain('Nächste Schritte');
-      expect(html).toContain('© 2025 Die Linke Frankfurt');
+      expect(getNewsletterSettings).toHaveBeenCalled();
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragAcceptance', 
+        expect.objectContaining({
+          headerLogo: 'https://example.com/logo.png'
+        })
+      );
     });
 
-    it('should include proper HTML structure for rejection email', async () => {
-      const rejectedAntrag = { ...mockAntrag, status: 'ABGELEHNT' as const };
-      await sendAntragRejectionEmail(rejectedAntrag);
+    it('should use base URL from getBaseUrl', async () => {
+      await sendAntragAcceptanceEmail(mockAntrag);
 
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      const html = emailCall.html;
-      
-      // Check for proper HTML structure
-      expect(html).toContain('<div style="font-family: Arial, sans-serif');
-      expect(html).toContain('❌ Ihr Antrag wurde abgelehnt');
-      expect(html).toContain('Antragsdetails');
-      expect(html).toContain('Weitere Möglichkeiten');
-      expect(html).toContain('© 2025 Die Linke Frankfurt');
-    });
-
-    it('should include user content in email (note: HTML escaping should be implemented)', async () => {
-      const antragWithHtml = {
-        ...mockAntrag,
-        title: 'Test <script>alert("xss")</script> Antrag',
-        summary: 'Summary with <b>HTML</b> tags'
-      };
-
-      await sendAntragAcceptanceEmail(antragWithHtml);
-
-      const emailCall = (sendEmail as jest.Mock).mock.calls[0][0];
-      // Currently includes content as-is (HTML escaping should be added for security)
-      expect(emailCall.html).toContain('Test <script>alert("xss")</script> Antrag');
-      expect(emailCall.html).toContain('Summary with <b>HTML</b> tags');
+      expect(getBaseUrl).toHaveBeenCalled();
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragAcceptance', 
+        expect.objectContaining({
+          baseUrl: 'https://example.com'
+        })
+      );
     });
   });
 });

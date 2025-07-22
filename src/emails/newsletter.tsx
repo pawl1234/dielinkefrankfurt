@@ -24,6 +24,7 @@ import { Footer } from './components/Footer';
 import { FeaturedEvent } from './components/FeaturedEvent';
 import { UpcomingEvent } from './components/UpcomingEvent';
 import { StatusReports } from './components/StatusReports';
+import { EmailWrapper } from './components/EmailWrapper';
 
 /**
  * Main newsletter template using React Email components for better email client compatibility.
@@ -46,82 +47,78 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
   } = props;
 
   return (
-    <Html lang="de">
-      <Head />
-      <Body style={bodyStyle}>
-        <Container style={containerStyle}>
-          {/* Header with banner and logo */}
-          <Header 
-            logo={newsletterSettings.headerLogo}
-            banner={newsletterSettings.headerBanner}
-          />
-          
-          {/* Main content area */}
-          <Section style={contentSection}>
-            
-            {/* Introduction Section */}
-            <Section style={sectionSpacing}>
-              <Heading as="h2" style={sectionHeading}>
-                Einleitung
-              </Heading>
-              <Text dangerouslySetInnerHTML={{ __html: introductionText }}>
-              </Text>
-            </Section>
+    <EmailWrapper>
+      {/* Header with banner and logo */}
+      <Header 
+        logo={newsletterSettings.headerLogo}
+        banner={newsletterSettings.headerBanner}
+      />
+      
+      {/* Main content area */}
+      <Section style={contentSection}>
+        
+        {/* Introduction Section */}
+        <Section style={sectionSpacing}>
+          <Heading as="h2" style={sectionHeading}>
+            Einleitung
+          </Heading>
+          <Text dangerouslySetInnerHTML={{ __html: introductionText }}>
+          </Text>
+        </Section>
 
-            {/* Featured Events Section */}
-            {featuredAppointments && featuredAppointments.length > 0 && (
-              <Section style={sectionSpacing}>
-                <Heading as="h2" style={sectionHeading}>
-                  Featured
-                </Heading>
-                {featuredAppointments.map((appointment) => (
-                  <FeaturedEvent
-                    key={appointment.id}
-                    appointment={appointment}
-                    baseUrl={baseUrl}
-                  />
-                ))}
-              </Section>
-            )}
-
-            {/* Upcoming Events Section */}
-            {upcomingAppointments && upcomingAppointments.length > 0 && (
-              <Section style={sectionSpacing}>
-                <Heading as="h2" style={sectionHeading}>
-                  Termine
-                </Heading>
-                {upcomingAppointments.map((appointment) => (
-                  <UpcomingEvent
-                    key={appointment.id}
-                    appointment={appointment}
-                    baseUrl={baseUrl}
-                  />
-                ))}
-              </Section>
-            )}
-
-            {/* Status Reports Section */}
-            {statusReportsByGroup && statusReportsByGroup.length > 0 && (
-              <Section style={sectionSpacing}>
-                <Heading as="h2" style={sectionHeading}>
-                  Aktuelle Gruppenberichte
-                </Heading>
-                <StatusReports
-                  groups={statusReportsByGroup}
-                  baseUrl={baseUrl}
-                />
-              </Section>
-            )}
+        {/* Featured Events Section */}
+        {featuredAppointments && featuredAppointments.length > 0 && (
+          <Section style={sectionSpacing}>
+            <Heading as="h2" style={sectionHeading}>
+              Featured
+            </Heading>
+            {featuredAppointments.map((appointment) => (
+              <FeaturedEvent
+                key={appointment.id}
+                appointment={appointment}
+                baseUrl={baseUrl}
+              />
+            ))}
           </Section>
+        )}
 
-          {/* Footer */}
-          <Footer 
-            text={newsletterSettings.footerText}
-            unsubscribeLink={newsletterSettings.unsubscribeLink}
-          />
-        </Container>
-      </Body>
-    </Html>
+        {/* Upcoming Events Section */}
+        {upcomingAppointments && upcomingAppointments.length > 0 && (
+          <Section style={sectionSpacing}>
+            <Heading as="h2" style={sectionHeading}>
+              Termine
+            </Heading>
+            {upcomingAppointments.map((appointment) => (
+              <UpcomingEvent
+                key={appointment.id}
+                appointment={appointment}
+                baseUrl={baseUrl}
+              />
+            ))}
+          </Section>
+        )}
+
+        {/* Status Reports Section */}
+        {statusReportsByGroup && statusReportsByGroup.length > 0 && (
+          <Section style={sectionSpacing}>
+            <Heading as="h2" style={sectionHeading}>
+              Aktuelle Gruppenberichte
+            </Heading>
+            <StatusReports
+              groups={statusReportsByGroup}
+              baseUrl={baseUrl}
+            />
+          </Section>
+        )}
+      </Section>
+
+      {/* Footer */}
+      <Footer
+        text={newsletterSettings.footerText}
+        unsubscribeLink={newsletterSettings.unsubscribeLink}
+        newsletter={true}
+      />
+    </EmailWrapper>
   );
 }
 
@@ -129,17 +126,6 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
 export { Newsletter };
 
 // Styles following React Email and apple.tsx patterns
-const bodyStyle = {
-  backgroundColor: '#F5F5F5',
-  fontFamily: '"Inter", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif'
-};
-
-const containerStyle = {
-  width: '660px',
-  maxWidth: '100%',
-  //margin: '0 auto',
-  backgroundColor: '#FFFFFF',
-};
 
 const contentSection = {
   paddingLeft: '20px',

@@ -2,7 +2,7 @@ import { Heading, Text, Hr, Section, Row, Column, Link } from '@react-email/comp
 import { Antrag } from '@prisma/client';
 import { EmailWrapper } from './components/EmailWrapper';
 import { Footer } from './components/Footer';
-import { colors, typography, spacing, baseStyles } from './utils/styles';
+import { Button } from './components/Button';
 
 interface AntragSubmissionProps {
   antrag?: Antrag;
@@ -83,139 +83,90 @@ export default function AntragSubmission({ antrag, fileUrls, adminUrl }: AntragS
   return (
     <EmailWrapper>
       {/* Header Section */}
-      <Section
-        style={{
-          backgroundColor: colors.background.gray,
-          padding: spacing.lg,
-          borderRadius: '10px',
-          margin: `${spacing.lg} ${spacing.lg} ${spacing.lg} ${spacing.lg}`
-        }}
-      >
-        <Row>
-          <Column>
-            <Heading
-              as="h1"
-              style={{
-                ...baseStyles.heading.h1,
-                color: colors.text.primary,
-                marginTop: '0',
-                marginBottom: spacing.sm
-              }}
-            >
-              Neuer Antrag an Kreisvorstand
-            </Heading>
-            <Text
-              style={{
-                ...baseStyles.text.base,
-                color: colors.text.secondary,
-                margin: '0'
-              }}
-            >
-              Eingegangen am: {submissionDate}
-            </Text>
-          </Column>
-        </Row>
+      <Section style={headerSection}>
+        <Heading as="h1" style={h1}>
+          Neuer Antrag an Kreisvorstand
+        </Heading>
+        <Text style={text}>
+          Eingegangen am: {submissionDate}
+        </Text>
       </Section>
 
       {/* Main Content Section */}
-      <Section
-        style={{
-          backgroundColor: colors.background.white,
-          padding: spacing.lg,
-          borderRadius: '10px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          margin: `0 ${spacing.lg} ${spacing.lg} ${spacing.lg}`
-        }}
-      >
+      <Section style={mainSection}>
         {/* Antragsteller Section */}
         <Row>
           <Column>
-            <Heading
-              as="h2"
-              style={{
-                ...baseStyles.heading.h2,
-                color: colors.text.primary,
-                borderBottom: `2px solid ${colors.border.gray}`,
-                paddingBottom: spacing.sm,
-                marginBottom: spacing.lg
-              }}
-            >
+            <Heading as="h2" style={h2}>
               Antragsteller
             </Heading>
             
-            <Row style={{ marginBottom: spacing.xs }}>
-              <Column style={{ width: '150px' }}>
-                <Text style={{ ...baseStyles.text.base, fontWeight: typography.fontWeight.bold }}>
+            <Row style={rowSpacing}>
+              <Column style={labelColumn}>
+                <Text style={labelText}>
                   Name:
                 </Text>
               </Column>
               <Column>
-                <Text style={{ ...baseStyles.text.base }}>
+                <Text style={text}>
                   {emailData.antrag.firstName} {emailData.antrag.lastName}
                 </Text>
               </Column>
             </Row>
             
-            <Row style={{ marginBottom: spacing.lg }}>
-              <Column style={{ width: '150px' }}>
-                <Text style={{ ...baseStyles.text.base, fontWeight: typography.fontWeight.bold }}>
+            <Row style={rowSpacingLarge}>
+              <Column style={labelColumn}>
+                <Text style={labelText}>
                   E-Mail:
                 </Text>
               </Column>
               <Column>
-                <Text style={{ ...baseStyles.text.base }}>
+                <Text style={text}>
                   {emailData.antrag.email}
                 </Text>
               </Column>
             </Row>
             
-            <Hr style={{ margin: `${spacing.lg} 0`, borderColor: colors.border.gray }} />
+            <Hr style={hrStyle} />
             
-            <Heading
-              as="h3"
-              style={{
-                ...baseStyles.heading.h3,
-                color: colors.text.primary,
-                marginBottom: spacing.sm
-              }}
-            >
+            <Heading as="h3" style={h3}>
               Antragsinhalt
             </Heading>
             
-            <Row style={{ marginBottom: spacing.xs }}>
-              <Column style={{ width: '150px' }}>
-                <Text style={{ ...baseStyles.text.base, fontWeight: typography.fontWeight.bold }}>
+            <Row style={rowSpacing}>
+              <Column style={labelColumn}>
+                <Text style={labelText}>
                   Titel:
                 </Text>
               </Column>
               <Column>
-                <Text style={{ ...baseStyles.text.base }}>
+                <Text style={text}>
                   {emailData.antrag.title}
                 </Text>
               </Column>
             </Row>
             
-            <Row style={{ marginBottom: spacing.xs }}>
-              <Column style={{ width: '150px', verticalAlign: 'top' }}>
-                <Text style={{ ...baseStyles.text.base, fontWeight: typography.fontWeight.bold }}>
+            <Row style={rowSpacing}>
+              <Column style={labelColumnTop}>
+                <Text style={labelText}>
                   Zweck:
                 </Text>
               </Column>
               <Column>
-                <Text style={{ ...baseStyles.text.base }}>
+                <Text style={text}>
                   {formatPurposes(emailData.antrag.purposes)}
                 </Text>
               </Column>
             </Row>
             
-            <Row style={{ marginBottom: spacing.lg }}>
-              <Column style={{ width: '150px', verticalAlign: 'top' }}>
-                <Text style={{ ...baseStyles.text.base, fontWeight: typography.fontWeight.bold }}>
+            <Row style={rowSpacingLarge}>
+              <Column style={labelColumnTop}>
+                <Text style={labelText}>
                   Zusammenfassung:
                 </Text>
               </Column>
               <Column>
-                <Text style={{ ...baseStyles.text.base }}>
+                <Text style={text}>
                   {emailData.antrag.summary}
                 </Text>
               </Column>
@@ -223,20 +174,13 @@ export default function AntragSubmission({ antrag, fileUrls, adminUrl }: AntragS
 
             {emailData.fileUrls && emailData.fileUrls.length > 0 && (
               <>
-                <Hr style={{ margin: `${spacing.lg} 0`, borderColor: colors.border.gray }} />
-                <Heading
-                  as="h3"
-                  style={{
-                    ...baseStyles.heading.h3,
-                    color: colors.text.primary,
-                    marginBottom: spacing.sm
-                  }}
-                >
+                <Hr style={hrStyle} />
+                <Heading as="h3" style={h3}>
                   Anhänge ({emailData.fileUrls.length})
                 </Heading>
                 {emailData.fileUrls.map((url, index) => (
-                  <Text key={index} style={{ ...baseStyles.text.base, marginBottom: spacing.xs }}>
-                    <Link href={url} target="_blank" style={{ ...baseStyles.link.primary }}>
+                  <Text key={index} style={fileText}>
+                    <Link href={url} target="_blank" style={linkStyle}>
                       Anhang {index + 1}
                     </Link>
                   </Text>
@@ -244,37 +188,16 @@ export default function AntragSubmission({ antrag, fileUrls, adminUrl }: AntragS
               </>
             )}
 
-            <Hr style={{ margin: `${spacing.lg} 0`, borderColor: colors.border.gray }} />
+            <Hr style={hrStyle} />
 
             {/* Admin Actions Section */}
-            <Section
-              style={{
-                backgroundColor: colors.background.gray,
-                padding: spacing.md,
-                borderRadius: '8px',
-                textAlign: 'center'
-              }}
-            >
+            <Section style={adminSection}>
               <Row>
                 <Column>
-                  <Text style={{ ...baseStyles.text.base, margin: `0 0 ${spacing.sm} 0`, fontWeight: typography.fontWeight.bold }}>
+                  <Text style={adminText}>
                     Administrative Aktionen
                   </Text>
-                  <Link
-                    href={emailData.adminUrl}
-                    style={{
-                      ...baseStyles.button.primary,
-                      display: 'inline-block',
-                      backgroundColor: colors.primary,
-                      color: colors.text.white,
-                      padding: `${spacing.sm} ${spacing.lg}`,
-                      textDecoration: 'none',
-                      borderRadius: '5px',
-                      fontWeight: typography.fontWeight.bold
-                    }}
-                  >
-                    Antrag im Admin-Bereich öffnen
-                  </Link>
+                  <Button href={emailData.adminUrl} />
                 </Column>
               </Row>
             </Section>
@@ -285,6 +208,7 @@ export default function AntragSubmission({ antrag, fileUrls, adminUrl }: AntragS
       <Footer 
         text="Die Linke Frankfurt am Main"
         unsubscribeLink="#"
+        newsletter={false}
       />
     </EmailWrapper>
   );
@@ -292,3 +216,112 @@ export default function AntragSubmission({ antrag, fileUrls, adminUrl }: AntragS
 
 // Named export for backward compatibility with existing production code
 export { AntragSubmission };
+
+// Styles following React Email and apple.tsx patterns
+const headerSection = {
+  backgroundColor: '#F8F9FA',
+  paddingLeft: "20px",
+  paddingRight: "20px",
+  borderRadius: '10px',
+};
+
+const mainSection = {
+  backgroundColor: '#FFFFFF',
+  marginTop: "20px",
+  paddingLeft: "20px",
+  paddingRight: "20px",
+  borderRadius: '10px',
+};
+
+const h1 = {
+  fontSize: '32px',
+  fontWeight: 'bold',
+  color: '#333333',
+  lineHeight: '1.2',
+  margin: '0'
+};
+
+const h2 = {
+  fontSize: '24px',
+  fontWeight: 'bold',
+  color: '#333333',
+  lineHeight: '1.2',
+  margin: '0',
+  borderBottom: '2px solid #E9ECEF',
+  paddingBottom: '10px',
+  marginBottom: '20px'
+};
+
+const h3 = {
+  fontSize: '20px',
+  fontWeight: 'bold',
+  color: '#333333',
+  lineHeight: '1.2',
+  margin: '0',
+  marginBottom: '10px'
+};
+
+const text = {
+  fontSize: '16px',
+  color: '#333333',
+  lineHeight: '1.5',
+  margin: '0'
+};
+
+const labelText = {
+  fontSize: '16px',
+  color: '#333333',
+  lineHeight: '1.5',
+  margin: '0',
+  fontWeight: 'bold'
+};
+
+const fileText = {
+  fontSize: '16px',
+  color: '#333333',
+  lineHeight: '1.5',
+  margin: '0',
+  marginBottom: '5px'
+};
+
+const adminText = {
+  fontSize: '16px',
+  color: '#333333',
+  lineHeight: '1.5',
+  margin: '0 0 10px 0',
+  fontWeight: 'bold'
+};
+
+const rowSpacing = {
+  marginBottom: '5px'
+};
+
+const rowSpacingLarge = {
+  marginBottom: '20px'
+};
+
+const labelColumn = {
+  width: '150px'
+};
+
+const labelColumnTop = {
+  width: '150px',
+  verticalAlign: 'top'
+};
+
+const hrStyle = {
+  margin: '20px 0',
+  borderColor: '#E9ECEF'
+};
+
+const adminSection = {
+  backgroundColor: '#F8F9FA',
+  padding: '15px',
+  borderRadius: '8px',
+  textAlign: 'center' as const
+};
+
+const linkStyle = {
+  color: '#FF0000',
+  textDecoration: 'underline'
+};

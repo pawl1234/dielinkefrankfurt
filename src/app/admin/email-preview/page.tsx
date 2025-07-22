@@ -22,7 +22,10 @@ import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { Email as EmailIcon } from '@mui/icons-material';
 
-type EmailTemplate = 'newsletter' | 'antrag-submission' | 'group-acceptance' | 'status-report-acceptance';
+type EmailTemplate = 'newsletter' | 'antrag-submission' | 
+  'group-acceptance' | 'group-rejection' | 'group-archiving' |
+  'status-report-acceptance' | 'status-report-rejection' | 'status-report-archiving' |
+  'antrag-acceptance' | 'antrag-rejection';
 
 /**
  * Admin page for previewing email templates in real-time.
@@ -37,9 +40,15 @@ export default function EmailPreviewPage() {
 
   const templateOptions = [
     { value: 'newsletter', label: 'Newsletter' },
-    { value: 'antrag-submission', label: 'Antrag Submission' },
+    { value: 'antrag-submission', label: 'Antrag Submission (to Admin)' },
     { value: 'group-acceptance', label: 'Group Acceptance' },
-    { value: 'status-report-acceptance', label: 'Status Report Acceptance' }
+    { value: 'group-rejection', label: 'Group Rejection' },
+    { value: 'group-archiving', label: 'Group Archiving' },
+    { value: 'status-report-acceptance', label: 'Status Report Acceptance' },
+    { value: 'status-report-rejection', label: 'Status Report Rejection' },
+    { value: 'status-report-archiving', label: 'Status Report Archiving' },
+    { value: 'antrag-acceptance', label: 'Antrag Acceptance' },
+    { value: 'antrag-rejection', label: 'Antrag Rejection' }
   ] as const;
 
   /**

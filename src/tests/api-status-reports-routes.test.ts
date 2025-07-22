@@ -22,7 +22,7 @@ import { getToken } from 'next-auth/jwt';
 import { StatusReportStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { put, del } from '@vercel/blob';
-import * as emailNotifications from '@/lib/email-notifications';
+import * as emailNotifications from '@/lib/email-senders';
 
 // Note: External dependencies are mocked in jest.setup.js:
 // - @vercel/blob (file storage)
@@ -41,7 +41,7 @@ jest.mock('@/lib/api-auth', () => ({
 }));
 
 // Mock email notifications to track calls
-jest.mock('@/lib/email-notifications', () => ({
+jest.mock('@/lib/email-senders', () => ({
   sendStatusReportAcceptanceEmail: jest.fn(),
   sendStatusReportRejectionEmail: jest.fn(),
   sendStatusReportArchivingEmail: jest.fn()

@@ -9,7 +9,7 @@ import {
   sendGroupAcceptanceEmail,
   sendGroupRejectionEmail,
   sendGroupArchivingEmail
-} from './email-notifications';
+} from './email-senders';
 
 /**
  * Types for group operations

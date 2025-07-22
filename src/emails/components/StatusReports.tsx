@@ -2,7 +2,6 @@ import { Img, Text, Heading, Section, Row, Column, Hr } from '@react-email/compo
 import { GroupWithReports } from '../../types/newsletter-types';
 import { Button } from './Button';
 import { formatDate, truncateText } from '../../lib/newsletter-helpers';
-import { colors, typography, spacing, baseStyles, emailClientStyles } from '../utils/styles';
 
 interface StatusReportsProps {
   groups: GroupWithReports[];
@@ -29,65 +28,26 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
         const firstLetter = group.name.charAt(0).toUpperCase();
 
         return (
-          <Section key={group.id} style={{ marginBottom: spacing.md }}>
+          <Section key={group.id} style={groupSection}>
             {/* Group Header */}
-            <Row style={{ marginBottom: spacing.md }}>
-              <Column
-                style={{
-                  width: '60px',
-                  verticalAlign: 'top',
-                  paddingRight: '15px'
-                }}
-              >
+            <Row style={headerRow}>
+              <Column style={logoColumn}>
                 {groupLogo ? (
                   <Img
                     src={groupLogo}
                     alt={`${group.name} Logo`}
-                    style={{
-                      display: 'block',
-                      borderRadius: '50%',
-                      width: '60px',
-                      height: '60px',
-                      objectFit: 'cover',
-                    }}
+                    style={logoImage}
                   />
                 ) : (
-                  <Section
-                    style={{
-                      borderRadius: '50%',
-                      backgroundColor: colors.primary,
-                      color: colors.text.white,
-                      width: '60px',
-                      height: '60px',
-                      textAlign: 'center',
-                      lineHeight: '60px'
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: typography.fontSize['2xl'],
-                        fontWeight: typography.fontWeight.bold,
-                        color: colors.text.white,
-                        margin: '0',
-                        lineHeight: '60px',
-                        textAlign: 'center'
-                      }}
-                    >
+                  <Section style={logoCircle}>
+                    <Text style={logoText}>
                       {firstLetter}
                     </Text>
                   </Section>
                 )}
               </Column>
-              <Column style={{ verticalAlign: 'top' }}>
-                <Heading
-                  as="h3"
-                  style={{
-                    fontSize: '20px',
-                    color: "#333333",
-                    marginTop: '18px',
-                    marginBottom: '10px',
-                  }}
-                >
+              <Column style={nameColumn}>
+                <Heading as="h3" style={groupHeading}>
                   {group.name}
                 </Heading>
               </Column>
@@ -103,59 +63,30 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
                 <Section 
                   key={report.id}
                   style={{
-                    padding: `0 0 ${spacing.lg} 0`,
-                    marginBottom: isLastReport && !isLastGroup ? '0' : spacing.lg
+                    padding: `0 0 20px 0`,
+                    marginBottom: isLastReport && !isLastGroup ? '0' : '20px'
                   }}
                 >
                   <Row>
                     <Column>
-                      <Heading
-                        as="h4"
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          color: "#333333",
-                          margin: '0 0 10px 0',
-                        }}
-                      >
+                      <Heading as="h4" style={reportHeading}>
                         {report.title}
                       </Heading>
                       
-                      <Text
-                        style={{
-                          ...baseStyles.text.small,
-                          fontSize: typography.fontSize.sm,
-                          fontWeight: typography.fontWeight.bold,
-                          color: colors.text.secondary,
-                          margin: `0 0 ${spacing.sm} 0`
-                        }}
-                      >
+                      <Text style={reportMeta}>
                         {formatDate(report.createdAt)}
                         {report.reporterFirstName && report.reporterLastName && 
                           ` | ${report.reporterFirstName} ${report.reporterLastName}`
                         }
                       </Text>
                       
-                      <Text
-                        style={{
-                          ...baseStyles.text.base,
-                          fontSize: typography.fontSize.base,
-                          color: colors.text.primary,
-                          lineHeight: typography.lineHeight.relaxed,
-                          margin: `0 0 ${spacing.md} 0`
-                        }}
-                      >
+                      <Text style={reportContent}>
                         {truncatedContent.replace(/<[^>]*>/g, '')}
                       </Text>
                       
-                      <Button href={reportUrl}/>
+                      <Button href={reportUrl} />
                     </Column>
                   </Row>
-                  
-                  {/* Report separator (dashed line) 
-                  {!isLastReport && (
-                    <Hr/>
-                  )}*/}
                 </Section>
               );
             })}
@@ -182,3 +113,77 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
     </>
   );
 }
+
+// Styles following React Email and apple.tsx patterns
+const groupSection = {
+  marginBottom: '15px'
+};
+
+const headerRow = {
+  marginBottom: '15px'
+};
+
+const logoColumn = {
+  width: '60px',
+  verticalAlign: 'top',
+  paddingRight: '15px'
+};
+
+const logoImage = {
+  display: 'block',
+  borderRadius: '50%',
+  width: '60px',
+  height: '60px',
+  objectFit: 'cover' as const,
+};
+
+const logoCircle = {
+  borderRadius: '50%',
+  backgroundColor: '#FF0000',
+  color: '#FFFFFF',
+  width: '60px',
+  height: '60px',
+  textAlign: 'center' as const,
+  lineHeight: '60px'
+};
+
+const logoText = {
+  fontSize: '24px',
+  fontWeight: 'bold',
+  color: '#FFFFFF',
+  margin: '0',
+  lineHeight: '60px',
+  textAlign: 'center' as const
+};
+
+const nameColumn = {
+  verticalAlign: 'top'
+};
+
+const groupHeading = {
+  fontSize: '20px',
+  color: "#333333",
+  marginTop: '18px',
+  marginBottom: '10px',
+};
+
+const reportHeading = {
+  fontSize: "18px",
+  fontWeight: "bold",
+  color: "#333333",
+  margin: '0 0 10px 0',
+};
+
+const reportMeta = {
+  fontSize: '14px',
+  fontWeight: 'bold',
+  color: '#666666',
+  margin: '0 0 10px 0'
+};
+
+const reportContent = {
+  fontSize: '16px',
+  color: '#333333',
+  lineHeight: '1.5',
+  margin: '0 0 15px 0'
+};

@@ -24,7 +24,7 @@ import {
   sendStatusReportAcceptanceEmail, 
   sendStatusReportRejectionEmail, 
   sendStatusReportArchivingEmail 
-} from '../lib/email-notifications';
+} from '../lib/email-senders';
 import prisma from '../lib/prisma';
 import { StatusReport, Group, ResponsiblePerson, StatusReportStatus } from '@prisma/client';
 
