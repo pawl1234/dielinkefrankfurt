@@ -1,4 +1,4 @@
-import { Img, Text, Heading, Section, Row, Column, Hr } from '@react-email/components';
+import { Img, Text, Heading, Section, Row, Column } from '@react-email/components';
 import { GroupWithReports } from '../../types/newsletter-types';
 import { Button } from './Button';
 import { formatDate, truncateText } from '../../lib/newsletter-helpers';
@@ -84,7 +84,7 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
                         {truncatedContent.replace(/<[^>]*>/g, '')}
                       </Text>
                       
-                      <Button href={reportUrl} />
+                      <Button href={reportUrl}>Mehr Infos</Button>
                     </Column>
                   </Row>
                 </Section>

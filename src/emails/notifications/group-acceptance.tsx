@@ -23,7 +23,6 @@ export default function GroupAcceptanceEmail({
   group,
   headerLogo,
   baseUrl,
-  recipientName,
   statusReportFormUrl,
   contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de'
 }: GroupEmailProps) {
@@ -50,7 +49,7 @@ export default function GroupAcceptanceEmail({
       {/* Main content */}
       <Section style={mainSection}>
         <Text style={greetingText}>
-          Liebe Verantwortliche der Gruppe "{group.name}",
+          Liebe Verantwortliche der Gruppe &quot;{group.name}&quot;,
         </Text>
         
         <Text style={bodyText}>
@@ -74,7 +73,7 @@ export default function GroupAcceptanceEmail({
         
         {/* Status report button */}
         <Section style={buttonSection}>
-          <Button href={statusReportUrl} />
+          <Button href={statusReportUrl}>Statusbericht einreichen</Button>
         </Section>
         
         <Text style={bodyText}>

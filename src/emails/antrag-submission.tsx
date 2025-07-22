@@ -197,7 +197,7 @@ export default function AntragSubmission({ antrag, fileUrls, adminUrl }: AntragS
                   <Text style={adminText}>
                     Administrative Aktionen
                   </Text>
-                  <Button href={emailData.adminUrl} />
+                  <Button href={emailData.adminUrl}>Antrag ansehen</Button>
                 </Column>
               </Row>
             </Section>

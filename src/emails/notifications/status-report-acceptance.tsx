@@ -10,7 +10,6 @@ import { EmailWrapper } from '../components/EmailWrapper';
 import { NotificationHeader } from '../components/NotificationHeader';
 import { StatusSection } from '../components/StatusSection';
 import { DetailsList } from '../components/DetailsList';
-import { InfoBox } from '../components/InfoBox';
 import { Footer } from '../components/Footer';
 import { Button } from '../components/Button';
 import { StatusReportEmailProps } from '../../types/email-types';
@@ -23,7 +22,6 @@ export default function StatusReportAcceptanceEmail({
   statusReport,
   headerLogo,
   baseUrl,
-  recipientName,
   reportUrl,
   contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de'
 }: StatusReportEmailProps) {
@@ -63,11 +61,11 @@ export default function StatusReportAcceptanceEmail({
       {/* Main content */}
       <Section style={mainSection}>
         <Text style={greetingText}>
-          Liebe Verantwortliche der Gruppe "{statusReport.group.name}",
+          Liebe Verantwortliche der Gruppe &quot;{statusReport.group.name}&quot;,
         </Text>
         
         <Text style={bodyText}>
-          wir möchten Sie darüber informieren, dass der Statusbericht "{statusReport.title}" 
+          wir möchten Sie darüber informieren, dass der Statusbericht &quot;{statusReport.title}&quot; 
           vom {submissionDate} nun freigeschaltet wurde und auf unserer Website sichtbar ist.
         </Text>
         
@@ -103,7 +101,7 @@ export default function StatusReportAcceptanceEmail({
         
         {/* View report button */}
         <Section style={buttonSection}>
-          <Button href={viewUrl} />
+          <Button href={viewUrl}>Statusbericht ansehen</Button>
         </Section>
         
         <Text style={bodyText}>

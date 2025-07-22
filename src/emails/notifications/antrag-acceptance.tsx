@@ -22,8 +22,6 @@ import { AntragPurposes } from '../../types/api-types';
 export default function AntragAcceptanceEmail({
   antrag,
   headerLogo,
-  baseUrl,
-  recipientName,
   decisionComment,
   contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de'
 }: AntragEmailProps) {
@@ -95,7 +93,7 @@ export default function AntragAcceptanceEmail({
         </Text>
         
         <Text style={bodyText}>
-          wir freuen uns, Ihnen mitteilen zu können, dass Ihr Antrag "{antrag.title}" 
+          wir freuen uns, Ihnen mitteilen zu können, dass Ihr Antrag &quot;{antrag.title}&quot; 
           von unserem Team geprüft und angenommen wurde.
         </Text>
         

@@ -21,8 +21,6 @@ import { StatusReportEmailProps } from '../../types/email-types';
 export default function StatusReportRejectionEmail({
   statusReport,
   headerLogo,
-  baseUrl,
-  recipientName,
   contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de'
 }: StatusReportEmailProps) {
   const submissionDate = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
@@ -49,11 +47,11 @@ export default function StatusReportRejectionEmail({
       {/* Main content */}
       <Section style={mainSection}>
         <Text style={greetingText}>
-          Liebe Verantwortliche der Gruppe "{statusReport.group.name}",
+          Liebe Verantwortliche der Gruppe &quot;{statusReport.group.name}&quot;,
         </Text>
         
         <Text style={bodyText}>
-          wir müssen Ihnen leider mitteilen, dass Ihr Statusbericht "{statusReport.title}" 
+          wir müssen Ihnen leider mitteilen, dass Ihr Statusbericht &quot;{statusReport.title}&quot; 
           vom {submissionDate} für die Veröffentlichung auf unserer Website nicht genehmigt werden konnte.
         </Text>
         

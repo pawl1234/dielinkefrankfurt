@@ -21,8 +21,6 @@ import { StatusReportEmailProps } from '../../types/email-types';
 export default function StatusReportArchivingEmail({
   statusReport,
   headerLogo,
-  baseUrl,
-  recipientName,
   contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de'
 }: StatusReportEmailProps) {
   const submissionDate = new Date(statusReport.createdAt).toLocaleDateString('de-DE');
@@ -60,11 +58,11 @@ export default function StatusReportArchivingEmail({
       {/* Main content */}
       <Section style={mainSection}>
         <Text style={greetingText}>
-          Liebe Verantwortliche der Gruppe "{statusReport.group.name}",
+          Liebe Verantwortliche der Gruppe &quot;{statusReport.group.name}&quot;,
         </Text>
         
         <Text style={bodyText}>
-          wir möchten Sie darüber informieren, dass Ihr Statusbericht "{statusReport.title}" 
+          wir möchten Sie darüber informieren, dass Ihr Statusbericht &quot;{statusReport.title}&quot; 
           vom {submissionDate} nun archiviert wurde und nicht mehr öffentlich auf unserer Website sichtbar ist.
         </Text>
         

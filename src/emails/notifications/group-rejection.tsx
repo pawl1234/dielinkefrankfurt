@@ -21,8 +21,6 @@ import { GroupEmailProps } from '../../types/email-types';
 export default function GroupRejectionEmail({
   group,
   headerLogo,
-  baseUrl,
-  recipientName,
   contactEmail = process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de'
 }: GroupEmailProps) {
   const groupDetails = [
@@ -46,7 +44,7 @@ export default function GroupRejectionEmail({
       {/* Main content */}
       <Section style={mainSection}>
         <Text style={greetingText}>
-          Liebe Verantwortliche der Gruppe "{group.name}",
+          Liebe Verantwortliche der Gruppe &quot;{group.name}&quot;,
         </Text>
         
         <Text style={bodyText}>
