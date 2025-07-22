@@ -38,6 +38,17 @@ export interface NewsletterSettings {
   maxRetries?: number;
   maxBackoffDelay?: number;
   retryChunkSizes?: string;
+
+  // Header Composition Settings
+  compositeWidth?: number;
+  compositeHeight?: number;
+  logoTopOffset?: number;
+  logoLeftOffset?: number;
+  logoHeight?: number;
+  
+  // Generated composite metadata
+  compositeImageUrl?: string | null;
+  compositeImageHash?: string | null;
 }
 
 /**

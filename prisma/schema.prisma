@@ -94,6 +94,17 @@ model Newsletter {
   maxBackoffDelay    Int        @default(10000) // Maximum backoff delay in milliseconds
   retryChunkSizes    String     @default("10,5,1") // Comma-separated retry chunk sizes
 
+  // Header Composition Settings
+  compositeWidth     Int?       @default(600)   // Width of composite header image
+  compositeHeight    Int?       @default(200)   // Height of composite header image
+  logoTopOffset      Int?       @default(20)    // Top offset for logo positioning
+  logoLeftOffset     Int?       @default(20)    // Left offset for logo positioning
+  logoHeight         Int?       @default(60)    // Height of logo in composite
+
+  // Generated composite metadata
+  compositeImageUrl  String?    // URL to generated composite image
+  compositeImageHash String?    // Hash of source images + settings for cache invalidation
+
   // System fields
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
+import { ApiHandler, SimpleRouteContext, CompositeGenerationRequest } from '@/types/api-types';
 import { withAdminAuth } from '@/lib/api-auth';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { 
   getNewsletterSettings, 
-  updateNewsletterSettings 
+  updateNewsletterSettings,
+  clearNewsletterSettingsCache
 } from '@/lib/newsletter-service';
+import { HeaderCompositionService } from '@/lib/image-composition';
 
 /**
  * GET /api/admin/newsletter/settings
@@ -88,7 +90,94 @@ export const PUT: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
       );
     }
 
+    // Generate composite header image if both banner and logo are provided
+    if (data.headerBanner && data.headerLogo) {
+      logger.debug('Attempting to generate composite header image', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/settings',
+          bannerUrl: data.headerBanner,
+          logoUrl: data.headerLogo,
+          hasCompositionSettings: !!(data.compositeWidth || data.compositeHeight)
+        }
+      });
+
+      const compositionService = new HeaderCompositionService();
+      
+      const compositeOptions: CompositeGenerationRequest = {
+        bannerUrl: data.headerBanner,
+        logoUrl: data.headerLogo,
+        compositeWidth: data.compositeWidth || 600,
+        compositeHeight: data.compositeHeight || 200,
+        logoTopOffset: data.logoTopOffset || 20,
+        logoLeftOffset: data.logoLeftOffset || 20,
+        logoHeight: data.logoHeight || 60,
+      };
+      
+      try {
+        const compositeUrl = await compositionService.generateCompositeHeader(compositeOptions);
+        const cacheKey = await compositionService.getPublicCacheKey(compositeOptions);
+        
+        // Add the generated composite data to the settings
+        data.compositeImageUrl = compositeUrl;
+        data.compositeImageHash = cacheKey;
+        
+        // Immediately clear cache to ensure fresh settings are loaded
+        clearNewsletterSettingsCache();
+        
+        logger.info('Successfully generated composite header image', {
+          module: 'api',
+          context: {
+            endpoint: '/api/admin/newsletter/settings',
+            compositeUrl,
+            cacheKey: cacheKey.slice(0, 16) + '...',
+            fullCacheKey: cacheKey,
+            cacheCleared: true
+          }
+        });
+      } catch (error) {
+        // Non-blocking error - continue with original approach
+        // The email header component will fallback to CSS overlay
+        logger.error(error as Error, {
+          module: 'api',
+          context: {
+            endpoint: '/api/admin/newsletter/settings',
+            operation: 'generateCompositeHeader',
+            fallbackApplied: true
+          }
+        });
+        
+        // Clear any existing composite data since generation failed
+        data.compositeImageUrl = null;
+        data.compositeImageHash = null;
+        
+        logger.warn('Composite generation failed, using CSS overlay fallback', {
+          module: 'api',
+          context: {
+            endpoint: '/api/admin/newsletter/settings',
+            error: (error as Error).message
+          }
+        });
+      }
+    } else if (data.headerBanner || data.headerLogo) {
+      // If only one image is provided, clear composite data
+      logger.debug('Clearing composite data due to incomplete image set', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/settings',
+          hasBanner: !!data.headerBanner,
+          hasLogo: !!data.headerLogo
+        }
+      });
+      
+      data.compositeImageUrl = null;
+      data.compositeImageHash = null;
+    }
+
     const updatedSettings = await updateNewsletterSettings(data);
+    
+    // Clear cache to ensure fresh settings are loaded next time
+    clearNewsletterSettingsCache();
     
     logger.info('Newsletter settings updated successfully', {
       module: 'api',
@@ -96,7 +185,8 @@ export const PUT: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
         endpoint: '/api/admin/newsletter/settings',
         method: 'PUT',
         settingsId: updatedSettings.id,
-        updatedFields: Object.keys(data)
+        updatedFields: Object.keys(data),
+        hasCompositeImage: !!updatedSettings.compositeImageUrl
       }
     });
 
