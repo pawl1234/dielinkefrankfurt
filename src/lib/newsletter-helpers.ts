@@ -166,6 +166,43 @@ export const extractPlainText = (htmlContent: string): string => {
 };
 
 /**
+ * Generate preview text for React Email Preview component
+ * Converts HTML to plain text and truncates to optimal length
+ * 
+ * @param htmlContent - HTML content to convert to preview text
+ * @param maxLength - Maximum length for preview text (default: 90 characters)
+ * @returns Plain text suitable for email preview
+ */
+export const generatePreviewText = (htmlContent: string, maxLength: number = 90): string => {
+  if (!htmlContent) return '';
+  
+  // Convert HTML to plain text
+  const plainText = extractPlainText(htmlContent);
+  
+  // Remove newlines and normalize whitespace for preview
+  const cleanText = plainText
+    .replace(/\n+/g, ' ') // Replace newlines with spaces
+    .replace(/\s+/g, ' ') // Normalize multiple spaces
+    .trim();
+  
+  // Truncate to maxLength with proper word boundary
+  if (cleanText.length <= maxLength) {
+    return cleanText;
+  }
+  
+  // Find the last space before maxLength to avoid cutting words
+  const truncateAt = cleanText.lastIndexOf(' ', maxLength - 3);
+  
+  // Only use word boundary if it's reasonable (not too far back)
+  if (truncateAt > maxLength * 0.6) {
+    return cleanText.substring(0, truncateAt).trim() + '...';
+  }
+  
+  // If no good word boundary, truncate at character limit
+  return cleanText.substring(0, maxLength - 3).trim() + '...';
+};
+
+/**
  * Validate and format email address for display
  * Ensures email addresses are properly formatted
  */

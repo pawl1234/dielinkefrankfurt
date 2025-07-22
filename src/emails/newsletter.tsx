@@ -9,7 +9,8 @@
 import { 
   Section, 
   Text, 
-  Heading
+  Heading,
+  Preview
 } from '@react-email/components';
 
 import { NewsletterEmailProps } from '../types/newsletter-props';
@@ -19,6 +20,7 @@ import { FeaturedEvent } from './components/FeaturedEvent';
 import { UpcomingEvent } from './components/UpcomingEvent';
 import { StatusReports } from './components/StatusReports';
 import { EmailWrapper } from './components/EmailWrapper';
+import { generatePreviewText } from '../lib/newsletter-helpers';
 
 /**
  * Main newsletter template using React Email components for better email client compatibility.
@@ -43,6 +45,8 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
 
   return (
     <EmailWrapper title={subject}>
+      <Preview>{generatePreviewText(introductionText)}</Preview>
+      
       {/* Header with banner and logo */}
       <Header 
         logo={newsletterSettings.headerLogo}

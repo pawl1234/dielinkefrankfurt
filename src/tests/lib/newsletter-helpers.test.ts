@@ -15,6 +15,7 @@ import {
   getStatusReportUrl,
   sanitizeTextForEmail,
   extractPlainText,
+  generatePreviewText,
   formatEmailAddress,
   hasPhysicalLocation,
   getAppointmentLocation
@@ -352,6 +353,63 @@ describe('Email Utility Functions', () => {
     it('should handle empty email', () => {
       const formatted = formatEmailAddress('');
       expect(formatted).toBe('');
+    });
+  });
+
+  describe('generatePreviewText', () => {
+    it('should convert HTML to plain text for preview', () => {
+      const htmlContent = '<p>Willkommen zum Newsletter!</p><p>Hier sind die wichtigsten Informationen.</p>';
+      const result = generatePreviewText(htmlContent);
+      
+      expect(result).toBe('Willkommen zum Newsletter! Hier sind die wichtigsten Informationen.');
+    });
+
+    it('should truncate long text to specified length', () => {
+      const longHtmlContent = '<p>Dies ist ein sehr langer Text, der definitiv mehr als 90 Zeichen hat und daher truncated werden sollte für die Preview.</p>';
+      const result = generatePreviewText(longHtmlContent, 50);
+      
+      expect(result.length).toBeLessThanOrEqual(50);
+      expect(result).toContain('...');
+    });
+
+    it('should handle HTML with line breaks', () => {
+      const htmlWithBreaks = '<p>Erste Zeile<br>Zweite Zeile<br/><br>Dritte Zeile</p>';
+      const result = generatePreviewText(htmlWithBreaks);
+      
+      expect(result).toBe('Erste Zeile Zweite Zeile Dritte Zeile');
+      expect(result).not.toContain('<br');
+    });
+
+    it('should truncate at word boundaries when possible', () => {
+      const htmlContent = '<p>Dies ist ein Test für Wortgrenzen beim Truncating von langem Text</p>';
+      const result = generatePreviewText(htmlContent, 30);
+      
+      // Should truncate and add ellipsis
+      expect(result).toContain('...');
+      expect(result.length).toBeLessThanOrEqual(30);
+      // Result should be reasonable - starting correctly
+      expect(result).toMatch(/^Dies ist ein/);
+    });
+
+    it('should handle empty or null content', () => {
+      expect(generatePreviewText('')).toBe('');
+      expect(generatePreviewText(null as any)).toBe('');
+      expect(generatePreviewText(undefined as any)).toBe('');
+    });
+
+    it('should use default 90 character limit', () => {
+      const shortText = '<p>Kurzer Text</p>';
+      const result = generatePreviewText(shortText);
+      
+      expect(result).toBe('Kurzer Text');
+      expect(result.length).toBeLessThanOrEqual(90);
+    });
+
+    it('should remove multiple spaces and newlines', () => {
+      const messyHtml = '<p>Text   with    multiple\n\n\nspaces\n  and   newlines</p>';
+      const result = generatePreviewText(messyHtml);
+      
+      expect(result).toBe('Text with multiple spaces and newlines');
     });
   });
 });
