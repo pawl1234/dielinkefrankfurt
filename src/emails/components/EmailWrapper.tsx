@@ -4,6 +4,7 @@ import {
   Body,
   Container,
 } from '@react-email/components';
+import { text } from '../lib/styling';
 
 interface EmailWrapperProps {
   children: React.ReactNode;
@@ -33,38 +34,13 @@ export function EmailWrapper({ children, title }: EmailWrapperProps) {
   );
 }
 
-// Central typography configuration - mobile-first approach for optimal readability
-const typographyConfig = {
-  bodyText: {
-    mobile: {
-      fontSize: '22px',      // Excellent mobile readability
-      lineHeight: '1.6'      // Enhanced line spacing for mobile
-    },
-    tablet: {
-      fontSize: '18px',      // Medium screens
-      lineHeight: '1.5'
-    },
-    desktop: {
-      fontSize: '16px',      // Large screens
-      lineHeight: '1.5'
-    }
-  },
-  color: '#333333',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif',
-  margin: {
-    mobile: '22px',
-    tablet: '18px',
-    desktop: '16px'
-  }
-};
-
-// Generate body style from central config - mobile-first base
+// Base body style using centralized typography
 const bodyStyle = {
   backgroundColor: '#F5F5F5',
-  fontFamily: typographyConfig.fontFamily,
-  fontSize: typographyConfig.bodyText.mobile.fontSize,  // Start with mobile size
-  lineHeight: typographyConfig.bodyText.mobile.lineHeight,
-  color: typographyConfig.color,
+  fontFamily: text.fontFamily,  // Use Inter from centralized styling
+  fontSize: text.fontSize,     // Use 22px from centralized styling
+  lineHeight: text.lineHeight, // Use 1.6 from centralized styling
+  color: text.color,           // Use #333333 from centralized styling
   margin: 0,
   padding: 0,  // Critical when using x-apple-disable-message-reformatting
   width: '100%',
@@ -79,7 +55,7 @@ const containerStyle = {
   backgroundColor: '#FFFFFF',
 };
 
-// Generate responsive styles from central config - mobile-first approach
+// Simplified styles - Apple Mail optimizations only, no media queries
 const responsiveStyles = `
   /* Apple Mail specific optimizations - consistent 100% values */
   body, table, td, a, p, span {
@@ -92,53 +68,4 @@ const responsiveStyles = `
     -webkit-text-size-adjust: 100% !important;
     -ms-text-size-adjust: 100% !important;
   }
-
-  /* Mobile-first base styles - default for all screens */
-  .email-body-text {
-    font-size: ${typographyConfig.bodyText.mobile.fontSize} !important;
-    line-height: ${typographyConfig.bodyText.mobile.lineHeight} !important;
-    color: ${typographyConfig.color} !important;
-    margin: 0 0 ${typographyConfig.margin.mobile} 0 !important;
-    font-family: ${typographyConfig.fontFamily} !important;
-  }
-
-  /* Large phones - scale down slightly */
-  @media screen and (min-width: 480px) {
-    .email-body-text {
-      font-size: 20px !important;
-      line-height: 1.6 !important;
-      margin: 0 0 20px 0 !important;
-    }
-  }
-
-  /* Tablets - medium size */
-  @media screen and (min-width: 768px) {
-    .email-body-text {
-      font-size: ${typographyConfig.bodyText.tablet.fontSize} !important;
-      line-height: ${typographyConfig.bodyText.tablet.lineHeight} !important;
-      margin: 0 0 ${typographyConfig.margin.tablet} 0 !important;
-    }
-  }
-
-  /* Desktop - smallest size for large screens */
-  @media screen and (min-width: 1024px) {
-    .email-body-text {
-      font-size: ${typographyConfig.bodyText.desktop.fontSize} !important;
-      line-height: ${typographyConfig.bodyText.desktop.lineHeight} !important;
-      margin: 0 0 ${typographyConfig.margin.desktop} 0 !important;
-    }
-  }
 `;
-
-// Generate inline styles from central config - mobile-first for email client compatibility
-export const emailTypography = {
-  bodyText: {
-    fontSize: typographyConfig.bodyText.mobile.fontSize,    // Mobile-first base size
-    lineHeight: typographyConfig.bodyText.mobile.lineHeight,
-    color: typographyConfig.color,
-    fontFamily: typographyConfig.fontFamily,
-    margin: `0 0 ${typographyConfig.margin.mobile} 0`,
-    WebkitTextSizeAdjust: '100%',  // Critical inline Apple Mail fix
-    msTextSizeAdjust: '100%'       // Outlook compatibility
-  }
-};

@@ -2,6 +2,7 @@ import { Img, Text, Heading, Section, Row, Column } from '@react-email/component
 import { GroupWithReports } from '../../types/newsletter-types';
 import { Button } from './Button';
 import { formatDate, truncateText } from '../../lib/newsletter-helpers';
+import { subHeading, metaData, text } from '../lib/styling';
 
 interface StatusReportsProps {
   groups: GroupWithReports[];
@@ -47,7 +48,7 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
                 )}
               </Column>
               <Column style={nameColumn}>
-                <Heading as="h3" style={groupHeading}>
+                <Heading as="h3" style={subHeading}>
                   {group.name}
                 </Heading>
               </Column>
@@ -69,18 +70,18 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
                 >
                   <Row>
                     <Column>
-                      <Heading as="h4" style={reportHeading}>
+                      <Heading as="h4" style={subHeading}>
                         {report.title}
                       </Heading>
                       
-                      <Text style={reportMeta}>
+                      <Text style={metaData}>
                         {formatDate(report.createdAt)}
                         {report.reporterFirstName && report.reporterLastName && 
                           ` | ${report.reporterFirstName} ${report.reporterLastName}`
                         }
                       </Text>
                       
-                      <Text style={reportContent}>
+                      <Text style={text}>
                         {truncatedContent.replace(/<[^>]*>/g, '')}
                       </Text>
 
@@ -162,30 +163,3 @@ const nameColumn = {
   verticalAlign: 'top'
 };
 
-const groupHeading = {
-  fontSize: '26px',
-  color: "#333333",
-  marginTop: '18px',
-  marginBottom: '10px',
-};
-
-const reportHeading = {
-  fontSize: "22px",
-  fontWeight: "bold",
-  color: "#333333",
-  margin: '0 0 10px 0',
-};
-
-const reportMeta = {
-  fontSize: '22px',
-  fontWeight: 'bold',
-  color: '#666666',
-  margin: '0 0 10px 0'
-};
-
-const reportContent = {
-  fontSize: '22px',
-  color: '#333333',
-  lineHeight: '1.5',
-  margin: '0 0 15px 0'
-};

@@ -1,8 +1,8 @@
 import { Img, Text, Heading, Section, Row, Column } from '@react-email/components';
 import { Appointment } from '@prisma/client';
 import { Button } from './Button';
-import { emailTypography } from './EmailWrapper';
 import { getCoverImageUrl, formatAppointmentDateRange, truncateText } from '../../lib/newsletter-helpers';
+import { subHeading, metaData, text } from '../lib/styling';
 
 interface FeaturedEventProps {
   appointment: Appointment;
@@ -32,17 +32,16 @@ export function FeaturedEvent({ appointment, baseUrl }: FeaturedEventProps) {
           </Column>
         )}
         <Column style={imageUrl ? contentColumn : fullContentColumn}>
-          <Heading as="h3" style={headingStyle}>
+          <Heading as="h3" style={subHeading}>
             {appointment.title}
           </Heading>
           
-          <Text style={dateStyle}>
+          <Text style={metaData}>
             {dateRange}
           </Text>
           
           <Text 
-            style={emailTypography.bodyText}
-            className="email-body-text"
+            style={text}
             dangerouslySetInnerHTML={{ __html: truncatedText }}
           />
           
@@ -81,19 +80,4 @@ const imageStyle = {
   width: '100%',
   height: 'auto',
   objectFit: 'cover' as const,
-};
-
-const headingStyle = {
-  fontSize: '26px',
-  color: "#333333",
-  marginTop: '0px',
-  marginBottom: '10px',
-};
-
-const dateStyle = {
-  fontSize: '22px',
-  fontWeight: 'bold',
-  color: '#666666',
-  marginTop: '0px',
-  marginBottom: '10px',
 };

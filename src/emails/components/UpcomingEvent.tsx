@@ -1,8 +1,8 @@
 import { Text, Heading, Section, Row, Column } from '@react-email/components';
 import { Appointment } from '@prisma/client';
 import { Button } from './Button';
-import { emailTypography } from './EmailWrapper';
 import { formatAppointmentDateRange, truncateText } from '../../lib/newsletter-helpers';
+import { subHeading, metaData, text } from '../lib/styling';
 
 interface UpcomingEventProps {
   appointment: Appointment;
@@ -22,17 +22,16 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
     <Section style={upcomingSection}>
       <Row>
         <Column>
-          <Heading as="h3" style={headingStyle}>
+          <Heading as="h3" style={subHeading}>
             {appointment.title}
           </Heading>
           
-          <Text style={dateStyle}>
+          <Text style={metaData}>
             {dateRange}
           </Text>
           
           <Text 
-            style={emailTypography.bodyText}
-            className="email-body-text"
+            style={text}
             dangerouslySetInnerHTML={{ __html: truncatedText }}
           />
         </Column>
@@ -47,19 +46,4 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
 // Styles following React Email and apple.tsx patterns
 const upcomingSection = {
   marginBottom: '30px'
-};
-
-const headingStyle = {
-  fontSize: '26px',
-  color: "#333333",
-  marginTop: '0px',
-  marginBottom: '10px',
-};
-
-const dateStyle = {
-  fontSize: '22px',
-  fontWeight: 'bold',
-  color: '#666666',
-  marginTop: '0px',
-  marginBottom: '10px',
 };

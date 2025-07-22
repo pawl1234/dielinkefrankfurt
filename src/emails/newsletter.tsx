@@ -19,8 +19,9 @@ import { Footer } from './components/Footer';
 import { FeaturedEvent } from './components/FeaturedEvent';
 import { UpcomingEvent } from './components/UpcomingEvent';
 import { StatusReports } from './components/StatusReports';
-import { EmailWrapper, emailTypography } from './components/EmailWrapper';
+import { EmailWrapper } from './components/EmailWrapper';
 import { generatePreviewText } from '../lib/newsletter-helpers';
+import { heading, text } from './lib/styling';
 
 /**
  * Main newsletter template using React Email components for better email client compatibility.
@@ -59,12 +60,11 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
         
         {/* Introduction Section */}
         <Section style={sectionSpacing}>
-          <Heading as="h2" style={sectionHeading}>
+          <Heading as="h2" style={heading}>
             Einleitung
           </Heading>
           <Text 
-            style={emailTypography.bodyText}
-            className="email-body-text"
+            style={text}
             dangerouslySetInnerHTML={{ __html: introductionText }}
           />
         </Section>
@@ -72,7 +72,7 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
         {/* Featured Events Section */}
         {featuredAppointments && featuredAppointments.length > 0 && (
           <Section style={sectionSpacing}>
-            <Heading as="h2" style={sectionHeading}>
+            <Heading as="h2" style={heading}>
               Featured
             </Heading>
             {featuredAppointments.map((appointment) => (
@@ -88,7 +88,7 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
         {/* Upcoming Events Section */}
         {upcomingAppointments && upcomingAppointments.length > 0 && (
           <Section style={sectionSpacing}>
-            <Heading as="h2" style={sectionHeading}>
+            <Heading as="h2" style={heading}>
               Termine
             </Heading>
             {upcomingAppointments.map((appointment) => (
@@ -104,7 +104,7 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
         {/* Status Reports Section */}
         {statusReportsByGroup && statusReportsByGroup.length > 0 && (
           <Section style={sectionSpacing}>
-            <Heading as="h2" style={sectionHeading}>
+            <Heading as="h2" style={heading}>
               Aktuelle Gruppenberichte
             </Heading>
             <StatusReports
@@ -140,10 +140,4 @@ const sectionSpacing = {
   textAlign: 'left' as const,
 };
 
-const sectionHeading = {
-  marginTop: '15px',
-  fontSize: '28px',
-  marginBottom: '10px',
-  fontFamily: '"Work Sans", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif',
-  color: '#FF0000',
-};
+// Remove old sectionHeading - now using centralized styles from styling.ts
