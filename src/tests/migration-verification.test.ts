@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import { getDefaultNewsletterSettings, NewsletterSettings } from '@/lib/newsletter-template';
+import { NewsletterSettings } from '../types/newsletter-types';
+import { getDefaultNewsletterSettings } from '../lib/newsletter-template';
 
 describe('Newsletter Migration Verification', () => {
   describe('useBccSending field removal', () => {

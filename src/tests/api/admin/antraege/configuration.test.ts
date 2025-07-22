@@ -82,9 +82,9 @@ describe('/api/admin/antraege/configuration', () => {
       expect(response.status).toBe(200);
       expect(data.id).toBe(1);
       expect(data.recipientEmails).toBe('admin@test.com,kreisvorstand@test.com');
-      // Our mock doesn't properly serialize dates, so we just check they exist
-      expect(data.createdAt).toEqual(mockConfig.createdAt);
-      expect(data.updatedAt).toEqual(mockConfig.updatedAt);
+      // Dates get serialized to strings in JSON responses
+      expect(data.createdAt).toBe(mockConfig.createdAt.toISOString());
+      expect(data.updatedAt).toBe(mockConfig.updatedAt.toISOString());
       expect(mockPrisma.antragConfiguration.findFirst).toHaveBeenCalledTimes(1);
     });
 

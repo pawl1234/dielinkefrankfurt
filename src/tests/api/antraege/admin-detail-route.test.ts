@@ -49,7 +49,16 @@ describe('/api/admin/antraege/[id] GET', () => {
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual(mockAntrag);
+    
+    // Create expected response with serialized dates
+    const expectedResponse = {
+      ...mockAntrag,
+      createdAt: mockAntrag.createdAt.toISOString(),
+      updatedAt: mockAntrag.updatedAt.toISOString(),
+      decidedAt: mockAntrag.decidedAt, // null stays null
+    };
+    
+    expect(data).toEqual(expectedResponse);
     expect(mockPrisma.antrag.findUnique).toHaveBeenCalledWith({
       where: { id: '123' },
     });
@@ -113,7 +122,16 @@ describe('/api/admin/antraege/[id] GET', () => {
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual(mockAntragWithDecision);
+    
+    // Create expected response with serialized dates
+    const expectedResponse = {
+      ...mockAntragWithDecision,
+      createdAt: mockAntragWithDecision.createdAt.toISOString(),
+      updatedAt: mockAntragWithDecision.updatedAt.toISOString(),
+      decidedAt: mockAntragWithDecision.decidedAt.toISOString(),
+    };
+    
+    expect(data).toEqual(expectedResponse);
     expect(data.decisionComment).toBe('Approved for funding');
     expect(data.decidedBy).toBe('admin@test.com');
   });

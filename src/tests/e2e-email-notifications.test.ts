@@ -1,12 +1,18 @@
 // e2e-email-notifications.test.ts - End-to-end tests for email notifications
 import { sendGroupAcceptanceEmail, sendGroupRejectionEmail, sendGroupArchivingEmail, 
-         sendStatusReportAcceptanceEmail, sendStatusReportRejectionEmail } from '../lib/email-notifications';
+         sendStatusReportAcceptanceEmail, sendStatusReportRejectionEmail } from '../lib/email-senders';
 import { sendEmail } from '../lib/email';
 import { createMockGroup, createMockStatusReport } from './test-utils';
+import { getNewsletterSettings } from '../lib/newsletter-service';
 
 // Mock the email service
 jest.mock('../lib/email', () => ({
   sendEmail: jest.fn().mockImplementation(() => Promise.resolve({ success: true, messageId: 'mock-message-id' }))
+}));
+
+// Mock email rendering
+jest.mock('../lib/email-render', () => ({
+  renderNotificationEmail: jest.fn().mockResolvedValue('<html>Mock email content</html>')
 }));
 
 // Set up test environment variables
@@ -17,6 +23,11 @@ describe('Email Notification System', () => {
   // Reset mocks before each test
   beforeEach(() => {
     jest.clearAllMocks();
+    // Mock getNewsletterSettings to return test data
+    (getNewsletterSettings as jest.Mock).mockResolvedValue({
+      headerLogo: 'https://test.dielinke-frankfurt.de/logo.png',
+      contactEmail: 'test@dielinke-frankfurt.de'
+    });
   });
 
   afterEach(() => {

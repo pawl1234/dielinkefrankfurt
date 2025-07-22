@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
 import { Appointment, Group, StatusReport, NewsletterItem } from '@prisma/client';
+import { NewsletterSettings } from '../types/newsletter-types';
 import { 
-  NewsletterSettings, 
   generateNewsletterHtml, 
   getDefaultNewsletterSettings 
 } from './newsletter-template';

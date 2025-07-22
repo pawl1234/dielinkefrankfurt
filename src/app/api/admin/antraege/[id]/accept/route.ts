@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import prisma from '@/lib/prisma';
-import { sendAntragAcceptanceEmail } from '@/lib/email-notifications';
+import { sendAntragAcceptanceEmail } from '@/lib/email-senders';
 import { logger } from '@/lib/logger';
 
 /**

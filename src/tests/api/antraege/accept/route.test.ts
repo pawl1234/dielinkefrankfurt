@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { POST } from '@/app/api/admin/antraege/[id]/accept/route';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
-import { sendAntragAcceptanceEmail } from '@/lib/email-notifications';
+import { sendAntragAcceptanceEmail } from '@/lib/email-senders';
 
 // Mock dependencies
 jest.mock('@/lib/prisma', () => ({
@@ -19,7 +19,7 @@ jest.mock('next-auth', () => ({
   getServerSession: jest.fn(),
 }));
 
-jest.mock('@/lib/email-notifications', () => ({
+jest.mock('@/lib/email-senders', () => ({
   sendAntragAcceptanceEmail: jest.fn(),
 }));
 

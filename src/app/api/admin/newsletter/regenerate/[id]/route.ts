@@ -138,7 +138,7 @@ export async function PUT(request: NextRequest, { params }: Props) {
     const upcomingAppointments = appointments.filter(apt => !apt.featured);
 
     // Generate newsletter HTML
-    const newsletterHtml = generateNewsletterHtml({
+    const newsletterHtml = await generateNewsletterHtml({
       newsletterSettings,
       introductionText,
       featuredAppointments,

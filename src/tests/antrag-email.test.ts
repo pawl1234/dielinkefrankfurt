@@ -1,4 +1,4 @@
-import { sendAntragSubmissionEmail } from '../lib/email-notifications';
+import { sendAntragSubmissionEmail } from '../lib/email-senders';
 import { sendEmail } from '../lib/email';
 import { getRecipientEmails } from '../lib/db/antrag-config-operations';
 import { prepareEmailAttachments } from '../lib/email-attachment-utils';

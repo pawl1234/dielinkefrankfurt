@@ -16,8 +16,12 @@ const customJestConfig = {
     '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
     '^@/types/(.*)$': '<rootDir>/src/types/$1',
     '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
-    // Handle relative imports for components
+    // Handle relative imports for components and emails
     '^../components/(.*)$': '<rootDir>/src/components/$1',
+    '^\\.\\./emails/(.*)$': '<rootDir>/src/emails/$1',
+    '^\\.\\.\\./emails/(.*)$': '<rootDir>/src/emails/$1',
+    // Handle emails directory specifically
+    '^@/emails/(.*)$': '<rootDir>/src/emails/$1',
     // Handle MUI X Date Pickers internal imports
     '^@mui/x-date-pickers/internals/(.*)$': '<rootDir>/node_modules/@mui/x-date-pickers/internals/$1',
     '^@mui/x-date-pickers/(.*)$': '<rootDir>/node_modules/@mui/x-date-pickers/$1',
@@ -34,7 +38,7 @@ const customJestConfig = {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(jose|@auth|@mui/x-date-pickers)/)',
+    '/node_modules/(?!(jose|@auth|@mui/x-date-pickers|@react-email|react-email)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx'],

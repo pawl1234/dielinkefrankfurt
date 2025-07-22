@@ -12,7 +12,7 @@ import {
 } from '@/lib/validators/antrag-validator';
 import { apiErrorResponse } from '@/lib/errors';
 import { getRecipientEmails } from '@/lib/db/antrag-config-operations';
-import { sendAntragSubmissionEmail } from '@/lib/email-notifications';
+import { sendAntragSubmissionEmail } from '@/lib/email-senders';
 
 /**
  * Response type for Antrag submission

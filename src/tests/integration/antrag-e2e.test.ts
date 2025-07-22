@@ -5,7 +5,7 @@ import { GET as getAntraege, POST as acceptAntrag } from '@/app/api/admin/antrae
 import { POST as rejectAntrag } from '@/app/api/admin/antraege/[id]/reject/route';
 import { GET as getConfiguration, PUT as updateConfiguration } from '@/app/api/admin/antraege/configuration/route';
 import prisma from '@/lib/prisma';
-import { sendAntragAcceptanceEmail, sendAntragRejectionEmail } from '@/lib/email-notifications';
+import { sendAntragAcceptanceEmail, sendAntragRejectionEmail } from '@/lib/email-senders';
 import { validateRecaptcha } from '@/lib/validators/antrag-validator';
 import { uploadAntragFiles } from '@/lib/antrag-file-utils';
 import { logger } from '@/lib/logger';
@@ -33,7 +33,7 @@ jest.mock('@/lib/prisma', () => ({
   },
 }));
 
-jest.mock('@/lib/email-notifications', () => ({
+jest.mock('@/lib/email-senders', () => ({
   sendAntragAcceptanceEmail: jest.fn(),
   sendAntragRejectionEmail: jest.fn(),
 }));

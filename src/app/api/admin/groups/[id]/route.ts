@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/group-handlers';
 import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
-import { GroupWithResponsiblePersons } from '@/lib/email-notifications';
+import { GroupWithResponsiblePersons } from '@/types/email-types';
 import { validateFile, uploadCroppedImagePair, deleteFiles, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
 
 
