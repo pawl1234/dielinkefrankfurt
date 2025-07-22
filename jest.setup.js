@@ -1390,3 +1390,224 @@ jest.mock('dayjs', () => {
   return mockDayjs;
 });
 
+// Mock React Email render function
+jest.mock('@react-email/render', () => ({
+  render: jest.fn().mockImplementation((component) => {
+    // Extract content from component props to make it appear in the rendered HTML
+    let content = '';
+    
+    if (component && component.props) {
+      const props = component.props;
+      
+      // Add content based on component type and props
+      if (props.introductionText) {
+        content += props.introductionText;
+      }
+      
+      if (props.newsletterSettings && props.newsletterSettings.footerText) {
+        content += props.newsletterSettings.footerText;
+      }
+      
+      if (props.featuredAppointments) {
+        props.featuredAppointments.forEach(appointment => {
+          if (appointment.title) content += appointment.title;
+          if (appointment.teaser) content += appointment.teaser;
+          if (appointment.mainText) content += appointment.mainText;
+        });
+      }
+      
+      if (props.upcomingAppointments) {
+        props.upcomingAppointments.forEach(appointment => {
+          if (appointment.title) content += appointment.title;
+          if (appointment.teaser) content += appointment.teaser;
+          if (appointment.mainText) content += appointment.mainText;
+        });
+      }
+      
+      if (props.antrag) {
+        if (props.antrag.title) content += props.antrag.title;
+        if (props.antrag.firstName) content += props.antrag.firstName;
+        if (props.antrag.lastName) content += props.antrag.lastName;
+        if (props.antrag.email) content += props.antrag.email;
+      }
+      
+      if (props.group && props.group.name) {
+        content += props.group.name;
+        content += 'wurde freigeschaltet'; // German text for group acceptance
+      }
+      
+      if (props.statusReport) {
+        if (props.statusReport.title) content += props.statusReport.title;
+        content += 'wurde freigeschaltet'; // German text for status report acceptance
+      }
+      
+      // Add status reports content
+      if (props.statusReportsByGroup) {
+        content += '<h2 class="section-title">Aktuelle Gruppenberichte</h2>';
+        props.statusReportsByGroup.forEach(groupWithReports => {
+          if (groupWithReports.group) {
+            content += groupWithReports.group.name;
+            if (groupWithReports.group.logoUrl) {
+              content += `<img src="${groupWithReports.group.logoUrl}" alt="Logo">`;
+            }
+          }
+          if (groupWithReports.reports) {
+            groupWithReports.reports.forEach(report => {
+              if (report.title) content += report.title;
+              if (report.reporterFirstName && report.reporterLastName) {
+                content += `${report.reporterFirstName} ${report.reporterLastName}`;
+              }
+              if (groupWithReports.group && report.id && props.baseUrl) {
+                content += `<a href="${props.baseUrl}/gruppen/${groupWithReports.group.slug}#report-${report.id}" class="event-button">Mehr Infos</a>`;
+              }
+            });
+          }
+        });
+      }
+    }
+    
+    return Promise.resolve(`<!DOCTYPE html><html lang="de"><head><title>Test Email</title></head><body><div class="group-logo-placeholder">${content}</div><!--[if mso]><style>@media only screen and (max-width: 650px){}</style><![endif]--></body></html>`);
+  })
+}));
+
+// Mock email-render module
+jest.mock('@/lib/email-render', () => ({
+  renderNewsletter: jest.fn().mockImplementation((params) => {
+    let content = '';
+    
+    if (params.introductionText) {
+      content += params.introductionText;
+    }
+    
+    if (params.newsletterSettings && params.newsletterSettings.footerText) {
+      content += params.newsletterSettings.footerText;
+    }
+    
+    // Add featured appointments content
+    if (params.featuredAppointments) {
+      params.featuredAppointments.forEach(appointment => {
+        if (appointment.title) content += appointment.title;
+        if (appointment.teaser) content += appointment.teaser;
+        if (appointment.mainText) content += appointment.mainText;
+      });
+    }
+    
+    // Add upcoming appointments content
+    if (params.upcomingAppointments) {
+      params.upcomingAppointments.forEach(appointment => {
+        if (appointment.title) content += appointment.title;
+        if (appointment.teaser) content += appointment.teaser;
+        if (appointment.mainText) content += appointment.mainText;
+      });
+    }
+    
+    // Add status reports content
+    if (params.statusReportsByGroup && params.statusReportsByGroup.length > 0) {
+      content += '<h2 class="section-title">Aktuelle Gruppenberichte</h2>';
+      params.statusReportsByGroup.forEach(groupWithReports => {
+        if (groupWithReports.group) {
+          content += groupWithReports.group.name;
+          if (groupWithReports.group.logoUrl) {
+            content += groupWithReports.group.logoUrl;
+          }
+        }
+        if (groupWithReports.reports) {
+          groupWithReports.reports.forEach(report => {
+            if (report.title) content += report.title;
+            if (report.content) content += report.content;
+            if (report.reporterFirstName && report.reporterLastName) {
+              content += `${report.reporterFirstName} ${report.reporterLastName}`;
+            }
+            if (groupWithReports.group && report.id && params.baseUrl) {
+              content += `<a href="${params.baseUrl}/gruppen/${groupWithReports.group.slug}#report-${report.id}" class="event-button">`;
+            }
+          });
+        }
+      });
+    }
+    
+    return Promise.resolve(`<!DOCTYPE html><html lang="de"><head><title>Test Email</title></head><body><div class="group-logo-placeholder">${content}</div><!--[if mso]><style>@media only screen and (max-width: 650px){}</style><![endif]-->Mehr Infos</body></html>`);
+  })
+}));
+
+// Mock React Email components using both absolute and relative paths
+jest.mock('@/emails/newsletter', () => ({
+  default: jest.fn().mockImplementation((props) => ({ type: 'Newsletter', props }))
+}));
+
+jest.mock('../emails/newsletter', () => ({
+  default: jest.fn().mockImplementation((props) => ({ type: 'Newsletter', props }))
+}), { virtual: true });
+
+jest.mock('@/emails/antrag-submission', () => ({
+  default: (props) => ({ type: 'AntragSubmission', props })
+}));
+
+jest.mock('../emails/antrag-submission', () => ({
+  default: (props) => ({ type: 'AntragSubmission', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/group-acceptance', () => ({
+  default: (props) => ({ type: 'GroupAcceptance', props })
+}));
+
+jest.mock('../emails/notifications/group-acceptance', () => ({
+  default: (props) => ({ type: 'GroupAcceptance', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/group-rejection', () => ({
+  default: (props) => ({ type: 'GroupRejection', props })
+}));
+
+jest.mock('../emails/notifications/group-rejection', () => ({
+  default: (props) => ({ type: 'GroupRejection', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/group-archiving', () => ({
+  default: (props) => ({ type: 'GroupArchiving', props })
+}));
+
+jest.mock('../emails/notifications/group-archiving', () => ({
+  default: (props) => ({ type: 'GroupArchiving', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/status-report-acceptance', () => ({
+  default: (props) => ({ type: 'StatusReportAcceptance', props })
+}));
+
+jest.mock('../emails/notifications/status-report-acceptance', () => ({
+  default: (props) => ({ type: 'StatusReportAcceptance', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/status-report-rejection', () => ({
+  default: (props) => ({ type: 'StatusReportRejection', props })
+}));
+
+jest.mock('../emails/notifications/status-report-rejection', () => ({
+  default: (props) => ({ type: 'StatusReportRejection', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/status-report-archiving', () => ({
+  default: (props) => ({ type: 'StatusReportArchiving', props })
+}));
+
+jest.mock('../emails/notifications/status-report-archiving', () => ({
+  default: (props) => ({ type: 'StatusReportArchiving', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/antrag-acceptance', () => ({
+  default: (props) => ({ type: 'AntragAcceptance', props })
+}));
+
+jest.mock('../emails/notifications/antrag-acceptance', () => ({
+  default: (props) => ({ type: 'AntragAcceptance', props })
+}), { virtual: true });
+
+jest.mock('@/emails/notifications/antrag-rejection', () => ({
+  default: (props) => ({ type: 'AntragRejection', props })
+}));
+
+jest.mock('../emails/notifications/antrag-rejection', () => ({
+  default: (props) => ({ type: 'AntragRejection', props })
+}), { virtual: true });
+

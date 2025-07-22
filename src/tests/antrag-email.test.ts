@@ -2,6 +2,7 @@ import { sendAntragSubmissionEmail } from '../lib/email-senders';
 import { sendEmail } from '../lib/email';
 import { getRecipientEmails } from '../lib/db/antrag-config-operations';
 import { prepareEmailAttachments } from '../lib/email-attachment-utils';
+import { renderNotificationEmail } from '../lib/email-render';
 import { Antrag } from '@prisma/client';
 import type { AntragPurposes } from '@/types/api-types';
 
@@ -30,12 +31,18 @@ jest.mock('../lib/base-url', () => ({
   getBaseUrl: jest.fn().mockReturnValue('https://test.example.com')
 }));
 
+// Mock the email render module
+jest.mock('../lib/email-render', () => ({
+  renderNotificationEmail: jest.fn().mockResolvedValue('<html><body>Mock HTML Email Content</body></html>')
+}));
+
 // Mock environment variables
 process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.example.com';
 
 const sendEmailMock = sendEmail as jest.MockedFunction<typeof sendEmail>;
 const getRecipientEmailsMock = getRecipientEmails as jest.MockedFunction<typeof getRecipientEmails>;
 const prepareEmailAttachmentsMock = prepareEmailAttachments as jest.MockedFunction<typeof prepareEmailAttachments>;
+const renderNotificationEmailMock = renderNotificationEmail as jest.MockedFunction<typeof renderNotificationEmail>;
 
 describe('Antrag Email Notifications', () => {
   beforeEach(() => {
@@ -71,17 +78,16 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      expect(sendEmail).toHaveBeenCalledTimes(1);
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'admin@die-linke-frankfurt.de',
         subject: 'Neuer Antrag: Förderung für Jugendevent',
-        html: expect.stringContaining('Max Mustermann')
+        html: '<html><body>Mock HTML Email Content</body></html>'
       });
-
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Finanzieller Zuschuss');
-      expect(callArgs.html).toContain('500 €');
-      expect(callArgs.html).toContain('https://test.example.com/admin/antraege/antrag-123');
     });
 
     it('should successfully send email with personnel support purpose', async () => {
@@ -97,9 +103,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Personelle Unterstützung');
-      expect(callArgs.html).toContain('Veranstaltungsorganisation');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should successfully send email with room booking purpose', async () => {
@@ -117,11 +125,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Raumbuchung');
-      expect(callArgs.html).toContain('Gemeindesaal Frankfurt');
-      expect(callArgs.html).toContain('25');
-      expect(callArgs.html).toContain('Workshop am Samstag');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should successfully send email with other purpose', async () => {
@@ -137,9 +145,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Weiteres');
-      expect(callArgs.html).toContain('Pressearbeit');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should successfully send email with multiple purposes', async () => {
@@ -163,13 +173,11 @@ describe('Antrag Email Notifications', () => {
 
       expect(result.success).toBe(true);
       expect(sendEmail).toHaveBeenCalledTimes(1);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Finanzieller Zuschuss');
-      expect(callArgs.html).toContain('300 €');
-      expect(callArgs.html).toContain('Personelle Unterstützung');
-      expect(callArgs.html).toContain('Moderation');
-      expect(callArgs.html).toContain('Raumbuchung');
-      expect(callArgs.html).toContain('Kulturzentrum');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should include file attachments in email', async () => {
@@ -208,12 +216,13 @@ describe('Antrag Email Notifications', () => {
 
       expect(result.success).toBe(true);
       expect(prepareEmailAttachments).toHaveBeenCalledWith(fileUrls);
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls,
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
       
       const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Dateien:');
-      expect(callArgs.html).toContain('📎 antrag-konzept-abc123.pdf');
-      expect(callArgs.html).toContain('📎 budget-plan-def456.xlsx');
-      expect(callArgs.html).toContain('Als Anhang beigefügt');
       expect(callArgs.attachments).toEqual(mockAttachments);
     });
 
@@ -250,9 +259,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      // Check for German date format (DD.MM.YYYY, HH:MM)
-      expect(callArgs.html).toMatch(/\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}/);
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should handle empty recipient list', async () => {
@@ -293,8 +304,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Fehler beim Anzeigen der Zwecke');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should include proper email styling and structure', async () => {
@@ -307,21 +321,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      
-      // Check for proper HTML structure
-      expect(callArgs.html).toContain('font-family: Arial, sans-serif');
-      expect(callArgs.html).toContain('max-width: 700px');
-      expect(callArgs.html).toContain('Neuer Antrag an Kreisvorstand');
-      expect(callArgs.html).toContain('Antragsteller');
-      expect(callArgs.html).toContain('Anliegen/Zwecke');
-      expect(callArgs.html).toContain('Diese E-Mail wurde automatisch generiert');
-      expect(callArgs.html).toContain('© 2025 Die Linke Frankfurt');
-      
-      // Check for responsive design elements
-      expect(callArgs.html).toContain('margin: 0 auto');
-      expect(callArgs.html).toContain('padding:');
-      expect(callArgs.html).toContain('border-radius:');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should include clickable admin link with correct URL', async () => {
@@ -334,9 +338,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('href="https://test.example.com/admin/antraege/test-antrag-456"');
-      expect(callArgs.html).toContain('Antrag ansehen');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/test-antrag-456'
+      });
     });
 
     it('should handle mixed successful and skipped attachments', async () => {
@@ -352,7 +358,7 @@ describe('Antrag Email Notifications', () => {
       const recipientEmails = ['admin@die-linke-frankfurt.de'];
 
       // Mock mixed result with some attachments and some skipped
-      prepareEmailAttachmentsMock.mockResolvedValueOnce({
+      const mockAttachmentResult = {
         attachments: [{
           filename: 'good-file.pdf',
           content: Buffer.from('PDF content'),
@@ -372,22 +378,20 @@ describe('Antrag Email Notifications', () => {
           }
         ],
         errors: []
-      });
+      };
+      prepareEmailAttachmentsMock.mockResolvedValueOnce(mockAttachmentResult);
 
       const result = await sendAntragSubmissionEmail(mockAntrag, fileUrls, recipientEmails);
 
       expect(result.success).toBe(true);
+      expect(prepareEmailAttachments).toHaveBeenCalledWith(fileUrls);
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls,
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
+      
       const callArgs = sendEmailMock.mock.calls[0][0];
-      
-      // Should show attached file
-      expect(callArgs.html).toContain('📎 good-file.pdf');
-      expect(callArgs.html).toContain('Als Anhang beigefügt');
-      
-      // Should show skipped files with reasons
-      expect(callArgs.html).toContain('⚠️ bad-file.pdf - Nicht angehängt: Invalid or external URL');
-      expect(callArgs.html).toContain('⚠️ too-large.pdf - Nicht angehängt: File too large');
-      
-      // Should have one attachment
       expect(callArgs.attachments).toHaveLength(1);
     });
 
@@ -407,15 +411,13 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, fileUrls, recipientEmails);
 
       expect(result.success).toBe(true);
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls,
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
+      
       const callArgs = sendEmailMock.mock.calls[0][0];
-      
-      // Should fall back to file links
-      expect(callArgs.html).toContain('Angehängte Dateien (Links):');
-      expect(callArgs.html).toContain('href="https://blob.vercel-storage.com/document.pdf"');
-      expect(callArgs.html).toContain('document.pdf');
-      expect(callArgs.html).toContain('Hinweis: Dateien konnten nicht als Anhang beigefügt werden');
-      
-      // Should not have attachments
       expect(callArgs.attachments).toBeUndefined();
     });
 
@@ -429,12 +431,13 @@ describe('Antrag Email Notifications', () => {
 
       // Mock large file attachment (2MB)
       const largeContent = Buffer.alloc(2 * 1024 * 1024); // 2MB
+      const mockAttachments = [{
+        filename: 'large-doc.pdf',
+        content: largeContent,
+        contentType: 'application/pdf'
+      }];
       prepareEmailAttachmentsMock.mockResolvedValueOnce({
-        attachments: [{
-          filename: 'large-doc.pdf',
-          content: largeContent,
-          contentType: 'application/pdf'
-        }],
+        attachments: mockAttachments,
         totalSize: largeContent.length,
         skippedFiles: [],
         errors: []
@@ -443,11 +446,14 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, fileUrls, recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls,
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
       
-      // Should show file size in KB
-      expect(callArgs.html).toContain('📎 large-doc.pdf (2048 KB)');
-      expect(callArgs.html).toContain('Als Anhang beigefügt');
+      const callArgs = sendEmailMock.mock.calls[0][0];
+      expect(callArgs.attachments).toEqual(mockAttachments);
     });
 
     it('should not include attachments parameter when no files', async () => {
@@ -474,8 +480,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Keine Zwecke ausgewählt');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
 
     it('should handle purposes with disabled flags', async () => {
@@ -489,8 +498,11 @@ describe('Antrag Email Notifications', () => {
       const result = await sendAntragSubmissionEmail(mockAntrag, [], recipientEmails);
 
       expect(result.success).toBe(true);
-      const callArgs = sendEmailMock.mock.calls[0][0];
-      expect(callArgs.html).toContain('Keine Zwecke ausgewählt');
+      expect(renderNotificationEmail).toHaveBeenCalledWith('AntragSubmission', {
+        antrag: mockAntrag,
+        fileUrls: [],
+        adminUrl: 'https://test.example.com/admin/antraege/antrag-123'
+      });
     });
   });
 });

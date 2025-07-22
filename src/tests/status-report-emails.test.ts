@@ -14,6 +14,93 @@ jest.mock('../lib/base-url', () => ({
   getBaseUrl: jest.fn(() => 'https://test.example.com')
 }));
 
+jest.mock('../lib/newsletter-service', () => ({
+  getNewsletterSettings: jest.fn()
+}));
+
+jest.mock('../lib/email-render', () => ({
+  renderNotificationEmail: jest.fn().mockImplementation((templateName: string, props: any) => {
+    const baseHtml = '<html><body>';
+    let content = '';
+    
+    switch (templateName) {
+      case 'StatusReportAcceptance':
+        content = `
+          <div style="padding: 20px; background-color: #ffffff;">
+            <h2 style="color: #333; font-size: 18px;">Statusbericht "${props.statusReport.title}" wurde freigeschaltet</h2>
+            <p style="color: #333; line-height: 1.5;">Lieber ${props.recipientName},</p>
+            <p style="color: #333; line-height: 1.5;">Ihr Statusbericht "${props.statusReport.title}" wurde freigeschaltet wurde.</p>
+            <p style="text-align: center; margin: 20px 0;"><a href="${props.reportUrl}" style="color: #0066cc;">Statusbericht ansehen</a></p>
+            <p style="color: #333; line-height: 1.5;">Erstellt am: ${props.statusReport.createdAt.toLocaleDateString('de-DE')}</p>
+            <p style="color: #333; line-height: 1.5;">Mit freundlichen Grüßen,<br>Das Team von Die Linke Frankfurt</p>
+          </div>
+        `;
+        break;
+        
+      case 'StatusReportRejection':
+        content = `
+          <div style="padding: 20px; background-color: #ffffff;">
+            <h2 style="color: #333; font-size: 18px;">Statusbericht "${props.statusReport.title}" wurde abgelehnt</h2>
+            <p style="color: #333; line-height: 1.5;">Lieber ${props.recipientName},</p>
+            <p style="color: #333; line-height: 1.5;">Ihr Statusbericht "${props.statusReport.title}" wurde abgelehnt wurde.</p>
+            <p style="color: #333; line-height: 1.5;">Erstellt am: ${props.statusReport.createdAt.toLocaleDateString('de-DE')}</p>
+            <p style="color: #333; line-height: 1.5;">Bei Fragen wenden Sie sich bitte an: ${props.contactEmail}</p>
+            <p style="color: #333; line-height: 1.5;">Mit freundlichen Grüßen,<br>Das Team von Die Linke Frankfurt</p>
+          </div>
+        `;
+        break;
+        
+      case 'StatusReportArchiving':
+        content = `
+          <div style="padding: 20px; background-color: #ffffff;">
+            <h2 style="color: #333; font-size: 18px;">Statusbericht "${props.statusReport.title}" wurde archiviert</h2>
+            <p style="color: #333; line-height: 1.5;">Lieber ${props.recipientName},</p>
+            <p style="color: #333; line-height: 1.5;">Ihr Statusbericht "${props.statusReport.title}" wurde archiviert wurde.</p>
+        `;
+        
+        // Add file attachments section if files exist
+        if (props.statusReport.fileUrls) {
+          try {
+            const fileUrls = typeof props.statusReport.fileUrls === 'string' 
+              ? JSON.parse(props.statusReport.fileUrls) 
+              : props.statusReport.fileUrls;
+            
+            if (Array.isArray(fileUrls) && fileUrls.length > 0) {
+              content += `
+                <div style="margin: 20px 0;">
+                  <h3 style="color: #333;">Angehängte Dateien:</h3>
+                  <ul style="color: #333;">
+              `;
+              
+              fileUrls.forEach((url: string) => {
+                const filename = url.split('/').pop() || url;
+                content += `<li>${filename}</li>`;
+              });
+              
+              content += `
+                  </ul>
+                </div>
+              `;
+            }
+          } catch (e) {
+            // Invalid JSON, skip file list
+          }
+        }
+        
+        content += `
+            <p style="color: #333; line-height: 1.5;">Mit freundlichen Grüßen,<br>Das Team von Die Linke Frankfurt</p>
+          </div>
+        `;
+        break;
+        
+      default:
+        content = '<p>Mock email content</p>';
+    }
+    
+    return Promise.resolve(baseHtml + content + '</body></html>');
+  })
+}));
+
 // Mock environment variables
 process.env.VERCEL_PROJECT_PRODUCTION_URL = 'https://test.example.com';
 process.env.CONTACT_EMAIL = 'test@example.com';
@@ -26,6 +113,7 @@ import {
   sendStatusReportArchivingEmail 
 } from '../lib/email-senders';
 import prisma from '../lib/prisma';
+import { getNewsletterSettings } from '../lib/newsletter-service';
 import { StatusReport, Group, ResponsiblePerson, StatusReportStatus } from '@prisma/client';
 
 // Get mocked functions
@@ -85,6 +173,12 @@ describe('Status Report Email Notifications', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma.statusReport.update.mockResolvedValue(mockStatusReport);
+    
+    // Mock newsletter settings
+    (getNewsletterSettings as jest.Mock).mockResolvedValue({
+      headerLogo: 'https://test.example.com/logo.png',
+      contactEmail: 'test@example.com'
+    });
   });
 
   describe('updateStatusReportStatus', () => {

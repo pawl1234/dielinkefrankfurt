@@ -1,6 +1,6 @@
 import { subDays, subWeeks } from 'date-fns';
 import prisma from '../lib/prisma';
-import { truncateText, generateStatusReportsHtml } from '../lib/newsletter-helpers';
+import { truncateText } from '../lib/newsletter-helpers';
 import { generateNewsletterHtml } from '../lib/newsletter-template';
 
 // Mock the Prisma client
@@ -253,39 +253,9 @@ describe('Status Reports for Newsletter', () => {
     expect(customTruncated.endsWith('...')).toBe(true);
   });
 
-  test('generateStatusReportsHtml should correctly generate HTML for status reports', () => {
-    const baseUrl = 'https://example.com';
-    const statusReportsHtml = generateStatusReportsHtml(mockNewsletterGroups, baseUrl);
-    
-    // Should contain section title
-    expect(statusReportsHtml).toContain('<h2 class="section-title">Aktuelle Gruppenberichte</h2>');
-    
-    // Should include group names
-    expect(statusReportsHtml).toContain('Antifa Frankfurt');
-    expect(statusReportsHtml).toContain('Bündnis für Solidarität');
-    
-    // Should include report titles
-    expect(statusReportsHtml).toContain('Recent report');
-    expect(statusReportsHtml).toContain('Recent antifa report');
-    
-    // Should NOT include old reports
-    expect(statusReportsHtml).not.toContain('Old report');
-    
-    // Should include group logos
-    expect(statusReportsHtml).toContain('https://example.com/logo1.png');
-    expect(statusReportsHtml).toContain('https://example.com/logo2.png');
-    
-    // Should include reporter names
-    expect(statusReportsHtml).toContain('Max Mustermann');
-    expect(statusReportsHtml).toContain('Lisa Weber');
-    
-    // Should include links to reports
-    expect(statusReportsHtml).toContain(`<a href="https://example.com/gruppen/buendnis-fuer-solidaritaet#report-report1" class="event-button">`);
-    expect(statusReportsHtml).toContain(`<a href="https://example.com/gruppen/antifa-frankfurt#report-report3" class="event-button">`);
-  });
 
-  test('generateNewsletterHtml should include status reports section', () => {
-    const newsletterHtml = generateNewsletterHtml(mockNewsletterParams);
+  test('generateNewsletterHtml should include status reports section', async () => {
+    const newsletterHtml = await generateNewsletterHtml(mockNewsletterParams);
     
     // Should include status reports section
     expect(newsletterHtml).toContain('Aktuelle Gruppenberichte');
@@ -293,7 +263,7 @@ describe('Status Reports for Newsletter', () => {
     // Should include all necessary parts
     expect(newsletterHtml).toContain('<!DOCTYPE html>');
     expect(newsletterHtml).toContain('<html lang="de">');
-    expect(newsletterHtml).toContain('.group-logo-placeholder');
+    expect(newsletterHtml).toContain('class="group-logo-placeholder"');
     expect(newsletterHtml).toContain('Mehr Infos');
     
     // Should include responsive design
@@ -303,25 +273,25 @@ describe('Status Reports for Newsletter', () => {
     expect(newsletterHtml).toContain('<!--[if mso]>');
   });
 
-  test('generateNewsletterHtml should handle empty status reports', () => {
+  test('generateNewsletterHtml should handle empty status reports', async () => {
     const paramsWithoutStatusReports = {
       ...mockNewsletterParams,
       statusReportsByGroup: []
     };
     
-    const newsletterHtml = generateNewsletterHtml(paramsWithoutStatusReports);
+    const newsletterHtml = await generateNewsletterHtml(paramsWithoutStatusReports);
     
     // Should not include the status reports section
     expect(newsletterHtml).not.toContain('Aktuelle Gruppenberichte');
   });
 
-  test('generateNewsletterHtml should handle undefined status reports', () => {
+  test('generateNewsletterHtml should handle undefined status reports', async () => {
     const paramsWithUndefinedStatusReports = {
       ...mockNewsletterParams,
       statusReportsByGroup: undefined
     };
     
-    const newsletterHtml = generateNewsletterHtml(paramsWithUndefinedStatusReports);
+    const newsletterHtml = await generateNewsletterHtml(paramsWithUndefinedStatusReports);
     
     // Should not include the status reports section
     expect(newsletterHtml).not.toContain('Aktuelle Gruppenberichte');

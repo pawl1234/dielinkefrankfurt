@@ -76,7 +76,7 @@ describe('Newsletter Core Functionality', () => {
 
       // Test newsletter generation
       const settings = getDefaultNewsletterSettings();
-      const newsletterHtml = generateNewsletterHtml({
+      const newsletterHtml = await generateNewsletterHtml({
         newsletterSettings: settings,
         introductionText: '<p>Welcome to our newsletter</p>',
         featuredAppointments: [],
@@ -153,7 +153,7 @@ describe('Newsletter Core Functionality', () => {
       };
 
       const settings = getDefaultNewsletterSettings();
-      const newsletterHtml = generateNewsletterHtml({
+      const newsletterHtml = await generateNewsletterHtml({
         newsletterSettings: settings,
         introductionText: '<p>Test newsletter</p>',
         featuredAppointments: [featuredAppointment],
@@ -169,7 +169,7 @@ describe('Newsletter Core Functionality', () => {
 
     it('should handle empty data gracefully', async () => {
       const settings = getDefaultNewsletterSettings();
-      const newsletterHtml = generateNewsletterHtml({
+      const newsletterHtml = await generateNewsletterHtml({
         newsletterSettings: settings,
         introductionText: '<p>Empty newsletter</p>',
         featuredAppointments: [],

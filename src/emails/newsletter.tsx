@@ -7,15 +7,9 @@
  */
 
 import { 
-  Html, 
-  Head, 
-  Body, 
-  Container, 
   Section, 
   Text, 
-  Heading, 
-  Button,
-  Hr
+  Heading
 } from '@react-email/components';
 
 import { NewsletterEmailProps } from '../types/newsletter-props';

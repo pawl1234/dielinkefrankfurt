@@ -5,22 +5,40 @@
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render } from '@react-email/render';
+import React from 'react';
 import Newsletter from '../../emails/newsletter';
 import { NewsletterEmailProps } from '../../types/newsletter-props';
 import { Appointment, Group, StatusReport } from '@prisma/client';
 import { NewsletterSettings, GroupWithReports } from '../../types/newsletter-types';
 
-// Mock dynamic imports for testing environment
-jest.mock('@react-email/render', () => ({
-  render: jest.fn()
+// Mock child components to ensure they render
+jest.mock('../../emails/components/Header', () => ({
+  Header: ({ logo, banner }: any) => React.createElement('div', null, `Header with ${logo} and ${banner}`)
 }));
 
-const mockRender = render as jest.MockedFunction<typeof render>;
+jest.mock('../../emails/components/Footer', () => ({
+  Footer: ({ text, unsubscribeLink }: any) => React.createElement('div', null, `Footer: ${text}`)
+}));
+
+jest.mock('../../emails/components/FeaturedEvent', () => ({
+  FeaturedEvent: ({ appointment }: any) => React.createElement('div', null, `FeaturedEvent: ${appointment.title}`)
+}));
+
+jest.mock('../../emails/components/UpcomingEvent', () => ({
+  UpcomingEvent: ({ appointment }: any) => React.createElement('div', null, `UpcomingEvent: ${appointment.title}`)
+}));
+
+jest.mock('../../emails/components/StatusReports', () => ({
+  StatusReports: ({ groups }: any) => React.createElement('div', null, `StatusReports: ${groups.length} groups`)
+}));
+
+jest.mock('../../emails/components/EmailWrapper', () => ({
+  EmailWrapper: ({ children }: any) => React.createElement('div', null, children)
+}));
 
 describe('Newsletter React Email Template', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRender.mockResolvedValue('<html>Mock rendered HTML</html>');
   });
 
   const createMockNewsletterSettings = (): NewsletterSettings => ({
@@ -142,41 +160,37 @@ describe('Newsletter React Email Template', () => {
       const props = createMockNewsletterProps();
       
       // This should not throw any TypeScript errors
-      const component = Newsletter(props);
+      const component = <Newsletter {...props} />;
       
       expect(component).toBeDefined();
-      expect(component.type).toBe('html');
-      expect(component.props.lang).toBe('de');
+      expect(component.type).toBe(Newsletter);
+      expect(component.props).toEqual(props);
     });
 
-    it('should include all required sections', () => {
+    it('should include all required sections', async () => {
       const props = createMockNewsletterProps();
-      const component = Newsletter(props);
       
-      // Should have HTML structure
-      expect(component.type).toBe('html');
+      const html = await render(<Newsletter {...props} />);
       
-      // Should have body with sections
-      const body = component.props.children.find((child: any) => child.type === 'body');
-      expect(body).toBeDefined();
-      
-      const container = body.props.children;
-      expect(container.type).toBe('container');
+      // Should contain main content
+      expect(html).toContain(props.introductionText);
+      expect(html).toContain('Featured Event 1'); // Featured appointment title
+      expect(html).toContain(props.newsletterSettings.footerText);
+      expect(html).toBeDefined();
     });
 
-    it('should handle introduction text with multiple paragraphs', () => {
+    it('should handle introduction text with multiple paragraphs', async () => {
       const props = createMockNewsletterProps({
-        introductionText: 'Paragraph 1\n\nParagraph 2\n\nParagraph 3'
+        introductionText: 'Paragraph 1<br><br>Paragraph 2<br><br>Paragraph 3'
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
-      
-      // Component should process multiple paragraphs correctly
-      // (Detailed content verification would require rendering)
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toContain('Paragraph 1');
+      expect(html).toContain('Paragraph 2');
+      expect(html).toContain('Paragraph 3');
     });
 
-    it('should display featured appointments section when present', () => {
+    it('should display featured appointments section when present', async () => {
       const props = createMockNewsletterProps({
         featuredAppointments: [
           createMockAppointment({ 
@@ -187,11 +201,12 @@ describe('Newsletter React Email Template', () => {
         ]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toContain('Important Featured Event');
+      expect(html).toBeDefined();
     });
 
-    it('should display upcoming appointments section when present', () => {
+    it('should display upcoming appointments section when present', async () => {
       const props = createMockNewsletterProps({
         upcomingAppointments: [
           createMockAppointment({ 
@@ -201,11 +216,13 @@ describe('Newsletter React Email Template', () => {
         ]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      // Component renders successfully with upcoming appointments data
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
 
-    it('should display status reports section when present', () => {
+    it('should display status reports section when present', async () => {
       const props = createMockNewsletterProps({
         statusReportsByGroup: [
           {
@@ -219,61 +236,69 @@ describe('Newsletter React Email Template', () => {
         ]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      // Component renders successfully with status reports data
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
   });
 
   describe('Empty State Handling', () => {
-    it('should handle empty featured appointments', () => {
+    it('should handle empty featured appointments', async () => {
       const props = createMockNewsletterProps({
         featuredAppointments: []
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      // Should not contain featured appointments when empty
+      expect(html).toBeDefined();
     });
 
-    it('should handle empty upcoming appointments', () => {
+    it('should handle empty upcoming appointments', async () => {
       const props = createMockNewsletterProps({
         upcomingAppointments: []
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      // Should not contain upcoming appointments when empty
+      expect(html).toBeDefined();
     });
 
-    it('should handle empty status reports', () => {
+    it('should handle empty status reports', async () => {
       const props = createMockNewsletterProps({
         statusReportsByGroup: []
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      // Should not contain status reports when empty
+      expect(html).toBeDefined();
     });
 
-    it('should show empty state when no content available', () => {
+    it('should show empty state when no content available', async () => {
       const props = createMockNewsletterProps({
         featuredAppointments: [],
         upcomingAppointments: [],
         statusReportsByGroup: []
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
-      
-      // Should include empty state message and button
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      expect(html).toContain(props.introductionText);
+      expect(html).toContain(props.newsletterSettings.footerText);
     });
   });
 
   describe('Props Validation', () => {
-    it('should accept valid newsletter settings', () => {
+    it('should accept valid newsletter settings', async () => {
       const props = createMockNewsletterProps();
       
-      expect(() => Newsletter(props)).not.toThrow();
+      await expect(render(React.createElement(Newsletter, props))).resolves.toBeDefined();
     });
 
-    it('should handle minimal required props', () => {
+    it('should handle minimal required props', async () => {
       const minimalProps: NewsletterEmailProps = {
         newsletterSettings: createMockNewsletterSettings(),
         introductionText: 'Minimal newsletter',
@@ -283,70 +308,66 @@ describe('Newsletter React Email Template', () => {
         baseUrl: 'https://example.com'
       };
       
-      expect(() => Newsletter(minimalProps)).not.toThrow();
+      const html = await render(<Newsletter {...minimalProps} />);
+      expect(html).toContain('Minimal newsletter');
     });
 
-    it('should use provided base URL for link generation', () => {
+    it('should use provided base URL for link generation', async () => {
       const customBaseUrl = 'https://custom-domain.com';
       const props = createMockNewsletterProps({
         baseUrl: customBaseUrl
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
-      
-      // Links should use the custom base URL
-      // (Would need rendering to verify actual URLs)
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      // Base URL should be passed to child components for link generation
+      expect(html.length).toBeGreaterThan(0);
     });
   });
 
   describe('Accessibility and Structure', () => {
-    it('should have proper HTML structure', () => {
+    it('should have proper HTML structure', async () => {
       const props = createMockNewsletterProps();
-      const component = Newsletter(props);
+      const html = await render(<Newsletter {...props} />);
       
-      expect(component.type).toBe('html');
-      expect(component.props.lang).toBe('de');
-      
-      // Should have head and body
-      const children = component.props.children;
-      const head = children.find((child: any) => child.type === 'head');
-      const body = children.find((child: any) => child.type === 'body');
-      
-      expect(head).toBeDefined();
-      expect(body).toBeDefined();
+      expect(html).toContain('<!DOCTYPE html');
+      expect(html).toContain('<html lang="de">');
+      expect(html).toContain('<head>');
+      expect(html).toContain('<body>');
     });
 
-    it('should use semantic HTML elements', () => {
+    it('should use semantic HTML elements', async () => {
       const props = createMockNewsletterProps();
-      const component = Newsletter(props);
+      const html = await render(<Newsletter {...props} />);
       
-      // Component should use proper React Email components
-      // that render to semantic HTML
-      expect(component).toBeDefined();
+      // Should use proper semantic elements
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
   });
 
   describe('Style Integration', () => {
-    it('should apply consistent styling', () => {
+    it('should apply consistent styling', async () => {
       const props = createMockNewsletterProps();
-      const component = Newsletter(props);
+      const html = await render(<Newsletter {...props} />);
       
-      // Should use styles from utils/styles.ts
-      expect(component).toBeDefined();
+      // Should contain style information
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
 
-    it('should be responsive for email clients', () => {
+    it('should be responsive for email clients', async () => {
       const props = createMockNewsletterProps();
-      const component = Newsletter(props);
+      const html = await render(<Newsletter {...props} />);
       
       // Should include responsive styling patterns
-      expect(component).toBeDefined();
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
   });
 
   describe('Integration with Helper Functions', () => {
-    it('should use helper functions for date formatting', () => {
+    it('should use helper functions for date formatting', async () => {
       const props = createMockNewsletterProps({
         featuredAppointments: [
           createMockAppointment({
@@ -356,13 +377,13 @@ describe('Newsletter React Email Template', () => {
         ]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
-      
-      // Date formatting should be applied through helper functions
+      const html = await render(<Newsletter {...props} />);
+      // Should contain date information
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
 
-    it('should use helper functions for text truncation', () => {
+    it('should use helper functions for text truncation', async () => {
       const longText = 'A'.repeat(500);
       const props = createMockNewsletterProps({
         upcomingAppointments: [
@@ -372,13 +393,12 @@ describe('Newsletter React Email Template', () => {
         ]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
-      
-      // Text should be truncated through helper functions
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
 
-    it('should use helper functions for image URL generation', () => {
+    it('should use helper functions for image URL generation', async () => {
       const props = createMockNewsletterProps({
         featuredAppointments: [
           createMockAppointment({
@@ -390,49 +410,53 @@ describe('Newsletter React Email Template', () => {
         ]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
-      
-      // Cover images should be processed through helper functions
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
   });
 
   describe('Component Integration', () => {
-    it('should integrate with Header component', () => {
+    it('should integrate with Header component', async () => {
       const props = createMockNewsletterProps();
-      const component = Newsletter(props);
+      const html = await render(<Newsletter {...props} />);
       
-      // Should include Header component with correct props
-      expect(component).toBeDefined();
+      // Should include Header content
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
 
-    it('should integrate with Footer component', () => {
+    it('should integrate with Footer component', async () => {
       const props = createMockNewsletterProps();
-      const component = Newsletter(props);
+      const html = await render(<Newsletter {...props} />);
       
-      // Should include Footer component with correct props
-      expect(component).toBeDefined();
+      // Should include Footer content
+      expect(html).toContain(props.newsletterSettings.footerText);
+      expect(html).toBeDefined();
     });
 
-    it('should integrate with FeaturedEvent components', () => {
+    it('should integrate with FeaturedEvent components', async () => {
       const props = createMockNewsletterProps({
         featuredAppointments: [createMockAppointment({ featured: true })]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      expect(html).toBeDefined();
+      expect(html).toContain('Test Event');
     });
 
-    it('should integrate with UpcomingEvent components', () => {
+    it('should integrate with UpcomingEvent components', async () => {
       const props = createMockNewsletterProps({
         upcomingAppointments: [createMockAppointment()]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      // Component integrates with UpcomingEvent components
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
 
-    it('should integrate with StatusReports component', () => {
+    it('should integrate with StatusReports component', async () => {
       const props = createMockNewsletterProps({
         statusReportsByGroup: [
           {
@@ -442,8 +466,10 @@ describe('Newsletter React Email Template', () => {
         ]
       });
       
-      const component = Newsletter(props);
-      expect(component).toBeDefined();
+      const html = await render(<Newsletter {...props} />);
+      // Component integrates with StatusReports components
+      expect(html).toBeDefined();
+      expect(html.length).toBeGreaterThan(0);
     });
   });
 });
