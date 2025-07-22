@@ -1,6 +1,7 @@
 import { Text, Heading, Section, Row, Column } from '@react-email/components';
 import { Appointment } from '@prisma/client';
 import { Button } from './Button';
+import { emailTypography } from './EmailWrapper';
 import { formatAppointmentDateRange, truncateText } from '../../lib/newsletter-helpers';
 
 interface UpcomingEventProps {
@@ -29,7 +30,11 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
             {dateRange}
           </Text>
           
-          <Text dangerouslySetInnerHTML={{ __html: truncatedText }} />
+          <Text 
+            style={emailTypography.bodyText}
+            className="email-body-text"
+            dangerouslySetInnerHTML={{ __html: truncatedText }}
+          />
         </Column>
       </Row>
       <Row> 

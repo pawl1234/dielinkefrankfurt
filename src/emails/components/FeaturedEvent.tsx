@@ -1,6 +1,7 @@
 import { Img, Text, Heading, Section, Row, Column } from '@react-email/components';
 import { Appointment } from '@prisma/client';
 import { Button } from './Button';
+import { emailTypography } from './EmailWrapper';
 import { getCoverImageUrl, formatAppointmentDateRange, truncateText } from '../../lib/newsletter-helpers';
 
 interface FeaturedEventProps {
@@ -39,8 +40,11 @@ export function FeaturedEvent({ appointment, baseUrl }: FeaturedEventProps) {
             {dateRange}
           </Text>
           
-          <Text dangerouslySetInnerHTML={{ __html: truncatedText }}>
-          </Text>
+          <Text 
+            style={emailTypography.bodyText}
+            className="email-body-text"
+            dangerouslySetInnerHTML={{ __html: truncatedText }}
+          />
           
           <Button href={detailUrl}>Mehr Infos</Button>
         </Column>

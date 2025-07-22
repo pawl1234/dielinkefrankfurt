@@ -19,7 +19,7 @@ import { Footer } from './components/Footer';
 import { FeaturedEvent } from './components/FeaturedEvent';
 import { UpcomingEvent } from './components/UpcomingEvent';
 import { StatusReports } from './components/StatusReports';
-import { EmailWrapper } from './components/EmailWrapper';
+import { EmailWrapper, emailTypography } from './components/EmailWrapper';
 import { generatePreviewText } from '../lib/newsletter-helpers';
 
 /**
@@ -62,8 +62,11 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
           <Heading as="h2" style={sectionHeading}>
             Einleitung
           </Heading>
-          <Text dangerouslySetInnerHTML={{ __html: introductionText }}>
-          </Text>
+          <Text 
+            style={emailTypography.bodyText}
+            className="email-body-text"
+            dangerouslySetInnerHTML={{ __html: introductionText }}
+          />
         </Section>
 
         {/* Featured Events Section */}
@@ -139,6 +142,7 @@ const sectionSpacing = {
 
 const sectionHeading = {
   marginTop: '15px',
+  fontSize: '28px',
   marginBottom: '10px',
   fontFamily: '"Work Sans", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif',
   color: '#FF0000',
