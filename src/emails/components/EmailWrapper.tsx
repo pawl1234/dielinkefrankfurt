@@ -30,32 +30,37 @@ export function EmailWrapper({ children, title }: EmailWrapperProps) {
   );
 }
 
-// Central typography configuration - single source of truth
+// Central typography configuration - mobile-first approach for optimal readability
 const typographyConfig = {
   bodyText: {
-    desktop: {
-      fontSize: '16px',
+    mobile: {
+      fontSize: '22px',      // Excellent mobile readability
+      lineHeight: '1.6'      // Enhanced line spacing for mobile
+    },
+    tablet: {
+      fontSize: '18px',      // Medium screens
       lineHeight: '1.5'
     },
-    mobile: {
-      fontSize: '18px', 
+    desktop: {
+      fontSize: '16px',      // Large screens
       lineHeight: '1.5'
     }
   },
   color: '#333333',
   fontFamily: '"Inter", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif',
   margin: {
-    desktop: '16px',
-    mobile: '18px'
+    mobile: '22px',
+    tablet: '18px',
+    desktop: '16px'
   }
 };
 
-// Generate body style from central config
+// Generate body style from central config - mobile-first base
 const bodyStyle = {
   backgroundColor: '#F5F5F5',
   fontFamily: typographyConfig.fontFamily,
-  fontSize: typographyConfig.bodyText.desktop.fontSize,
-  lineHeight: typographyConfig.bodyText.desktop.lineHeight,
+  fontSize: typographyConfig.bodyText.mobile.fontSize,  // Start with mobile size
+  lineHeight: typographyConfig.bodyText.mobile.lineHeight,
   color: typographyConfig.color
 };
 
@@ -66,33 +71,59 @@ const containerStyle = {
   backgroundColor: '#FFFFFF',
 };
 
-// Generate responsive styles from central config  
+// Generate responsive styles from central config - mobile-first approach
 const responsiveStyles = `
-  /* Base styles for all screens - inherits from body for email client compatibility */
-  .email-body-text {
-    font-size: ${typographyConfig.bodyText.desktop.fontSize} !important;
-    line-height: ${typographyConfig.bodyText.desktop.lineHeight} !important;
-    color: ${typographyConfig.color} !important;
-    margin: 0 0 ${typographyConfig.margin.desktop} 0 !important;
+  /* Apple Mail specific optimizations */
+  * {
+    -webkit-text-size-adjust: none !important;
+    -ms-text-size-adjust: none !important;
+    text-size-adjust: none !important;
   }
 
-  /* Mobile optimization using Gmail-supported media queries */
-  @media screen and (max-width: 600px) {
+  /* Mobile-first base styles - default for all screens */
+  .email-body-text {
+    font-size: ${typographyConfig.bodyText.mobile.fontSize} !important;
+    line-height: ${typographyConfig.bodyText.mobile.lineHeight} !important;
+    color: ${typographyConfig.color} !important;
+    margin: 0 0 ${typographyConfig.margin.mobile} 0 !important;
+    font-family: ${typographyConfig.fontFamily} !important;
+  }
+
+  /* Large phones - scale down slightly */
+  @media screen and (min-width: 480px) {
     .email-body-text {
-      font-size: ${typographyConfig.bodyText.mobile.fontSize} !important;
-      line-height: ${typographyConfig.bodyText.mobile.lineHeight} !important;
-      margin: 0 0 ${typographyConfig.margin.mobile} 0 !important;
+      font-size: 20px !important;
+      line-height: 1.6 !important;
+      margin: 0 0 20px 0 !important;
+    }
+  }
+
+  /* Tablets - medium size */
+  @media screen and (min-width: 768px) {
+    .email-body-text {
+      font-size: ${typographyConfig.bodyText.tablet.fontSize} !important;
+      line-height: ${typographyConfig.bodyText.tablet.lineHeight} !important;
+      margin: 0 0 ${typographyConfig.margin.tablet} 0 !important;
+    }
+  }
+
+  /* Desktop - smallest size for large screens */
+  @media screen and (min-width: 1024px) {
+    .email-body-text {
+      font-size: ${typographyConfig.bodyText.desktop.fontSize} !important;
+      line-height: ${typographyConfig.bodyText.desktop.lineHeight} !important;
+      margin: 0 0 ${typographyConfig.margin.desktop} 0 !important;
     }
   }
 `;
 
-// Generate inline styles from central config for email client compatibility
+// Generate inline styles from central config - mobile-first for email client compatibility
 export const emailTypography = {
   bodyText: {
-    fontSize: typographyConfig.bodyText.desktop.fontSize,
-    lineHeight: typographyConfig.bodyText.desktop.lineHeight,
+    fontSize: typographyConfig.bodyText.mobile.fontSize,    // Mobile-first base size
+    lineHeight: typographyConfig.bodyText.mobile.lineHeight,
     color: typographyConfig.color,
     fontFamily: typographyConfig.fontFamily,
-    margin: `0 0 ${typographyConfig.margin.desktop} 0`
+    margin: `0 0 ${typographyConfig.margin.mobile} 0`
   }
 };
