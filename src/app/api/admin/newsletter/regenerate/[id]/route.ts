@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
-import { generateNewsletterHtml, getDefaultNewsletterSettings } from '@/lib/newsletter-template';
+import { generateNewsletterHtml } from '@/lib/newsletter-template';
+import { getNewsletterSettings } from '@/lib/newsletter-service';
 import { getBaseUrl } from '@/lib/base-url';
 import { Group } from '@prisma/client';
 
@@ -12,33 +13,6 @@ interface Props {
   }>;
 }
 
-// Helper function to get newsletter settings from database
-async function getNewsletterSettingsFromDB() {
-  try {
-    const settings = await prisma.newsletter.findFirst();
-    if (settings) {
-      return {
-        headerLogo: settings.headerLogo || '',
-        headerBanner: settings.headerBanner || '',
-        footerText: settings.footerText || '',
-        unsubscribeLink: settings.unsubscribeLink || '',
-        batchSize: settings.batchSize || 100,
-        batchDelay: settings.batchDelay || 1000,
-        fromEmail: settings.fromEmail || '',
-        fromName: settings.fromName || '',
-        replyToEmail: settings.replyToEmail || '',
-        subjectTemplate: settings.subjectTemplate || '',
-        emailSalt: settings.emailSalt || '',
-        testEmailRecipients: settings.testEmailRecipients || ''
-      };
-    }
-  } catch (error) {
-    console.error('Error fetching newsletter settings:', error);
-  }
-  
-  // Return default settings if none found
-  return getDefaultNewsletterSettings();
-}
 
 // PUT regenerate newsletter content with new introduction text
 export async function PUT(request: NextRequest, { params }: Props) {
@@ -131,7 +105,7 @@ export async function PUT(request: NextRequest, { params }: Props) {
     const groupsWithReports = Object.values(groupedReports);
 
     // Get newsletter settings
-    const newsletterSettings = await getNewsletterSettingsFromDB();
+    const newsletterSettings = await getNewsletterSettings();
     
     // Separate featured and regular appointments
     const featuredAppointments = appointments.filter(apt => apt.featured);
