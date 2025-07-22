@@ -46,6 +46,7 @@ export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
       <Header 
         logo={newsletterSettings.headerLogo}
         banner={newsletterSettings.headerBanner}
+        composite={newsletterSettings.compositeImageUrl}
       />
       
       {/* Main content area */}

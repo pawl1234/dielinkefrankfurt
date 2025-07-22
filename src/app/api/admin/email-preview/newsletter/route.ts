@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
-import { generateNewsletterHtml, getDefaultNewsletterSettings } from '@/lib/newsletter-template';
+import { generateNewsletterHtml } from '@/lib/newsletter-template';
+import { getNewsletterSettings } from '@/lib/newsletter-service';
 import { getBaseUrl } from '@/lib/base-url';
 import prisma from '@/lib/prisma';
 
@@ -15,7 +16,7 @@ export const GET = withAdminAuth(async () => {
 
     // For preview, we'll use sample data or recent data from the database
     const baseUrl = getBaseUrl();
-    const newsletterSettings = getDefaultNewsletterSettings();
+    const newsletterSettings = await getNewsletterSettings();
 
     // Get some sample appointments (featured and upcoming)
     const featuredAppointments = await prisma.appointment.findMany({

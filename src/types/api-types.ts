@@ -123,3 +123,24 @@ export interface AntragWithId extends Omit<AntragFormData, 'files'> {
   decidedBy?: string;
   decidedAt?: Date | string;
 }
+
+/**
+ * Request for generating composite header image
+ */
+export interface CompositeGenerationRequest {
+  bannerUrl: string;
+  logoUrl: string;
+  compositeWidth: number;
+  compositeHeight: number;
+  logoTopOffset: number;
+  logoLeftOffset: number;
+  logoHeight: number;
+}
+
+/**
+ * Response from composite generation service
+ */
+export interface CompositeGenerationResponse {
+  compositeUrl: string;
+  cacheKey: string;
+}

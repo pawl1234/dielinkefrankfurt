@@ -57,6 +57,14 @@ export default function NewsletterSettingsPage() {
     maxRetries: 3,
     maxBackoffDelay: 10000,
     retryChunkSizes: '10,5,1',
+    // Header composition settings
+    compositeWidth: 600,
+    compositeHeight: 200,
+    logoTopOffset: 20,
+    logoLeftOffset: 20,
+    logoHeight: 60,
+    compositeImageUrl: '',
+    compositeImageHash: '',
   });
 
   useEffect(() => {
@@ -203,6 +211,96 @@ export default function NewsletterSettingsPage() {
               margin="normal"
               helperText="Email-Adressen für Testemails (durch Komma getrennt)"
             />
+            
+            <Divider sx={{ my: 3 }} />
+            
+            <Typography variant="h6" gutterBottom>
+              Header-Komposition (Erweitert)
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Automatische Generierung von Composite-Header-Bildern für bessere Email-Client-Kompatibilität.
+              Das System kombiniert Banner und Logo zu einem Bild, wenn beide URLs vorhanden sind.
+            </Typography>
+            
+            {settings.compositeImageUrl && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Composite-Bild wurde erfolgreich generiert: 
+                <Box component="span" sx={{ ml: 1 }}>
+                  <a href={settings.compositeImageUrl} target="_blank" rel="noopener noreferrer">
+                    Vorschau anzeigen
+                  </a>
+                </Box>
+              </Alert>
+            )}
+            
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Composite-Breite (px)"
+                  value={settings.compositeWidth || 600}
+                  onChange={(e) => setSettings({ ...settings, compositeWidth: parseInt(e.target.value) || 600 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: 200, max: 1200 } }}
+                  fullWidth
+                  margin="normal"
+                  helperText="Breite des generierten Composite-Bildes (200-1200px)"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Composite-Höhe (px)"
+                  value={settings.compositeHeight || 200}
+                  onChange={(e) => setSettings({ ...settings, compositeHeight: parseInt(e.target.value) || 200 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: 100, max: 400 } }}
+                  fullWidth
+                  margin="normal"
+                  helperText="Höhe des generierten Composite-Bildes (100-400px)"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Logo-Höhe (px)"
+                  value={settings.logoHeight || 60}
+                  onChange={(e) => setSettings({ ...settings, logoHeight: parseInt(e.target.value) || 60 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: 20, max: 200 } }}
+                  fullWidth
+                  margin="normal"
+                  helperText="Höhe des Logos im Composite (20-200px)"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Logo-Position Oben (px)"
+                  value={settings.logoTopOffset || 20}
+                  onChange={(e) => setSettings({ ...settings, logoTopOffset: parseInt(e.target.value) || 20 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: 0, max: 300 } }}
+                  fullWidth
+                  margin="normal"
+                  helperText="Abstand des Logos vom oberen Rand"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  label="Logo-Position Links (px)"
+                  value={settings.logoLeftOffset || 20}
+                  onChange={(e) => setSettings({ ...settings, logoLeftOffset: parseInt(e.target.value) || 20 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: 0, max: 800 } }}
+                  fullWidth
+                  margin="normal"
+                  helperText="Abstand des Logos vom linken Rand"
+                />
+              </Grid>
+            </Grid>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, p: 2, bgcolor: 'info.50', borderRadius: 1 }}>
+              <strong>💡 Hinweis:</strong> Das Composite-Bild wird automatisch generiert, wenn sowohl Banner- als auch Logo-URL vorhanden sind. 
+              Dies verbessert die Darstellung in Email-Clients wie Gmail, die CSS-Overlays nicht korrekt rendern. 
+              Bei Fehlern wird automatisch auf die CSS-Overlay-Methode zurückgefallen.
+            </Typography>
             
             <Divider sx={{ my: 3 }} />
             

@@ -19,6 +19,20 @@ import { ChunkResult } from '../types/api-types';
 let settingsCache: NewsletterSettings | null = null;
 
 /**
+ * Clears the newsletter settings cache to force fresh data load
+ */
+export function clearNewsletterSettingsCache(): void {
+  settingsCache = null;
+  logger.debug('Newsletter settings cache cleared', {
+    module: 'newsletter-service',
+    context: { 
+      operation: 'clearNewsletterSettingsCache',
+      timestamp: new Date().toISOString()
+    }
+  });
+}
+
+/**
  * Fix URLs in newsletter HTML content to ensure they have proper protocol
  */
 export function fixUrlsInNewsletterHtml(html: string): string {
@@ -93,6 +107,17 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         maxRetries: dbSettings.maxRetries ?? defaultSettings.maxRetries,
         maxBackoffDelay: dbSettings.maxBackoffDelay ?? defaultSettings.maxBackoffDelay,
         retryChunkSizes: dbSettings.retryChunkSizes ?? defaultSettings.retryChunkSizes,
+
+        // Header Composition Settings
+        compositeWidth: dbSettings.compositeWidth ?? undefined,
+        compositeHeight: dbSettings.compositeHeight ?? undefined,
+        logoTopOffset: dbSettings.logoTopOffset ?? undefined,
+        logoLeftOffset: dbSettings.logoLeftOffset ?? undefined,
+        logoHeight: dbSettings.logoHeight ?? undefined,
+        
+        // Generated composite metadata
+        compositeImageUrl: dbSettings.compositeImageUrl ?? undefined,
+        compositeImageHash: dbSettings.compositeImageHash ?? undefined,
         
         // System fields
         id: dbSettings.id,
@@ -193,7 +218,18 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           // Retry logic settings
           maxRetries: data.maxRetries,
           maxBackoffDelay: data.maxBackoffDelay,
-          retryChunkSizes: data.retryChunkSizes
+          retryChunkSizes: data.retryChunkSizes,
+
+          // Header Composition Settings
+          compositeWidth: data.compositeWidth,
+          compositeHeight: data.compositeHeight,
+          logoTopOffset: data.logoTopOffset,
+          logoLeftOffset: data.logoLeftOffset,
+          logoHeight: data.logoHeight,
+          
+          // Generated composite metadata
+          compositeImageUrl: data.compositeImageUrl,
+          compositeImageHash: data.compositeImageHash
         }
       });
     } else {
@@ -231,7 +267,18 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           // Retry logic settings
           maxRetries: data.maxRetries || defaultSettings.maxRetries,
           maxBackoffDelay: data.maxBackoffDelay || defaultSettings.maxBackoffDelay,
-          retryChunkSizes: data.retryChunkSizes || defaultSettings.retryChunkSizes
+          retryChunkSizes: data.retryChunkSizes || defaultSettings.retryChunkSizes,
+
+          // Header Composition Settings
+          compositeWidth: data.compositeWidth,
+          compositeHeight: data.compositeHeight,
+          logoTopOffset: data.logoTopOffset,
+          logoLeftOffset: data.logoLeftOffset,
+          logoHeight: data.logoHeight,
+          
+          // Generated composite metadata
+          compositeImageUrl: data.compositeImageUrl,
+          compositeImageHash: data.compositeImageHash
         }
       });
     }
