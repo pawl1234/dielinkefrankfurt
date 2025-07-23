@@ -238,13 +238,14 @@ export async function getPublicAppointments(request: NextRequest) {
       select: {
         id: true,
         title: true,
-        teaser: true,
+        mainText: true,
         startDateTime: true,
         endDateTime: true,
         street: true,
         city: true,
         state: true,
-        postalCode: true
+        postalCode: true,
+        featured: true
       }
     });
     

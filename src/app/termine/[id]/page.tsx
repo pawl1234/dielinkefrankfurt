@@ -20,23 +20,8 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components/ui/FileThumbnail';
+import { Appointment } from '@/types/component-types';
 
-interface Appointment {
-  id: number;
-  title: string;
-  teaser: string;
-  mainText: string;
-  startDateTime: string;
-  endDateTime: string | null;
-  street: string | null;
-  city: string | null;
-  state: string | null;
-  postalCode: string | null;
-  recurringText: string | null;
-  fileUrls: string | null;
-  metadata: string | null;
-  featured: boolean;
-}
 
 export default function AppointmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
@@ -120,19 +105,6 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
             <Box sx={{ mb: 4 }}>
               <Typography variant="h4" component="h1" gutterBottom>
                 {appointment.title}
-              </Typography>
-              <Typography 
-                variant="body1"
-                sx={{ 
-                mb: 2,
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                color: 'text.secondary',
-                flexGrow: 1
-              }}>
-                {appointment.teaser}
               </Typography>
               
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>

@@ -119,15 +119,25 @@ export default function HomePageContent() {
               <Grid size={{ xs: 12 }} key={appointment.id}> {/* Corrected Grid syntax */}
                 <Card>
                   <CardContent>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{appointment.title}</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontSize: '22px' }}>{appointment.title}</Typography>
                     <Box mt={1} mb={1}>
                       <Chip icon={<CalendarTodayIcon />} label={format(new Date(appointment.startDateTime), 'dd. MMM', { locale: de })} size="small" color="primary" variant="outlined" sx={{mr:0.5, mb:0.5}}/>
                       <Chip icon={<EventIcon />} label={format(new Date(appointment.startDateTime), 'HH:mm', { locale: de })} size="small" color="primary" variant="outlined" sx={{mr:0.5, mb:0.5}}/>
                       {appointment.city && (<Chip icon={<LocationOnIcon />} label={appointment.city} size="small" color="primary" variant="outlined" sx={{mr:0.5, mb:0.5}}/>)}
                     </Box>
-                    <Typography variant="body1" sx={{ mb: 2, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', color: 'text.secondary', flexGrow: 1 }}>
-                      {appointment.mainText}
-                    </Typography>
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        mb: 2, 
+                        display: '-webkit-box', 
+                        WebkitLineClamp: 5, 
+                        WebkitBoxOrient: 'vertical', 
+                        overflow: 'hidden', 
+                        color: 'text.secondary', 
+                        flexGrow: 1 
+                      }}
+                      dangerouslySetInnerHTML={{ __html: appointment.mainText }}
+                    />
                   </CardContent>
                   <CardActions sx={{ p: 2, pt: 0 }}>
                     <Button href={`/termine/${appointment.id}`} variant="contained" LinkComponent={Link}>Details anzeigen</Button>
