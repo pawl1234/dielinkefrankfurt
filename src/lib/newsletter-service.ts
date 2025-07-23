@@ -12,7 +12,7 @@ import { subWeeks } from 'date-fns';
 import { getBaseUrl } from './base-url';
 import { logger } from './logger';
 import { handleDatabaseError, NewsletterNotFoundError, NewsletterValidationError } from './errors';
-import { validateNewsletterLimits, getNewsletterLimitDefault } from './newsletter-validation';
+import { validateNewsletterLimits } from './newsletter-validation';
 import { NEWSLETTER_LIMITS, NEWSLETTER_DATE_RANGES } from './newsletter-constants';
 import { PaginatedResult } from './newsletter-archive';
 import { ChunkResult } from '../types/api-types';
