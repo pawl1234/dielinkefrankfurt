@@ -128,6 +128,7 @@ describe('HeaderCompositionService', () => {
           access: 'public',
           contentType: 'image/jpeg',
           addRandomSuffix: false,
+          allowOverwrite: true,
           cacheControlMaxAge: 31536000,
         }
       );
