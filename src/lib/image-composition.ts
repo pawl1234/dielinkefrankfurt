@@ -296,6 +296,7 @@ export class HeaderCompositionService {
         access: 'public',
         contentType: 'image/jpeg',
         addRandomSuffix: false,
+        allowOverwrite: true, // Allow overwriting existing files with same name
         cacheControlMaxAge: 31536000, // Cache for 1 year
       });
       
