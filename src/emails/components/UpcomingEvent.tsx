@@ -21,7 +21,7 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
   return (
     <Section style={upcomingSection}>
       <Row>
-        <Column>
+        <Column style={columnStyle}>
           <Heading as="h3" style={subHeading}>
             {appointment.title}
           </Heading>
@@ -30,14 +30,12 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
             {dateRange}
           </Text>
           
-          <Text 
-            style={text}
-            dangerouslySetInnerHTML={{ __html: truncatedText }}
-          />
+          <Text style={text}>
+            {truncatedText.replace(/<[^>]*>/g, '')}
+          </Text>
+          
+          <Button href={detailUrl} withContainer={true}>Mehr Infos</Button>
         </Column>
-      </Row>
-      <Row> 
-        <Button href={detailUrl}>Mehr Infos</Button>
       </Row>
     </Section>
   );
@@ -46,4 +44,10 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
 // Styles following React Email and apple.tsx patterns
 const upcomingSection = {
   marginBottom: '30px'
+};
+
+const columnStyle = {
+  width: '100%',
+  verticalAlign: 'top',
+  paddingTop: '20px',
 };

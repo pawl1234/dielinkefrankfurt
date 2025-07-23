@@ -23,13 +23,20 @@ export function Button({ href, children, withContainer = false }: ButtonProps) {
     padding: '10px 20px',
     borderRadius: '4px',
     border: 'none',
+    marginTop: '25px',
+    marginBottom: '10px',
     display: 'inline-block',
     textAlign: 'center' as const,
     textDecoration: 'none'
   };
 
+  // Needed because Gmail renderes the butten centered
   const containerStyle = {
-    marginTop: '15px'
+    textAlign: 'left' as const,
+    display: 'block' as const,    // Ensure block-level behavior
+    width: '100%',               // Ensure full width
+    marginLeft: '0',             // Prevent any auto-centering
+    marginRight: '0'             // Prevent any auto-centering
   };
 
   const button = (
