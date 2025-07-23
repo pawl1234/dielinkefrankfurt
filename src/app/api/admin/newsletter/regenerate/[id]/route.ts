@@ -3,9 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
 import { generateNewsletterHtml } from '@/lib/newsletter-template';
-import { getNewsletterSettings } from '@/lib/newsletter-service';
+import { getNewsletterSettings, fetchNewsletterAppointments, fetchNewsletterStatusReports } from '@/lib/newsletter-service';
 import { getBaseUrl } from '@/lib/base-url';
-import { Group } from '@prisma/client';
 
 interface Props {
   params: Promise<{
@@ -53,63 +52,17 @@ export async function PUT(request: NextRequest, { params }: Props) {
       return NextResponse.json({ error: 'Only draft newsletters can be edited' }, { status: 400 });
     }
 
-    // Fetch appointments and status reports for newsletter generation
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Start of today
-    
-    const [appointments, statusReports] = await Promise.all([
-      // Get featured appointments first, then other accepted appointments (only today or future)
-      prisma.appointment.findMany({
-        where: {
-          status: 'accepted',
-          startDateTime: {
-            gte: today // Only appointments from today onwards
-          }
-        },
-        orderBy: [
-          { featured: 'desc' }, // Featured first
-          { startDateTime: 'asc' } // Then by date
-        ]
-      }),
-      
-      // Get recent status reports (last 2 weeks) with group info
-      prisma.statusReport.findMany({
-        where: {
-          status: 'ACTIVE',
-          createdAt: {
-            gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) // Last 2 weeks
-          }
-        },
-        include: {
-          group: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      })
-    ]);
-
-    // Group status reports by group
-    const groupedReports = statusReports.reduce((acc, report) => {
-      const groupId = report.groupId;
-      if (!acc[groupId]) {
-        acc[groupId] = {
-          group: report.group,
-          reports: []
-        };
-      }
-      acc[groupId].reports.push(report);
-      return acc;
-    }, {} as Record<string, { group: Group, reports: typeof statusReports }>);
-
-    const groupsWithReports = Object.values(groupedReports);
-
-    // Get newsletter settings
+    // Get newsletter settings first
     const newsletterSettings = await getNewsletterSettings();
     
-    // Separate featured and regular appointments
-    const featuredAppointments = appointments.filter(apt => apt.featured);
-    const upcomingAppointments = appointments.filter(apt => !apt.featured);
+    // Use the service layer functions with the configured limits
+    const [
+      { featuredAppointments, upcomingAppointments },
+      { statusReportsByGroup: groupsWithReports }
+    ] = await Promise.all([
+      fetchNewsletterAppointments(newsletterSettings),
+      fetchNewsletterStatusReports(newsletterSettings)
+    ]);
 
     // Generate newsletter HTML
     const newsletterHtml = await generateNewsletterHtml({

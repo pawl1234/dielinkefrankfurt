@@ -12,6 +12,8 @@ import { subWeeks } from 'date-fns';
 import { getBaseUrl } from './base-url';
 import { logger } from './logger';
 import { handleDatabaseError, NewsletterNotFoundError, NewsletterValidationError } from './errors';
+import { validateNewsletterLimits, getNewsletterLimitDefault } from './newsletter-validation';
+import { NEWSLETTER_LIMITS, NEWSLETTER_DATE_RANGES } from './newsletter-constants';
 import { PaginatedResult } from './newsletter-archive';
 import { ChunkResult } from '../types/api-types';
 
@@ -118,6 +120,12 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         // Generated composite metadata
         compositeImageUrl: dbSettings.compositeImageUrl ?? undefined,
         compositeImageHash: dbSettings.compositeImageHash ?? undefined,
+
+        // Newsletter content limits
+        maxFeaturedAppointments: dbSettings.maxFeaturedAppointments ?? defaultSettings.maxFeaturedAppointments,
+        maxUpcomingAppointments: dbSettings.maxUpcomingAppointments ?? defaultSettings.maxUpcomingAppointments,
+        maxStatusReportsPerGroup: dbSettings.maxStatusReportsPerGroup ?? defaultSettings.maxStatusReportsPerGroup,
+        maxGroupsWithReports: dbSettings.maxGroupsWithReports ?? defaultSettings.maxGroupsWithReports,
         
         // System fields
         id: dbSettings.id,
@@ -177,6 +185,9 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
       throw new Error('Newsletter settings data is required');
     }
     
+    // Validate content limits if provided
+    validateNewsletterLimits(data);
+    
     // Get existing newsletter settings
     const newsletterSettings = await prisma.newsletter.findFirst();
     
@@ -229,7 +240,13 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           
           // Generated composite metadata
           compositeImageUrl: data.compositeImageUrl,
-          compositeImageHash: data.compositeImageHash
+          compositeImageHash: data.compositeImageHash,
+
+          // Newsletter content limits
+          maxFeaturedAppointments: data.maxFeaturedAppointments,
+          maxUpcomingAppointments: data.maxUpcomingAppointments,
+          maxStatusReportsPerGroup: data.maxStatusReportsPerGroup,
+          maxGroupsWithReports: data.maxGroupsWithReports
         }
       });
     } else {
@@ -278,7 +295,13 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           
           // Generated composite metadata
           compositeImageUrl: data.compositeImageUrl,
-          compositeImageHash: data.compositeImageHash
+          compositeImageHash: data.compositeImageHash,
+
+          // Newsletter content limits
+          maxFeaturedAppointments: data.maxFeaturedAppointments || defaultSettings.maxFeaturedAppointments,
+          maxUpcomingAppointments: data.maxUpcomingAppointments || defaultSettings.maxUpcomingAppointments,
+          maxStatusReportsPerGroup: data.maxStatusReportsPerGroup || defaultSettings.maxStatusReportsPerGroup,
+          maxGroupsWithReports: data.maxGroupsWithReports || defaultSettings.maxGroupsWithReports
         }
       });
     }
@@ -298,10 +321,10 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
 }
 
 /**
- * Fetches appointments for the newsletter
+ * Fetches appointments for the newsletter with configurable limits
  * Returns only accepted appointments with future dates
  */
-export async function fetchNewsletterAppointments(): Promise<{
+export async function fetchNewsletterAppointments(settings?: NewsletterSettings): Promise<{
   featuredAppointments: Appointment[];
   upcomingAppointments: Appointment[];
 }> {
@@ -309,7 +332,11 @@ export async function fetchNewsletterAppointments(): Promise<{
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Start of today
     
-    // Get featured appointments
+    // Use default limits if settings not provided
+    const maxFeatured = settings?.maxFeaturedAppointments ?? NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS.DEFAULT;
+    const maxUpcoming = settings?.maxUpcomingAppointments ?? NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS.DEFAULT;
+    
+    // Get featured appointments with limit
     const featuredAppointments = await prisma.appointment.findMany({
       where: {
         featured: true,
@@ -320,10 +347,11 @@ export async function fetchNewsletterAppointments(): Promise<{
       },
       orderBy: {
         startDateTime: 'asc'
-      }
+      },
+      take: maxFeatured
     });
     
-    // Get upcoming appointments (not featured)
+    // Get upcoming appointments (not featured) with limit
     const upcomingAppointments = await prisma.appointment.findMany({
       where: {
         featured: false,
@@ -334,7 +362,8 @@ export async function fetchNewsletterAppointments(): Promise<{
       },
       orderBy: {
         startDateTime: 'asc'
-      }
+      },
+      take: maxUpcoming
     });
     
     return { featuredAppointments, upcomingAppointments };
@@ -345,58 +374,75 @@ export async function fetchNewsletterAppointments(): Promise<{
 }
 
 /**
- * Fetches status reports from the last 2 weeks for the newsletter
+ * Fetches status reports from the last 2 weeks for the newsletter with configurable limits
  * Returns status reports with their associated groups
  */
-export async function fetchNewsletterStatusReports(): Promise<{
+export async function fetchNewsletterStatusReports(settings?: NewsletterSettings): Promise<{
   statusReportsByGroup: {
     group: Group,
     reports: StatusReport[]
   }[];
 }> {
   try {
-    // Get the date 2 weeks ago
-    const twoWeeksAgo = subWeeks(new Date(), 2);
+    // Get the date for status reports range
+    const twoWeeksAgo = subWeeks(new Date(), NEWSLETTER_DATE_RANGES.STATUS_REPORTS_WEEKS_BACK);
     
-    // Get all active groups
-    const groups = await prisma.group.findMany({
+    // Use default limits if settings not provided
+    const maxGroups = settings?.maxGroupsWithReports ?? NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS.DEFAULT;
+    const maxReportsPerGroup = settings?.maxStatusReportsPerGroup ?? NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP.DEFAULT;
+    
+    // First, get groups that have status reports in the date range (more efficient)
+    // We'll get slightly more than needed to account for groups with no reports
+    const candidateLimit = Math.min(maxGroups * 2, 100); // Conservative buffer
+    
+    const groupsWithReports = await prisma.group.findMany({
       where: {
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        statusReports: {
+          some: {
+            status: 'ACTIVE',
+            createdAt: {
+              gte: twoWeeksAgo
+            }
+          }
+        }
       },
       orderBy: {
-        name: 'asc' // Sort groups alphabetically
+        name: 'asc' // Sort groups alphabetically for consistency
       },
+      take: candidateLimit, // Efficient database-level limiting
       include: {
         statusReports: {
           where: {
             status: 'ACTIVE',
             createdAt: {
-              gte: twoWeeksAgo // Only reports from the last 2 weeks
+              gte: twoWeeksAgo
             }
           },
           orderBy: {
             createdAt: 'desc' // Latest reports first
-          }
+          },
+          take: maxReportsPerGroup // Limit reports per group
         }
       }
     });
     
-    // Filter out groups with no reports
-    const statusReportsByGroup = groups
-      .filter(group => group.statusReports.length > 0)
-      .map(group => ({
+    // Apply final group limit (should rarely need to cut here due to efficient querying)
+    const statusReportsByGroup = groupsWithReports
+      .slice(0, maxGroups)
+      .map(groupWithReports => ({
         group: {
-          id: group.id,
-          name: group.name,
-          slug: group.slug,
-          description: group.description,
-          logoUrl: group.logoUrl,
-          metadata: group.metadata,
-          status: group.status,
-          createdAt: group.createdAt,
-          updatedAt: group.updatedAt
+          id: groupWithReports.id,
+          name: groupWithReports.name,
+          slug: groupWithReports.slug,
+          description: groupWithReports.description,
+          logoUrl: groupWithReports.logoUrl,
+          metadata: groupWithReports.metadata,
+          status: groupWithReports.status,
+          createdAt: groupWithReports.createdAt,
+          updatedAt: groupWithReports.updatedAt
         },
-        reports: group.statusReports
+        reports: groupWithReports.statusReports
       }));
     
     return { statusReportsByGroup };
@@ -414,11 +460,11 @@ export async function generateNewsletter(introductionText: string): Promise<stri
     // Get newsletter settings
     const newsletterSettings = await getNewsletterSettings();
     
-    // Get appointments
-    const { featuredAppointments, upcomingAppointments } = await fetchNewsletterAppointments();
+    // Get appointments with limits from settings
+    const { featuredAppointments, upcomingAppointments } = await fetchNewsletterAppointments(newsletterSettings);
     
-    // Get status reports
-    const { statusReportsByGroup } = await fetchNewsletterStatusReports();
+    // Get status reports with limits from settings
+    const { statusReportsByGroup } = await fetchNewsletterStatusReports(newsletterSettings);
     
     const baseUrl = getBaseUrl();
     console.log('Generated baseUrl for newsletter:', baseUrl);

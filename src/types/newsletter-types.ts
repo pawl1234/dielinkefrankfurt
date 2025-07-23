@@ -49,6 +49,12 @@ export interface NewsletterSettings {
   // Generated composite metadata
   compositeImageUrl?: string | null;
   compositeImageHash?: string | null;
+
+  // Newsletter content limits
+  maxFeaturedAppointments?: number;
+  maxUpcomingAppointments?: number;
+  maxStatusReportsPerGroup?: number;
+  maxGroupsWithReports?: number;
 }
 
 /**

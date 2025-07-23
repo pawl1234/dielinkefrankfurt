@@ -105,6 +105,12 @@ model Newsletter {
   compositeImageUrl  String?    // URL to generated composite image
   compositeImageHash String?    // Hash of source images + settings for cache invalidation
 
+  // Newsletter content limits
+  maxFeaturedAppointments    Int     @default(5)     // Maximum featured appointments in newsletter
+  maxUpcomingAppointments    Int     @default(20)    // Maximum upcoming appointments in newsletter
+  maxStatusReportsPerGroup   Int     @default(3)     // Maximum status reports per group
+  maxGroupsWithReports       Int     @default(10)    // Maximum groups with reports to include
+
   // System fields
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt

@@ -25,6 +25,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import SaveIcon from '@mui/icons-material/Save';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneIcon from '@mui/icons-material/Tune';
+import { NEWSLETTER_LIMITS } from '@/lib/newsletter-constants';
 
 export default function NewsletterSettingsPage() {
   const router = useRouter();
@@ -65,6 +66,11 @@ export default function NewsletterSettingsPage() {
     logoHeight: 60,
     compositeImageUrl: '',
     compositeImageHash: '',
+    // Newsletter content limits
+    maxFeaturedAppointments: 5,
+    maxUpcomingAppointments: 20,
+    maxStatusReportsPerGroup: 3,
+    maxGroupsWithReports: 10,
   });
 
   useEffect(() => {
@@ -346,6 +352,71 @@ export default function NewsletterSettingsPage() {
             
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
               <strong>BCC-Modus aktiviert:</strong> Alle E-Mails werden automatisch im BCC-Modus versendet für optimale Performance.
+            </Typography>
+            
+            <Divider sx={{ my: 3 }} />
+            
+            <Typography variant="h6" gutterBottom>
+              Newsletter Inhalts-Limits
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Diese Einstellungen begrenzen die Anzahl der Termine und Statusberichte im Newsletter, um eine konsistente Länge und Performance zu gewährleisten.
+            </Typography>
+            
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Max. Featured Termine"
+                  value={settings.maxFeaturedAppointments ?? 5}
+                  onChange={(e) => setSettings({ ...settings, maxFeaturedAppointments: parseInt(e.target.value) || 5 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS.MIN, max: NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS.MAX } }}
+                  fullWidth
+                  margin="normal"
+                  helperText={`Maximale Anzahl hervorgehobener Termine (${NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS.MIN}-${NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS.MAX})`}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Max. Weitere Termine"
+                  value={settings.maxUpcomingAppointments ?? 20}
+                  onChange={(e) => setSettings({ ...settings, maxUpcomingAppointments: parseInt(e.target.value) || 20 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS.MIN, max: NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS.MAX } }}
+                  fullWidth
+                  margin="normal"
+                  helperText={`Maximale Anzahl weiterer Termine (${NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS.MIN}-${NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS.MAX})`}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Max. Berichte pro Gruppe"
+                  value={settings.maxStatusReportsPerGroup ?? 3}
+                  onChange={(e) => setSettings({ ...settings, maxStatusReportsPerGroup: parseInt(e.target.value) || 3 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP.MIN, max: NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP.MAX } }}
+                  fullWidth
+                  margin="normal"
+                  helperText={`Maximale Statusberichte pro Gruppe (${NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP.MIN}-${NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP.MAX})`}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Max. Gruppen mit Berichten"
+                  value={settings.maxGroupsWithReports ?? 10}
+                  onChange={(e) => setSettings({ ...settings, maxGroupsWithReports: parseInt(e.target.value) || 10 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS.MIN, max: NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS.MAX } }}
+                  fullWidth
+                  margin="normal"
+                  helperText={`Maximale Anzahl Gruppen mit Statusberichten (${NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS.MIN}-${NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS.MAX})`}
+                />
+              </Grid>
+            </Grid>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, p: 2, bgcolor: 'warning.50', borderRadius: 1 }}>
+              <strong>⚠️ Hinweis:</strong> Diese Limits werden sofort beim nächsten Newsletter-Generieren angewendet. 
+              Niedrigere Werte reduzieren die Newsletter-Größe, können aber wichtige Inhalte ausschließen.
             </Typography>
             
             <Divider sx={{ my: 3 }} />

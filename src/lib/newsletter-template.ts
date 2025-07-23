@@ -1,4 +1,5 @@
 import { NewsletterSettings, EmailTemplateParams, NewsletterAnalyticsParams } from '../types/newsletter-types';
+import { NEWSLETTER_LIMITS } from './newsletter-constants';
 // Helper functions moved to newsletter-helpers.ts for better modularity
 
 // Helper functions have been moved to newsletter-helpers.ts
@@ -63,6 +64,12 @@ export function getDefaultNewsletterSettings(): NewsletterSettings {
     // Retry logic settings (current optimized values)
     maxRetries: 3,            // Maximum verification retries
     maxBackoffDelay: 10000,   // Maximum backoff delay in milliseconds
-    retryChunkSizes: '10,5,1' // Comma-separated retry chunk sizes
+    retryChunkSizes: '10,5,1', // Comma-separated retry chunk sizes
+
+    // Newsletter content limits
+    maxFeaturedAppointments: NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS.DEFAULT,
+    maxUpcomingAppointments: NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS.DEFAULT,
+    maxStatusReportsPerGroup: NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP.DEFAULT,
+    maxGroupsWithReports: NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS.DEFAULT
   };
 }

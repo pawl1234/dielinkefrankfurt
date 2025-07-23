@@ -5,10 +5,8 @@ import { apiErrorResponse, handleDatabaseError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { generateNewsletterHtml } from '@/lib/newsletter-template';
-import { GroupWithReports } from '@/types/newsletter-types';
-import { getNewsletterSettings, generateNewsletter } from '@/lib/newsletter-service';
+import { getNewsletterSettings, generateNewsletter, fetchNewsletterAppointments, fetchNewsletterStatusReports } from '@/lib/newsletter-service';
 import { getBaseUrl } from '@/lib/base-url';
-import { subWeeks } from 'date-fns';
 
 /**
  * GET /api/admin/newsletter/generate
@@ -128,56 +126,28 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
       );
     }
 
-    // Fetch appointments and status reports for newsletter generation
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Start of today
-    const twoWeeksAgo = subWeeks(today, 2);
+    // Get newsletter settings first
+    const newsletterSettings = await getNewsletterSettings();
 
     logger.info('Fetching data for newsletter generation', {
       module: 'api',
       context: {
         endpoint: '/api/admin/newsletter/generate',
         method: 'POST',
-        dateRange: {
-          appointments: 'today onwards',
-          statusReports: 'last 2 weeks'
-        }
+        maxFeaturedAppointments: newsletterSettings.maxFeaturedAppointments,
+        maxUpcomingAppointments: newsletterSettings.maxUpcomingAppointments,
+        maxStatusReportsPerGroup: newsletterSettings.maxStatusReportsPerGroup,
+        maxGroupsWithReports: newsletterSettings.maxGroupsWithReports
       }
     });
 
-    const [appointments, statusReports, newsletterSettings] = await Promise.all([
-      // Get featured appointments first, then other accepted appointments (only today or future)
-      prisma.appointment.findMany({
-        where: {
-          status: 'accepted',
-          startDateTime: {
-            gte: today // Only appointments from today onwards
-          }
-        },
-        orderBy: [
-          { featured: 'desc' }, // Featured first
-          { startDateTime: 'asc' } // Then by date
-        ]
-      }),
-      
-      // Get recent status reports (last 2 weeks) with group info
-      prisma.statusReport.findMany({
-        where: {
-          status: 'ACTIVE',
-          createdAt: {
-            gte: twoWeeksAgo
-          }
-        },
-        include: {
-          group: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      }),
-
-      // Get newsletter settings using the service method with caching
-      getNewsletterSettings()
+    // Use the service layer functions with the configured limits
+    const [
+      { featuredAppointments, upcomingAppointments },
+      { statusReportsByGroup: groupsWithReports }
+    ] = await Promise.all([
+      fetchNewsletterAppointments(newsletterSettings),
+      fetchNewsletterStatusReports(newsletterSettings)
     ]);
 
     logger.debug('Data fetched for newsletter generation', {
@@ -185,30 +155,12 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
       context: {
         endpoint: '/api/admin/newsletter/generate',
         method: 'POST',
-        appointmentCount: appointments.length,
-        statusReportCount: statusReports.length,
+        featuredAppointments: featuredAppointments.length,
+        upcomingAppointments: upcomingAppointments.length,
+        groupsWithReports: groupsWithReports.length,
         hasSettings: !!newsletterSettings
       }
     });
-
-    // Group status reports by group
-    const groupedReports = statusReports.reduce((acc, report) => {
-      const groupId = report.groupId;
-      if (!acc[groupId]) {
-        acc[groupId] = {
-          group: report.group,
-          reports: []
-        };
-      }
-      acc[groupId].reports.push(report);
-      return acc;
-    }, {} as Record<string, GroupWithReports>);
-
-    const groupsWithReports = Object.values(groupedReports);
-
-    // Separate featured and regular appointments
-    const featuredAppointments = appointments.filter(apt => apt.featured);
-    const upcomingAppointments = appointments.filter(apt => !apt.featured);
 
     logger.info('Generating newsletter HTML', {
       module: 'api',
