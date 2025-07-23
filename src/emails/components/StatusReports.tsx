@@ -77,7 +77,7 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
                       <Text style={metaData}>
                         {formatDate(report.createdAt)}
                         {report.reporterFirstName && report.reporterLastName && 
-                          ` | ${report.reporterFirstName} ${report.reporterLastName}`
+                          ` | ${report.reporterFirstName}`
                         }
                       </Text>
                       

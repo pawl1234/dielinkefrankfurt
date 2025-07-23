@@ -30,9 +30,10 @@ export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
             {dateRange}
           </Text>
           
-          <Text style={text}>
-            {truncatedText.replace(/<[^>]*>/g, '')}
-          </Text>
+          <Text 
+            style={text}
+            dangerouslySetInnerHTML={{ __html: truncatedText }}
+          />
           
           <Button href={detailUrl} withContainer={true}>Mehr Infos</Button>
         </Column>

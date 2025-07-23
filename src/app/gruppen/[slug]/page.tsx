@@ -394,7 +394,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
                           {report.reporterFirstName[0]}{report.reporterLastName[0]}
                         </Avatar>
                         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          Berichtet von <strong>{report.reporterFirstName} {report.reporterLastName}</strong>
+                          Berichtet von <strong>{report.reporterFirstName}</strong>
                         </Typography>
                       </Box>
                     </Paper>
