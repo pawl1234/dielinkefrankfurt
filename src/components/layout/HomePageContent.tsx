@@ -25,22 +25,12 @@ import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AddIcon from '@mui/icons-material/Add';
 import GroupsSection from '@/components/layout/GroupsSection';
+import { PublicAppointment } from '@/types/component-types';
 
-interface Appointment {
-  id: number;
-  title: string;
-  teaser: string;
-  startDateTime: string;
-  endDateTime: string | null;
-  street: string | null;
-  city: string | null;
-  state: string | null;
-  postalCode: string | null;
-}
 
 export default function HomePageContent() {
   const searchParams = useSearchParams(); // Now safe to use here
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<PublicAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -136,7 +126,7 @@ export default function HomePageContent() {
                       {appointment.city && (<Chip icon={<LocationOnIcon />} label={appointment.city} size="small" color="primary" variant="outlined" sx={{mr:0.5, mb:0.5}}/>)}
                     </Box>
                     <Typography variant="body1" sx={{ mb: 2, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', color: 'text.secondary', flexGrow: 1 }}>
-                      {appointment.teaser}
+                      {appointment.mainText}
                     </Typography>
                   </CardContent>
                   <CardActions sx={{ p: 2, pt: 0 }}>
