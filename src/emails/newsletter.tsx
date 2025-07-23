@@ -138,4 +138,8 @@ const contentSection = {
 const sectionSpacing = {
   marginBottom: '20px',
   textAlign: 'left' as const,
+  display: 'block' as const,    // Ensure block-level behavior
+  width: '100%',               // Ensure full width
+  marginLeft: '0',             // Prevent any auto-centering
+  marginRight: '0'             // Prevent any auto-centering
 };
