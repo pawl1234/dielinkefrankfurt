@@ -14,10 +14,12 @@ export async function GET(request: NextRequest) {
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
-    // Get all accepted appointments
+    // Get future accepted appointments only
+    const currentDate = new Date();
     const appointments = await prisma.appointment.findMany({
       where: {
-        status: 'accepted'
+        status: 'accepted',
+        startDateTime: { gte: currentDate } // Only future events
       },
       orderBy: {
         startDateTime: 'asc'
@@ -25,9 +27,10 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         title: true,
-        teaser: true,
+        mainText: true,
         startDateTime: true,
-        city: true
+        city: true,
+        featured: true
       }
     });
 
@@ -45,8 +48,8 @@ export async function GET(request: NextRequest) {
       // Create a valid pubDate
       const pubDate = new Date(appointment.startDateTime).toUTCString();
       
-      // Create a safe description (escape HTML)
-      const safeTeaser = appointment.teaser
+      // Create a safe description from mainText (escape HTML)
+      const safeDescription = appointment.mainText
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -64,11 +67,12 @@ export async function GET(request: NextRequest) {
       return `
     <item>
       <title>${safeTitle}</title>
-      <description>${safeTeaser}</description>
+      <description>${safeDescription}</description>
       <link>${baseUrl}/termine/${appointment.id}</link>
       <guid isPermaLink="true">${baseUrl}/termine/${appointment.id}</guid>
       <pubDate>${pubDate}</pubDate>
       ${appointment.city ? `<category>${appointment.city}</category>` : ''}
+      ${appointment.featured ? `<category>Featured</category>` : ''}
     </item>`;
     }).join('')}
   </channel>
