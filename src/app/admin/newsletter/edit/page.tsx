@@ -7,6 +7,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import AIGenerationModal from '@/components/newsletter/AIGenerationModal';
 import {
   Box,
   Container,
@@ -20,6 +21,8 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { newsletterTextToHTML } from '@/lib/tiptap-text-converter';
 
 function NewsletterEditContent() {
   const router = useRouter();
@@ -36,6 +39,8 @@ function NewsletterEditContent() {
   
   const [subject, setSubject] = useState('');
   const [introductionText, setIntroductionText] = useState('');
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [isIntroHTML, setIsIntroHTML] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -131,6 +136,14 @@ function NewsletterEditContent() {
     router.push('/admin');
   };
 
+  const handleAIAccept = (generatedText: string) => {
+    // Convert the AI-generated text to HTML to preserve formatting
+    const htmlContent = newsletterTextToHTML(generatedText);
+    setIntroductionText(htmlContent);
+    setIsIntroHTML(true); // Flag that this content should be treated as HTML
+    setShowAIModal(false);
+  };
+
   if (status === 'loading' || loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -184,14 +197,34 @@ function NewsletterEditContent() {
             </Box>
             
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Einführungstext
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="subtitle1">
+                  Einführungstext
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setShowAIModal(true)}
+                  startIcon={<AutoAwesomeIcon />}
+                  disabled={saving}
+                >
+                  Intro generieren
+                </Button>
+              </Box>
+              {introductionText.trim() && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  KI-Generierung überschreibt vorhandenen Text
+                </Typography>
+              )}
               <RichTextEditor
                 value={introductionText}
-                onChange={setIntroductionText}
+                onChange={(value) => {
+                  setIntroductionText(value);
+                  setIsIntroHTML(false); // Reset HTML flag when user edits manually
+                }}
                 maxLength={5000}
                 placeholder="Geben Sie hier den Einführungstext für den Newsletter ein..."
+                forceHTML={isIntroHTML}
               />
             </Box>
             
@@ -215,6 +248,13 @@ function NewsletterEditContent() {
               </Button>
             </Box>
           </Paper>
+          
+          <AIGenerationModal
+            open={showAIModal}
+            onClose={() => setShowAIModal(false)}
+            onAccept={handleAIAccept}
+            existingText={introductionText}
+          />
         </Container>
       </Box>
     </MainLayout>

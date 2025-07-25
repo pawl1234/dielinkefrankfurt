@@ -55,6 +55,14 @@ export interface NewsletterSettings {
   maxUpcomingAppointments?: number;
   maxStatusReportsPerGroup?: number;
   maxGroupsWithReports?: number;
+
+  // AI Generation Settings
+  aiSystemPrompt?: string;
+  aiVorstandsprotokollPrompt?: string;
+  aiTopicExtractionPrompt?: string;
+  aiRefinementPrompt?: string;
+  aiModel?: string;
+  anthropicApiKey?: string;
 }
 
 /**

@@ -144,3 +144,61 @@ export interface CompositeGenerationResponse {
   compositeUrl: string;
   cacheKey: string;
 }
+
+/**
+ * AI generation request for newsletter intro
+ */
+export interface AIGenerationRequest {
+  topThemes: string;
+  boardProtocol?: string; // Made optional
+  previousIntro?: string;
+}
+
+/**
+ * AI refinement request for generated text
+ * Uses accumulated conversation history for multi-turn refinements
+ */
+export interface AIRefinementRequest {
+  // Complete conversation history (including original generation)
+  conversationHistory: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+  }>;
+  // New refinement instruction
+  refinementInstructions: string;
+}
+
+/**
+ * AI generation response
+ */
+export interface AIGenerationResponse {
+  generatedText: string;
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * AI topic extraction request for Vorstandsprotokoll analysis
+ */
+export interface AITopicExtractionRequest {
+  boardProtocol: string;
+}
+
+/**
+ * AI topic extraction response
+ */
+export interface AITopicExtractionResponse {
+  extractedTopics: string;
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Enhanced AI generation request that supports extracted topics
+ */
+export interface AIGenerationWithTopicsRequest {
+  topThemes: string;
+  extractedTopics?: string; // Alternative to raw boardProtocol
+  boardProtocol?: string; // Fallback to raw protocol (backward compatibility)
+  previousIntro?: string;
+}

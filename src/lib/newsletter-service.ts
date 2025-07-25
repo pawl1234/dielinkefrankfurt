@@ -126,6 +126,12 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         maxUpcomingAppointments: dbSettings.maxUpcomingAppointments ?? defaultSettings.maxUpcomingAppointments,
         maxStatusReportsPerGroup: dbSettings.maxStatusReportsPerGroup ?? defaultSettings.maxStatusReportsPerGroup,
         maxGroupsWithReports: dbSettings.maxGroupsWithReports ?? defaultSettings.maxGroupsWithReports,
+
+        // AI Generation Settings
+        aiSystemPrompt: dbSettings.aiSystemPrompt ?? undefined,
+        aiVorstandsprotokollPrompt: dbSettings.aiVorstandsprotokollPrompt ?? undefined,
+        aiModel: dbSettings.aiModel ?? undefined,
+        anthropicApiKey: dbSettings.anthropicApiKey ?? undefined,
         
         // System fields
         id: dbSettings.id,
@@ -246,7 +252,11 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           maxFeaturedAppointments: data.maxFeaturedAppointments,
           maxUpcomingAppointments: data.maxUpcomingAppointments,
           maxStatusReportsPerGroup: data.maxStatusReportsPerGroup,
-          maxGroupsWithReports: data.maxGroupsWithReports
+          maxGroupsWithReports: data.maxGroupsWithReports,
+          
+          // AI Settings
+          aiSystemPrompt: data.aiSystemPrompt,
+          anthropicApiKey: data.anthropicApiKey,
         }
       });
     } else {
@@ -301,7 +311,11 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           maxFeaturedAppointments: data.maxFeaturedAppointments || defaultSettings.maxFeaturedAppointments,
           maxUpcomingAppointments: data.maxUpcomingAppointments || defaultSettings.maxUpcomingAppointments,
           maxStatusReportsPerGroup: data.maxStatusReportsPerGroup || defaultSettings.maxStatusReportsPerGroup,
-          maxGroupsWithReports: data.maxGroupsWithReports || defaultSettings.maxGroupsWithReports
+          maxGroupsWithReports: data.maxGroupsWithReports || defaultSettings.maxGroupsWithReports,
+          
+          // AI Settings
+          aiSystemPrompt: data.aiSystemPrompt,
+          anthropicApiKey: data.anthropicApiKey,
         }
       });
     }

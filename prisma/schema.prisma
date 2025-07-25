@@ -111,6 +111,14 @@ model Newsletter {
   maxStatusReportsPerGroup   Int     @default(3)     // Maximum status reports per group
   maxGroupsWithReports       Int     @default(10)    // Maximum groups with reports to include
 
+  // AI Generation Settings
+  aiSystemPrompt             String? @db.Text       // System prompt for AI intro generation (Top Themen)
+  aiVorstandsprotokollPrompt String? @db.Text       // Additional prompt for Vorstandsprotokoll (optional)
+  aiTopicExtractionPrompt    String? @db.Text       // Prompt for extracting topics from Vorstandsprotokoll
+  aiRefinementPrompt         String? @db.Text       // Prompt template for refining generated text
+  aiModel                    String? @default("claude-3-5-sonnet-latest") // Selected AI model for generation
+  anthropicApiKey            String? @db.Text       // Anthropic API key for Claude
+
   // System fields
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt

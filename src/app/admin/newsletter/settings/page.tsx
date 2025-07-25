@@ -20,12 +20,19 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SaveIcon from '@mui/icons-material/Save';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneIcon from '@mui/icons-material/Tune';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { NEWSLETTER_LIMITS } from '@/lib/newsletter-constants';
+import { DEFAULT_AI_SYSTEM_PROMPT, DEFAULT_AI_VORSTANDSPROTOKOLL_PROMPT, DEFAULT_TOPIC_EXTRACTION_PROMPT } from '@/lib/ai-prompts';
+import { AI_MODELS, DEFAULT_AI_MODEL } from '@/lib/ai-models';
 
 export default function NewsletterSettingsPage() {
   const router = useRouter();
@@ -71,6 +78,12 @@ export default function NewsletterSettingsPage() {
     maxUpcomingAppointments: 20,
     maxStatusReportsPerGroup: 3,
     maxGroupsWithReports: 10,
+    // AI settings
+    aiSystemPrompt: '',
+    aiVorstandsprotokollPrompt: '',
+    aiTopicExtractionPrompt: '',
+    aiModel: DEFAULT_AI_MODEL,
+    anthropicApiKey: '',
   });
 
   useEffect(() => {
@@ -418,6 +431,92 @@ export default function NewsletterSettingsPage() {
               <strong>⚠️ Hinweis:</strong> Diese Limits werden sofort beim nächsten Newsletter-Generieren angewendet. 
               Niedrigere Werte reduzieren die Newsletter-Größe, können aber wichtige Inhalte ausschließen.
             </Typography>
+            
+            <Divider sx={{ my: 3 }} />
+            
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="ai-settings-content"
+                id="ai-settings-header"
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AutoAwesomeIcon />
+                  <Typography variant="h6">AI-Generierung</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                <TextField
+                  label="Anthropic API Key"
+                  type="password"
+                  value={settings.anthropicApiKey || ''}
+                  onChange={(e) => setSettings({ ...settings, anthropicApiKey: e.target.value })}
+                  fullWidth
+                  margin="normal"
+                  helperText="API-Schlüssel für Anthropic Claude"
+                />
+                
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>AI-Modell</InputLabel>
+                  <Select
+                    value={settings.aiModel || DEFAULT_AI_MODEL}
+                    onChange={(e) => setSettings({ ...settings, aiModel: e.target.value })}
+                    label="AI-Modell"
+                  >
+                    {AI_MODELS.map((model) => (
+                      <MenuItem key={model.id} value={model.id}>
+                        <Box>
+                          <Typography variant="body1">{model.name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {model.description}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <Typography variant="caption" sx={{ mt: 1, color: 'text.secondary' }}>
+                    Wählen Sie das AI-Modell für die Newsletter-Generierung
+                  </Typography>
+                </FormControl>
+                
+                <TextField
+                  label="System-Prompt für Top Themen"
+                  multiline
+                  rows={8}
+                  value={settings.aiSystemPrompt || DEFAULT_AI_SYSTEM_PROMPT}
+                  onChange={(e) => setSettings({ ...settings, aiSystemPrompt: e.target.value })}
+                  fullWidth
+                  margin="normal"
+                  helperText="Haupt-Prompt für die KI-Generierung mit Top Themen. Verwende {{topThemes}} und {{previousIntro}} als Platzhalter."
+                />
+                
+                <TextField
+                  label="Zusatz-Prompt für Vorstandsprotokoll (optional)"
+                  multiline
+                  rows={5}
+                  value={settings.aiVorstandsprotokollPrompt || DEFAULT_AI_VORSTANDSPROTOKOLL_PROMPT}
+                  onChange={(e) => setSettings({ ...settings, aiVorstandsprotokollPrompt: e.target.value })}
+                  fullWidth
+                  margin="normal"
+                  helperText="Zusätzlicher Prompt für Vorstandsprotokoll-Inhalte. Verwende {{boardProtocol}} als Platzhalter. Wird nur verwendet, wenn ein Vorstandsprotokoll eingegeben wird."
+                />
+                
+                <TextField
+                  label="Themen-Extraktion-Prompt für Vorstandsprotokoll"
+                  multiline
+                  rows={8}
+                  value={settings.aiTopicExtractionPrompt || DEFAULT_TOPIC_EXTRACTION_PROMPT}
+                  onChange={(e) => setSettings({ ...settings, aiTopicExtractionPrompt: e.target.value })}
+                  fullWidth
+                  margin="normal"
+                  helperText="Prompt für die Extraktion von Themen aus dem Vorstandsprotokoll. Verwende {{boardProtocol}} als Platzhalter. Wird für die neue zweistufige Verarbeitung verwendet."
+                />
+                
+                <Typography variant="caption" sx={{ display: 'block', mt: 2, p: 2, bgcolor: 'info.50', borderRadius: 1 }}>
+                  <strong>💡 Hinweis:</strong> Der neue Workflow extrahiert zuerst strukturierte Themen aus dem Vorstandsprotokoll und nutzt diese dann für die Intro-Generierung. Dies führt zu präziseren und besseren Ergebnissen bei langen Protokollen.
+                </Typography>
+              </AccordionDetails>
+            </Accordion>
             
             <Divider sx={{ my: 3 }} />
             

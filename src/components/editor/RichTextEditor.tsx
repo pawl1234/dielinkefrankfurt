@@ -25,6 +25,11 @@ interface RichTextEditorProps {
   maxLength?: number;
   placeholder?: string;
   minHeight?: number;
+  /**
+   * When true, forces the editor to treat the value as HTML content
+   * This is useful when setting content programmatically with formatting
+   */
+  forceHTML?: boolean;
 }
 
 // Styled component for the editor content
@@ -74,7 +79,7 @@ const EditorToggleButton = styled(IconButton, {
   },
 }));
 
-const RichTextEditor = ({ value, onChange, maxLength = 50000, placeholder, minHeight = 150 }: RichTextEditorProps) => {
+const RichTextEditor = ({ value, onChange, maxLength = 50000, placeholder, minHeight = 150, forceHTML = false }: RichTextEditorProps) => {
   const [charCount, setCharCount] = useState(0);
   const [showLimitMessage, setShowLimitMessage] = useState(false);
 
@@ -106,10 +111,26 @@ const RichTextEditor = ({ value, onChange, maxLength = 50000, placeholder, minHe
   });
 
   useEffect(() => {
-    if (editor && value === '') {
-      editor.commands.setContent('');
+    if (editor && editor.getHTML() !== value) {
+      // If forceHTML is true, always treat as HTML content
+      if (forceHTML) {
+        editor.commands.setContent(value);
+      } else {
+        // Check if the value looks like plain text (no HTML tags)
+        const isPlainText = !value.includes('<') && !value.includes('>');
+        
+        if (isPlainText && value.includes('\n')) {
+          // For plain text with newlines, clear content first then insert as plain text
+          // This triggers TipTap's text processing similar to paste
+          editor.commands.clearContent();
+          editor.commands.insertContent(value);
+        } else {
+          // For HTML content, use setContent as before
+          editor.commands.setContent(value);
+        }
+      }
     }
-  }, [editor, value]);
+  }, [editor, value, forceHTML]);
 
   if (!editor) {
     return null;
