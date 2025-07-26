@@ -1,3 +1,24 @@
+## Implemented Features
+
+### Image Lightbox and File Thumbnails (2025-01-26)
+- **Image Lightbox**: Full-size image viewing in modal overlay with keyboard navigation
+- **Smart File Thumbnails**: Uniform 4:5 aspect ratio with file type detection
+- **Clean Design**: No overlay buttons for images, click-to-view functionality
+- **Accessibility**: Full ARIA labels and keyboard support
+- See [detailed documentation](./2025-01-26_image-lightbox-file-thumbnails.md)
+
+### AI Newsletter Introduction Generation
+- Automatic generation of newsletter introductions using AI
+- See [documentation](./ai-newsletter-intro-generation.md)
+
+### Newsletter Analytics
+- Track newsletter opens and clicks
+- See [documentation](./newsletter-analytics-documentation.md)
+
+### Newsletter Sending
+- Complete newsletter sending workflow
+- See [implementation plan](./newsletter-sending-implementation-plan.md) and [specification](./newsletter-sending-specification.md)
+
 ## The Following Featured are planned to be implemented
 
 * Emailverstand bei Benutzer CRUD Operationen.

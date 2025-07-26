@@ -12,14 +12,14 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { formatLongDate, formatShortDate, formatTime, formatTimeRange } from '@/lib/date-utils';
 import Link from 'next/link';
 import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components/ui/FileThumbnail';
+import { FileThumbnailGrid, parseFileUrls, parseCoverImages, FileAttachment } from '@/components/ui/FileThumbnail';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { Appointment } from '@/types/component-types';
 
 
@@ -27,6 +27,8 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string }>({ url: '', alt: '' });
 
   // Extract params
   const [id, setId] = useState<string | null>(null);
@@ -65,6 +67,26 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
       fetchAppointment();
     }
   }, [id]);
+
+  const handleImageClick = (file: FileAttachment) => {
+    if (file.url) {
+      if (file.type === 'image') {
+        // Open images in lightbox
+        setLightboxImage({
+          url: file.url,
+          alt: file.description || file.name || 'Image'
+        });
+        setLightboxOpen(true);
+      } else {
+        // Open PDFs and other files in new tab
+        window.open(file.url, '_blank');
+      }
+    }
+  };
+
+  const handleLightboxClose = () => {
+    setLightboxOpen(false);
+  };
 
   return (
     <MainLayout
@@ -110,19 +132,19 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
                 <Chip 
                   icon={<CalendarTodayIcon />} 
-                  label={format(new Date(appointment.startDateTime), 'PPP', { locale: de })}
+                  label={formatShortDate(appointment.startDateTime)}
                   color="primary"
                   variant="outlined"
                 />
                 <Chip 
                   icon={<EventIcon />} 
-                  label={`${format(new Date(appointment.startDateTime), 'HH:mm', { locale: de })} Uhr`}
+                  label={`${formatTime(appointment.startDateTime)} Uhr`}
                   color="primary"
                   variant="outlined"
                 />
                 {appointment.endDateTime && (
                   <Chip 
-                    label={`bis ${format(new Date(appointment.endDateTime), 'HH:mm', { locale: de })} Uhr`}
+                    label={`bis ${formatTime(appointment.endDateTime)} Uhr`}
                     color="primary"
                     variant="outlined"
                   />
@@ -172,15 +194,14 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="subtitle2" color="primary">Datum:</Typography>
                     <Typography variant="body1">
-                      {format(new Date(appointment.startDateTime), 'EEEE, dd. MMMM yyyy', { locale: de })}
+                      {formatLongDate(appointment.startDateTime)}
                     </Typography>
                   </Box>
                   
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="subtitle2" color="primary">Uhrzeit:</Typography>
                     <Typography variant="body1">
-                      {format(new Date(appointment.startDateTime), 'HH:mm', { locale: de })} Uhr
-                      {appointment.endDateTime && ` - ${format(new Date(appointment.endDateTime), 'HH:mm', { locale: de })} Uhr`}
+                      {formatTimeRange(appointment.startDateTime, appointment.endDateTime)}
                     </Typography>
                   </Box>
                   
@@ -208,8 +229,11 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                 <FileThumbnailGrid
                   files={parseCoverImages(appointment.metadata)}
                   gridSize={{ xs: 12, sm: 6, md: 6, lg: 6 }}
-                  height={160}
+                  aspectRatio="4/5"
                   showFileName={false}
+                  showDescription={false}
+                  showButtons={false}
+                  onFileClick={handleImageClick}
                 />
               </Box>
             )}
@@ -223,7 +247,11 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                 <FileThumbnailGrid
                   files={parseFileUrls(appointment.fileUrls)}
                   gridSize={{ xs: 12, sm: 6, md: 4, lg: 3 }}
-                  height={160}
+                  aspectRatio="4/5"
+                  showFileName={false}
+                  showDescription={false}
+                  showButtons={false}
+                  onFileClick={handleImageClick}
                 />
               </Box>
             )}
@@ -241,6 +269,14 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
           </Paper>
         ) : null}
       </Container>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        open={lightboxOpen}
+        imageUrl={lightboxImage.url}
+        imageAlt={lightboxImage.alt}
+        onClose={handleLightboxClose}
+      />
     </MainLayout>
   );
 }
