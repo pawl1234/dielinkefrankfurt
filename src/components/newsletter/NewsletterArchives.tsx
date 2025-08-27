@@ -431,7 +431,7 @@ const NewsletterArchives = forwardRef<NewsletterArchivesRef, NewsletterArchivesP
                                 >
                                   <ReplayIcon fontSize="small" />
                                 </Button>
-                                {newsletter.status === 'sent' && (
+                                {(newsletter.status === 'sent' || newsletter.status === 'partially_failed') && (
                                   <NewsletterAnalyticsButton
                                     newsletterId={newsletter.id}
                                     variant="outlined"

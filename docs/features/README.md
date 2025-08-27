@@ -21,6 +21,7 @@
 
 ## The Following Featured are planned to be implemented
 
+* Wiederkehrende Termine und Termine mit mehreren Daten
 * Emailverstand bei Benutzer CRUD Operationen.
 * In DB speichern, wann Benutzer sich zuletzt angemeldet hat. 
 * Unterschriften sammeln.
@@ -29,8 +30,7 @@
 * Newsletter which has been sent should be accessible via URL.
 * Unsubscribe Feature.
 * Archived Articles should be restorable and permanently removable
-
-- Newsletter Analysefunktion einbauen, dass man sieht wieviele clicks es gibt.
+*
 - Let the whole system fail if Database is not available
 - Log in Database when an users is logging in (e.g. admin).
 
