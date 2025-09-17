@@ -56,6 +56,10 @@ export interface NewsletterSettings {
   maxStatusReportsPerGroup?: number;
   maxGroupsWithReports?: number;
 
+  // Status report limits
+  statusReportTitleLimit?: number;
+  statusReportContentLimit?: number;
+
   // AI Generation Settings
   aiSystemPrompt?: string;
   aiVorstandsprotokollPrompt?: string;

@@ -30,7 +30,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneIcon from '@mui/icons-material/Tune';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import { NEWSLETTER_LIMITS } from '@/lib/newsletter-constants';
+import { NEWSLETTER_LIMITS, STATUS_REPORT_LIMITS } from '@/lib/newsletter-constants';
 import { DEFAULT_AI_SYSTEM_PROMPT, DEFAULT_AI_VORSTANDSPROTOKOLL_PROMPT, DEFAULT_TOPIC_EXTRACTION_PROMPT } from '@/lib/ai-prompts';
 import { AI_MODELS, DEFAULT_AI_MODEL } from '@/lib/ai-models';
 
@@ -84,6 +84,9 @@ export default function NewsletterSettingsPage() {
     aiTopicExtractionPrompt: '',
     aiModel: DEFAULT_AI_MODEL,
     anthropicApiKey: '',
+    // Status report limits
+    statusReportTitleLimit: 100,
+    statusReportContentLimit: 5000,
   });
 
   useEffect(() => {
@@ -428,10 +431,51 @@ export default function NewsletterSettingsPage() {
             </Grid>
             
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2, p: 2, bgcolor: 'warning.50', borderRadius: 1 }}>
-              <strong>⚠️ Hinweis:</strong> Diese Limits werden sofort beim nächsten Newsletter-Generieren angewendet. 
+              <strong>⚠️ Hinweis:</strong> Diese Limits werden sofort beim nächsten Newsletter-Generieren angewendet.
               Niedrigere Werte reduzieren die Newsletter-Größe, können aber wichtige Inhalte ausschließen.
             </Typography>
-            
+
+            <Divider sx={{ my: 3 }} />
+
+            <Typography variant="h6" gutterBottom>
+              Gruppen & Status Reports
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Diese Einstellungen bestimmen die Längen-Limits für Statusberichte, die über das Formular eingereicht werden.
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Status Report Titel Limit"
+                  value={settings.statusReportTitleLimit ?? 100}
+                  onChange={(e) => setSettings({ ...settings, statusReportTitleLimit: parseInt(e.target.value) || 100 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: STATUS_REPORT_LIMITS.TITLE.MIN, max: STATUS_REPORT_LIMITS.TITLE.MAX } }}
+                  fullWidth
+                  margin="normal"
+                  helperText={`Maximale Zeichen für Statusbericht-Titel (${STATUS_REPORT_LIMITS.TITLE.MIN}-${STATUS_REPORT_LIMITS.TITLE.MAX})`}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Status Report Inhalt Limit"
+                  value={settings.statusReportContentLimit ?? 5000}
+                  onChange={(e) => setSettings({ ...settings, statusReportContentLimit: parseInt(e.target.value) || 5000 })}
+                  type="number"
+                  InputProps={{ inputProps: { min: STATUS_REPORT_LIMITS.CONTENT.MIN, max: STATUS_REPORT_LIMITS.CONTENT.MAX } }}
+                  fullWidth
+                  margin="normal"
+                  helperText={`Maximale Zeichen für Statusbericht-Inhalt (${STATUS_REPORT_LIMITS.CONTENT.MIN}-${STATUS_REPORT_LIMITS.CONTENT.MAX})`}
+                />
+              </Grid>
+            </Grid>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, p: 2, bgcolor: 'info.50', borderRadius: 1 }}>
+              <strong>💡 Hinweis:</strong> Diese Limits werden sofort bei der nächsten Statusbericht-Einreichung angewendet.
+              Bestehende Berichte bleiben unverändert. Das System berücksichtigt diese Limits sowohl im Frontend als auch im Backend.
+            </Typography>
+
             <Divider sx={{ my: 3 }} />
             
             <Accordion>
