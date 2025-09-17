@@ -83,10 +83,15 @@ export default function StatusReportForm() {
   const customValidations: CustomValidationEntry[] = useMemo(() => [
     {
       field: 'content',
+      isValid: !contentEditorValue || contentEditorValue.length <= contentLimit,
+      message: `Inhalt ist zu lang. Maximal ${contentLimit} Zeichen erlaubt.`
+    },
+    {
+      field: 'content',
       isValid: !!contentEditorValue && contentEditorValue.trim() !== '' && contentEditorValue.trim() !== '<p></p>',
       message: 'Inhalt ist erforderlich und muss Text enthalten.'
     }
-  ], [contentEditorValue]);
+  ], [contentEditorValue, contentLimit]);
 
   useEffect(() => {
     const fetchData = async () => {
