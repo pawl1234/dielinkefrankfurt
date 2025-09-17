@@ -111,6 +111,10 @@ model Newsletter {
   maxStatusReportsPerGroup   Int     @default(3)     // Maximum status reports per group
   maxGroupsWithReports       Int     @default(10)    // Maximum groups with reports to include
 
+  // Status Report limits
+  statusReportTitleLimit     Int     @default(100)   // Max characters for status report titles
+  statusReportContentLimit   Int     @default(5000)  // Max characters for status report content
+
   // AI Generation Settings
   aiSystemPrompt             String? @db.Text       // System prompt for AI intro generation (Top Themen)
   aiVorstandsprotokollPrompt String? @db.Text       // Additional prompt for Vorstandsprotokoll (optional)

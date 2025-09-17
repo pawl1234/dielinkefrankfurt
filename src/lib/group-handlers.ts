@@ -2,14 +2,15 @@ import prisma from './prisma';
 import { Group, GroupStatus, ResponsiblePerson, StatusReport, StatusReportStatus, Prisma } from '@prisma/client';
 import { del } from '@vercel/blob';
 import slugify from 'slugify';
-import { 
-  sendStatusReportAcceptanceEmail, 
-  sendStatusReportRejectionEmail, 
+import {
+  sendStatusReportAcceptanceEmail,
+  sendStatusReportRejectionEmail,
   sendStatusReportArchivingEmail,
   sendGroupAcceptanceEmail,
   sendGroupRejectionEmail,
   sendGroupArchivingEmail
 } from './email-senders';
+import { getNewsletterSettings } from './newsletter-service';
 
 /**
  * Types for group operations
@@ -99,25 +100,47 @@ export function validateGroupData(data: Partial<GroupCreateData>): string | null
 }
 
 /**
- * Validate status report data
+ * Validate status report data with configurable limits and German error messages
  */
-export function validateStatusReportData(data: Partial<StatusReportCreateData>): string | null {
-  if (!data.groupId) return 'Group ID is required';
-  
-  if (!data.title) return 'Report title is required';
-  if (data.title.length < 3 || data.title.length > 100) return 'Report title must be between 3 and 100 characters';
-  
-  if (!data.content) return 'Report content is required';
-  if (data.content.length > 1000) return 'Report content must not exceed 1000 characters';
-  
+export async function validateStatusReportData(data: Partial<StatusReportCreateData>): Promise<string | null> {
+  if (!data.groupId) return 'Gruppen-ID ist erforderlich';
+
+  if (!data.title) return 'Berichtstitel ist erforderlich';
+
+  if (!data.content) return 'Berichtsinhalt ist erforderlich';
+
   if (!data.reporterFirstName || data.reporterFirstName.length < 2 || data.reporterFirstName.length > 50) {
-    return 'Reporter first name must be between 2 and 50 characters';
+    return 'Vorname des Berichterstatters muss zwischen 2 und 50 Zeichen lang sein';
   }
-  
+
   if (!data.reporterLastName || data.reporterLastName.length < 2 || data.reporterLastName.length > 50) {
-    return 'Reporter last name must be between 2 and 50 characters';
+    return 'Nachname des Berichterstatters muss zwischen 2 und 50 Zeichen lang sein';
   }
-  
+
+  // Get configurable limits from settings
+  try {
+    const settings = await getNewsletterSettings();
+    const titleLimit = settings.statusReportTitleLimit || 100;
+    const contentLimit = settings.statusReportContentLimit || 5000;
+
+    if (data.title.length < 3 || data.title.length > titleLimit) {
+      return `Berichtstitel muss zwischen 3 und ${titleLimit} Zeichen lang sein`;
+    }
+
+    if (data.content.length > contentLimit) {
+      return `Berichtsinhalt darf maximal ${contentLimit} Zeichen lang sein`;
+    }
+  } catch {
+    // Fallback to default limits if settings cannot be retrieved
+    if (data.title.length < 3 || data.title.length > 100) {
+      return 'Berichtstitel muss zwischen 3 und 100 Zeichen lang sein';
+    }
+
+    if (data.content.length > 5000) {
+      return 'Berichtsinhalt darf maximal 5000 Zeichen lang sein';
+    }
+  }
+
   return null;
 }
 
@@ -615,7 +638,7 @@ export async function deleteGroup(id: string): Promise<boolean> {
  */
 export async function createStatusReport(data: StatusReportCreateData): Promise<StatusReport> {
   // Validate status report data
-  const validationError = validateStatusReportData(data);
+  const validationError = await validateStatusReportData(data);
   if (validationError) {
     throw new Error(validationError);
   }

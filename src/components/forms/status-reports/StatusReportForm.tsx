@@ -43,6 +43,11 @@ export default function StatusReportForm() {
   const [contentEditorValue, setContentEditorValue] = useState('');
   const [fileList, setFileList] = useState<(File | Blob)[]>([]);
 
+  // Status report limits from settings
+  const [titleLimit, setTitleLimit] = useState(100);
+  const [contentLimit, setContentLimit] = useState(5000);
+  const [loadingLimits, setLoadingLimits] = useState(true);
+
   const methods = useForm<FormInput>({
     defaultValues: {
       groupId: '',
@@ -78,30 +83,56 @@ export default function StatusReportForm() {
   const customValidations: CustomValidationEntry[] = useMemo(() => [
     {
       field: 'content',
+      isValid: !contentEditorValue || contentEditorValue.length <= contentLimit,
+      message: `Inhalt ist zu lang. Maximal ${contentLimit} Zeichen erlaubt.`
+    },
+    {
+      field: 'content',
       isValid: !!contentEditorValue && contentEditorValue.trim() !== '' && contentEditorValue.trim() !== '<p></p>',
       message: 'Inhalt ist erforderlich und muss Text enthalten.'
     }
-  ], [contentEditorValue]);
+  ], [contentEditorValue, contentLimit]);
 
   useEffect(() => {
-    const fetchGroups = async () => {
+    const fetchData = async () => {
       setLoadingGroups(true);
+      setLoadingLimits(true);
       try {
-        const response = await fetch('/api/groups');
-        if (!response.ok) throw new Error('Failed to fetch groups');
-        const data = await response.json();
-        if (data.success && Array.isArray(data.groups)) {
-          setGroups(data.groups);
+        // Fetch groups and settings in parallel
+        const [groupsResponse, settingsResponse] = await Promise.all([
+          fetch('/api/groups'),
+          fetch('/api/admin/newsletter/settings')
+        ]);
+
+        // Handle groups
+        if (groupsResponse.ok) {
+          const groupsData = await groupsResponse.json();
+          if (groupsData.success && Array.isArray(groupsData.groups)) {
+            setGroups(groupsData.groups);
+          } else {
+            throw new Error('Invalid groups response format');
+          }
         } else {
-          throw new Error('Invalid groups response format');
+          throw new Error('Failed to fetch groups');
+        }
+
+        // Handle settings (for limits)
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          setTitleLimit(settingsData.statusReportTitleLimit || 100);
+          setContentLimit(settingsData.statusReportContentLimit || 5000);
+        } else {
+          // Use defaults if settings can't be fetched
+          console.warn('Could not fetch settings, using default limits');
         }
       } catch (error) {
-        console.error('Error fetching groups:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoadingGroups(false);
+        setLoadingLimits(false);
       }
     };
-    fetchGroups();
+    fetchData();
   }, []);
 
   const handleContentChange = (value: string) => {
@@ -174,10 +205,19 @@ export default function StatusReportForm() {
 
   // Help text constants
   const helpTextGroup = <Typography variant="body2"> Wählen Sie die Gruppe aus, für die Sie einen Bericht einreichen möchten. Nur aktive Gruppen können ausgewählt werden. </Typography>;
-  const helpTextReportInfo = <> <Typography variant="body2"> In diesem Abschnitt können Sie Ihren Bericht beschreiben: </Typography> <Box component="ul" sx={{ pl: 2, mt: 1 }}> <li>Der <strong>Titel</strong> sollte kurz und prägnant sein (max. 100 Zeichen).</li> <li>Der <strong>Inhalt</strong> kann Text, Listen und Links enthalten (max. 5000 Zeichen).</li> </Box> </>;
+  const helpTextReportInfo = <> <Typography variant="body2"> In diesem Abschnitt können Sie Ihren Bericht beschreiben: </Typography> <Box component="ul" sx={{ pl: 2, mt: 1 }}> <li>Der <strong>Titel</strong> sollte kurz und prägnant sein (max. {titleLimit} Zeichen).</li> <li>Der <strong>Inhalt</strong> kann Text, Listen und Links enthalten (max. {contentLimit} Zeichen).</li> </Box> </>;
   const helpTextReporter = <Typography variant="body2"> Bitte geben Sie Ihre Kontaktdaten an. Diese Informationen werden nur intern verwendet und nicht veröffentlicht. </Typography>;
   const helpTextAttachments = <Typography variant="body2"> Hier können Sie Anhänge wie Bilder oder PDFs hochladen, die mit Ihrem Bericht veröffentlicht werden sollen. Sie können maximal 5 Dateien hochladen (jeweils max. 5MB). </Typography>;
 
+
+  if (loadingLimits) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Lade Formular...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <FormBase
@@ -217,8 +257,8 @@ export default function StatusReportForm() {
           </Typography>
           <Controller
             name="title" control={control}
-            rules={{ required: 'Titel ist erforderlich', maxLength: { value: 100, message: 'Max. 100 Zeichen' }, minLength: { value: 3, message: 'Mind. 3 Zeichen' }}}
-            render={({ field }) => ( <TextField id="status-report-title" {...field} fullWidth placeholder="Titel des Berichts..." inputProps={{ maxLength: 100 }} error={!!formState.errors.title} helperText={ formState.errors.title?.message || `${(field.value || '').length}/100` } margin="normal" /> )}
+            rules={{ required: 'Titel ist erforderlich', maxLength: { value: titleLimit, message: `Max. ${titleLimit} Zeichen` }, minLength: { value: 3, message: 'Mind. 3 Zeichen' }}}
+            render={({ field }) => ( <TextField id="status-report-title" {...field} fullWidth placeholder="Titel des Berichts..." inputProps={{ maxLength: titleLimit }} error={!!formState.errors.title} helperText={ formState.errors.title?.message || `${(field.value || '').length}/${titleLimit}` } margin="normal" /> )}
           />
         </Box>
         <Box sx={{ mb: 3 }} ref={contentRef}>
@@ -226,7 +266,7 @@ export default function StatusReportForm() {
             Inhalt <Box component="span" sx={{ color: 'primary.main' }}>*</Box>
           </Typography>
           <Typography variant="body2" display="block" gutterBottom sx={{ mb: 2 }}> Beschreiben Sie die Aktivitäten, Erfolge oder Pläne Ihrer Gruppe. Text kann hier formatiert und mit Links versehen werden. </Typography>
-          <RichTextEditor value={contentEditorValue} onChange={handleContentChange} maxLength={5000} placeholder="Inhalt des Berichts..." />
+          <RichTextEditor value={contentEditorValue} onChange={handleContentChange} maxLength={contentLimit} placeholder="Inhalt des Berichts..." />
           {getCustomError('content') && ( <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}> {getCustomError('content')} </Typography> )}
           {formState.errors.content && !getCustomError('content') && ( <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}> {formState.errors.content.message} </Typography> )}
         </Box>

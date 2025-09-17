@@ -33,6 +33,23 @@ export const NEWSLETTER_LIMITS = {
 } as const;
 
 /**
+ * Status report limits configuration
+ * These limits control the content and title length of status reports
+ */
+export const STATUS_REPORT_LIMITS = {
+  TITLE: {
+    MIN: 3,
+    MAX: 200,
+    DEFAULT: 100
+  },
+  CONTENT: {
+    MIN: 10,
+    MAX: 10000,
+    DEFAULT: 5000
+  }
+} as const;
+
+/**
  * Newsletter content limit field names and their corresponding validation rules
  * Used for programmatic validation to avoid repetitive code
  */
@@ -44,9 +61,23 @@ export const NEWSLETTER_LIMIT_FIELDS = {
 } as const;
 
 /**
+ * Status report limit field names and their corresponding validation rules
+ * Used for programmatic validation to avoid repetitive code
+ */
+export const STATUS_REPORT_LIMIT_FIELDS = {
+  statusReportTitleLimit: STATUS_REPORT_LIMITS.TITLE,
+  statusReportContentLimit: STATUS_REPORT_LIMITS.CONTENT
+} as const;
+
+/**
  * Type for newsletter limit field keys
  */
 export type NewsletterLimitField = keyof typeof NEWSLETTER_LIMIT_FIELDS;
+
+/**
+ * Type for status report limit field keys
+ */
+export type StatusReportLimitField = keyof typeof STATUS_REPORT_LIMIT_FIELDS;
 
 /**
  * Newsletter date range constants

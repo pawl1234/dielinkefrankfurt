@@ -127,6 +127,10 @@ export async function getNewsletterSettings(): Promise<NewsletterSettings> {
         maxStatusReportsPerGroup: dbSettings.maxStatusReportsPerGroup ?? defaultSettings.maxStatusReportsPerGroup,
         maxGroupsWithReports: dbSettings.maxGroupsWithReports ?? defaultSettings.maxGroupsWithReports,
 
+        // Status report limits
+        statusReportTitleLimit: dbSettings.statusReportTitleLimit ?? defaultSettings.statusReportTitleLimit,
+        statusReportContentLimit: dbSettings.statusReportContentLimit ?? defaultSettings.statusReportContentLimit,
+
         // AI Generation Settings
         aiSystemPrompt: dbSettings.aiSystemPrompt ?? undefined,
         aiVorstandsprotokollPrompt: dbSettings.aiVorstandsprotokollPrompt ?? undefined,
@@ -253,6 +257,10 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           maxUpcomingAppointments: data.maxUpcomingAppointments,
           maxStatusReportsPerGroup: data.maxStatusReportsPerGroup,
           maxGroupsWithReports: data.maxGroupsWithReports,
+
+          // Status report limits
+          statusReportTitleLimit: data.statusReportTitleLimit,
+          statusReportContentLimit: data.statusReportContentLimit,
           
           // AI Settings
           aiSystemPrompt: data.aiSystemPrompt,
@@ -312,6 +320,10 @@ export async function updateNewsletterSettings(data: Partial<NewsletterSettings>
           maxUpcomingAppointments: data.maxUpcomingAppointments || defaultSettings.maxUpcomingAppointments,
           maxStatusReportsPerGroup: data.maxStatusReportsPerGroup || defaultSettings.maxStatusReportsPerGroup,
           maxGroupsWithReports: data.maxGroupsWithReports || defaultSettings.maxGroupsWithReports,
+
+          // Status report limits
+          statusReportTitleLimit: data.statusReportTitleLimit || defaultSettings.statusReportTitleLimit,
+          statusReportContentLimit: data.statusReportContentLimit || defaultSettings.statusReportContentLimit,
           
           // AI Settings
           aiSystemPrompt: data.aiSystemPrompt,
