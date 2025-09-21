@@ -179,7 +179,7 @@ export default function AdminStatusReportsPage() {
   };
 
   const handleEditFormSubmit = async (
-    reportId: string, 
+    reportId: string,
     formDataFromForm: StatusReportFormInput, // Renamed to avoid confusion
     newFiles: (File | Blob)[],
     retainedExistingFileUrls: string[]
@@ -188,15 +188,19 @@ export default function AdminStatusReportsPage() {
     apiFormData.append('id', reportId);
     apiFormData.append('groupId', formDataFromForm.groupId);
     apiFormData.append('title', formDataFromForm.title);
-    apiFormData.append('content', formDataFromForm.content); 
+    apiFormData.append('content', formDataFromForm.content);
     apiFormData.append('reporterFirstName', formDataFromForm.reporterFirstName);
     apiFormData.append('reporterLastName', formDataFromForm.reporterLastName);
-    apiFormData.append('status', mapToApiStatus(formDataFromForm.status)); 
+    apiFormData.append('status', mapToApiStatus(formDataFromForm.status));
     apiFormData.append('existingFileUrls', JSON.stringify(retainedExistingFileUrls));
 
-    newFiles.forEach((file) => {
-      apiFormData.append(`files`, file); 
-    });
+    // Add file count and files with correct naming format
+    if (newFiles.length > 0) {
+      apiFormData.append('fileCount', newFiles.length.toString());
+      newFiles.forEach((file, index) => {
+        apiFormData.append(`file-${index}`, file);
+      });
+    }
     
     try {
       const response = await fetch('/api/admin/status-reports', { 

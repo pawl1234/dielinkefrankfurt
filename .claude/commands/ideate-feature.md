@@ -14,12 +14,12 @@ Tech Stack: Next.js 15, React 18, TypeScript, MUI v7, Prisma/PostgreSQL, NextAut
 </context>
 
 <process>
-1. I'll ask you one short and precise question at a time to understand your feature idea. Questions should be asked to give short replies. 
+1. I'll ask you one short, precise and single sentance question at a time to understand your feature idea. Questions should be asked to give short replies. 
 2. Each question builds on your previous answers
 3. I'll incorporate relevant project context and constraints
 4. If existing feature is referenced ask to add the corresponding file into context. Ask about source file to be added to the context.
 5. We'll iteratively refine the feature until we have a complete specification
-6. The final output will be a feature document in PRPs/feature/[feature-name].md
+6. The final output will be a feature document in PRPs/feature/[feature-name].md using the "Feature Definition Template"
 </process>
 
 <ideation-approach>
@@ -42,27 +42,6 @@ Before asking my first question, I need to understand:
 - What similar patterns we can leverage
 </thinking>
 
-## First Question
-
-**What specific problem or need are you looking to address with this new feature?**
-
-Please describe:
-- The current pain point or gap in functionality
-- Who is experiencing this problem (admins, group members, public users, etc.)
-- Why this is important for Die Linke Frankfurt's operations
-
-<note>
-Take your time to think about this. The clearer we are about the problem, the better our solution will be. If you have a rough idea but aren't sure about all the details, that's fine - we'll refine it together.
-</note>
-
----
-
-*After you answer, I'll ask follow-up questions to help us explore:*
-- Specific use cases and user journeys
-- Integration points with existing features
-- Technical requirements and constraints
-- UI/UX considerations
-- Data and permission models
 
 ## Feature Definition Template
 
