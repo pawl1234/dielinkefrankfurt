@@ -23,8 +23,9 @@ import AttachmentIcon from '@mui/icons-material/Attachment';
 import { Group, StatusReport } from '@prisma/client';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { FileThumbnailGrid, parseFileUrls, FileAttachment } from '@/components/ui/FileThumbnail';
+import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import { useImageLightbox } from '@/hooks/useImageLightbox';
 
 interface GroupWithReports extends Group {
   statusReports: StatusReport[];
@@ -40,8 +41,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
   const [group, setGroup] = useState<GroupWithReports | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string }>({ url: '', alt: '' });
+
+  // Use the custom lightbox hook
+  const { lightboxProps, handleFileClick } = useImageLightbox();
 
   // Extract params
   const [slug, setSlug] = useState<string | null>(null);
@@ -111,26 +113,6 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
       }
     }
   }, [loading, group, pathname]);
-
-  const handleImageClick = (file: FileAttachment) => {
-    if (file.url) {
-      if (file.type === 'image') {
-        // Open images in lightbox
-        setLightboxImage({
-          url: file.url,
-          alt: file.description || file.name || 'Image'
-        });
-        setLightboxOpen(true);
-      } else {
-        // Open PDFs and other files in new tab
-        window.open(file.url, '_blank');
-      }
-    }
-  };
-
-  const handleLightboxClose = () => {
-    setLightboxOpen(false);
-  };
 
   return (
     <MainLayout
@@ -325,7 +307,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
                             showFileName={false}
                             showDescription={false}
                             showButtons={false}
-                            onFileClick={handleImageClick}
+                            onFileClick={handleFileClick}
                           />
                         </Box>
                       )}
@@ -372,12 +354,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
       </Container>
 
       {/* Image Lightbox */}
-      <ImageLightbox
-        open={lightboxOpen}
-        imageUrl={lightboxImage.url}
-        imageAlt={lightboxImage.alt}
-        onClose={handleLightboxClose}
-      />
+      <ImageLightbox {...lightboxProps} />
     </MainLayout>
   );
 }

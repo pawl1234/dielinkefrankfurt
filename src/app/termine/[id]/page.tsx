@@ -18,17 +18,19 @@ import EventIcon from '@mui/icons-material/Event';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import { FileThumbnailGrid, parseFileUrls, parseCoverImages, FileAttachment } from '@/components/ui/FileThumbnail';
+import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components/ui/FileThumbnail';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { Appointment } from '@/types/component-types';
+import { useImageLightbox } from '@/hooks/useImageLightbox';
 
 
 export default function AppointmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string }>({ url: '', alt: '' });
+
+  // Use the custom lightbox hook
+  const { lightboxProps, handleFileClick } = useImageLightbox();
 
   // Extract params
   const [id, setId] = useState<string | null>(null);
@@ -67,26 +69,6 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
       fetchAppointment();
     }
   }, [id]);
-
-  const handleImageClick = (file: FileAttachment) => {
-    if (file.url) {
-      if (file.type === 'image') {
-        // Open images in lightbox
-        setLightboxImage({
-          url: file.url,
-          alt: file.description || file.name || 'Image'
-        });
-        setLightboxOpen(true);
-      } else {
-        // Open PDFs and other files in new tab
-        window.open(file.url, '_blank');
-      }
-    }
-  };
-
-  const handleLightboxClose = () => {
-    setLightboxOpen(false);
-  };
 
   return (
     <MainLayout
@@ -233,7 +215,7 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                   showFileName={false}
                   showDescription={false}
                   showButtons={false}
-                  onFileClick={handleImageClick}
+                  onFileClick={handleFileClick}
                 />
               </Box>
             )}
@@ -251,7 +233,7 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                   showFileName={false}
                   showDescription={false}
                   showButtons={false}
-                  onFileClick={handleImageClick}
+                  onFileClick={handleFileClick}
                 />
               </Box>
             )}
@@ -260,12 +242,7 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
       </Container>
 
       {/* Image Lightbox */}
-      <ImageLightbox
-        open={lightboxOpen}
-        imageUrl={lightboxImage.url}
-        imageAlt={lightboxImage.alt}
-        onClose={handleLightboxClose}
-      />
+      <ImageLightbox {...lightboxProps} />
     </MainLayout>
   );
 }
