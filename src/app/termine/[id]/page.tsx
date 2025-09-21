@@ -255,17 +255,6 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                 />
               </Box>
             )}
-            
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
-              <Button
-                href="/"
-                startIcon={<ArrowBackIcon />}
-                variant="outlined"
-                LinkComponent={Link}
-              >
-                Alle Termine
-              </Button>
-            </Box>
           </Paper>
         ) : null}
       </Container>
