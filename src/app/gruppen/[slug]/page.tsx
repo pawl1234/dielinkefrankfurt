@@ -11,20 +11,20 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Tooltip,
   Chip,
   Avatar
 } from '@mui/material';
 import Link from 'next/link';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import GroupIcon from '@mui/icons-material/Group';
-import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EventIcon from '@mui/icons-material/Event';
 import AttachmentIcon from '@mui/icons-material/Attachment';
 import { Group, StatusReport } from '@prisma/client';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { FileThumbnailGrid, parseFileUrls, FileAttachment } from '@/components/ui/FileThumbnail';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 interface GroupWithReports extends Group {
   statusReports: StatusReport[];
@@ -40,6 +40,8 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
   const [group, setGroup] = useState<GroupWithReports | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string }>({ url: '', alt: '' });
 
   // Extract params
   const [slug, setSlug] = useState<string | null>(null);
@@ -109,6 +111,26 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
       }
     }
   }, [loading, group, pathname]);
+
+  const handleImageClick = (file: FileAttachment) => {
+    if (file.url) {
+      if (file.type === 'image') {
+        // Open images in lightbox
+        setLightboxImage({
+          url: file.url,
+          alt: file.description || file.name || 'Image'
+        });
+        setLightboxOpen(true);
+      } else {
+        // Open PDFs and other files in new tab
+        window.open(file.url, '_blank');
+      }
+    }
+  };
+
+  const handleLightboxClose = () => {
+    setLightboxOpen(false);
+  };
 
   return (
     <MainLayout
@@ -283,98 +305,30 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
                       </Box>
                       
                       {/* File attachments */}
-                      {report.fileUrls && (() => {
-                        try {
-                          const fileUrls = JSON.parse(report.fileUrls as string);
-                          if (Array.isArray(fileUrls) && fileUrls.length > 0) {
-                            return (
-                              <Box sx={{ mb: 3 }}>
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  gap: 1, 
-                                  mb: 1.5 
-                                }}>
-                                  <AttachmentIcon fontSize="small" color="primary" />
-                                  <Typography variant="subtitle2">
-                                    Dateianhänge ({fileUrls.length})
-                                  </Typography>
-                                </Box>
-                                <Box 
-                                  sx={{ 
-                                    display: 'flex', 
-                                    flexWrap: 'wrap', 
-                                    gap: 1.5,
-                                    p: 1.5,
-                                    bgcolor: 'background.paper',
-                                  }}
-                                >
-                                  {fileUrls.map((fileUrl: string, index: number) => {
-                                    const fileName = fileUrl.split('/').pop() || `Datei ${index + 1}`;
-                                    const fileExt = fileName.split('.').pop()?.toUpperCase() || 'Datei';
-                                    const isImage = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
-                                    const isPdf = /\.pdf$/i.test(fileName);
-                                    
-                                    let icon;
-                                    if (isImage) {
-                                      icon = <Box 
-                                        component="img" 
-                                        src={fileUrl} 
-                                        alt="Thumbnail"
-                                        sx={{ 
-                                          width: 24, 
-                                          height: 24, 
-                                          objectFit: 'cover',
-                                          borderRadius: '2px' 
-                                        }} 
-                                      />;
-                                    } else if (isPdf) {
-                                      icon = <DownloadIcon sx={{ color: 'error.main' }} />;
-                                    } else {
-                                      icon = <DownloadIcon />;
-                                    }
-                                    
-                                    return (
-                                      <Tooltip 
-                                        key={index} 
-                                        title={`${fileExt}-Datei herunterladen`} 
-                                        arrow
-                                      >
-                                        <Button 
-                                          variant="outlined"
-                                          size="small"
-                                          href={fileUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          download={fileName}
-                                          startIcon={icon}
-                                          sx={{ 
-                                            textTransform: 'none', 
-                                            borderRadius: 1,
-                                            borderColor: 'divider',
-                                            '&:hover': {
-                                              borderColor: 'primary.main',
-                                              bgcolor: 'rgba(0, 0, 0, 0.04)'
-                                            }
-                                          }}
-                                        />
-                                      </Tooltip>
-                                    );
-                                  })}
-                                </Box>
-                              </Box>
-                            );
-                          }
-                          return null;
-                        } catch (error) {
-                          console.error('Error parsing fileUrls:', error);
-                          return (
-                            <Alert severity="error" sx={{ mb: 2 }}>
-                              Fehler beim Laden der Dateianhänge
-                            </Alert>
-                          );
-                        }
-                      })()}
+                      {report.fileUrls && parseFileUrls(report.fileUrls).length > 0 && (
+                        <Box sx={{ mb: 3 }}>
+                          <Box sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1.5
+                          }}>
+                            <AttachmentIcon fontSize="small" color="primary" />
+                            <Typography variant="subtitle2">
+                              Dateianhänge ({parseFileUrls(report.fileUrls).length})
+                            </Typography>
+                          </Box>
+                          <FileThumbnailGrid
+                            files={parseFileUrls(report.fileUrls)}
+                            gridSize={{ xs: 12, sm: 6, md: 4, lg: 3 }}
+                            aspectRatio="4/5"
+                            showFileName={false}
+                            showDescription={false}
+                            showButtons={false}
+                            onFileClick={handleImageClick}
+                          />
+                        </Box>
+                      )}
                       
                       {/* Reporter info */}
                       <Box sx={{ 
@@ -416,6 +370,14 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
           </Paper>
         ) : null}
       </Container>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        open={lightboxOpen}
+        imageUrl={lightboxImage.url}
+        imageAlt={lightboxImage.alt}
+        onClose={handleLightboxClose}
+      />
     </MainLayout>
   );
 }
