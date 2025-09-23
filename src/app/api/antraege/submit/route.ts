@@ -3,13 +3,15 @@ import { createAntrag } from '@/lib/db/antrag-operations';
 import { uploadAntragFiles, deleteAntragFiles } from '@/lib/antrag-file-utils';
 import { FileUploadError } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
-import { 
-  validateAntragFormData, 
-  validateRecaptcha, 
+import {
+  validateRecaptcha,
   shouldRateLimit,
-  cleanupRateLimitMap,
-  type AntragFormData 
+  cleanupRateLimitMap
 } from '@/lib/validation/antrag-validator';
+import {
+  validateAntragWithFilesWithZod,
+  type AntragFormData
+} from '@/lib/validation/antrag-schema';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { getRecipientEmails } from '@/lib/db/antrag-config-operations';
 import { sendAntragSubmissionEmail } from '@/lib/email-senders';
@@ -130,21 +132,24 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Validate form data
-    const validationResult = validateAntragFormData(formData);
+    // Validate form data using Zod schema
+    const validationResult = await validateAntragWithFilesWithZod(formData);
     if (!validationResult.isValid && validationResult.errors) {
       // Use consistent validationErrorResponse for field errors
       return validationErrorResponse(validationResult.errors);
     }
-    
+
+    // Use validated data from Zod (guaranteed to be correct after validation)
+    const validatedData = validationResult.data!;
+
     // Prepare Antrag data for database
     const antragData = {
-      firstName: formData.firstName!.trim(),
-      lastName: formData.lastName!.trim(),
-      email: formData.email!.trim(),
-      title: formData.title!.trim(),
-      summary: formData.summary!.trim(),
-      purposes: formData.purposes!
+      firstName: validatedData.firstName.trim(),
+      lastName: validatedData.lastName.trim(),
+      email: validatedData.email.trim(),
+      title: validatedData.title.trim(),
+      summary: validatedData.summary.trim(),
+      purposes: validatedData.purposes
     };
     
     // Upload files if present
