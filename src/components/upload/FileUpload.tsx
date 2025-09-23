@@ -25,6 +25,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 interface FileUploadProps {
   onFilesSelect?: (files: (File | Blob)[]) => void;
   onFilesAdded?: (files: File[]) => void;
+  onError?: (error: string | null) => void;
   maxFiles?: number;
   maxFileSize?: number;
   allowedFileTypes?: string[];
@@ -61,10 +62,11 @@ interface FileItem {
   isProcessing?: boolean;
 }
 
-const FileUpload = ({ 
-  onFilesSelect, 
+const FileUpload = ({
+  onFilesSelect,
   onFilesAdded,
-  maxFiles = 5, 
+  onError,
+  maxFiles = 5,
   maxFileSize = 5 * 1024 * 1024, // Default 5MB
   allowedFileTypes = ['.jpg', '.jpeg', '.png', '.pdf'],
   multiple = true,
@@ -84,35 +86,46 @@ const FileUpload = ({
 
     // Check if adding these files would exceed the limit
     if (files.length + selectedFiles.length > maxFiles) {
-      setError(`Du kannst maximal ${maxFiles} Dateien hochladen.`);
+      const errorMessage = `Du kannst maximal ${maxFiles} Dateien hochladen.`;
+      setError(errorMessage);
+      onError?.(errorMessage);
       return;
     }
 
-    // Process each selected file
-    const newFiles: FileItem[] = [];
-    
     // Helper function to check if file extension matches allowed types
     const isValidFileType = (filename: string): boolean => {
       const ext = '.' + filename.split('.').pop()?.toLowerCase();
       return allowedFileTypes.some(type => type.toLowerCase() === ext);
     };
 
-    const addedFiles: File[] = [];
+    // Validate all files first before processing any
+    const filesArray = Array.from(selectedFiles);
+    for (let i = 0; i < filesArray.length; i++) {
+      const file = filesArray[i];
 
-    Array.from(selectedFiles).forEach(file => {
       // Validate file type
       if (!isValidFileType(file.name)) {
-        setError(`Nicht unterstützter Dateityp. Erlaubte Typen: ${allowedFileTypes.join(', ')}`);
+        const errorMessage = `Nicht unterstützter Dateityp. Erlaubte Typen: ${allowedFileTypes.join(', ')}`;
+        setError(errorMessage);
+        onError?.(errorMessage);
         return;
       }
 
       // Validate file size
       if (file.size > maxFileSize) {
         const maxSizeMB = maxFileSize / (1024 * 1024);
-        setError(`Dateigröße überschreitet ${maxSizeMB}MB Limit. Bitte lade eine kleinere Datei hoch.`);
+        const errorMessage = `Dateigröße überschreitet ${maxSizeMB}MB Limit. Bitte lade eine kleinere Datei hoch.`;
+        setError(errorMessage);
+        onError?.(errorMessage);
         return;
       }
-      
+    }
+
+    // All files are valid, proceed with processing
+    const newFiles: FileItem[] = [];
+    const addedFiles: File[] = [];
+
+    filesArray.forEach(file => {
       // Add to the list of added files for the callback
       addedFiles.push(file);
 
@@ -146,7 +159,7 @@ const FileUpload = ({
       } else {
         // For non-image files, mark as processed immediately
         setTimeout(() => {
-          setFiles(prev => prev.map(f => 
+          setFiles(prev => prev.map(f =>
             f.id === fileItem.id ? { ...f, isProcessing: false } : f
           ));
           setProcessingFiles(prev => prev.filter(id => id !== fileItem.id));
@@ -158,22 +171,24 @@ const FileUpload = ({
 
     // Add new files to state
     setFiles(prev => [...prev, ...newFiles]);
-    
+
     // Call appropriate callbacks
     if (onFilesSelect) {
       onFilesSelect?.([...files, ...newFiles].map(f => f.file));
     }
-    
+
     if (onFilesAdded && addedFiles.length > 0) {
       onFilesAdded(addedFiles);
     }
-    
+
     // Reset the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    
+
+    // Clear any previous errors only when files are successfully processed
     setError(null);
+    onError?.(null);
   };
 
   // Remove a file

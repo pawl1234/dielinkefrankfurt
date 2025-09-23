@@ -154,7 +154,7 @@ describe('FileUpload Component', () => {
 
   it('disables interaction when disabled prop is true', () => {
     renderWithTheme(
-      <FileUpload 
+      <FileUpload
         onFilesSelect={mockOnFilesSelect}
         maxFiles={5}
         maxFileSize={10 * 1024 * 1024}
@@ -164,5 +164,112 @@ describe('FileUpload Component', () => {
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     expect(fileInput).toBeDisabled();
+  });
+
+  it('validates file type and shows error for invalid types', async () => {
+    renderWithTheme(
+      <FileUpload
+        onFilesSelect={mockOnFilesSelect}
+        maxFiles={5}
+        maxFileSize={10 * 1024 * 1024}
+        allowedFileTypes={['.pdf', '.jpg']}
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const invalidFile = new File(['content'], 'test.txt', { type: 'text/plain' });
+
+    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/nicht unterstützter dateityp.*\.pdf, \.jpg/i)).toBeInTheDocument();
+    });
+
+    // Ensure onFilesSelect was not called for invalid file
+    expect(mockOnFilesSelect).not.toHaveBeenCalled();
+  });
+
+  it('validates file size and shows error for oversized files', async () => {
+    const maxFileSize = 2 * 1024 * 1024; // 2MB
+    renderWithTheme(
+      <FileUpload
+        onFilesSelect={mockOnFilesSelect}
+        maxFiles={5}
+        maxFileSize={maxFileSize}
+        allowedFileTypes={['.pdf', '.jpg']}
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // Create a file larger than the limit
+    const oversizedFile = new File(['x'.repeat(3 * 1024 * 1024)], 'large.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/dateigröße überschreitet.*2.*mb.*limit/i)).toBeInTheDocument();
+    });
+
+    // Ensure onFilesSelect was not called for oversized file
+    expect(mockOnFilesSelect).not.toHaveBeenCalled();
+  });
+
+  it('shows error for first invalid file when multiple files are selected', async () => {
+    renderWithTheme(
+      <FileUpload
+        onFilesSelect={mockOnFilesSelect}
+        maxFiles={5}
+        maxFileSize={10 * 1024 * 1024}
+        allowedFileTypes={['.pdf', '.jpg']}
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const validFile = new File(['content'], 'valid.pdf', { type: 'application/pdf' });
+    const invalidFile = new File(['content'], 'invalid.txt', { type: 'text/plain' });
+
+    // Select both files - invalid file should trigger error
+    fireEvent.change(fileInput, { target: { files: [validFile, invalidFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/nicht unterstützter dateityp/i)).toBeInTheDocument();
+    });
+
+    // Ensure no files were processed due to validation failure
+    expect(mockOnFilesSelect).not.toHaveBeenCalled();
+  });
+
+  it('clears errors when valid files are uploaded after an error', async () => {
+    renderWithTheme(
+      <FileUpload
+        onFilesSelect={mockOnFilesSelect}
+        maxFiles={5}
+        maxFileSize={10 * 1024 * 1024}
+        allowedFileTypes={['.pdf', '.jpg']}
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    // First, trigger an error with invalid file type
+    const invalidFile = new File(['content'], 'test.txt', { type: 'text/plain' });
+    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/nicht unterstützter dateityp/i)).toBeInTheDocument();
+    });
+
+    // Then upload a valid file
+    const validFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [validFile] } });
+
+    await waitFor(() => {
+      // Error should be cleared
+      expect(screen.queryByText(/nicht unterstützter dateityp/i)).not.toBeInTheDocument();
+      // Valid file should be displayed
+      expect(screen.getByText('test.pdf')).toBeInTheDocument();
+    });
+
+    expect(mockOnFilesSelect).toHaveBeenCalled();
   });
 });

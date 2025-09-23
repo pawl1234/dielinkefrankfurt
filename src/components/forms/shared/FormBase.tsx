@@ -1,12 +1,28 @@
 'use client';
 
-import { ReactNode, RefObject } from 'react';
+import { ReactNode, RefObject, createContext, useContext } from 'react';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import { FieldValues, UseFormReturn, FormProvider, SubmitHandler, FieldErrors } from 'react-hook-form';
 import FormSuccessMessage from './FormSuccessMessage';
+import FormErrorMessage from './FormErrorMessage';
 import { useFormSubmission } from '@/hooks/useFormSubmission';
 import { FormValidationHelper } from './FormValidationHelper';
+
+// Context for providing form error handling to child components
+interface FormErrorContextType {
+  setSubmissionError: (error: string | null) => void;
+}
+
+const FormErrorContext = createContext<FormErrorContextType | null>(null);
+
+export const useFormError = () => {
+  const context = useContext(FormErrorContext);
+  if (!context) {
+    throw new Error('useFormError must be used within a FormBase component');
+  }
+  return context;
+};
 
 export interface FieldRefMap {
   [key: string]: RefObject<HTMLElement>;
@@ -28,6 +44,8 @@ export interface FormBaseProps<TFormValues extends FieldValues> {
   mode?: 'create' | 'edit';
   successTitle?: string;
   successMessage?: string | ReactNode;
+  errorTitle?: string;
+  onRetry?: () => void;
   files?: (File | Blob)[];
   children: ReactNode;
   onReset?: () => void;
@@ -45,6 +63,8 @@ export default function FormBase<TFormValues extends FieldValues>({
   mode = 'create',
   successTitle = 'Erfolgreich übermittelt!',
   successMessage = 'Ihre Daten wurden erfolgreich übermittelt.',
+  errorTitle = 'Fehler beim Absenden des Formulars',
+  onRetry,
   files = [],
   children,
   onReset,
@@ -58,7 +78,7 @@ export default function FormBase<TFormValues extends FieldValues>({
     if (onReset) onReset();
   };
   
-  const { isSubmitting, submissionError, submissionSuccess, handleSubmit: executeActualSubmit } = useFormSubmission<TFormValues>({
+  const { isSubmitting, submissionError, submissionSuccess, setSubmissionError, handleSubmit: executeActualSubmit } = useFormSubmission<TFormValues>({
     onSubmit: async (data) => {
       await onSubmit(data, files);
     },
@@ -86,13 +106,22 @@ export default function FormBase<TFormValues extends FieldValues>({
 
   return (
     <FormProvider {...formMethods}>
-      <Box mb={5} component="form" onSubmit={rhfHandleSubmit(handleValidRHFSubmit, handleInvalidRHFSubmit)} noValidate sx={{ '& > *': { mt: 3 } }}>
-        {/* ... rest of JSX ... */}
-        {submissionError && ( <Box sx={{ mb: 3, p:2, border: '1px solid', borderColor: 'error.main', borderRadius: 1, backgroundColor: 'error.lighter' }}> <Typography variant="subtitle1" color="error" component="div" fontWeight="bold"> Fehler beim Absenden des Formulars: </Typography> <Typography variant="body2" color="error">{submissionError}</Typography> </Box> )}
-        {submissionSuccess && ( <FormSuccessMessage title={successTitle} message={successMessage} resetForm={resetForm} resetButtonText={mode === 'create' ? "Neuen Eintrag erstellen" : "Zurück zum Formular"}/> )}
-        {!submissionSuccess && (
-          <>
-            {children}
+      <FormErrorContext.Provider value={{ setSubmissionError }}>
+        <Box mb={5} component="form" onSubmit={rhfHandleSubmit(handleValidRHFSubmit, handleInvalidRHFSubmit)} noValidate sx={{ '& > *': { mt: 3 } }}>
+          {/* ... rest of JSX ... */}
+          {submissionError && (
+            <FormErrorMessage
+              title={errorTitle}
+              message={submissionError}
+              onRetry={onRetry}
+              showRetryButton={!!onRetry}
+              showResetButton={false}
+            />
+          )}
+          {submissionSuccess && ( <FormSuccessMessage title={successTitle} message={successMessage} resetForm={resetForm} resetButtonText={mode === 'create' ? "Neuen Eintrag erstellen" : "Zurück zum Formular"}/> )}
+          {!submissionSuccess && (
+            <>
+              {children}
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
               {mode === 'create' && (
                 <Button
@@ -129,7 +158,8 @@ export default function FormBase<TFormValues extends FieldValues>({
             </Box>
           </>
         )}
-      </Box>
+        </Box>
+      </FormErrorContext.Provider>
     </FormProvider>
   );
 }

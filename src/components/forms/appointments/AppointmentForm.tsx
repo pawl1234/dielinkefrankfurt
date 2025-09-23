@@ -11,7 +11,7 @@ import AddressFields from '../shared/AddressFields';
 import RequesterFields from '../shared/RequesterFields';
 // Captcha feature removed
 import FormSection from '../shared/FormSection';
-import FormBase, { FieldRefMap, CustomValidationEntry } from '../shared/FormBase';
+import FormBase, { FieldRefMap, CustomValidationEntry, useFormError } from '../shared/FormBase';
 import {
   Box, Typography, TextField, Checkbox, FormControlLabel,
   Collapse, Paper, Button,
@@ -238,6 +238,12 @@ export default function AppointmentForm({
     }
     return undefined;
   };
+
+  // Component to use the form error context
+  const FileUploadWithError = ({ onFilesSelect, maxFiles }: { onFilesSelect: (files: (File | Blob)[]) => void; maxFiles: number }) => {
+    const { setSubmissionError } = useFormError();
+    return <FileUpload onFilesSelect={onFilesSelect} maxFiles={maxFiles} onError={setSubmissionError} />;
+  };
   
   // Restored full help texts
   const helpTextRequester = <Typography variant="body2"> Bitte geben Sie Ihren Namen an. Diese Informationen sind erforderlich, damit wir Ihre Anfrage bearbeiten und zuordnen können. Die Daten werden nur für die interne Freigabe verwendet und nicht nach außen gegeben. </Typography>;
@@ -296,7 +302,7 @@ export default function AppointmentForm({
       )}
 
       <FormSection title="Datei Anhänge (optional)" helpTitle="Anhänge hochladen" helpText={helpTextAttachments}>
-        <Box ref={fileRef} sx={{mb:2}}><FileUpload onFilesSelect={handleFileSelect} maxFiles={5} /></Box>
+        <Box ref={fileRef} sx={{mb:2}}><FileUploadWithError onFilesSelect={handleFileSelect} maxFiles={5} /></Box>
         {mode === 'edit' && existingFileUrls.length > 0 && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="subtitle1" gutterBottom>

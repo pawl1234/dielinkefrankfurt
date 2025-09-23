@@ -15,7 +15,7 @@ import {
 import RichTextEditor from '../../editor/RichTextEditor';
 import FileUpload from '@/components/upload/FileUpload';
 import FormSection from '../shared/FormSection';
-import FormBase, { FieldRefMap, CustomValidationEntry } from '../shared/FormBase'; // Ensure this path is correct
+import FormBase, { FieldRefMap, CustomValidationEntry, useFormError } from '../shared/FormBase'; // Ensure this path is correct
 
 interface Group {
   id: string;
@@ -209,6 +209,11 @@ export default function StatusReportForm() {
   const helpTextReporter = <Typography variant="body2"> Bitte geben Sie Ihre Kontaktdaten an. Diese Informationen werden nur intern verwendet und nicht veröffentlicht. </Typography>;
   const helpTextAttachments = <Typography variant="body2"> Hier können Sie Anhänge wie Bilder oder PDFs hochladen, die mit Ihrem Bericht veröffentlicht werden sollen. Sie können maximal 5 Dateien hochladen (jeweils max. 5MB). </Typography>;
 
+  // Component to use the form error context
+  const FileUploadWithError = ({ onFilesSelect, maxFiles }: { onFilesSelect: (files: (File | Blob)[]) => void; maxFiles: number }) => {
+    const { setSubmissionError } = useFormError();
+    return <FileUpload onFilesSelect={onFilesSelect} maxFiles={maxFiles} onError={setSubmissionError} />;
+  };
 
   if (loadingLimits) {
     return (
@@ -289,7 +294,7 @@ export default function StatusReportForm() {
 
       <FormSection title="Datei Anhänge (optional)" helpTitle="Zusätzliche Dateien" helpText={helpTextAttachments}>
         <Box sx={{ mb: 2 }} ref={filesRef}>
-          <FileUpload onFilesSelect={handleFileSelect} maxFiles={5} />
+          <FileUploadWithError onFilesSelect={handleFileSelect} maxFiles={5} />
           {getCustomError('files') && <Typography variant="caption" color="error">{getCustomError('files')}</Typography>}
         </Box>
       </FormSection>
