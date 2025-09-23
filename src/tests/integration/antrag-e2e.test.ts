@@ -38,8 +38,8 @@ jest.mock('@/lib/email-senders', () => ({
   sendAntragRejectionEmail: jest.fn(),
 }));
 
-jest.mock('@/lib/validation/antrag-validator', () => ({
-  ...jest.requireActual('@/lib/validation/antrag-validator'),
+jest.mock('@/lib/validation/utils', () => ({
+  ...jest.requireActual('@/lib/validation/utils'),
   validateRecaptcha: jest.fn(),
 }));
 

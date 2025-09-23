@@ -7,12 +7,14 @@
 export * from './helpers';
 export * from './localization';
 export * from './schemas';
+export * from './file-schemas';
 
 // Export Zod-based validation schemas
 export * from './antrag';
 export * from './group';
 export * from './status-report';
 export * from './appointment';
+export * from './admin-schemas';
 
 // Export validation utilities
 export * from './utils';

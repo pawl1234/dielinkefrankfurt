@@ -17,6 +17,7 @@ import {
   createOptionalTextSchema,
   fileUrlsSchema
 } from './schemas';
+import { documentFilesSchema } from './file-schemas';
 import { zodCustomMessages } from './localization';
 
 /**
@@ -161,7 +162,7 @@ export const antragFormDataSchema = z.object({
   summary: summarySchema,
   purposes: purposesSchema,
   fileUrls: fileUrlsSchema,
-  files: z.array(z.instanceof(File)).optional(),
+  files: documentFilesSchema,
   recaptchaToken: z.string().optional()
 });
 

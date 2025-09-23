@@ -82,15 +82,18 @@ export async function validateStatusReportWithZod(data: unknown) {
     // Try to get configurable limits from newsletter settings
     const { getNewsletterSettings } = await import('@/lib/newsletter-service');
     const settings = await getNewsletterSettings();
-    const titleLimit = settings.statusReportTitleLimit || 100;
-    const contentLimit = settings.statusReportContentLimit || 5000;
+    const titleLimit = settings?.statusReportTitleLimit || 100;
+    const contentLimit = settings?.statusReportContentLimit || 5000;
 
     // Use schema with configurable limits
     const schema = createStatusReportSchema(titleLimit, contentLimit);
     return zodToValidationResult(schema, data);
   } catch (settingsError) {
-    // Fallback to default limits if settings cannot be retrieved
-    console.warn('Could not retrieve newsletter settings, using default limits:', settingsError);
+    // Fallback to default limits if settings cannot be retrieved (common in tests)
+    // Only warn in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('Could not retrieve newsletter settings, using default limits:', settingsError);
+    }
     return zodToValidationResult(statusReportCreateDataSchema, data);
   }
 }

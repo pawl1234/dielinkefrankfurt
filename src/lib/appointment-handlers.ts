@@ -3,14 +3,16 @@ import prisma from './prisma';
 import type { Appointment, Prisma } from '@prisma/client';
 import { serverErrorResponse } from './api-auth';
 import { put, del } from '@vercel/blob';
-import { 
-  AppError, 
-  apiErrorResponse, 
-  validationErrorResponse, 
-  handleFileUploadError, 
-  handleDatabaseError, 
-  getLocalizedErrorMessage 
+import {
+  AppError,
+  apiErrorResponse,
+  validationErrorResponse,
+  ValidationError,
+  handleFileUploadError,
+  handleDatabaseError,
+  getLocalizedErrorMessage
 } from './errors';
+import { validateAppointmentSubmitWithZod } from './validation/appointment';
 
 /**
  * Types for appointment operations
@@ -381,33 +383,31 @@ export async function createAppointment(request: NextRequest) {
     const formData = await request.formData();
 
     // Extract text fields
-    const title = formData.get('title') as string;
-    const teaser = formData.get('teaser') as string;
-    const mainText = formData.get('mainText') as string;
-    const startDateTime = formData.get('startDateTime') as string;
-    const endDateTime = formData.get('endDateTime') as string || null;
-    const street = formData.get('street') as string || '';
-    const city = formData.get('city') as string || '';
-    const state = formData.get('state') as string || '';
-    const postalCode = formData.get('postalCode') as string || '';
-    const firstName = formData.get('firstName') as string || '';
-    const lastName = formData.get('lastName') as string || '';
-    const recurringText = formData.get('recurringText') as string || '';
+    const appointmentData = {
+      title: formData.get('title') as string,
+      teaser: formData.get('teaser') as string || undefined,
+      mainText: formData.get('mainText') as string,
+      startDateTime: formData.get('startDateTime') as string,
+      endDateTime: (formData.get('endDateTime') as string) || undefined,
+      street: formData.get('street') as string || undefined,
+      city: formData.get('city') as string || undefined,
+      state: formData.get('state') as string || undefined,
+      postalCode: formData.get('postalCode') as string || undefined,
+      firstName: formData.get('firstName') as string || undefined,
+      lastName: formData.get('lastName') as string || undefined,
+      recurringText: formData.get('recurringText') as string || undefined
+    };
+
     const featured = formData.get('featured') === 'true';
 
-    // Validation errors container
-    const validationErrors: Record<string, string> = {};
-
-    // Field validation
-    if (!title) validationErrors.title = 'Titel ist erforderlich';
-    //if (!teaser) validationErrors.teaser = 'Teaser ist erforderlich';
-    if (!mainText) validationErrors.mainText = 'Beschreibung ist erforderlich';
-    if (!startDateTime) validationErrors.startDateTime = 'Startdatum und -uhrzeit sind erforderlich';
-    
-    // If we have validation errors, return them all at once
-    if (Object.keys(validationErrors).length > 0) {
-      return validationErrorResponse(validationErrors);
+    // Validate appointment data using Zod schema
+    const validationResult = await validateAppointmentSubmitWithZod(appointmentData);
+    if (!validationResult.isValid && validationResult.errors) {
+      return validationErrorResponse(validationResult.errors);
     }
+
+    // Use validated data from Zod (guaranteed to be correct after validation)
+    const validatedData = validationResult.data!;
 
     // Process multiple file uploads if present using Vercel Blob Store
     const fileCount = formData.get('fileCount');
@@ -551,18 +551,18 @@ export async function createAppointment(request: NextRequest) {
 
       // Connection successful, proceed with creating appointment
       const appointmentData = {
-        title,
-        teaser,
-        mainText,
-        startDateTime: new Date(startDateTime),
-        endDateTime: endDateTime ? new Date(endDateTime) : null,
-        street,
-        city,
-        state,
-        postalCode,
-        firstName,
-        lastName,
-        recurringText,
+        title: validatedData.title,
+        teaser: validatedData.teaser || '',
+        mainText: validatedData.mainText,
+        startDateTime: new Date(validatedData.startDateTime),
+        endDateTime: validatedData.endDateTime ? new Date(validatedData.endDateTime) : null,
+        street: validatedData.street || '',
+        city: validatedData.city || '',
+        state: validatedData.state || '',
+        postalCode: validatedData.postalCode || '',
+        firstName: validatedData.firstName || '',
+        lastName: validatedData.lastName || '',
+        recurringText: validatedData.recurringText || '',
         featured,
         status: 'pending' as const,
         // Store file URLs as JSON strings

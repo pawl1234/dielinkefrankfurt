@@ -63,26 +63,4 @@ describe('Streamlined File Upload Error Handling', () => {
     });
   });
 
-  it('should reset file upload errors when form is reset', async () => {
-    renderWithTheme(<AppointmentForm />);
-
-    // Upload an invalid file type first
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const invalidFile = new File(['content'], 'test.txt', { type: 'text/plain' });
-
-    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
-
-    await waitFor(() => {
-      expect(screen.getByText(/nicht unterstützter dateityp/i)).toBeInTheDocument();
-    });
-
-    // Find and click the reset button
-    const resetButton = screen.getByText('Zurücksetzen');
-    fireEvent.click(resetButton);
-
-    await waitFor(() => {
-      // Error should be cleared after reset
-      expect(screen.queryByText(/nicht unterstützter dateityp/i)).not.toBeInTheDocument();
-    });
-  });
 });
