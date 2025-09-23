@@ -12,7 +12,7 @@ import {
   firstNameSchema,
   lastNameSchema,
   fileUrlsSchema
-} from './zod-schemas';
+} from './schemas';
 
 /**
  * Base status report schema with default limits
@@ -76,7 +76,7 @@ export type StatusReportUpdateData = z.infer<typeof statusReportUpdateDataSchema
  * Direct replacement for validateStatusReportData() from status-report-validator.ts
  */
 export async function validateStatusReportWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
 
   try {
     // Try to get configurable limits from newsletter settings
@@ -99,7 +99,7 @@ export async function validateStatusReportWithZod(data: unknown) {
  * Validation function for status report updates
  */
 export async function validateStatusReportUpdateWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(statusReportUpdateDataSchema, data);
 }
 
@@ -107,6 +107,6 @@ export async function validateStatusReportUpdateWithZod(data: unknown) {
  * Simple validation without configurable limits (for cases where newsletter service is unavailable)
  */
 export async function validateStatusReportSimpleWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(statusReportCreateDataSchema, data);
 }

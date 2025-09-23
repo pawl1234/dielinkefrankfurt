@@ -81,7 +81,7 @@ export const zodCustomMessages = {
   },
 
   // Antrag-specific validation messages
-  atLeastOnePurpose: 'Mindestens ein Verwendungszweck muss ausgewählt werden',
+  atLeastOnePurpose: 'Mindestens ein Zweck muss ausgewählt werden',
   zuschussAmountRequired: 'Betrag für finanziellen Zuschuss ist erforderlich',
   zuschussAmountMinimum: 'Betrag muss mindestens 1 Euro betragen',
   zuschussAmountMaximum: 'Betrag darf maximal 999.999 Euro betragen',

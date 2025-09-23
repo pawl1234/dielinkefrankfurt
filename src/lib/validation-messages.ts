@@ -36,6 +36,10 @@ export const fieldLabels: Record<string, string> = {
   'reporterFirstName': 'Vorname des Erstellers',
   'reporterLastName': 'Nachname des Erstellers',
 
+  // Antrag fields
+  'summary': 'Zusammenfassung',
+  'purposes': 'Verwendungszweck',
+
   // Common fields
   'files': 'Datei-Anhänge'
 };

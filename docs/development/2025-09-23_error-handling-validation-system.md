@@ -1,28 +1,31 @@
 # Error Handling and Validation System
 
 > **Date:** 2025-09-23
-> **Version:** 1.0
-> **Status:** Implemented
+> **Version:** 2.0
+> **Status:** Migrated to Zod-based System
 
 ## Overview
 
-This document describes the centralized error handling and validation system implemented for the DIE LINKE Frankfurt Next.js application. The system provides consistent, type-safe error handling with German localization and structured field validation across all API routes.
+This document describes the unified Zod-based error handling and validation system for the DIE LINKE Frankfurt Next.js application. The system provides type-safe validation with full TypeScript inference, consistent German localization, and structured field validation across all API routes.
 
 ## Architecture
 
-### Core Components
+### Current Architecture (Post-Migration)
 
 ```
 src/lib/
 ├── errors.ts                    # Core error classes and response helpers
 ├── validation-messages.ts       # German field labels and validation messages
 └── validation/
-    ├── index.ts                 # Single export point for all validators
-    ├── schemas.ts               # Shared validation patterns and utilities
-    ├── group-validator.ts       # Group-specific validation logic
-    ├── status-report-validator.ts # Status report validation with configurable limits
-    ├── appointment-validator.ts # Appointment validation logic
-    └── antrag-validator.ts      # Antrag (application) validation logic
+    ├── index.ts                 # Centralized exports for all validation
+    ├── helpers.ts               # Zod integration utilities
+    ├── localization.ts          # German error message mapping for Zod
+    ├── schemas.ts               # Base Zod schemas (reusable components)
+    ├── utils.ts                 # Rate limiting, reCAPTCHA utilities
+    ├── antrag.ts               # Antrag-specific Zod validation
+    ├── group.ts                # Group-specific Zod validation
+    ├── status-report.ts        # Status report Zod validation
+    └── appointment.ts          # Appointment Zod validation
 ```
 
 ### Error Classes Hierarchy
@@ -66,63 +69,80 @@ export interface ValidationResult {
 }
 ```
 
-## Validation System
+## Zod-Based Validation System
 
-### Shared Validation Schemas
+### Base Zod Schemas
 
-The `schemas.ts` file provides reusable validation patterns:
+The `schemas.ts` file provides reusable Zod schemas with German error messages:
 
 ```typescript
-import { validationSchemas, commonValidators } from '@/lib/validation/schemas';
+import {
+  nameSchema,
+  emailSchema,
+  longDescriptionSchema,
+  firstNameSchema,
+  lastNameSchema,
+  titleSchema,
+  contentSchema
+} from '@/lib/validation/schemas';
 
-// Common validators
-commonValidators.required(value, 'fieldName');
-commonValidators.email(value, 'email');
-commonValidators.stringLength(value, 'name', 3, 100);
-
-// Predefined schemas
-validationSchemas.name.validate(value, 'name');
-validationSchemas.email.validate(value, 'email');
-validationSchemas.longDescription.validate(value, 'description');
+// Usage examples
+const GroupSchema = z.object({
+  name: nameSchema,                    // 3-100 chars, German errors
+  description: longDescriptionSchema,  // 50-5000 chars, German errors
+  responsiblePersons: z.array(z.object({
+    firstName: firstNameSchema,        // 2-50 chars, German character validation
+    lastName: lastNameSchema,          // 2-50 chars, German character validation
+    email: emailSchema                 // Email validation with German messages
+  })).min(1, 'Mindestens eine verantwortliche Person ist erforderlich')
+});
 ```
 
-### Creating New Validators
+### Zod Integration Utilities
 
-1. **Create validator file** in `src/lib/validation/`:
+The `helpers.ts` file bridges Zod with existing ValidationResult/ValidationError pattern:
 
 ```typescript
-// src/lib/validation/my-validator.ts
-import { validationSchemas, validateFields } from './schemas';
-import { ValidationResult } from '@/lib/errors';
+import { zodToValidationResult, validateWithZod } from '@/lib/validation/helpers';
 
-export interface MyDataType {
-  name: string;
-  email: string;
-  // ... other fields
+// Convert Zod validation to ValidationResult format
+const result = zodToValidationResult(MySchema, data);
+
+// Direct validation with error throwing
+try {
+  const validatedData = validateWithZod(MySchema, data);
+  // Use validatedData (fully typed)
+} catch (error) {
+  // ValidationError thrown automatically
 }
+```
 
-export async function validateMyData(data: Partial<MyDataType>): Promise<ValidationResult> {
-  const errors: Record<string, string> = {};
+### Creating New Zod Validators
 
-  // Type guard
-  if (!data || typeof data !== 'object') {
-    return {
-      isValid: false,
-      errors: { general: 'Ungültige Daten erhalten' }
-    };
-  }
+1. **Create Zod schema file** in `src/lib/validation/`:
 
-  // Use shared schemas
-  const nameError = validationSchemas.name.validate(data.name || '', 'name');
-  if (nameError) errors.name = nameError;
+```typescript
+// src/lib/validation/my-feature.ts
+import { z } from 'zod';
+import { nameSchema, emailSchema, titleSchema } from './schemas';
 
-  const emailError = validationSchemas.email.validate(data.email || '', 'email');
-  if (emailError) errors.email = emailError;
+// Define Zod schema with German error messages
+export const myFeatureSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  title: titleSchema,
+  customField: z.string()
+    .min(1, 'Benutzerdefiniertes Feld ist erforderlich')
+    .max(200, 'Benutzerdefiniertes Feld darf maximal 200 Zeichen lang sein')
+});
 
-  return {
-    isValid: Object.keys(errors).length === 0,
-    errors: Object.keys(errors).length > 0 ? errors : undefined
-  };
+// Export TypeScript types
+export type MyFeatureData = z.infer<typeof myFeatureSchema>;
+
+// Create validation function using Zod helpers
+export async function validateMyFeatureWithZod(data: unknown) {
+  const { zodToValidationResult } = await import('./helpers');
+  return zodToValidationResult(myFeatureSchema, data);
 }
 ```
 
@@ -130,7 +150,7 @@ export async function validateMyData(data: Partial<MyDataType>): Promise<Validat
 
 ```typescript
 // src/lib/validation/index.ts
-export * from './my-validator';
+export * from './my-feature';
 ```
 
 ## API Error Handling Patterns
@@ -140,25 +160,33 @@ export * from './my-validator';
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
 import { ValidationError, isValidationError, apiErrorResponse } from '@/lib/errors';
-import { validateMyData } from '@/lib/validation';
+import { validateMyFeatureWithZod } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
+    // Handle both JSON and FormData
+    const contentType = request.headers.get('content-type') || '';
+    let data;
 
-    // Extract and validate data
-    const data = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-    };
+    if (contentType.includes('application/json')) {
+      data = await request.json();
+    } else {
+      const formData = await request.formData();
+      data = {
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+      };
+    }
 
-    const validationResult = await validateMyData(data);
+    // Validate using Zod schema
+    const validationResult = await validateMyFeatureWithZod(data);
     if (!validationResult.isValid && validationResult.errors) {
       throw new ValidationError(validationResult.errors);
     }
 
-    // Process valid data
-    const result = await processData(data);
+    // Process valid data (fully typed from Zod)
+    const validatedData = validationResult.data!;
+    const result = await processData(validatedData);
 
     return NextResponse.json({ success: true, data: result });
 
@@ -187,17 +215,18 @@ export async function POST(request: NextRequest) {
 ```typescript
 // src/lib/my-handlers.ts
 import { ValidationError } from '@/lib/errors';
-import { validateMyData } from '@/lib/validation';
+import { validateMyFeatureWithZod } from '@/lib/validation';
 
-export async function createMyEntity(data: MyDataType): Promise<MyEntity> {
-  // Validate using centralized validator
-  const validationResult = await validateMyData(data);
+export async function createMyEntity(data: unknown): Promise<MyEntity> {
+  // Validate using Zod validator
+  const validationResult = await validateMyFeatureWithZod(data);
   if (!validationResult.isValid && validationResult.errors) {
     throw new ValidationError(validationResult.errors);
   }
 
-  // Business logic
-  const entity = await prisma.myEntity.create({ data });
+  // Business logic with fully typed data
+  const validatedData = validationResult.data!; // TypeScript knows the exact type
+  const entity = await prisma.myEntity.create({ data: validatedData });
   return entity;
 }
 ```
@@ -295,35 +324,64 @@ export const validationMessages = {
 };
 ```
 
-## Testing
+## Testing Zod Validation
 
-### Unit Testing Validators
+### Unit Testing Zod Validators
 
 ```typescript
-// src/tests/lib/validation/my-validator.test.ts
+// src/tests/lib/validation/my-feature.test.ts
 import { describe, it, expect } from '@jest/globals';
-import { validateMyData } from '@/lib/validation/my-validator';
+import { validateMyFeatureWithZod, myFeatureSchema } from '@/lib/validation/my-feature';
 
-describe('My Validator', () => {
-  it('should accept valid data', async () => {
+describe('My Feature Zod Validator', () => {
+  it('should accept valid data with full TypeScript typing', async () => {
     const validData = {
       name: 'Test Name',
-      email: 'test@example.com'
+      email: 'test@example.com',
+      title: 'Test Title',
+      customField: 'Custom Value'
     };
 
-    const result = await validateMyData(validData);
+    const result = await validateMyFeatureWithZod(validData);
     expect(result.isValid).toBe(true);
+    expect(result.data).toBeDefined();
     expect(result.errors).toBeUndefined();
+
+    // TypeScript knows the exact type of result.data
+    if (result.data) {
+      expect(result.data.name).toBe('Test Name');
+      expect(result.data.email).toBe('test@example.com');
+    }
   });
 
-  it('should return German error messages', async () => {
+  it('should return German error messages for invalid data', async () => {
     const invalidData = {
-      // Missing required fields
+      name: '', // Too short
+      email: 'invalid-email',
+      customField: '' // Required field missing
     };
 
-    const result = await validateMyData(invalidData);
+    const result = await validateMyFeatureWithZod(invalidData);
     expect(result.isValid).toBe(false);
-    expect(result.errors?.name).toBe('Name ist erforderlich');
+    expect(result.errors?.name).toBe('Name muss mindestens 3 Zeichen lang sein');
+    expect(result.errors?.email).toBe('Bitte geben Sie eine gültige E-Mail-Adresse ein');
+    expect(result.errors?.customField).toBe('Benutzerdefiniertes Feld ist erforderlich');
+  });
+
+  it('should provide TypeScript type inference', () => {
+    // Test that TypeScript can infer types from Zod schema
+    type ExpectedType = {
+      name: string;
+      email: string;
+      title: string;
+      customField: string;
+    };
+
+    const schema = myFeatureSchema;
+    type ActualType = z.infer<typeof schema>;
+
+    // This would fail at compile time if types don't match
+    const typeCheck: ExpectedType = {} as ActualType;
   });
 });
 ```
@@ -344,64 +402,60 @@ expect(result).toHaveProperty('fieldErrors');
 expect(result.fieldErrors).toHaveProperty('name');
 ```
 
-## Migration Guide
+## Migration Guide: Manual to Zod
 
-### Updating Existing Validators
+### Migration Steps Completed
 
-1. **Move validation logic** to `src/lib/validation/`
-2. **Use shared schemas** instead of custom validation
-3. **Return ValidationResult** instead of strings/nulls
-4. **Throw ValidationError** in handlers instead of custom objects
+The validation system has been successfully migrated from manual validators to a Zod-based system. All API routes now use Zod validation for type safety and consistency.
 
-### Before (Old Pattern):
+### Migration Pattern Used:
 
+**Before (Manual Validation)**:
 ```typescript
-// Old validation function
+// Old manual validation function
 export function validateOldData(data: any): Record<string, string> | null {
   const errors: Record<string, string> = {};
 
-  if (!data.name) {
-    errors.name = 'Name ist erforderlich';
+  if (!data.name || data.name.length < 3) {
+    errors.name = 'Name muss mindestens 3 Zeichen lang sein';
   }
 
   return Object.keys(errors).length > 0 ? errors : null;
 }
-
-// Old handler
-export async function createOldEntity(data: any) {
-  const validationErrors = validateOldData(data);
-  if (validationErrors) {
-    throw { validationErrors, isValidationError: true };
-  }
-  // ...
-}
 ```
 
-### After (New Pattern):
-
+**After (Zod-based Validation)**:
 ```typescript
-// New validation function
-export async function validateNewData(data: Partial<DataType>): Promise<ValidationResult> {
-  const errors: Record<string, string> = {};
+// New Zod schema with automatic type inference
+export const dataSchema = z.object({
+  name: nameSchema, // Reusable base schema with German messages
+  email: emailSchema,
+  // Zod provides full TypeScript typing automatically
+});
 
-  const nameError = validationSchemas.name.validate(data.name || '', 'name');
-  if (nameError) errors.name = nameError;
+export type DataType = z.infer<typeof dataSchema>; // Type inferred from schema
 
-  return {
-    isValid: Object.keys(errors).length === 0,
-    errors: Object.keys(errors).length > 0 ? errors : undefined
-  };
-}
-
-// New handler
-export async function createNewEntity(data: DataType) {
-  const validationResult = await validateNewData(data);
-  if (!validationResult.isValid && validationResult.errors) {
-    throw new ValidationError(validationResult.errors);
-  }
-  // ...
+export async function validateDataWithZod(data: unknown) {
+  const { zodToValidationResult } = await import('./helpers');
+  return zodToValidationResult(dataSchema, data);
 }
 ```
+
+### Current State (Post-Migration)
+
+All APIs now use the new Zod-based system:
+
+- ✅ **Antrag API**: `validateAntragWithFilesWithZod()`
+- ✅ **Group API**: `validateGroupWithZod()`
+- ✅ **Status Report API**: `validateStatusReportWithZod()`
+- ✅ **Appointment API**: `validateAppointmentWithZod()`
+
+### Benefits Achieved
+
+1. **Full Type Safety**: TypeScript knows exact types from Zod schemas
+2. **Consistent German Messages**: Centralized localization
+3. **Reduced Code**: Single validation approach
+4. **Better DX**: IDE autocomplete and compile-time validation
 
 ## Best Practices
 

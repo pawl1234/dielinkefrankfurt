@@ -1,230 +1,234 @@
 /**
- * Shared validation schemas and patterns for consistent validation across the application.
- * Uses German error messages from validation-messages.ts for consistent localization.
+ * Base Zod validation schemas that mirror the existing validation patterns from schemas.ts.
+ * Maintains the same field length limits and requirements while providing TypeScript type inference.
  */
 
-import { validationMessages, isValidEmail } from '../validation-messages';
+import { z } from 'zod';
+import { zodCustomMessages } from './localization';
 
 /**
- * Common validation functions that can be reused across all validators
+ * Name schema (3-100 characters)
+ * Used for group names, general names, etc.
  */
-export const commonValidators = {
-  /**
-   * Validates that a field is not empty/null/undefined
-   */
-  required: (value: unknown, field: string): string | null => {
-    if (!value || (typeof value === 'string' && !value.trim())) {
-      return validationMessages.required(field);
-    }
-    return null;
-  },
-
-  /**
-   * Validates string length between min and max characters
-   */
-  stringLength: (value: string, field: string, min: number, max: number): string | null => {
-    if (!value) return null; // Let required() handle empty values
-
-    if (value.length < min || value.length > max) {
-      return validationMessages.between(field, min, max);
-    }
-    return null;
-  },
-
-  /**
-   * Validates minimum string length
-   */
-  minLength: (value: string, field: string, min: number): string | null => {
-    if (!value) return null; // Let required() handle empty values
-
-    if (value.length < min) {
-      return validationMessages.minLength(field, min);
-    }
-    return null;
-  },
-
-  /**
-   * Validates maximum string length
-   */
-  maxLength: (value: string, field: string, max: number): string | null => {
-    if (!value) return null; // Let required() handle empty values
-
-    if (value.length > max) {
-      return validationMessages.maxLength(field, max);
-    }
-    return null;
-  },
-
-  /**
-   * Validates email format
-   */
-  email: (value: string, field: string): string | null => {
-    if (!value) return null; // Let required() handle empty values
-
-    if (!isValidEmail(value)) {
-      return validationMessages.email(field);
-    }
-    return null;
-  },
-
-  /**
-   * Validates that an array has at least one item
-   */
-  arrayNotEmpty: (value: unknown[], field: string): string | null => {
-    if (!value || !Array.isArray(value) || value.length === 0) {
-      return validationMessages.atLeastOne(field);
-    }
-    return null;
-  }
-};
+export const nameSchema = z.string()
+  .min(1, 'Name ist erforderlich')
+  .min(3, 'Name muss mindestens 3 Zeichen lang sein')
+  .max(100, 'Name darf maximal 100 Zeichen lang sein')
+  .trim();
 
 /**
- * Validation schemas for common field patterns
+ * Title schema (3-200 characters)
+ * Used for appointment titles, article titles, etc.
  */
-export const validationSchemas = {
-  /**
-   * Standard name field (3-100 characters)
-   */
-  name: {
-    required: true,
-    minLength: 3,
-    maxLength: 100,
-    validate: (value: string, field: string = 'name'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.stringLength(value, field, 3, 100);
-    }
-  },
-
-  /**
-   * Standard title field (3-200 characters)
-   */
-  title: {
-    required: true,
-    minLength: 3,
-    maxLength: 200,
-    validate: (value: string, field: string = 'title'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.stringLength(value, field, 3, 200);
-    }
-  },
-
-  /**
-   * Long description field (50-5000 characters)
-   */
-  longDescription: {
-    required: true,
-    minLength: 50,
-    maxLength: 5000,
-    validate: (value: string, field: string = 'description'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.stringLength(value, field, 50, 5000);
-    }
-  },
-
-  /**
-   * Short description/teaser field (10-500 characters)
-   */
-  shortDescription: {
-    required: true,
-    minLength: 10,
-    maxLength: 500,
-    validate: (value: string, field: string = 'teaser'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.stringLength(value, field, 10, 500);
-    }
-  },
-
-  /**
-   * Person first name (2-50 characters)
-   */
-  firstName: {
-    required: true,
-    minLength: 2,
-    maxLength: 50,
-    validate: (value: string, field: string = 'firstName'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.stringLength(value, field, 2, 50);
-    }
-  },
-
-  /**
-   * Person last name (2-50 characters)
-   */
-  lastName: {
-    required: true,
-    minLength: 2,
-    maxLength: 50,
-    validate: (value: string, field: string = 'lastName'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.stringLength(value, field, 2, 50);
-    }
-  },
-
-  /**
-   * Email field validation
-   */
-  email: {
-    required: true,
-    validate: (value: string, field: string = 'email'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.email(value, field);
-    }
-  },
-
-  /**
-   * Optional text field with max length
-   */
-  optionalText: (maxLength: number) => ({
-    required: false,
-    maxLength,
-    validate: (value: string | null | undefined, field: string): string | null => {
-      if (!value) return null; // Optional field
-      return commonValidators.maxLength(value, field, maxLength);
-    }
-  }),
-
-  /**
-   * Required text content (like status report content)
-   */
-  content: {
-    required: true,
-    minLength: 10,
-    maxLength: 10000,
-    validate: (value: string, field: string = 'content'): string | null => {
-      return commonValidators.required(value, field) ||
-             commonValidators.stringLength(value, field, 10, 10000);
-    }
-  }
-};
+export const titleSchema = z.string()
+  .min(1, 'Titel ist erforderlich')
+  .min(3, 'Titel muss mindestens 3 Zeichen lang sein')
+  .max(200, 'Titel darf maximal 200 Zeichen lang sein')
+  .trim();
 
 /**
- * Helper function to validate a single field using a schema
+ * Long description schema (50-5000 characters)
+ * Used for group descriptions, detailed content, etc.
  */
-export function validateField(
-  value: unknown,
-  schema: { validate: (value: any, field: string) => string | null },
-  fieldName: string
-): string | null {
-  return schema.validate(value, fieldName);
-}
+export const longDescriptionSchema = z.string()
+  .min(1, 'Beschreibung ist erforderlich')
+  .min(50, 'Beschreibung muss mindestens 50 Zeichen lang sein')
+  .max(5000, 'Beschreibung darf maximal 5000 Zeichen lang sein')
+  .trim();
 
 /**
- * Helper function to validate multiple fields and collect errors
+ * Short description/teaser schema (10-500 characters)
+ * Used for teasers, short summaries, etc.
  */
-export function validateFields(
-  data: Record<string, unknown>,
-  validationRules: Record<string, { validate: (value: any, field: string) => string | null }>
-): Record<string, string> {
-  const errors: Record<string, string> = {};
+export const shortDescriptionSchema = z.string()
+  .min(1, 'Kurzbeschreibung ist erforderlich')
+  .min(10, 'Kurzbeschreibung muss mindestens 10 Zeichen lang sein')
+  .max(500, 'Kurzbeschreibung darf maximal 500 Zeichen lang sein')
+  .trim();
 
-  for (const [fieldName, rule] of Object.entries(validationRules)) {
-    const fieldValue = data[fieldName];
-    const error = rule.validate(fieldValue, fieldName);
+/**
+ * First name schema (2-50 characters)
+ * Used for person names with German character validation
+ */
+export const firstNameSchema = z.string()
+  .min(1, 'Vorname ist erforderlich')
+  .min(2, 'Vorname muss mindestens 2 Zeichen lang sein')
+  .max(50, 'Vorname darf maximal 50 Zeichen lang sein')
+  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, 'Vorname enthält ungültige Zeichen')
+  .trim();
 
-    if (error) {
-      errors[fieldName] = error;
-    }
-  }
+/**
+ * Last name schema (2-50 characters)
+ * Used for person names with German character validation
+ */
+export const lastNameSchema = z.string()
+  .min(1, 'Nachname ist erforderlich')
+  .min(2, 'Nachname muss mindestens 2 Zeichen lang sein')
+  .max(50, 'Nachname darf maximal 50 Zeichen lang sein')
+  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, 'Nachname enthält ungültige Zeichen')
+  .trim();
 
-  return errors;
-}
+/**
+ * Email schema with German error messages
+ * Validates email format and length
+ */
+export const emailSchema = z.string()
+  .min(1, 'E-Mail-Adresse ist erforderlich')
+  .email('Bitte geben Sie eine gültige E-Mail-Adresse ein')
+  .max(100, 'E-Mail-Adresse darf maximal 100 Zeichen lang sein')
+  .trim()
+  .toLowerCase();
+
+/**
+ * Content schema (10-10000 characters)
+ * Used for main content fields like status report content
+ */
+export const contentSchema = z.string()
+  .min(1, 'Inhalt ist erforderlich')
+  .min(10, 'Inhalt muss mindestens 10 Zeichen lang sein')
+  .max(10000, 'Inhalt darf maximal 10000 Zeichen lang sein')
+  .trim();
+
+/**
+ * Summary schema for Antrag (10-300 characters)
+ * Used for Antrag summaries
+ */
+export const summarySchema = z.string()
+  .min(1, 'Zusammenfassung ist erforderlich')
+  .min(10, 'Zusammenfassung muss mindestens 10 Zeichen lang sein')
+  .max(300, 'Zusammenfassung darf maximal 300 Zeichen lang sein')
+  .trim();
+
+/**
+ * Optional text schema with configurable maximum length
+ * Returns a function that creates a Zod schema for optional text fields
+ */
+export const createOptionalTextSchema = (maxLength: number, fieldName: string = 'Text') =>
+  z.string()
+    .max(maxLength, `${fieldName} darf maximal ${maxLength} Zeichen lang sein`)
+    .trim()
+    .optional()
+    .or(z.literal(''));
+
+/**
+ * Street address schema (optional, max 200 characters)
+ */
+export const streetSchema = createOptionalTextSchema(200, 'Straße');
+
+/**
+ * City schema (optional, max 100 characters)
+ */
+export const citySchema = createOptionalTextSchema(100, 'Ort');
+
+/**
+ * State schema (optional, max 100 characters)
+ */
+export const stateSchema = createOptionalTextSchema(100, 'Bundesland');
+
+/**
+ * Postal code schema (optional, max 20 characters)
+ */
+export const postalCodeSchema = createOptionalTextSchema(20, 'Postleitzahl');
+
+/**
+ * Phone number schema (optional, German format)
+ */
+export const phoneSchema = z.string()
+  .regex(/^(\+49|0)[0-9\s\-\/()]+$/, 'Ungültiges Telefonnummer-Format')
+  .min(6, 'Telefonnummer muss mindestens 6 Zeichen lang sein')
+  .max(20, 'Telefonnummer darf maximal 20 Zeichen lang sein')
+  .trim()
+  .optional()
+  .or(z.literal(''));
+
+/**
+ * Date/time string schema
+ * Validates ISO date strings
+ */
+export const dateTimeSchema = z.string()
+  .min(1, 'Datum und Uhrzeit sind erforderlich')
+  .datetime('Ungültiges Datum oder Uhrzeit-Format')
+  .or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, 'Ungültiges Datum oder Uhrzeit-Format'));
+
+/**
+ * Optional date/time string schema
+ */
+export const optionalDateTimeSchema = dateTimeSchema.optional();
+
+/**
+ * File URL schema
+ * Validates URL format for file references
+ */
+export const fileUrlSchema = z.string().url('Ungültige URL');
+
+/**
+ * Array of file URLs schema
+ */
+export const fileUrlsSchema = z.array(fileUrlSchema).optional();
+
+/**
+ * Responsible person schema for groups
+ * Used in group validation for responsible persons array
+ */
+export const responsiblePersonSchema = z.object({
+  firstName: firstNameSchema,
+  lastName: lastNameSchema,
+  email: emailSchema
+});
+
+/**
+ * Array of responsible persons (at least one required)
+ */
+export const responsiblePersonsSchema = z.array(responsiblePersonSchema)
+  .min(1, zodCustomMessages.atLeastOne('responsiblePersons'));
+
+/**
+ * Boolean schema with German error messages
+ */
+export const booleanSchema = z.boolean();
+
+/**
+ * Number schema with German error messages
+ * Used for amounts, counts, etc.
+ */
+export const numberSchema = z.number();
+
+/**
+ * Positive integer schema
+ * Used for counts, IDs, etc.
+ */
+export const positiveIntegerSchema = numberSchema
+  .int('Muss eine ganze Zahl sein')
+  .min(1, 'Muss mindestens 1 sein');
+
+/**
+ * Amount schema for financial values (1-999999)
+ * Used for Antrag Zuschuss amounts
+ */
+export const amountSchema = numberSchema
+  .min(1, zodCustomMessages.zuschussAmountMinimum)
+  .max(999999, zodCustomMessages.zuschussAmountMaximum)
+  .refine(val => !isNaN(val), zodCustomMessages.zuschussAmountInvalid);
+
+/**
+ * Group ID schema (CUID format)
+ */
+export const groupIdSchema = z.string()
+  .min(1, 'Gruppe ist erforderlich')
+  .regex(/^c[a-z0-9]{24}$/, 'Ungültige Gruppen-ID');
+
+/**
+ * Generic ID schema (UUID format)
+ */
+export const idSchema = z.string()
+  .uuid('Ungültige ID');
+
+/**
+ * Status schema for Antrag
+ */
+export const antragStatusSchema = z.enum(['NEU', 'IN_BEARBEITUNG', 'GENEHMIGT', 'ABGELEHNT']);
+
+/**
+ * Featured flag schema for appointments
+ */
+export const featuredSchema = booleanSchema.optional().default(false);

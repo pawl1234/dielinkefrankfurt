@@ -19,7 +19,7 @@ import {
   lastNameSchema,
   featuredSchema,
   createOptionalTextSchema
-} from './zod-schemas';
+} from './schemas';
 
 /**
  * Complete appointment creation schema
@@ -91,7 +91,7 @@ export type AppointmentSubmitData = z.infer<typeof appointmentSubmitDataSchema>;
  * Direct replacement for validateAppointmentData() from appointment-validator.ts
  */
 export async function validateAppointmentWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(appointmentCreateDataSchema, data);
 }
 
@@ -99,7 +99,7 @@ export async function validateAppointmentWithZod(data: unknown) {
  * Validation function for appointment updates (admin)
  */
 export async function validateAppointmentUpdateWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(appointmentUpdateDataSchema, data);
 }
 
@@ -107,6 +107,6 @@ export async function validateAppointmentUpdateWithZod(data: unknown) {
  * Validation function for public appointment submissions
  */
 export async function validateAppointmentSubmitWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(appointmentSubmitDataSchema, data);
 }

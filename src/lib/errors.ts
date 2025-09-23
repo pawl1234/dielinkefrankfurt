@@ -129,7 +129,8 @@ export class AppError extends Error {
  */
 export function validationErrorResponse(fieldErrors: Record<string, string>): NextResponse {
   return NextResponse.json({
-    error: 'Validation failed',
+    success: false,
+    error: 'Validierung fehlgeschlagen',
     type: ErrorType.VALIDATION,
     fieldErrors
   }, { status: 400 });

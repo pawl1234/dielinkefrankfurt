@@ -16,8 +16,8 @@ import {
   booleanSchema,
   createOptionalTextSchema,
   fileUrlsSchema
-} from './zod-schemas';
-import { zodCustomMessages } from './zod-localization';
+} from './schemas';
+import { zodCustomMessages } from './localization';
 
 /**
  * Zuschuss (financial support) purpose schema
@@ -194,7 +194,7 @@ export type WeiteresPurpose = z.infer<typeof weiteresPurposeSchema>;
  * Direct replacement for validateAntragFormData() from antrag-validator.ts
  */
 export async function validateAntragWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(antragFormDataSchema, data);
 }
 
@@ -203,7 +203,7 @@ export async function validateAntragWithZod(data: unknown) {
  * Replacement for admin update validation
  */
 export async function validateAntragUpdateWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(antragUpdateDataSchema, data);
 }
 
@@ -212,7 +212,7 @@ export async function validateAntragUpdateWithZod(data: unknown) {
  * Useful for partial validation scenarios
  */
 export async function validateAntragPurposesWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(purposesSchema, data);
 }
 
@@ -221,7 +221,7 @@ export async function validateAntragPurposesWithZod(data: unknown) {
  * Combines Zod schema validation with existing file validation from antrag-file-utils
  */
 export async function validateAntragWithFilesWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
 
   // First validate the schema
   const baseResult = zodToValidationResult(antragFormDataSchema, data);

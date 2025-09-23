@@ -7,11 +7,11 @@ import {
   validateRecaptcha,
   shouldRateLimit,
   cleanupRateLimitMap
-} from '@/lib/validation/antrag-validator';
+} from '@/lib/validation/utils';
 import {
   validateAntragWithFilesWithZod,
   type AntragFormData
-} from '@/lib/validation/antrag-schema';
+} from '@/lib/validation/antrag';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { getRecipientEmails } from '@/lib/db/antrag-config-operations';
 import { sendAntragSubmissionEmail } from '@/lib/email-senders';

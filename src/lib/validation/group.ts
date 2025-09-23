@@ -14,7 +14,7 @@ import {
   fileUrlSchema,
   responsiblePersonSchema,
   responsiblePersonsSchema
-} from './zod-schemas';
+} from './schemas';
 
 /**
  * Logo metadata schema for cropped images
@@ -59,7 +59,7 @@ export type ResponsiblePersonData = z.infer<typeof responsiblePersonSchema>;
  * Direct replacement for validateGroupData() from group-validator.ts
  */
 export async function validateGroupWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(groupCreateDataSchema, data);
 }
 
@@ -67,7 +67,7 @@ export async function validateGroupWithZod(data: unknown) {
  * Validation function for group updates
  */
 export async function validateGroupUpdateWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(groupUpdateDataSchema, data);
 }
 
@@ -76,6 +76,6 @@ export async function validateGroupUpdateWithZod(data: unknown) {
  * Useful for partial validation scenarios
  */
 export async function validateResponsiblePersonsWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./zod-helpers');
+  const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(responsiblePersonsSchema, data);
 }

@@ -15,8 +15,8 @@ jest.mock('@/lib/antrag-file-utils', () => ({
   validateAntragFiles: jest.requireActual('@/lib/antrag-file-utils').validateAntragFiles
 }));
 jest.mock('@/lib/logger');
-jest.mock('@/lib/validation/antrag-validator', () => {
-  const actual = jest.requireActual('@/lib/validation/antrag-validator');
+jest.mock('@/lib/validation/utils', () => {
+  const actual = jest.requireActual('@/lib/validation/utils');
   return {
     ...actual,
     validateRecaptcha: jest.fn().mockResolvedValue(true)

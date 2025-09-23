@@ -6,7 +6,7 @@ import { POST as rejectAntrag } from '@/app/api/admin/antraege/[id]/reject/route
 import { GET as getConfiguration, PUT as updateConfiguration } from '@/app/api/admin/antraege/configuration/route';
 import prisma from '@/lib/prisma';
 import { sendAntragAcceptanceEmail, sendAntragRejectionEmail } from '@/lib/email-senders';
-import { validateRecaptcha } from '@/lib/validation/antrag-validator';
+import { validateRecaptcha } from '@/lib/validation/utils';
 import { uploadAntragFiles } from '@/lib/antrag-file-utils';
 import { logger } from '@/lib/logger';
 import { AntragFactory, createMockFile, createMockFormData } from '@/tests/factories';

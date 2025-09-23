@@ -1,7 +1,7 @@
 import { POST, requestCounts } from '@/app/api/antraege/submit/route';
 import { createAntrag } from '@/lib/db/antrag-operations';
 import { uploadAntragFiles, deleteAntragFiles } from '@/lib/antrag-file-utils';
-import { validateRecaptcha } from '@/lib/validation/antrag-validator';
+import { validateRecaptcha } from '@/lib/validation/utils';
 import { logger } from '@/lib/logger';
 import { NextRequest } from 'next/server';
 import { AntragFactory, createMockFile, createMockFormData } from '@/tests/factories';
@@ -14,8 +14,8 @@ jest.mock('@/lib/antrag-file-utils', () => ({
   deleteAntragFiles: jest.fn(),
   validateAntragFiles: jest.requireActual('@/lib/antrag-file-utils').validateAntragFiles
 }));
-jest.mock('@/lib/validation/antrag-validator', () => {
-  const actual = jest.requireActual('@/lib/validation/antrag-validator');
+jest.mock('@/lib/validation/utils', () => {
+  const actual = jest.requireActual('@/lib/validation/utils');
   return {
     ...actual,
     validateRecaptcha: jest.fn()

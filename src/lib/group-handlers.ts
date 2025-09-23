@@ -12,8 +12,8 @@ import {
 } from './email-senders';
 import { getNewsletterSettings } from './newsletter-service';
 import { validationMessages, responsiblePersonMessages, isValidEmail } from './validation-messages';
-import { validateGroupDataLegacy } from './validation/group-validator';
-import { validateStatusReportDataLegacy } from './validation/status-report-validator';
+import { validateGroupWithZod } from './validation/group';
+import { validateStatusReportWithZod } from './validation/status-report';
 import { ValidationError } from './errors';
 
 /**
@@ -96,11 +96,11 @@ export function createGroupSlug(name: string): string {
  * Create a new group
  */
 export async function createGroup(data: GroupCreateData): Promise<Group> {
-  // Validate group data using new ValidationError class
-  const validationErrors = await validateGroupDataLegacy(data);
-  if (validationErrors) {
-    // Throw ValidationError instead of custom object
-    throw new ValidationError(validationErrors);
+  // Validate group data using Zod schema
+  const validationResult = await validateGroupWithZod(data);
+  if (!validationResult.isValid && validationResult.errors) {
+    // Throw ValidationError for consistency
+    throw new ValidationError(validationResult.errors);
   }
   
   // Create a unique slug based on the group name
@@ -568,11 +568,10 @@ export async function deleteGroup(id: string): Promise<boolean> {
  * Create a new status report
  */
 export async function createStatusReport(data: StatusReportCreateData): Promise<StatusReport> {
-  // Validate status report data using new ValidationError pattern
-  const validationError = await validateStatusReportDataLegacy(data);
-  if (validationError) {
-    // Convert single string error to field errors object
-    throw new ValidationError({ general: validationError });
+  // Validate status report data using Zod schema
+  const validationResult = await validateStatusReportWithZod(data);
+  if (!validationResult.isValid && validationResult.errors) {
+    throw new ValidationError(validationResult.errors);
   }
   
   try {

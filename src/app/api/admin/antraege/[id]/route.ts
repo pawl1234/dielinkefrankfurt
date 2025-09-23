@@ -5,8 +5,8 @@ import { put, del } from '@vercel/blob';
 import {
   validateAntragUpdateWithZod,
   antragUpdateDataSchema
-} from '@/lib/validation/antrag-schema';
-import { isValidZodResult } from '@/lib/validation/zod-helpers';
+} from '@/lib/validation/antrag';
+import { isValidZodResult } from '@/lib/validation/helpers';
 
 /**
  * GET /api/admin/antraege/[id]
