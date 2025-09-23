@@ -15,7 +15,7 @@ import {
 import RichTextEditor from '../../editor/RichTextEditor';
 import FileUpload from '@/components/upload/FileUpload';
 import FormSection from '../shared/FormSection';
-import FormBase, { FieldRefMap, CustomValidationEntry, useFormError } from '../shared/FormBase'; // Ensure this path is correct
+import FormBase, { FieldRefMap, CustomValidationEntry } from '../shared/FormBase'; // Ensure this path is correct
 
 interface Group {
   id: string;
@@ -42,6 +42,7 @@ export default function StatusReportForm() {
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [contentEditorValue, setContentEditorValue] = useState('');
   const [fileList, setFileList] = useState<(File | Blob)[]>([]);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
 
   // Status report limits from settings
   const [titleLimit, setTitleLimit] = useState(100);
@@ -90,8 +91,13 @@ export default function StatusReportForm() {
       field: 'content',
       isValid: !!contentEditorValue && contentEditorValue.trim() !== '' && contentEditorValue.trim() !== '<p></p>',
       message: 'Inhalt ist erforderlich und muss Text enthalten.'
+    },
+    {
+      field: 'files',
+      isValid: !fileUploadError,
+      message: fileUploadError || ''
     }
-  ], [contentEditorValue, contentLimit]);
+  ], [contentEditorValue, contentLimit, fileUploadError]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -147,6 +153,7 @@ export default function StatusReportForm() {
   const handleReset = () => {
     setContentEditorValue('');
     setFileList([]);
+    setFileUploadError(null);
   };
 
   const handleFormSubmit = async (data: FormInput) => {
@@ -209,11 +216,6 @@ export default function StatusReportForm() {
   const helpTextReporter = <Typography variant="body2"> Bitte geben Sie Ihre Kontaktdaten an. Diese Informationen werden nur intern verwendet und nicht veröffentlicht. </Typography>;
   const helpTextAttachments = <Typography variant="body2"> Hier können Sie Anhänge wie Bilder oder PDFs hochladen, die mit Ihrem Bericht veröffentlicht werden sollen. Sie können maximal 5 Dateien hochladen (jeweils max. 5MB). </Typography>;
 
-  // Component to use the form error context
-  const FileUploadWithError = ({ onFilesSelect, maxFiles }: { onFilesSelect: (files: (File | Blob)[]) => void; maxFiles: number }) => {
-    const { setSubmissionError } = useFormError();
-    return <FileUpload onFilesSelect={onFilesSelect} maxFiles={maxFiles} onError={setSubmissionError} />;
-  };
 
   if (loadingLimits) {
     return (
@@ -294,7 +296,7 @@ export default function StatusReportForm() {
 
       <FormSection title="Datei Anhänge (optional)" helpTitle="Zusätzliche Dateien" helpText={helpTextAttachments}>
         <Box sx={{ mb: 2 }} ref={filesRef}>
-          <FileUploadWithError onFilesSelect={handleFileSelect} maxFiles={5} />
+          <FileUpload onFilesSelect={handleFileSelect} maxFiles={5} onError={setFileUploadError} />
           {getCustomError('files') && <Typography variant="caption" color="error">{getCustomError('files')}</Typography>}
         </Box>
       </FormSection>

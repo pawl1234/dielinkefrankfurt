@@ -12,6 +12,7 @@ interface UseValidationErrorsProps<TFormValues extends FieldValues> {
   formErrors: FieldErrors<TFormValues>;
   customValidations: CustomValidationEntry[];
   submissionError: string | null;
+  serverFieldErrors?: Record<string, string>; // NEW: Server-provided field errors
   isSubmitted: boolean;
 }
 
@@ -61,6 +62,7 @@ export function useValidationErrors<TFormValues extends FieldValues>({
   formErrors,
   customValidations,
   submissionError,
+  serverFieldErrors,
   isSubmitted
 }: UseValidationErrorsProps<TFormValues>) {
 
@@ -71,7 +73,7 @@ export function useValidationErrors<TFormValues extends FieldValues>({
 
     const errors: ValidationError[] = [];
 
-    // First, collect custom validation errors (they have priority)
+    // First, collect custom validation errors (they have highest priority)
     customValidations.forEach((validation) => {
       if (!validation.isValid && validation.message) {
         const label = fieldLabels[validation.field] || validation.field;
@@ -84,13 +86,31 @@ export function useValidationErrors<TFormValues extends FieldValues>({
       }
     });
 
-    // Then, collect React Hook Form field errors (only if no custom validation error exists for the same field)
-    Object.entries(formErrors).forEach(([fieldName, error]) => {
-      if (error?.message) {
+    // Then, collect server field errors (second priority)
+    if (serverFieldErrors) {
+      Object.entries(serverFieldErrors).forEach(([fieldName, message]) => {
         // Check if we already have a custom validation error for this field
         const hasCustomError = errors.some(err => err.field === fieldName);
 
-        if (!hasCustomError) {
+        if (!hasCustomError && message) {
+          const label = fieldLabels[fieldName] || fieldName;
+
+          errors.push({
+            field: fieldName,
+            label,
+            message
+          });
+        }
+      });
+    }
+
+    // Finally, collect React Hook Form field errors (lowest priority)
+    Object.entries(formErrors).forEach(([fieldName, error]) => {
+      if (error?.message) {
+        // Check if we already have a custom or server validation error for this field
+        const hasExistingError = errors.some(err => err.field === fieldName);
+
+        if (!hasExistingError) {
           const label = fieldLabels[fieldName] || fieldName;
           const message = typeof error.message === 'string' ? error.message : 'Ungültiger Wert';
 
@@ -104,7 +124,7 @@ export function useValidationErrors<TFormValues extends FieldValues>({
     });
 
     return errors;
-  }, [formErrors, customValidations, isSubmitted]);
+  }, [formErrors, customValidations, serverFieldErrors, isSubmitted]);
 
   return {
     validationErrors,

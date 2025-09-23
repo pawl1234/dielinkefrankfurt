@@ -52,6 +52,7 @@ export interface FormBaseProps<TFormValues extends FieldValues> {
   onReset?: () => void;
   onCancel?: () => void;
   customValidations?: CustomValidationEntry[];
+  serverFieldErrors?: Record<string, string>; // NEW: Server field errors
 }
 
 export default function FormBase<TFormValues extends FieldValues>({
@@ -71,6 +72,7 @@ export default function FormBase<TFormValues extends FieldValues>({
   onReset,
   onCancel,
   customValidations = [],
+  serverFieldErrors,
 }: FormBaseProps<TFormValues>) {
   const { handleSubmit: rhfHandleSubmit, reset, formState } = formMethods;
 
@@ -91,6 +93,7 @@ export default function FormBase<TFormValues extends FieldValues>({
     formErrors: formState.errors,
     customValidations,
     submissionError,
+    serverFieldErrors,
     isSubmitted: formState.isSubmitted || formState.submitCount > 0
   });
 

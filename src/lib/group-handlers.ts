@@ -11,6 +11,7 @@ import {
   sendGroupArchivingEmail
 } from './email-senders';
 import { getNewsletterSettings } from './newsletter-service';
+import { validationMessages, responsiblePersonMessages, isValidEmail } from './validation-messages';
 
 /**
  * Types for group operations
@@ -69,34 +70,54 @@ export interface StatusReportUpdateData {
 }
 
 /**
- * Validate group data
+ * Validate group data - returns structured field errors in German
+ * Matches the pattern used in appointment-handlers for consistency
  */
-export function validateGroupData(data: Partial<GroupCreateData>): string | null {
-  if (!data.name) return 'Group name is required';
-  if (data.name.length < 3 || data.name.length > 100) return 'Group name must be between 3 and 100 characters';
-  
-  if (!data.description) return 'Group description is required';
-  if (data.description.length < 50 || data.description.length > 5000) return 'Group description must be between 50 and 5000 characters';
-  
+export function validateGroupData(data: Partial<GroupCreateData>): Record<string, string> | null {
+  const errors: Record<string, string> = {};
+
+  // Validate group name
+  if (!data.name) {
+    errors.name = validationMessages.required('name');
+  } else if (data.name.length < 3 || data.name.length > 100) {
+    errors.name = validationMessages.between('name', 3, 100);
+  }
+
+  // Validate description
+  if (!data.description) {
+    errors.description = validationMessages.required('description');
+  } else if (data.description.length < 50 || data.description.length > 5000) {
+    errors.description = validationMessages.between('description', 50, 5000);
+  }
+
+  // Validate responsible persons
   if (!data.responsiblePersons || data.responsiblePersons.length === 0) {
-    return 'At least one responsible person is required';
+    errors.responsiblePersons = validationMessages.atLeastOne('responsiblePersons');
+  } else {
+    // Check each responsible person
+    for (const person of data.responsiblePersons) {
+      if (!person.firstName || person.firstName.length < 2 || person.firstName.length > 50) {
+        errors.responsiblePersons = responsiblePersonMessages.firstNameLength;
+        break;
+      }
+
+      if (!person.lastName || person.lastName.length < 2 || person.lastName.length > 50) {
+        errors.responsiblePersons = responsiblePersonMessages.lastNameLength;
+        break;
+      }
+
+      if (!person.email) {
+        errors.responsiblePersons = responsiblePersonMessages.emailRequired;
+        break;
+      } else if (!isValidEmail(person.email)) {
+        errors.responsiblePersons = responsiblePersonMessages.emailInvalid;
+        break;
+      }
+    }
   }
-  
-  for (const person of data.responsiblePersons) {
-    if (!person.firstName || person.firstName.length < 2 || person.firstName.length > 50) {
-      return 'First name must be between 2 and 50 characters for all responsible persons';
-    }
-    
-    if (!person.lastName || person.lastName.length < 2 || person.lastName.length > 50) {
-      return 'Last name must be between 2 and 50 characters for all responsible persons';
-    }
-    
-    if (!person.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email)) {
-      return 'Valid email is required for all responsible persons';
-    }
-  }
-  
-  return null;
+
+  // Return null if no errors, otherwise return the errors object
+  return Object.keys(errors).length > 0 ? errors : null;
 }
 
 /**
@@ -167,9 +188,11 @@ export function createGroupSlug(name: string): string {
  */
 export async function createGroup(data: GroupCreateData): Promise<Group> {
   // Validate group data
-  const validationError = validateGroupData(data);
-  if (validationError) {
-    throw new Error(validationError);
+  const validationErrors = validateGroupData(data);
+  if (validationErrors) {
+    // Throw the errors object for the API route to handle
+    // The API route will use validationErrorResponse to format properly
+    throw { validationErrors, isValidationError: true };
   }
   
   // Create a unique slug based on the group name

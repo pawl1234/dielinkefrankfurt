@@ -11,7 +11,7 @@ import AddressFields from '../shared/AddressFields';
 import RequesterFields from '../shared/RequesterFields';
 // Captcha feature removed
 import FormSection from '../shared/FormSection';
-import FormBase, { FieldRefMap, CustomValidationEntry, useFormError } from '../shared/FormBase';
+import FormBase, { FieldRefMap, CustomValidationEntry } from '../shared/FormBase';
 import {
   Box, Typography, TextField, Checkbox, FormControlLabel,
   Collapse, Paper, Button,
@@ -84,6 +84,7 @@ export default function AppointmentForm({
   const [coverImageFile, setCoverImageFile] = useState<File | Blob | null>(null);
   const [croppedCoverImageFile, setCroppedCoverImageFile] = useState<File | Blob | null>(null);
   const [initialCoverImageUrl, setInitialCoverImageUrl] = useState<string | undefined>(undefined);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
 
   useEffect(() => { /* ... parsing initialValues as before ... */
     if (initialValues?.fileUrls) {
@@ -138,8 +139,9 @@ export default function AppointmentForm({
     { field: 'mainText', isValid: !!mainTextEditorContent && mainTextEditorContent.trim() !== '' && mainTextEditorContent.trim() !== '<p></p>', message: 'Beschreibung ist erforderlich.' },
     { field: 'coverImage', isValid: !isFeatured || !!coverImageFile || !!initialCoverImageUrl, message: 'Cover-Bild für Featured Termin erforderlich.' },
     { field: 'recurringText', isValid: !isRecurring || (!!getValues('recurringText') && getValues('recurringText')?.trim() !== ''), message: 'Beschreibung für Wiederholung erforderlich.' },
+    { field: 'files', isValid: !fileUploadError, message: fileUploadError || '' },
     // Captcha validation removed
-  ], [mainTextEditorContent, isFeatured, coverImageFile, initialCoverImageUrl, isRecurring, getValues]);
+  ], [mainTextEditorContent, isFeatured, coverImageFile, initialCoverImageUrl, isRecurring, getValues, fileUploadError]);
 
   const handleMainTextChange = useCallback((value: string) => {
     setMainTextEditorContent(value);
@@ -157,13 +159,14 @@ export default function AppointmentForm({
 
   const handleReset = () => { /* ... as before: reset local state ... */
     setMainTextEditorContent(initialValues?.mainText || '');
-    setFileList([]); 
+    setFileList([]);
     setDeletedFileUrls([]);
     setIsRecurring(!!initialValues?.recurringText);
     // Reset teaser value handled by setValue below
     setValue('teaser', initialValues?.teaser || ''); // Reset teaser in React Hook Form
     setIsFeatured(initialValues?.featured || false);
     setCoverImageFile(null); setCroppedCoverImageFile(null);
+    setFileUploadError(null); // Reset file upload error
     setFormResetKey(prevKey => prevKey + 1); // For things not reset by RHF
   };
 
@@ -239,11 +242,6 @@ export default function AppointmentForm({
     return undefined;
   };
 
-  // Component to use the form error context
-  const FileUploadWithError = ({ onFilesSelect, maxFiles }: { onFilesSelect: (files: (File | Blob)[]) => void; maxFiles: number }) => {
-    const { setSubmissionError } = useFormError();
-    return <FileUpload onFilesSelect={onFilesSelect} maxFiles={maxFiles} onError={setSubmissionError} />;
-  };
   
   // Restored full help texts
   const helpTextRequester = <Typography variant="body2"> Bitte geben Sie Ihren Namen an. Diese Informationen sind erforderlich, damit wir Ihre Anfrage bearbeiten und zuordnen können. Die Daten werden nur für die interne Freigabe verwendet und nicht nach außen gegeben. </Typography>;
@@ -302,7 +300,7 @@ export default function AppointmentForm({
       )}
 
       <FormSection title="Datei Anhänge (optional)" helpTitle="Anhänge hochladen" helpText={helpTextAttachments}>
-        <Box ref={fileRef} sx={{mb:2}}><FileUploadWithError onFilesSelect={handleFileSelect} maxFiles={5} /></Box>
+        <Box ref={fileRef} sx={{mb:2}}><FileUpload onFilesSelect={handleFileSelect} maxFiles={5} onError={setFileUploadError} /></Box>
         {mode === 'edit' && existingFileUrls.length > 0 && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="subtitle1" gutterBottom>

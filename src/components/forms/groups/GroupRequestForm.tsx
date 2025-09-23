@@ -39,6 +39,8 @@ export default function GroupRequestForm() {
   const [croppedLogoFile, setCroppedLogoFile] = useState<File | Blob | null>(null); // Renamed
   // State to track if the form has been submitted
   const [formSubmitted, setFormSubmitted] = useState(false);
+  // State for server field errors
+  const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string> | undefined>(undefined);
 
   const methods = useForm<GroupFormInput>({
     defaultValues: {
@@ -72,8 +74,13 @@ export default function GroupRequestForm() {
   const customValidations = useMemo(() => [
     {
       field: 'description',
-      isValid: !!descriptionEditorContent && descriptionEditorContent.trim() !== '' && descriptionEditorContent.trim() !== '<p></p>',
-      message: 'Beschreibung ist erforderlich und muss Inhalt haben.'
+      isValid: !!descriptionEditorContent &&
+               descriptionEditorContent.trim() !== '' &&
+               descriptionEditorContent.trim() !== '<p></p>' &&
+               descriptionEditorContent.length >= 50, // Check minimum length
+      message: descriptionEditorContent.length > 0 && descriptionEditorContent.length < 50
+        ? `Beschreibung muss mindestens 50 Zeichen lang sein (aktuell: ${descriptionEditorContent.length})`
+        : 'Beschreibung ist erforderlich und muss Inhalt haben.'
     },
     {
       field: 'responsiblePersons',
@@ -150,10 +157,19 @@ export default function GroupRequestForm() {
     // Handle other non-2xx responses
     if (!response.ok) {
       let errorMessage = 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
-      
+
       try {
         // Try to parse JSON error response
         const result = await response.json();
+
+        // Check if server returned field errors
+        if (result.fieldErrors) {
+          setServerFieldErrors(result.fieldErrors);
+          // Throw error to prevent success message from showing
+          const firstError = Object.values(result.fieldErrors)[0];
+          throw new Error(firstError || 'Validierungsfehler aufgetreten');
+        }
+
         errorMessage = result.error || errorMessage;
       } catch {
         // If JSON parsing fails, provide generic error based on status
@@ -165,7 +181,7 @@ export default function GroupRequestForm() {
           errorMessage = 'Ihre Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben.';
         }
       }
-      
+
       throw new Error(errorMessage);
     }
     
@@ -181,6 +197,8 @@ export default function GroupRequestForm() {
     setCroppedLogoFile(null);
     // Reset the form submitted state
     setFormSubmitted(false);
+    // Reset server field errors
+    setServerFieldErrors(undefined);
     // Resetting responsiblePersons to one empty entry is handled by RHF's reset if defaultValues are set up
   };
 
@@ -198,6 +216,7 @@ export default function GroupRequestForm() {
       successMessage="Ihre Anfrage für eine neue Arbeitsgruppe wurde erfolgreich übermittelt. Wir werden Ihren Vorschlag prüfen und Sie per E-Mail benachrichtigen, sobald die Gruppe freigeschaltet wurde."
       fieldRefs={fieldRefs}
       customValidations={customValidations}
+      serverFieldErrors={serverFieldErrors}
       // validateBeforeSubmit removed as it's not in FormBaseProps
       fieldOrder={fieldOrder} // Pass the defined field order
     >

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGroup, ResponsiblePersonCreateData } from '@/lib/group-handlers';
+import { createGroup, ResponsiblePersonCreateData, validateGroupData } from '@/lib/group-handlers';
 import { validateFile, uploadCroppedImagePair, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
+import { validationErrorResponse } from '@/lib/errors';
 
 /**
  * Response type for group submission
@@ -87,14 +88,21 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Create the group
+    // Prepare group data
     const groupData = {
       name,
       description,
       logoMetadata,
       responsiblePersons
     };
-    
+
+    // Validate group data first
+    const validationErrors = validateGroupData(groupData);
+    if (validationErrors) {
+      return validationErrorResponse(validationErrors);
+    }
+
+    // Create the group
     const newGroup = await createGroup(groupData);
     
     // Log successful group request submission
@@ -123,29 +131,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error: unknown) {
     console.error('Error submitting group request:', error);
-    
-    // Return friendly error message based on the error
-    if (error instanceof Error) {
-      // Check if it's a validation error from our validation function
-      if (error.message.includes('required') || 
-          error.message.includes('must be between') ||
-          error.message.includes('valid email')) {
-        
-        const response: GroupSubmitResponse = {
-          success: false,
-          error: error.message
-        };
-        
-        return NextResponse.json(response, { status: 400 });
+
+    // Check if it's a validation error from createGroup
+    if (error && typeof error === 'object' && 'isValidationError' in error && 'validationErrors' in error) {
+      const validationError = error as { isValidationError: boolean; validationErrors: Record<string, string> };
+      if (validationError.isValidationError && validationError.validationErrors) {
+        return validationErrorResponse(validationError.validationErrors);
       }
     }
-    
+
     // Generic error for other types of errors
     const response: GroupSubmitResponse = {
       success: false,
       error: 'Failed to submit group request'
     };
-    
+
     return NextResponse.json(response, { status: 500 });
   }
 }
