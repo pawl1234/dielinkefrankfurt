@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGroup, ResponsiblePersonCreateData, validateGroupData } from '@/lib/group-handlers';
+import { createGroup, ResponsiblePersonCreateData } from '@/lib/group-handlers';
 import { validateFile, uploadCroppedImagePair, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
-import { validationErrorResponse } from '@/lib/errors';
+import { validationErrorResponse, ValidationError, isValidationError } from '@/lib/errors';
 
 /**
  * Response type for group submission
@@ -96,13 +96,7 @@ export async function POST(request: NextRequest) {
       responsiblePersons
     };
 
-    // Validate group data first
-    const validationErrors = validateGroupData(groupData);
-    if (validationErrors) {
-      return validationErrorResponse(validationErrors);
-    }
-
-    // Create the group
+    // Create the group (validation happens inside createGroup and throws ValidationError if needed)
     const newGroup = await createGroup(groupData);
     
     // Log successful group request submission
@@ -132,12 +126,9 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Error submitting group request:', error);
 
-    // Check if it's a validation error from createGroup
-    if (error && typeof error === 'object' && 'isValidationError' in error && 'validationErrors' in error) {
-      const validationError = error as { isValidationError: boolean; validationErrors: Record<string, string> };
-      if (validationError.isValidationError && validationError.validationErrors) {
-        return validationErrorResponse(validationError.validationErrors);
-      }
+    // Check if it's a ValidationError from createGroup
+    if (isValidationError(error)) {
+      return error.toResponse();
     }
 
     // Generic error for other types of errors

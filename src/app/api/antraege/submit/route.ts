@@ -9,8 +9,8 @@ import {
   shouldRateLimit,
   cleanupRateLimitMap,
   type AntragFormData 
-} from '@/lib/validators/antrag-validator';
-import { apiErrorResponse } from '@/lib/errors';
+} from '@/lib/validation/antrag-validator';
+import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { getRecipientEmails } from '@/lib/db/antrag-config-operations';
 import { sendAntragSubmissionEmail } from '@/lib/email-senders';
 
@@ -132,13 +132,9 @@ export async function POST(request: NextRequest) {
     
     // Validate form data
     const validationResult = validateAntragFormData(formData);
-    if (!validationResult.isValid) {
-      const response: AntragSubmitResponse = {
-        success: false,
-        error: 'Validierung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.',
-        fieldErrors: validationResult.errors
-      };
-      return NextResponse.json(response, { status: 400 });
+    if (!validationResult.isValid && validationResult.errors) {
+      // Use consistent validationErrorResponse for field errors
+      return validationErrorResponse(validationResult.errors);
     }
     
     // Prepare Antrag data for database

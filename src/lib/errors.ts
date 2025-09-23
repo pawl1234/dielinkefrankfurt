@@ -355,3 +355,39 @@ export class NewsletterValidationError extends AppError {
 export function isNewsletterError(error: unknown): error is NewsletterNotFoundError | NewsletterValidationError {
   return error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError;
 }
+
+/**
+ * Validation result type for all validators
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errors?: Record<string, string>;
+}
+
+/**
+ * Validation error class for form field validation errors
+ */
+export class ValidationError extends AppError {
+  public readonly fieldErrors: Record<string, string>;
+
+  constructor(fieldErrors: Record<string, string>) {
+    const firstError = Object.values(fieldErrors)[0] || 'Validierung fehlgeschlagen';
+    super(firstError, ErrorType.VALIDATION, 400);
+    this.fieldErrors = fieldErrors;
+    this.name = 'ValidationError';
+  }
+
+  /**
+   * Converts the error to a NextResponse object using validationErrorResponse
+   */
+  toResponse(): NextResponse {
+    return validationErrorResponse(this.fieldErrors);
+  }
+}
+
+/**
+ * Type guard to check if an error is a ValidationError
+ */
+export function isValidationError(error: unknown): error is ValidationError {
+  return error instanceof ValidationError;
+}

@@ -12,6 +12,9 @@ import {
 } from './email-senders';
 import { getNewsletterSettings } from './newsletter-service';
 import { validationMessages, responsiblePersonMessages, isValidEmail } from './validation-messages';
+import { validateGroupDataLegacy } from './validation/group-validator';
+import { validateStatusReportDataLegacy } from './validation/status-report-validator';
+import { ValidationError } from './errors';
 
 /**
  * Types for group operations
@@ -69,101 +72,7 @@ export interface StatusReportUpdateData {
   groupId?: string;
 }
 
-/**
- * Validate group data - returns structured field errors in German
- * Matches the pattern used in appointment-handlers for consistency
- */
-export function validateGroupData(data: Partial<GroupCreateData>): Record<string, string> | null {
-  const errors: Record<string, string> = {};
 
-  // Validate group name
-  if (!data.name) {
-    errors.name = validationMessages.required('name');
-  } else if (data.name.length < 3 || data.name.length > 100) {
-    errors.name = validationMessages.between('name', 3, 100);
-  }
-
-  // Validate description
-  if (!data.description) {
-    errors.description = validationMessages.required('description');
-  } else if (data.description.length < 50 || data.description.length > 5000) {
-    errors.description = validationMessages.between('description', 50, 5000);
-  }
-
-  // Validate responsible persons
-  if (!data.responsiblePersons || data.responsiblePersons.length === 0) {
-    errors.responsiblePersons = validationMessages.atLeastOne('responsiblePersons');
-  } else {
-    // Check each responsible person
-    for (const person of data.responsiblePersons) {
-      if (!person.firstName || person.firstName.length < 2 || person.firstName.length > 50) {
-        errors.responsiblePersons = responsiblePersonMessages.firstNameLength;
-        break;
-      }
-
-      if (!person.lastName || person.lastName.length < 2 || person.lastName.length > 50) {
-        errors.responsiblePersons = responsiblePersonMessages.lastNameLength;
-        break;
-      }
-
-      if (!person.email) {
-        errors.responsiblePersons = responsiblePersonMessages.emailRequired;
-        break;
-      } else if (!isValidEmail(person.email)) {
-        errors.responsiblePersons = responsiblePersonMessages.emailInvalid;
-        break;
-      }
-    }
-  }
-
-  // Return null if no errors, otherwise return the errors object
-  return Object.keys(errors).length > 0 ? errors : null;
-}
-
-/**
- * Validate status report data with configurable limits and German error messages
- */
-export async function validateStatusReportData(data: Partial<StatusReportCreateData>): Promise<string | null> {
-  if (!data.groupId) return 'Gruppen-ID ist erforderlich';
-
-  if (!data.title) return 'Berichtstitel ist erforderlich';
-
-  if (!data.content) return 'Berichtsinhalt ist erforderlich';
-
-  if (!data.reporterFirstName || data.reporterFirstName.length < 2 || data.reporterFirstName.length > 50) {
-    return 'Vorname des Berichterstatters muss zwischen 2 und 50 Zeichen lang sein';
-  }
-
-  if (!data.reporterLastName || data.reporterLastName.length < 2 || data.reporterLastName.length > 50) {
-    return 'Nachname des Berichterstatters muss zwischen 2 und 50 Zeichen lang sein';
-  }
-
-  // Get configurable limits from settings
-  try {
-    const settings = await getNewsletterSettings();
-    const titleLimit = settings.statusReportTitleLimit || 100;
-    const contentLimit = settings.statusReportContentLimit || 5000;
-
-    if (data.title.length < 3 || data.title.length > titleLimit) {
-      return `Berichtstitel muss zwischen 3 und ${titleLimit} Zeichen lang sein`;
-    }
-
-    if (data.content.length > contentLimit) {
-      return `Berichtsinhalt darf maximal ${contentLimit} Zeichen lang sein`;
-    }
-  } catch {
-    // Fallback to default limits if settings cannot be retrieved
-    if (data.title.length < 3 || data.title.length > 100) {
-      return 'Berichtstitel muss zwischen 3 und 100 Zeichen lang sein';
-    }
-
-    if (data.content.length > 5000) {
-      return 'Berichtsinhalt darf maximal 5000 Zeichen lang sein';
-    }
-  }
-
-  return null;
-}
 
 /**
  * Create a slug from a group name
@@ -187,12 +96,11 @@ export function createGroupSlug(name: string): string {
  * Create a new group
  */
 export async function createGroup(data: GroupCreateData): Promise<Group> {
-  // Validate group data
-  const validationErrors = validateGroupData(data);
+  // Validate group data using new ValidationError class
+  const validationErrors = await validateGroupDataLegacy(data);
   if (validationErrors) {
-    // Throw the errors object for the API route to handle
-    // The API route will use validationErrorResponse to format properly
-    throw { validationErrors, isValidationError: true };
+    // Throw ValidationError instead of custom object
+    throw new ValidationError(validationErrors);
   }
   
   // Create a unique slug based on the group name
@@ -660,10 +568,11 @@ export async function deleteGroup(id: string): Promise<boolean> {
  * Create a new status report
  */
 export async function createStatusReport(data: StatusReportCreateData): Promise<StatusReport> {
-  // Validate status report data
-  const validationError = await validateStatusReportData(data);
+  // Validate status report data using new ValidationError pattern
+  const validationError = await validateStatusReportDataLegacy(data);
   if (validationError) {
-    throw new Error(validationError);
+    // Convert single string error to field errors object
+    throw new ValidationError({ general: validationError });
   }
   
   try {

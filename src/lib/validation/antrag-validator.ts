@@ -1,14 +1,6 @@
 import type { AntragPurposes } from '@/types/api-types';
-import { AppError, validationErrorResponse } from '@/lib/errors';
+import { AppError, validationErrorResponse, ValidationResult } from '@/lib/errors';
 import { validateAntragFiles } from '@/lib/antrag-file-utils';
-
-/**
- * Validation result type
- */
-export interface ValidationResult {
-  isValid: boolean;
-  errors: Record<string, string>;
-}
 
 /**
  * Form data interface for Antrag submission
@@ -295,7 +287,7 @@ export function validateAntragFormData(data: AntragFormData): ValidationResult {
   
   return {
     isValid: Object.keys(errors).length === 0,
-    errors
+    errors: Object.keys(errors).length > 0 ? errors : undefined
   };
 }
 

@@ -163,11 +163,12 @@ export default function GroupRequestForm() {
         const result = await response.json();
 
         // Check if server returned field errors
-        if (result.fieldErrors) {
+        if (result.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
           setServerFieldErrors(result.fieldErrors);
           // Throw error to prevent success message from showing
-          const firstError = Object.values(result.fieldErrors)[0];
-          throw new Error(firstError || 'Validierungsfehler aufgetreten');
+          const errorValues = Object.values(result.fieldErrors);
+          const firstError = errorValues.length > 0 ? String(errorValues[0]) : 'Validierungsfehler aufgetreten';
+          throw new Error(firstError);
         }
 
         errorMessage = result.error || errorMessage;

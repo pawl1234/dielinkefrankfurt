@@ -3,6 +3,7 @@ import { createStatusReport } from '@/lib/group-handlers';
 import { uploadStatusReportFiles, FileUploadError } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
 import { del } from '@vercel/blob';
+import { ValidationError, isValidationError, apiErrorResponse } from '@/lib/errors';
 
 /**
  * POST /api/status-reports/submit
@@ -101,19 +102,14 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error submitting status report:', error);
-    
-    // Return friendly error message based on the error
+
+    // Handle ValidationError from createStatusReport
+    if (isValidationError(error)) {
+      return error.toResponse();
+    }
+
+    // Handle specific known errors
     if (error instanceof Error) {
-      // Check if it's a validation error from our validation function
-      if (error.message.includes('required') || 
-          error.message.includes('must be between') ||
-          error.message.includes('must not exceed')) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        );
-      }
-      
       // Group not found or not active
       if (error.message.includes('Group not found or not active')) {
         return NextResponse.json(
@@ -122,11 +118,8 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    
-    // Generic error for other types of errors
-    return NextResponse.json(
-      { error: 'Failed to submit status report' },
-      { status: 500 }
-    );
+
+    // Use apiErrorResponse for consistent generic error handling
+    return apiErrorResponse(error, 'Failed to submit status report');
   }
 }

@@ -253,7 +253,18 @@ To integrate the appointments on another website:
 - `/src/app`: Next.js app router files
 - `/src/components`: React components
 - `/src/app/api`: API routes for form submission and RSS feed
+- `/src/lib/validation`: Centralized validation and error handling system
 - `/public`: Static assets
+- `/docs/development`: Development documentation and guides
+
+## Developer Documentation
+
+For detailed development information, see the documentation in `/docs/development/`:
+
+- **[Error Handling & Validation System](docs/development/2025-09-23_error-handling-validation-system.md)** - Comprehensive guide to the centralized validation and error handling system
+- **[Development Guide](docs/development/README.md)** - General development setup and guidelines
+- **[Vercel Blob Storage](docs/development/vercel-blob-storage.md)** - File upload and storage configuration
+- **[Vercel Deployment](docs/development/vercel-deployment.md)** - Production deployment guide
 
 ## License
 
