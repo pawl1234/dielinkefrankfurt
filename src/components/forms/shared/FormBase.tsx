@@ -8,6 +8,7 @@ import FormSuccessMessage from './FormSuccessMessage';
 import FormErrorMessage from './FormErrorMessage';
 import { useFormSubmission } from '@/hooks/useFormSubmission';
 import { FormValidationHelper } from './FormValidationHelper';
+import { useValidationErrors } from '@/hooks/useValidationErrors';
 
 // Context for providing form error handling to child components
 interface FormErrorContextType {
@@ -71,7 +72,7 @@ export default function FormBase<TFormValues extends FieldValues>({
   onCancel,
   customValidations = [],
 }: FormBaseProps<TFormValues>) {
-  const { handleSubmit: rhfHandleSubmit, reset } = formMethods;
+  const { handleSubmit: rhfHandleSubmit, reset, formState } = formMethods;
 
   const resetForm = () => {
     reset();
@@ -83,6 +84,14 @@ export default function FormBase<TFormValues extends FieldValues>({
       await onSubmit(data, files);
     },
     resetForm
+  });
+
+  // Collect all validation errors for prominent display
+  const { validationErrors, hasAnyErrors } = useValidationErrors({
+    formErrors: formState.errors,
+    customValidations,
+    submissionError,
+    isSubmitted: formState.isSubmitted || formState.submitCount > 0
   });
 
   const handleValidRHFSubmit: SubmitHandler<TFormValues> = (data) => {
@@ -109,10 +118,11 @@ export default function FormBase<TFormValues extends FieldValues>({
       <FormErrorContext.Provider value={{ setSubmissionError }}>
         <Box mb={5} component="form" onSubmit={rhfHandleSubmit(handleValidRHFSubmit, handleInvalidRHFSubmit)} noValidate sx={{ '& > *': { mt: 3 } }}>
           {/* ... rest of JSX ... */}
-          {submissionError && (
+          {hasAnyErrors && (
             <FormErrorMessage
-              title={errorTitle}
-              message={submissionError}
+              title={validationErrors.length > 0 ? 'Bitte überprüfen Sie Ihre Eingaben' : errorTitle}
+              message={validationErrors.length === 0 ? submissionError : undefined}
+              errors={validationErrors}
               onRetry={onRetry}
               showRetryButton={!!onRetry}
               showResetButton={false}

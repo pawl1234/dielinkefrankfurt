@@ -5,9 +5,16 @@ import { Box, Typography, Alert, Button } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
+interface ValidationError {
+  field: string;
+  label: string;
+  message: string;
+}
+
 interface FormErrorMessageProps {
   title: string;
-  message: string | ReactNode;
+  message?: string | ReactNode;
+  errors?: ValidationError[];
   onRetry?: () => void;
   onReset?: () => void;
   retryButtonText?: string;
@@ -20,10 +27,12 @@ interface FormErrorMessageProps {
  * Reusable component for form error messages
  * Provides consistent styling and structure for error messages
  * Mirrors FormSuccessMessage design with error styling
+ * Supports both single error messages and multiple validation errors
  */
 export default function FormErrorMessage({
   title,
   message,
+  errors = [],
   onRetry,
   onReset,
   retryButtonText = 'Erneut versuchen',
@@ -54,10 +63,35 @@ export default function FormErrorMessage({
         <Typography variant="h6" component="div" gutterBottom>
           {title}
         </Typography>
-        {typeof message === 'string' ? (
-          <Typography variant="body1">{message}</Typography>
-        ) : (
-          message
+
+        {/* Display single message if provided */}
+        {message && (
+          typeof message === 'string' ? (
+            <Typography variant="body1">{message}</Typography>
+          ) : (
+            message
+          )
+        )}
+
+        {/* Display validation errors list if provided */}
+        {errors.length > 0 && (
+          <Box sx={{ mt: message ? 1 : 0 }}>
+            {errors.length === 1 ? (
+              <Typography variant="body1">
+                <Box component="strong" sx={{ fontWeight: 'bold' }}>{errors[0].label}:</Box> {errors[0].message}
+              </Typography>
+            ) : (
+              <Box component="ul" sx={{ pl: 2, mt: 0, mb: 0 }}>
+                {errors.map((error, index) => (
+                  <Box component="li" key={index} sx={{ mb: 0.5 }}>
+                    <Typography variant="body1" component="span">
+                      <Box component="strong" sx={{ fontWeight: 'bold' }}>{error.label}:</Box> {error.message}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
         )}
 
         {/* Action buttons */}
