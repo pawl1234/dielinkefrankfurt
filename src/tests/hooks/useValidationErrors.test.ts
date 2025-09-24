@@ -57,7 +57,7 @@ describe('useValidationErrors Hook', () => {
     expect(result.current.validationErrors).toHaveLength(2);
     expect(result.current.validationErrors[0].label).toBe('Inhalt');
     expect(result.current.validationErrors[0].message).toBe('Inhalt ist erforderlich und muss Text enthalten.');
-    expect(result.current.validationErrors[1].label).toBe('Datei-Anhänge');
+    expect(result.current.validationErrors[1].label).toBe('Dateianhänge');
     expect(result.current.validationErrors[1].message).toBe('Mindestens eine Datei ist erforderlich.');
     expect(result.current.hasValidationErrors).toBe(true);
   });
@@ -152,7 +152,7 @@ describe('useValidationErrors Hook', () => {
     expect(result.current.validationErrors).toHaveLength(2);
     expect(result.current.validationErrors[0].label).toBe('Gruppe');
     expect(result.current.validationErrors[0].message).toBe('This field is required');
-    expect(result.current.validationErrors[1].label).toBe('Vorname des Erstellers');
+    expect(result.current.validationErrors[1].label).toBe('Vorname des Berichterstatters');
     expect(result.current.validationErrors[1].message).toBe('This field is required');
   });
 });

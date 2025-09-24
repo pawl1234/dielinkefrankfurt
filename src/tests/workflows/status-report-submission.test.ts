@@ -13,6 +13,22 @@ jest.mock('@/lib/logger', () => ({
     error: jest.fn()
   }
 }));
+jest.mock('@/lib/file-upload', () => ({
+  uploadStatusReportFiles: jest.fn().mockResolvedValue([]),
+  FileUploadError: class FileUploadError extends Error {
+    status: number;
+    constructor(message: string, status = 400) {
+      super(message);
+      this.status = status;
+    }
+  }
+}));
+jest.mock('@/lib/newsletter-service', () => ({
+  getNewsletterSettings: jest.fn().mockResolvedValue({
+    statusReportTitleLimit: 100,
+    statusReportContentLimit: 5000
+  })
+}));
 
 // Import after mocks are set up
 import prisma from '@/lib/prisma';
@@ -66,7 +82,14 @@ describe('Status Report Submission Workflow', () => {
       body: formData
     });
 
-    return await POST(request);
+    try {
+      return await POST(request);
+    } catch (error) {
+      // If the API route throws an error instead of returning a response,
+      // we need to handle this in tests
+      console.error('API route threw error:', error);
+      throw error;
+    }
   }
 
   describe('Critical Business Logic', () => {
@@ -81,7 +104,7 @@ describe('Status Report Submission Workflow', () => {
       });
 
       expect(response.status).toBe(200);
-      
+
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data.statusReport.id).toBeDefined();
@@ -111,11 +134,12 @@ describe('Status Report Submission Workflow', () => {
         fileCount: '0'
       });
 
+      expect(response).toBeDefined();
       expect(response.status).toBe(404);
-      
+
       const error = await response.json();
       expect(error.error).toContain('Group not found or not active');
-      
+
       // Verify no report created
       expect(mockPrisma.statusReport.create).not.toHaveBeenCalled();
     });
@@ -150,10 +174,17 @@ describe('Status Report Submission Workflow', () => {
           fileCount: '0'
         });
 
+        // If we get a response, it should be a 500 error
+        expect(response).toBeDefined();
         expect(response.status).toBe(500);
+
+        const errorData = await response.json();
+        expect(errorData.error).toBe('Fehler beim Übermitteln des Statusberichts');
       } catch (error) {
-        // If the function throws instead of returning a response, that's also valid
+        // If the API throws instead of returning a response,
+        // that's also valid error handling
         expect(error).toBeDefined();
+        expect(error instanceof Error).toBe(true);
       }
     });
 
@@ -237,6 +268,7 @@ describe('Status Report Submission Workflow', () => {
       });
 
       // Should reject non-active groups
+      expect(response).toBeDefined();
       expect(response.status).toBe(404);
       expect(mockPrisma.statusReport.create).not.toHaveBeenCalled();
     });

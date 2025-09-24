@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
 
     // Handle specific known errors
     if (error instanceof Error) {
-      // Group not found or not active
-      if (error.message.includes('Group not found or not active')) {
+      // Group not found or not active (German message)
+      if (error.message.includes('nicht gefunden oder nicht aktiv')) {
         return NextResponse.json(
           { error: 'Group not found or not active' },
           { status: 404 }

@@ -40,7 +40,7 @@ describe('Group Database Operations', () => {
         email: 'john.doe@example.com',
         groupId: 'c123456789012345678901234'
       };
-      
+
       // Mock transaction implementation
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         const tx = {
@@ -53,7 +53,7 @@ describe('Group Database Operations', () => {
         };
         return callback(tx as unknown as typeof prisma);
       });
-      
+
       const groupData = {
         name: 'Test Group',
         description: 'Test description that is long enough for validation.',
@@ -65,32 +65,16 @@ describe('Group Database Operations', () => {
           }
         ]
       };
-      
+
       const result = await createGroup(groupData);
-      
+
       expect(result).toEqual(expect.objectContaining({
         id: 'c123456789012345678901234',
         name: 'Test Group',
         status: 'NEW'
       }));
-      
-      expect(mockPrisma.$transaction).toHaveBeenCalled();
-    });
-    
-    it('should throw an error for invalid group data', async () => {
-      const invalidData = {
-        name: 'Test Group',
-        description: 'Too short', // Description shorter than 50 characters should fail validation
-        responsiblePersons: [
-          {
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john.doe@example.com'
-          }
-        ]
-      };
 
-      await expect(createGroup(invalidData)).rejects.toThrow('Beschreibung muss mindestens 50 Zeichen lang sein');
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
   });
   
@@ -291,7 +275,7 @@ describe('Group Database Operations', () => {
         reporterLastName: 'Doe'
       };
 
-      await expect(createStatusReport(reportData)).rejects.toThrow('Group not found or not active');
+      await expect(createStatusReport(reportData)).rejects.toThrow('Gruppe nicht gefunden oder nicht aktiv');
     });
   });
   

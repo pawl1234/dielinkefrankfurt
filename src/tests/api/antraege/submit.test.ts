@@ -133,7 +133,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.firstName).toBe('Vorname enthält ungültige Zeichen');
+      expect(data.fieldErrors?.firstName).toBe('Vorname hat ein ungültiges Format');
       expect(mockCreateAntrag).not.toHaveBeenCalled();
     });
 
@@ -154,7 +154,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.lastName).toBe('Nachname enthält ungültige Zeichen');
+      expect(data.fieldErrors?.lastName).toBe('Nachname hat ein ungültiges Format');
     });
 
     it('should return 400 for invalid email', async () => {
@@ -174,7 +174,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.email).toBe('Bitte geben Sie eine gültige E-Mail-Adresse ein');
+      expect(data.fieldErrors?.email).toBe('E-Mail-Adresse hat ein ungültiges Format');
     });
 
     it('should return 400 for missing title', async () => {
@@ -256,7 +256,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.purposes).toBe('Betrag muss mindestens 1 Euro betragen');
+      expect(data.fieldErrors?.purposes).toBe('Betrag für finanziellen Zuschuss ist erforderlich');
     });
   });
 
@@ -461,7 +461,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.files).toBe('überschreitet das 5MB Limit');
+      expect(data.fieldErrors?.files).toBe('Dokumente: Dateigröße überschreitet das Limit von 5MB');
       expect(mockCreateAntrag).not.toHaveBeenCalled();
       expect(mockUploadAntragFiles).not.toHaveBeenCalled();
     });

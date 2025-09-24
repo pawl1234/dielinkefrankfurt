@@ -35,7 +35,7 @@ describe('File Upload Utilities', () => {
     it('should reject files with invalid types', () => {
       const file = new File(['test text content'], 'test.txt', { type: 'text/plain' });
       expect(() => validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE)).toThrow(FileUploadError);
-      expect(() => validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE)).toThrow('Unsupported file type');
+      expect(() => validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE)).toThrow('Datei: Nicht unterstützter Dateityp');
     });
 
     it('should reject files that exceed the size limit', () => {
@@ -44,7 +44,7 @@ describe('File Upload Utilities', () => {
       Object.defineProperty(file, 'size', { value: MAX_LOGO_SIZE + 1 });
 
       expect(() => validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE)).toThrow(FileUploadError);
-      expect(() => validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE)).toThrow('File size exceeds');
+      expect(() => validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE)).toThrow('Dateigröße überschreitet das Limit von');
     });
   });
 
@@ -72,9 +72,9 @@ describe('File Upload Utilities', () => {
       (put as jest.Mock).mockRejectedValue(new Error('Storage service unavailable'));
 
       const file = new File(['test image content'], 'test.jpg', { type: 'image/jpeg' });
-      
+
       await expect(uploadFile(file, 'groups', 'logo')).rejects.toThrow(FileUploadError);
-      await expect(uploadFile(file, 'groups', 'logo')).rejects.toThrow('Failed to upload file');
+      await expect(uploadFile(file, 'groups', 'logo')).rejects.toThrow('Upload nach mehreren Versuchen fehlgeschlagen');
     }, 10000);
   });
 
@@ -107,7 +107,7 @@ describe('File Upload Utilities', () => {
       const croppedFile = new File(['cropped image content'], 'test_crop.jpg', { type: 'image/jpeg' });
 
       await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo')).rejects.toThrow(FileUploadError);
-      await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo')).rejects.toThrow('Failed to upload images');
+      await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo')).rejects.toThrow('Upload nach mehreren Versuchen fehlgeschlagen');
     }, 10000);
   });
 
@@ -167,9 +167,9 @@ describe('File Upload Utilities', () => {
       const files = Array(MAX_STATUS_REPORT_FILES_COUNT + 1)
         .fill(null)
         .map((_, i) => new File(['test content'], `file${i}.pdf`, { type: 'application/pdf' }));
-      
+
       expect(() => validateStatusReportFiles(files)).toThrow(FileUploadError);
-      expect(() => validateStatusReportFiles(files)).toThrow(`Too many files. Maximum of ${MAX_STATUS_REPORT_FILES_COUNT} files allowed.`);
+      expect(() => validateStatusReportFiles(files)).toThrow(`Maximal ${MAX_STATUS_REPORT_FILES_COUNT} Dateien erlaubt`);
     });
     
     it('should throw error if file type is not allowed', () => {
@@ -177,9 +177,9 @@ describe('File Upload Utilities', () => {
         new File(['test pdf content'], 'test.pdf', { type: 'application/pdf' }),
         new File(['test text content'], 'test.txt', { type: 'text/plain' })
       ];
-      
+
       expect(() => validateStatusReportFiles(files)).toThrow(FileUploadError);
-      expect(() => validateStatusReportFiles(files)).toThrow('Unsupported file type');
+      expect(() => validateStatusReportFiles(files)).toThrow('Nicht unterstützter Dateityp');
     });
     
     it('should throw error if individual file size is too large', () => {
@@ -187,28 +187,28 @@ describe('File Upload Utilities', () => {
       const file2 = new File(['test pdf content'], 'large.pdf', { type: 'application/pdf' });
       // Override size property
       Object.defineProperty(file2, 'size', { value: MAX_FILE_SIZE + 1024 });
-      
+
       const files = [file1, file2];
-      
+
       expect(() => validateStatusReportFiles(files)).toThrow(FileUploadError);
-      expect(() => validateStatusReportFiles(files)).toThrow('exceeds 5MB limit');
+      expect(() => validateStatusReportFiles(files)).toThrow('überschreitet das Limit von 5MB');
     });
     
     it('should throw error if combined file size is too large', () => {
       // Create files that individually are fine but together exceed the limit
       const singleFileSize = Math.floor(MAX_STATUS_REPORT_FILES_SIZE / 2) + 1024; // Just over half the limit
-      
+
       const file1 = new File(['test pdf content'], 'file1.pdf', { type: 'application/pdf' });
       const file2 = new File(['test pdf content'], 'file2.pdf', { type: 'application/pdf' });
-      
+
       // Override size properties
       Object.defineProperty(file1, 'size', { value: singleFileSize });
       Object.defineProperty(file2, 'size', { value: singleFileSize });
-      
+
       const files = [file1, file2];
-      
+
       expect(() => validateStatusReportFiles(files)).toThrow(FileUploadError);
-      expect(() => validateStatusReportFiles(files)).toThrow('Total file size exceeds');
+      expect(() => validateStatusReportFiles(files)).toThrow('Dateigröße überschreitet das Limit von 5MB');
     });
   });
   
@@ -241,11 +241,11 @@ describe('File Upload Utilities', () => {
     it('should throw FileUploadError if upload fails', async () => {
       // Mock the put function to throw an error
       (put as jest.Mock).mockRejectedValue(new Error('Upload failed'));
-      
+
       const files = [new File(['test pdf content'], 'test.pdf', { type: 'application/pdf' })];
-      
+
       await expect(uploadStatusReportFiles(files)).rejects.toThrow(FileUploadError);
-      await expect(uploadStatusReportFiles(files)).rejects.toThrow('Failed to upload files');
+      await expect(uploadStatusReportFiles(files)).rejects.toThrow('Upload fehlgeschlagen');
     });
     
     it('should validate files before uploading', async () => {
@@ -253,9 +253,9 @@ describe('File Upload Utilities', () => {
       const files = [
         new File(['test text content'], 'test.txt', { type: 'text/plain' })
       ];
-      
+
       await expect(uploadStatusReportFiles(files)).rejects.toThrow(FileUploadError);
-      await expect(uploadStatusReportFiles(files)).rejects.toThrow('Unsupported file type');
+      await expect(uploadStatusReportFiles(files)).rejects.toThrow('Nicht unterstützter Dateityp');
       expect(put).not.toHaveBeenCalled();
     });
   });

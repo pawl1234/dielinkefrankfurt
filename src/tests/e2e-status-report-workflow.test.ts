@@ -91,7 +91,7 @@ describe('Status Report Integration', () => {
       const data = await response.json();
 
       expect(response.status).toBe(404);
-      expect(data.error).toContain('Group not found');
+      expect(data.error).toBe('Group not found or not active');
     });
 
     it('should handle database errors gracefully', async () => {
@@ -113,7 +113,7 @@ describe('Status Report Integration', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to submit status report');
+      expect(data.error).toBe('Fehler beim Übermitteln des Statusberichts');
     });
   });
 });

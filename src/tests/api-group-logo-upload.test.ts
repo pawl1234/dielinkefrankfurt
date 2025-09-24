@@ -190,7 +190,7 @@ describe('Group Logo Upload API', () => {
     // Verify the response
     expect(response.status).toBe(400);
     expect(data.success).toBe(false);
-    expect(data.error).toContain('File size exceeds 2MB limit');
+    expect(data.error).toContain('Dateigröße überschreitet das Limit von 2MB');
     
     // Verify file upload was not called due to validation error
     expect(put).not.toHaveBeenCalled();
@@ -227,7 +227,7 @@ describe('Group Logo Upload API', () => {
     // Verify the response
     expect(response.status).toBe(500);
     expect(data.success).toBe(false);
-    expect(data.error).toContain('Failed to upload');
+    expect(data.error).toContain('Upload nach mehreren Versuchen fehlgeschlagen');
     
     // Verify file upload was attempted
     expect(put).toHaveBeenCalled();
