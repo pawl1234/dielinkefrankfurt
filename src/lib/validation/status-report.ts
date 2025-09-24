@@ -13,6 +13,7 @@ import {
   lastNameSchema,
   fileUrlsSchema
 } from './schemas';
+import { validationMessages } from '@/lib/validation-messages';
 
 /**
  * Base status report schema with default limits
@@ -34,13 +35,13 @@ export function createStatusReportSchema(titleLimit: number = 100, contentLimit:
   return z.object({
     groupId: groupIdSchema,
     title: z.string()
-      .min(1, 'Berichtstitel ist erforderlich')
-      .min(3, 'Berichtstitel muss mindestens 3 Zeichen lang sein')
-      .max(titleLimit, `Berichtstitel darf maximal ${titleLimit} Zeichen lang sein`)
+      .min(1, validationMessages.required('title'))
+      .min(3, validationMessages.minLength('title', 3))
+      .max(titleLimit, validationMessages.maxLength('title', titleLimit))
       .trim(),
     content: z.string()
-      .min(1, 'Berichtsinhalt ist erforderlich')
-      .max(contentLimit, `Berichtsinhalt darf maximal ${contentLimit} Zeichen lang sein`)
+      .min(1, validationMessages.required('content'))
+      .max(contentLimit, validationMessages.maxLength('content', contentLimit))
       .trim(),
     reporterFirstName: firstNameSchema,
     reporterLastName: lastNameSchema,

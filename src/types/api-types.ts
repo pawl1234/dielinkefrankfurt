@@ -83,17 +83,17 @@ export interface AntragPurposes {
   };
   personelleUnterstuetzung?: {
     enabled: boolean;
-    details: string; // Free text describing personnel needs
+    details?: string; // Free text describing personnel needs (optional but required when enabled)
   };
   raumbuchung?: {
     enabled: boolean;
-    location: string;
-    numberOfPeople: number;
-    details: string; // Additional details like time, duration, special requirements
+    location?: string;
+    numberOfPeople?: number;
+    details?: string; // Additional details like time, duration, special requirements (optional but required when enabled)
   };
   weiteres?: {
     enabled: boolean;
-    details: string; // Free text for other requirements
+    details?: string; // Free text for other requirements (optional but required when enabled)
   };
 }
 

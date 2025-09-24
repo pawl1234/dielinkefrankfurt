@@ -1,19 +1,19 @@
 /**
- * Base Zod validation schemas that mirror the existing validation patterns from schemas.ts.
- * Maintains the same field length limits and requirements while providing TypeScript type inference.
+ * Clean Zod validation schemas focused on validation rules.
+ * All error message localization is handled by the centralized localization.ts module.
+ * This keeps schemas simple and maintainable.
  */
 
 import { z } from 'zod';
-import { zodCustomMessages } from './localization';
 
 /**
  * Name schema (3-100 characters)
  * Used for group names, general names, etc.
  */
 export const nameSchema = z.string()
-  .min(1, 'Name ist erforderlich')
-  .min(3, 'Name muss mindestens 3 Zeichen lang sein')
-  .max(100, 'Name darf maximal 100 Zeichen lang sein')
+  .min(1)
+  .min(3)
+  .max(100)
   .trim();
 
 /**
@@ -21,9 +21,9 @@ export const nameSchema = z.string()
  * Used for appointment titles, article titles, etc.
  */
 export const titleSchema = z.string()
-  .min(1, 'Titel ist erforderlich')
-  .min(3, 'Titel muss mindestens 3 Zeichen lang sein')
-  .max(200, 'Titel darf maximal 200 Zeichen lang sein')
+  .min(1)
+  .min(3)
+  .max(200)
   .trim();
 
 /**
@@ -31,9 +31,9 @@ export const titleSchema = z.string()
  * Used for group descriptions, detailed content, etc.
  */
 export const longDescriptionSchema = z.string()
-  .min(1, 'Beschreibung ist erforderlich')
-  .min(50, 'Beschreibung muss mindestens 50 Zeichen lang sein')
-  .max(5000, 'Beschreibung darf maximal 5000 Zeichen lang sein')
+  .min(1)
+  .min(50)
+  .max(5000)
   .trim();
 
 /**
@@ -41,9 +41,9 @@ export const longDescriptionSchema = z.string()
  * Used for teasers, short summaries, etc.
  */
 export const shortDescriptionSchema = z.string()
-  .min(1, 'Kurzbeschreibung ist erforderlich')
-  .min(10, 'Kurzbeschreibung muss mindestens 10 Zeichen lang sein')
-  .max(500, 'Kurzbeschreibung darf maximal 500 Zeichen lang sein')
+  .min(1)
+  .min(10)
+  .max(500)
   .trim();
 
 /**
@@ -51,10 +51,10 @@ export const shortDescriptionSchema = z.string()
  * Used for person names with German character validation
  */
 export const firstNameSchema = z.string()
-  .min(1, 'Vorname ist erforderlich')
-  .min(2, 'Vorname muss mindestens 2 Zeichen lang sein')
-  .max(50, 'Vorname darf maximal 50 Zeichen lang sein')
-  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, 'Vorname enthält ungültige Zeichen')
+  .min(1)
+  .min(2)
+  .max(50)
+  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/)
   .trim();
 
 /**
@@ -62,20 +62,20 @@ export const firstNameSchema = z.string()
  * Used for person names with German character validation
  */
 export const lastNameSchema = z.string()
-  .min(1, 'Nachname ist erforderlich')
-  .min(2, 'Nachname muss mindestens 2 Zeichen lang sein')
-  .max(50, 'Nachname darf maximal 50 Zeichen lang sein')
-  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, 'Nachname enthält ungültige Zeichen')
+  .min(1)
+  .min(2)
+  .max(50)
+  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/)
   .trim();
 
 /**
- * Email schema with German error messages
+ * Email schema
  * Validates email format and length
  */
 export const emailSchema = z.string()
-  .min(1, 'E-Mail-Adresse ist erforderlich')
-  .email('Bitte geben Sie eine gültige E-Mail-Adresse ein')
-  .max(100, 'E-Mail-Adresse darf maximal 100 Zeichen lang sein')
+  .min(1)
+  .email()
+  .max(100)
   .trim()
   .toLowerCase();
 
@@ -84,9 +84,9 @@ export const emailSchema = z.string()
  * Used for main content fields like status report content
  */
 export const contentSchema = z.string()
-  .min(1, 'Inhalt ist erforderlich')
-  .min(10, 'Inhalt muss mindestens 10 Zeichen lang sein')
-  .max(10000, 'Inhalt darf maximal 10000 Zeichen lang sein')
+  .min(1)
+  .min(10)
+  .max(10000)
   .trim();
 
 /**
@@ -94,18 +94,18 @@ export const contentSchema = z.string()
  * Used for Antrag summaries
  */
 export const summarySchema = z.string()
-  .min(1, 'Zusammenfassung ist erforderlich')
-  .min(10, 'Zusammenfassung muss mindestens 10 Zeichen lang sein')
-  .max(300, 'Zusammenfassung darf maximal 300 Zeichen lang sein')
+  .min(1)
+  .min(10)
+  .max(300)
   .trim();
 
 /**
  * Optional text schema with configurable maximum length
  * Returns a function that creates a Zod schema for optional text fields
  */
-export const createOptionalTextSchema = (maxLength: number, fieldName: string = 'Text') =>
+export const createOptionalTextSchema = (maxLength: number, _fieldName: string = 'text') =>
   z.string()
-    .max(maxLength, `${fieldName} darf maximal ${maxLength} Zeichen lang sein`)
+    .max(maxLength)
     .trim()
     .optional()
     .or(z.literal(''));
@@ -113,30 +113,30 @@ export const createOptionalTextSchema = (maxLength: number, fieldName: string = 
 /**
  * Street address schema (optional, max 200 characters)
  */
-export const streetSchema = createOptionalTextSchema(200, 'Straße');
+export const streetSchema = createOptionalTextSchema(200, 'street');
 
 /**
  * City schema (optional, max 100 characters)
  */
-export const citySchema = createOptionalTextSchema(100, 'Ort');
+export const citySchema = createOptionalTextSchema(100, 'city');
 
 /**
  * State schema (optional, max 100 characters)
  */
-export const stateSchema = createOptionalTextSchema(100, 'Bundesland');
+export const stateSchema = createOptionalTextSchema(100, 'state');
 
 /**
  * Postal code schema (optional, max 20 characters)
  */
-export const postalCodeSchema = createOptionalTextSchema(20, 'Postleitzahl');
+export const postalCodeSchema = createOptionalTextSchema(20, 'postalCode');
 
 /**
  * Phone number schema (optional, German format)
  */
 export const phoneSchema = z.string()
-  .regex(/^(\+49|0)[0-9\s\-\/()]+$/, 'Ungültiges Telefonnummer-Format')
-  .min(6, 'Telefonnummer muss mindestens 6 Zeichen lang sein')
-  .max(20, 'Telefonnummer darf maximal 20 Zeichen lang sein')
+  .regex(/^(\+49|0)[0-9\s\-\/()]+$/)
+  .min(6)
+  .max(20)
   .trim()
   .optional()
   .or(z.literal(''));
@@ -146,9 +146,9 @@ export const phoneSchema = z.string()
  * Validates ISO date strings
  */
 export const dateTimeSchema = z.string()
-  .min(1, 'Datum und Uhrzeit sind erforderlich')
-  .datetime('Ungültiges Datum oder Uhrzeit-Format')
-  .or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, 'Ungültiges Datum oder Uhrzeit-Format'));
+  .min(1)
+  .datetime()
+  .or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/));
 
 /**
  * Optional date/time string schema
@@ -159,7 +159,7 @@ export const optionalDateTimeSchema = dateTimeSchema.optional();
  * File URL schema
  * Validates URL format for file references
  */
-export const fileUrlSchema = z.string().url('Ungültige URL');
+export const fileUrlSchema = z.string().url();
 
 /**
  * Array of file URLs schema
@@ -180,15 +180,15 @@ export const responsiblePersonSchema = z.object({
  * Array of responsible persons (at least one required)
  */
 export const responsiblePersonsSchema = z.array(responsiblePersonSchema)
-  .min(1, zodCustomMessages.atLeastOne('responsiblePersons'));
+  .min(1);
 
 /**
- * Boolean schema with German error messages
+ * Boolean schema
  */
 export const booleanSchema = z.boolean();
 
 /**
- * Number schema with German error messages
+ * Number schema
  * Used for amounts, counts, etc.
  */
 export const numberSchema = z.number();
@@ -198,30 +198,30 @@ export const numberSchema = z.number();
  * Used for counts, IDs, etc.
  */
 export const positiveIntegerSchema = numberSchema
-  .int('Muss eine ganze Zahl sein')
-  .min(1, 'Muss mindestens 1 sein');
+  .int()
+  .min(1);
 
 /**
  * Amount schema for financial values (1-999999)
  * Used for Antrag Zuschuss amounts
  */
 export const amountSchema = numberSchema
-  .min(1, zodCustomMessages.zuschussAmountMinimum)
-  .max(999999, zodCustomMessages.zuschussAmountMaximum)
-  .refine(val => !isNaN(val), zodCustomMessages.zuschussAmountInvalid);
+  .min(1)
+  .max(999999)
+  .refine(val => !isNaN(val));
 
 /**
  * Group ID schema (CUID format)
  */
 export const groupIdSchema = z.string()
-  .min(1, 'Gruppe ist erforderlich')
-  .regex(/^c[a-z0-9]{24}$/, 'Ungültige Gruppen-ID');
+  .min(1)
+  .regex(/^c[a-z0-9]{24}$/);
 
 /**
  * Generic ID schema (UUID format)
  */
 export const idSchema = z.string()
-  .uuid('Ungültige ID');
+  .uuid();
 
 /**
  * Status schema for Antrag

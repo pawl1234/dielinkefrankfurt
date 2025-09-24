@@ -15,13 +15,14 @@ import {
   responsiblePersonSchema,
   responsiblePersonsSchema
 } from './schemas';
+import { validationMessages } from '@/lib/validation-messages';
 
 /**
  * Logo metadata schema for cropped images
  */
 const logoMetadataSchema = z.object({
-  originalUrl: z.string().url('Ungültige Original-URL'),
-  croppedUrl: z.string().url('Ungültige zugeschnittene URL')
+  originalUrl: z.string().url(validationMessages.invalidUrl('originalUrl')),
+  croppedUrl: z.string().url(validationMessages.invalidUrl('croppedUrl'))
 }).optional();
 
 /**

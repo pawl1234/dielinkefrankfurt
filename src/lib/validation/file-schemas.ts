@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { validationMessages } from '../validation-messages';
 
 /**
  * Common file size limits
@@ -31,7 +32,7 @@ export const FILE_TYPES = {
 export const createFileSchema = (maxSize: number = FILE_SIZE_LIMITS.DEFAULT, fieldName: string = 'Datei') =>
   z.instanceof(File).refine(
     (file) => file.size <= maxSize,
-    `${fieldName} überschreitet das ${(maxSize / (1024 * 1024)).toFixed(0)}MB Limit`
+    validationMessages.fileSizeExceeds(fieldName, Math.round(maxSize / (1024 * 1024)))
   );
 
 /**
@@ -44,7 +45,7 @@ export const createTypedFileSchema = (
 ) =>
   createFileSchema(maxSize, fieldName).refine(
     (file) => allowedTypes.includes(file.type),
-    `Nicht unterstützter Dateityp für ${fieldName}`
+    validationMessages.unsupportedFileType(fieldName)
   );
 
 /**
@@ -57,7 +58,7 @@ export const createMultipleFilesSchema = (
   fieldName: string = 'Dateien'
 ) =>
   z.array(createTypedFileSchema(allowedTypes, maxSizePerFile, fieldName))
-    .max(maxFiles, `Maximal ${maxFiles} ${fieldName} erlaubt`)
+    .max(maxFiles, validationMessages.tooManyFiles(fieldName, maxFiles))
     .optional();
 
 /**
@@ -107,15 +108,15 @@ export function validateFiles(
   const errors: string[] = [];
 
   if (files.length > maxFiles) {
-    errors.push(`Maximal ${maxFiles} Dateien erlaubt`);
+    errors.push(validationMessages.tooManyFilesShort(maxFiles));
   }
 
   files.forEach((file, index) => {
     if (file.size > maxSizePerFile) {
-      errors.push(`Datei ${index + 1} überschreitet das ${(maxSizePerFile / (1024 * 1024)).toFixed(0)}MB Limit`);
+      errors.push(`Datei ${index + 1} ${validationMessages.fileSizeExceedsShort('file')}`);
     }
     if (!allowedTypes.includes(file.type)) {
-      errors.push(`Datei ${index + 1}: Nicht unterstützter Dateityp`);
+      errors.push(`Datei ${index + 1}: ${validationMessages.unsupportedFileTypeShort('file')}`);
     }
   });
 

@@ -18,7 +18,7 @@ import {
   fileUrlsSchema
 } from './schemas';
 import { documentFilesSchema } from './file-schemas';
-import { zodCustomMessages } from './localization';
+import { antragMessages, validationMessages } from '@/lib/validation-messages';
 
 /**
  * Zuschuss (financial support) purpose schema
@@ -27,9 +27,9 @@ import { zodCustomMessages } from './localization';
 const zuschussPurposeSchema = z.object({
   enabled: booleanSchema,
   amount: z.number()
-    .min(1, zodCustomMessages.zuschussAmountMinimum)
-    .max(999999, zodCustomMessages.zuschussAmountMaximum)
-    .refine(val => !isNaN(val), zodCustomMessages.zuschussAmountInvalid)
+    .min(1, antragMessages.zuschussAmountMinimum)
+    .max(999999, antragMessages.zuschussAmountMaximum)
+    .refine(val => !isNaN(val), antragMessages.zuschussAmountInvalid)
 }).refine(
   (data) => {
     // If enabled is true, amount must be valid (amount is always required when object exists)
@@ -39,7 +39,7 @@ const zuschussPurposeSchema = z.object({
     return true;
   },
   {
-    message: zodCustomMessages.zuschussAmountRequired,
+    message: antragMessages.zuschussAmountRequired,
     path: ['amount']
   }
 );
@@ -51,8 +51,10 @@ const zuschussPurposeSchema = z.object({
 const personelleUnterstuetzungPurposeSchema = z.object({
   enabled: booleanSchema,
   details: z.string()
-    .max(500, 'Details zur personellen Unterstützung dürfen maximal 500 Zeichen lang sein')
+    .max(500, validationMessages.maxLength('purposes.personelleUnterstuetzung.details', 500))
     .trim()
+    .optional()
+    .or(z.literal(''))
 }).refine(
   (data) => {
     // If enabled is true, details must be provided
@@ -62,7 +64,7 @@ const personelleUnterstuetzungPurposeSchema = z.object({
     return true;
   },
   {
-    message: zodCustomMessages.personelleDetailsRequired,
+    message: antragMessages.personelleDetailsRequired,
     path: ['details']
   }
 );
@@ -74,15 +76,20 @@ const personelleUnterstuetzungPurposeSchema = z.object({
 const raumbuchungPurposeSchema = z.object({
   enabled: booleanSchema,
   location: z.string()
-    .max(200, 'Ort für Raumbuchung darf maximal 200 Zeichen lang sein')
-    .trim(),
-  numberOfPeople: z.number()
-    .int('Anzahl der Personen muss eine ganze Zahl sein')
-    .min(1, zodCustomMessages.raumbuchungPeopleMinimum)
-    .max(1000, zodCustomMessages.raumbuchungPeopleMaximum),
-  details: z.string()
-    .max(500, 'Details zur Raumbuchung dürfen maximal 500 Zeichen lang sein')
+    .max(200, validationMessages.maxLength('purposes.raumbuchung.location', 200))
     .trim()
+    .optional()
+    .or(z.literal('')),
+  numberOfPeople: z.number()
+    .int(validationMessages.mustBeInteger('numberOfPeople'))
+    .min(1, antragMessages.raumbuchungPeopleMinimum)
+    .max(1000, antragMessages.raumbuchungPeopleMaximum)
+    .optional(),
+  details: z.string()
+    .max(500, validationMessages.maxLength('purposes.raumbuchung.details', 500))
+    .trim()
+    .optional()
+    .or(z.literal(''))
 }).refine(
   (data) => {
     if (!data.enabled) return true;
@@ -100,7 +107,7 @@ const raumbuchungPurposeSchema = z.object({
     return true;
   },
   {
-    message: zodCustomMessages.raumbuchungDetailsRequired,
+    message: antragMessages.raumbuchungDetailsRequired,
     path: ['details']
   }
 );
@@ -112,8 +119,10 @@ const raumbuchungPurposeSchema = z.object({
 const weiteresPurposeSchema = z.object({
   enabled: booleanSchema,
   details: z.string()
-    .max(1000, 'Details zu weiteren Anliegen dürfen maximal 1000 Zeichen lang sein')
+    .max(1000, antragMessages.weiteresDetailsMaxLength)
     .trim()
+    .optional()
+    .or(z.literal(''))
 }).refine(
   (data) => {
     // If enabled is true, details must be provided
@@ -123,7 +132,7 @@ const weiteresPurposeSchema = z.object({
     return true;
   },
   {
-    message: zodCustomMessages.weiteresDetailsRequired,
+    message: antragMessages.weiteresDetailsRequired,
     path: ['details']
   }
 );
@@ -145,7 +154,7 @@ const purposesSchema = z.object({
     return hasEnabledPurpose;
   },
   {
-    message: zodCustomMessages.atLeastOnePurpose,
+    message: antragMessages.atLeastOnePurpose,
     path: ['general']
   }
 );

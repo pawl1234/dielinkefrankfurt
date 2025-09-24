@@ -5,7 +5,6 @@
 
 // Export Zod integration utilities and schemas
 export * from './helpers';
-export * from './localization';
 export * from './schemas';
 export * from './file-schemas';
 

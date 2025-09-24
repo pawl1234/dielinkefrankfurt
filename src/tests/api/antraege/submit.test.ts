@@ -461,7 +461,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.files).toBe('Dokumente überschreitet das 5MB Limit');
+      expect(data.fieldErrors?.files).toBe('überschreitet das 5MB Limit');
       expect(mockCreateAntrag).not.toHaveBeenCalled();
       expect(mockUploadAntragFiles).not.toHaveBeenCalled();
     });
@@ -495,7 +495,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.files).toBe('Maximal 5 Dokumente erlaubt');
+      expect(data.fieldErrors?.files).toBe('Maximal 5 Dateien erlaubt');
       expect(mockUploadAntragFiles).not.toHaveBeenCalled();
     });
 
@@ -526,7 +526,7 @@ describe('POST /api/antraege/submit', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.fieldErrors?.files).toContain('Nicht unterstützter Dateityp für Dokumente');
+      expect(data.fieldErrors?.files).toContain('Nicht unterstützter Dateityp');
       expect(mockUploadAntragFiles).not.toHaveBeenCalled();
     });
 

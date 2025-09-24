@@ -37,7 +37,7 @@ export const appointmentCreateDataSchema = z.object({
   postalCode: postalCodeSchema,
   firstName: firstNameSchema.optional(),
   lastName: lastNameSchema.optional(),
-  recurringText: createOptionalTextSchema(500, 'Wiederholungsbeschreibung'),
+  recurringText: createOptionalTextSchema(500, 'recurringText'),
   featured: featuredSchema
 });
 
@@ -56,7 +56,7 @@ export const appointmentUpdateDataSchema = z.object({
   postalCode: postalCodeSchema,
   firstName: firstNameSchema.optional(),
   lastName: lastNameSchema.optional(),
-  recurringText: createOptionalTextSchema(500, 'Wiederholungsbeschreibung'),
+  recurringText: createOptionalTextSchema(500, 'recurringText'),
   featured: featuredSchema
 }).partial();
 

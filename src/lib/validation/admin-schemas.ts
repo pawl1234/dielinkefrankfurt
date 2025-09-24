@@ -19,7 +19,7 @@ import {
   booleanSchema,
   responsiblePersonsSchema
 } from './schemas';
-import { logoFileSchema, coverImageSchema, attachmentFilesSchema } from './file-schemas';
+import { validationMessages } from '../validation-messages';
 
 /**
  * Common admin update schema pattern - all fields optional
@@ -87,14 +87,14 @@ export const adminNewsletterSettingsSchema = z.object({
   maxEventsPerNewsletter: z.number().int().min(1).max(50),
   newsletterFrequency: z.enum(['weekly', 'biweekly', 'monthly']),
   newsletterDayOfWeek: z.number().int().min(0).max(6), // 0 = Sunday, 6 = Saturday
-  newsletterTimeOfDay: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Ungültiges Zeitformat (HH:MM)')
+  newsletterTimeOfDay: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, validationMessages.invalidTimeFormat('newsletterTimeOfDay'))
 });
 
 /**
  * Antrag config update schema
  */
 export const adminAntragConfigSchema = z.object({
-  recipientEmails: z.array(emailSchema).min(1, 'Mindestens eine E-Mail-Adresse ist erforderlich'),
+  recipientEmails: z.array(emailSchema).min(1, validationMessages.atLeastOneEmailRequired('recipientEmails')),
   ccEmails: z.array(emailSchema).optional(),
   enableAutoNotification: booleanSchema.optional().default(true),
   requireApproval: booleanSchema.optional().default(true)
@@ -118,12 +118,12 @@ export const adminListQuerySchema = z.object({
  * Bulk operation schemas
  */
 export const adminBulkDeleteSchema = z.object({
-  ids: z.array(z.string()).min(1, 'Mindestens eine ID ist erforderlich')
+  ids: z.array(z.string()).min(1, validationMessages.atLeastOneIdRequired('ids'))
 });
 
 export const adminBulkUpdateStatusSchema = z.object({
-  ids: z.array(z.string()).min(1, 'Mindestens eine ID ist erforderlich'),
-  status: z.string().min(1, 'Status ist erforderlich'),
+  ids: z.array(z.string()).min(1, validationMessages.atLeastOneIdRequired('ids')),
+  status: z.string().min(1, validationMessages.statusRequired('status')),
   rejectionReason: z.string().optional()
 });
 
