@@ -11,7 +11,6 @@ import { z } from 'zod';
  * Used for group names, general names, etc.
  */
 export const nameSchema = z.string()
-  .min(1)
   .min(3)
   .max(100)
   .trim();
@@ -21,7 +20,6 @@ export const nameSchema = z.string()
  * Used for appointment titles, article titles, etc.
  */
 export const titleSchema = z.string()
-  .min(1)
   .min(3)
   .max(200)
   .trim();
@@ -31,7 +29,6 @@ export const titleSchema = z.string()
  * Used for group descriptions, detailed content, etc.
  */
 export const longDescriptionSchema = z.string()
-  .min(1)
   .min(50)
   .max(5000)
   .trim();
@@ -41,7 +38,6 @@ export const longDescriptionSchema = z.string()
  * Used for teasers, short summaries, etc.
  */
 export const shortDescriptionSchema = z.string()
-  .min(1)
   .min(10)
   .max(500)
   .trim();
@@ -51,7 +47,6 @@ export const shortDescriptionSchema = z.string()
  * Used for person names with German character validation
  */
 export const firstNameSchema = z.string()
-  .min(1)
   .min(2)
   .max(50)
   .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/)
@@ -62,7 +57,6 @@ export const firstNameSchema = z.string()
  * Used for person names with German character validation
  */
 export const lastNameSchema = z.string()
-  .min(1)
   .min(2)
   .max(50)
   .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/)
@@ -73,7 +67,6 @@ export const lastNameSchema = z.string()
  * Validates email format and length
  */
 export const emailSchema = z.string()
-  .min(1)
   .email()
   .max(100)
   .trim()
@@ -84,7 +77,6 @@ export const emailSchema = z.string()
  * Used for main content fields like status report content
  */
 export const contentSchema = z.string()
-  .min(1)
   .min(10)
   .max(10000)
   .trim();
@@ -94,7 +86,6 @@ export const contentSchema = z.string()
  * Used for Antrag summaries
  */
 export const summarySchema = z.string()
-  .min(1)
   .min(10)
   .max(300)
   .trim();
@@ -146,7 +137,6 @@ export const phoneSchema = z.string()
  * Validates ISO date strings
  */
 export const dateTimeSchema = z.string()
-  .min(1)
   .datetime()
   .or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/));
 
@@ -214,7 +204,6 @@ export const amountSchema = numberSchema
  * Group ID schema (CUID format)
  */
 export const groupIdSchema = z.string()
-  .min(1)
   .regex(/^c[a-z0-9]{24}$/);
 
 /**

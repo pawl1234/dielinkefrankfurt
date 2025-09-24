@@ -1,28 +1,19 @@
 import { put, del } from '@vercel/blob';
-import { FileUploadError } from './file-upload';
+import { AppError } from './errors';
+import { ValidationError } from '@/lib/validation';
+import { FILE_TYPES, FILE_SIZE_LIMITS, validateFiles } from './validation/file-schemas';
+import { validationMessages } from '@/lib/validation-messages';
 
 /**
  * File constraints for Antrag attachments
+ * Using centralized FILE_SIZE_LIMITS constants
  */
-export const MAX_ANTRAG_FILES_COUNT = 5; // Maximum 5 files per Antrag
-export const MAX_ANTRAG_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
-export const MAX_ANTRAG_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB total
 
 /**
  * Allowed file types for Antrag attachments
+ * Using centralized file type configuration
  */
-export const ALLOWED_ANTRAG_FILE_TYPES = [
-  // Images
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  // Documents
-  'application/pdf',
-  'application/msword', // .doc
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/vnd.ms-excel', // .xls
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-];
+export const ALLOWED_ANTRAG_FILE_TYPES = FILE_TYPES.ANTRAG;
 
 /**
  * Get a user-friendly list of allowed file extensions
@@ -44,72 +35,38 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Validates files for Antrag attachments
- * Checks:
- * 1. File count limit
- * 2. Individual file type
- * 3. Individual file size
- * 4. Combined file size
- * 
+ * Uses centralized validation with custom total size check
+ *
  * @param files - Array of files to validate
- * @returns void if valid, throws FileUploadError if invalid
+ * @returns void if valid, throws ValidationError if invalid
  */
 export function validateAntragFiles(files: File[]): void {
   if (!files || files.length === 0) {
     return; // No files to validate
   }
 
-  // Check file count
-  if (files.length > MAX_ANTRAG_FILES_COUNT) {
-    throw new FileUploadError(
-      `Zu viele Dateien. Maximal ${MAX_ANTRAG_FILES_COUNT} Dateien erlaubt.`,
-      400,
-      'TOO_MANY_FILES'
-    );
+  // Use centralized validation for file count, individual file size, and file types
+  const validationResult = validateFiles(
+    files,
+    FILE_SIZE_LIMITS.ANTRAG_COUNT,
+    FILE_SIZE_LIMITS.ANTRAG,
+    FILE_TYPES.ANTRAG
+  );
+
+  // Handle basic validation errors
+  if (!validationResult.isValid && validationResult.errors) {
+    throw new ValidationError({
+      files: validationResult.errors[0] || validationMessages.required('files')
+    });
   }
 
-  // Check individual files and track total size
-  let totalSize = 0;
-
-  for (const file of files) {
-    // Check if file exists and has content
-    if (!file || file.size === 0) {
-      throw new FileUploadError(
-        'Ungültige oder leere Datei gefunden.',
-        400,
-        'INVALID_FILE'
-      );
-    }
-
-    // Validate file type
-    if (!ALLOWED_ANTRAG_FILE_TYPES.includes(file.type)) {
-      throw new FileUploadError(
-        `Nicht unterstützter Dateityp für "${file.name}". Erlaubte Dateitypen: ${getAllowedFileExtensions()}.`,
-        400,
-        'INVALID_FILE_TYPE'
-      );
-    }
-
-    // Validate individual file size
-    if (file.size > MAX_ANTRAG_FILE_SIZE) {
-      const maxSizeMB = MAX_ANTRAG_FILE_SIZE / (1024 * 1024);
-      throw new FileUploadError(
-        `Datei "${file.name}" überschreitet das ${maxSizeMB}MB Limit. Bitte laden Sie eine kleinere Datei hoch.`,
-        400,
-        'FILE_TOO_LARGE'
-      );
-    }
-
-    totalSize += file.size;
-  }
-
-  // Validate combined file size
-  if (totalSize > MAX_ANTRAG_TOTAL_SIZE) {
-    const maxSizeMB = MAX_ANTRAG_TOTAL_SIZE / (1024 * 1024);
-    throw new FileUploadError(
-      `Gesamtgröße der Dateien überschreitet das ${maxSizeMB}MB Limit. Bitte reduzieren Sie die Größe oder Anzahl der Dateien.`,
-      400,
-      'COMBINED_FILES_TOO_LARGE'
-    );
+  // Add custom total size validation (not covered by centralized helper)
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  if (totalSize > FILE_SIZE_LIMITS.ANTRAG_TOTAL) {
+    const maxSizeMB = FILE_SIZE_LIMITS.ANTRAG_TOTAL / (1024 * 1024);
+    throw new ValidationError({
+      files: validationMessages.fileSizeExceeds('files', maxSizeMB)
+    });
   }
 }
 
@@ -120,7 +77,7 @@ export function validateAntragFiles(files: File[]): void {
  * @param maxRetries - Maximum number of retry attempts (default: 3)
  * @param retryDelay - Base delay in ms between retries (default: 1000)
  * @returns Array of uploaded file URLs
- * @throws FileUploadError if validation or upload fails
+ * @throws ValidationError if validation fails, AppError if upload fails
  */
 export async function uploadAntragFiles(
   files: File[],
@@ -179,10 +136,8 @@ export async function uploadAntragFiles(
               });
             }
 
-            throw new FileUploadError(
-              `Fehler beim Hochladen der Datei "${file.name}". Bitte versuchen Sie es später erneut.`,
-              500,
-              'UPLOAD_FAILED'
+            throw AppError.fileUpload(
+              `Fehler beim Hochladen der Datei "${file.name}". Bitte versuchen Sie es später erneut.`
             );
           }
 
@@ -197,8 +152,8 @@ export async function uploadAntragFiles(
 
     return uploadedUrls;
   } catch (error) {
-    // Re-throw FileUploadError
-    if (error instanceof FileUploadError) {
+    // Re-throw ValidationError or AppError
+    if (error instanceof ValidationError || error instanceof AppError) {
       throw error;
     }
 
@@ -211,10 +166,8 @@ export async function uploadAntragFiles(
     }
 
     console.error('❌ Unexpected error uploading Antrag files:', error);
-    throw new FileUploadError(
-      'Fehler beim Hochladen der Dateien. Bitte versuchen Sie es später erneut.',
-      500,
-      'UPLOAD_FAILED'
+    throw AppError.fileUpload(
+      'Fehler beim Hochladen der Dateien. Bitte versuchen Sie es später erneut.'
     );
   }
 }

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { FieldErrors, FieldValues } from 'react-hook-form';
 import { CustomValidationEntry } from '@/components/forms/shared/FormBase';
+import { fieldLabels } from '@/lib/validation-messages';
 
 interface ValidationError {
   field: string;
@@ -12,42 +13,9 @@ interface UseValidationErrorsProps<TFormValues extends FieldValues> {
   formErrors: FieldErrors<TFormValues>;
   customValidations: CustomValidationEntry[];
   submissionError: string | null;
-  serverFieldErrors?: Record<string, string>; // NEW: Server-provided field errors
+  serverFieldErrors?: Record<string, string>; // Server-provided field errors
   isSubmitted: boolean;
 }
-
-const fieldLabels: Record<string, string> = {
-  // Group form fields
-  'name': 'Gruppenname',
-  'description': 'Beschreibung',
-  'responsiblePersons': 'Verantwortliche Personen',
-  'logo': 'Logo',
-
-  // Appointment form fields
-  'title': 'Titel',
-  'teaser': 'Kurzbeschreibung',
-  'mainText': 'Beschreibung',
-  'startDateTime': 'Startdatum',
-  'endDateTime': 'Enddatum',
-  'street': 'Straße',
-  'city': 'Ort',
-  'state': 'Bundesland',
-  'postalCode': 'Postleitzahl',
-  'firstName': 'Vorname',
-  'lastName': 'Nachname',
-  'recurringText': 'Wiederholungsbeschreibung',
-  'coverImage': 'Cover-Bild',
-
-  // Status report form fields
-  'groupId': 'Gruppe',
-  'content': 'Inhalt',
-  'reporterFirstName': 'Vorname des Erstellers',
-  'reporterLastName': 'Nachname des Erstellers',
-
-  // Common fields
-  'email': 'E-Mail-Adresse',
-  'files': 'Datei-Anhänge'
-};
 
 /**
  * Hook to collect and format all validation errors from forms

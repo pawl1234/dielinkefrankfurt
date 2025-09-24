@@ -1,14 +1,28 @@
 import { put, del, list, PutCommandOptions } from '@vercel/blob';
 import { createHash } from 'crypto';
+import { FILE_TYPES } from './validation/file-schemas';
+import { validationMessages } from '@/lib/validation-messages';
 
 // Define maximum file sizes
 const MAX_INDIVIDUAL_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024; // 50MB
 
-// Define allowed file types for different contexts
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-export const ALLOWED_DOCUMENT_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-export const ALLOWED_ATTACHMENT_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES];
+// Additional size constants for backward compatibility with file-upload.ts
+export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB for logos
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for general attachments
+export const MAX_COMBINED_FILES_SIZE = 10 * 1024 * 1024; // 10MB total per submission
+export const MAX_STATUS_REPORT_FILES_SIZE = 5 * 1024 * 1024; // 5MB total for status report files
+export const MAX_STATUS_REPORT_FILES_COUNT = 5; // Maximum 5 files per status report
+
+// Define allowed file types for different contexts using centralized configuration
+export const ALLOWED_IMAGE_TYPES = FILE_TYPES.IMAGE;
+export const ALLOWED_DOCUMENT_TYPES = FILE_TYPES.DOCUMENT;
+export const ALLOWED_ATTACHMENT_TYPES = FILE_TYPES.EMAIL_ATTACHMENT;
+export const ALLOWED_ANTRAG_FILE_TYPES = FILE_TYPES.ANTRAG;
+export const ALLOWED_EMAIL_ATTACHMENT_TYPES = FILE_TYPES.EMAIL_ATTACHMENT;
+export const ALLOWED_STATUS_REPORT_TYPES = FILE_TYPES.STATUS_REPORT;
+// Backward compatibility alias for file-upload.ts
+export const ALLOWED_FILE_TYPES = FILE_TYPES.ALL;
 
 // Cache of file URLs for faster repeat access
 const URL_CACHE = new Map<string, { url: string, expiresAt: number }>();
@@ -16,50 +30,72 @@ const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
 // Errors
 export class FileUploadError extends Error {
-  code: string;
-  details?: Record<string, unknown>;
+  public readonly status: number;
+  public readonly code?: string;
+  public readonly details?: Record<string, unknown>;
 
-  constructor(message: string, code: string, details?: Record<string, unknown>) {
+  constructor(
+    message: string,
+    statusOrCode: number | string = 500,
+    codeOrDetails?: string | Record<string, unknown>
+  ) {
     super(message);
     this.name = 'FileUploadError';
-    this.code = code;
-    this.details = details;
+
+    // Support both constructor signatures for backward compatibility
+    if (typeof statusOrCode === 'number') {
+      // New signature: (message, status, code?)
+      this.status = statusOrCode;
+      this.code = typeof codeOrDetails === 'string' ? codeOrDetails : undefined;
+    } else {
+      // Old signature: (message, code, details?)
+      this.status = 500;
+      this.code = statusOrCode;
+      this.details = typeof codeOrDetails === 'object' ? codeOrDetails : undefined;
+    }
   }
 }
 
 /**
- * Validates a file before upload
- * 
- * @param file The file to validate
- * @param allowedTypes Array of allowed MIME types
- * @param maxSize Maximum file size in bytes (defaults to 5MB)
- * @returns True if file is valid
- * @throws FileUploadError if validation fails
+ * Validates a file based on specified constraints
+ *
+ * @param file - The file to validate
+ * @param allowedTypes - Array of allowed MIME types
+ * @param maxSize - Maximum file size in bytes
+ * @returns void if valid, throws FileUploadError if invalid
  */
 export function validateFile(
   file: File,
-  allowedTypes: string[] = ALLOWED_ATTACHMENT_TYPES,
-  maxSize: number = MAX_INDIVIDUAL_FILE_SIZE
-): boolean {
-  // Check file size
-  if (file.size > maxSize) {
+  allowedTypes: string[] = ALLOWED_FILE_TYPES,
+  maxSize: number = MAX_FILE_SIZE
+): void {
+  // Check if file exists
+  if (!file) {
     throw new FileUploadError(
-      `File size exceeds limit of ${Math.round(maxSize / (1024 * 1024))}MB`,
-      'FILE_TOO_LARGE',
-      { size: file.size, maxSize, name: file.name }
+      validationMessages.required('file'),
+      400,
+      'INVALID_FILE'
     );
   }
 
   // Check file type
   if (!allowedTypes.includes(file.type)) {
     throw new FileUploadError(
-      `File type not allowed. Allowed types: ${allowedTypes.join(', ')}`,
-      'INVALID_FILE_TYPE',
-      { type: file.type, allowedTypes, name: file.name }
+      validationMessages.unsupportedFileType('file'),
+      400,
+      'INVALID_FILE_TYPE'
     );
   }
 
-  return true;
+  // Check file size
+  if (file.size > maxSize) {
+    const maxSizeMB = maxSize / (1024 * 1024);
+    throw new FileUploadError(
+      validationMessages.fileSizeExceeds('file', maxSizeMB),
+      400,
+      'FILE_TOO_LARGE'
+    );
+  }
 }
 
 /**
@@ -139,7 +175,7 @@ export async function uploadFile(
     
     console.error('❌ Error uploading file:', error);
     throw new FileUploadError(
-      'Failed to upload file. Please try again.',
+      validationMessages.uploadFailed('file'),
       'UPLOAD_FAILED',
       { fileName: file.name, originalError: error }
     );
@@ -162,8 +198,9 @@ export async function uploadMultipleFiles(
   // Check total size first
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
   if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
+    const maxSizeMB = Math.round(MAX_TOTAL_UPLOAD_SIZE / (1024 * 1024));
     throw new FileUploadError(
-      `Total file size exceeds limit of ${Math.round(MAX_TOTAL_UPLOAD_SIZE / (1024 * 1024))}MB`,
+      validationMessages.fileSizeExceeds('files', maxSizeMB),
       'TOTAL_SIZE_TOO_LARGE',
       { totalSize, maxSize: MAX_TOTAL_UPLOAD_SIZE }
     );

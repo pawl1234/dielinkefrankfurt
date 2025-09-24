@@ -69,7 +69,13 @@ export const fieldLabels: Record<string, string> = {
   'amount': 'Betrag',
   'numberOfPeople': 'Anzahl der Personen',
   'location': 'Ort',
-  'details': 'Details'
+  'details': 'Details',
+
+  // Business logic resources
+  'group': 'Gruppe',
+  'statusReport': 'Statusbericht',
+  'status': 'Status',
+  'file': 'Datei'
 };
 
 /**
@@ -277,6 +283,45 @@ export const validationMessages = {
    */
   statusRequired: (_field: string): string => {
     return 'Status ist erforderlich';
+  },
+
+  // Business logic error messages
+  /**
+   * Resource not found error
+   */
+  resourceNotFound: (resource: string, id?: string): string => {
+    const label = fieldLabels[resource] || resource;
+    return id ? `${label} mit ID ${id} nicht gefunden` : `${label} nicht gefunden`;
+  },
+
+  /**
+   * Resource not active error
+   */
+  resourceNotActive: (resource: string): string => {
+    const label = fieldLabels[resource] || resource;
+    return `${label} ist nicht aktiv`;
+  },
+
+  /**
+   * Invalid status error
+   */
+  invalidStatus: (field: string, validStatuses: string[]): string => {
+    const label = fieldLabels[field] || field;
+    return `Ungültiger ${label}. Gültige Werte: ${validStatuses.join(', ')}`;
+  },
+
+  /**
+   * Upload failed error
+   */
+  uploadFailed: (_field: string): string => {
+    return 'Upload fehlgeschlagen. Bitte versuchen Sie es später erneut.';
+  },
+
+  /**
+   * Upload failed with retry attempts
+   */
+  uploadFailedWithRetries: (_field: string): string => {
+    return 'Upload nach mehreren Versuchen fehlgeschlagen. Bitte versuchen Sie es später erneut.';
   }
 };
 

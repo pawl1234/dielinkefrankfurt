@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createGroup, ResponsiblePersonCreateData } from '@/lib/group-handlers';
 import { validateFile, uploadCroppedImagePair, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
-import { validationErrorResponse, ValidationError, isValidationError } from '@/lib/errors';
+import { validationErrorResponse, apiErrorResponse } from '@/lib/errors';
+import { validateGroupWithZod } from '@/lib/validation/group';
 
 /**
  * Response type for group submission
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Prepare group data
+    // Prepare group data for validation
     const groupData = {
       name,
       description,
@@ -96,8 +97,15 @@ export async function POST(request: NextRequest) {
       responsiblePersons
     };
 
-    // Create the group (validation happens inside createGroup and throws ValidationError if needed)
-    const newGroup = await createGroup(groupData);
+    // Direct Zod validation (explicit and visible)
+    const validationResult = await validateGroupWithZod(groupData);
+    if (!validationResult.isValid && validationResult.errors) {
+      return validationErrorResponse(validationResult.errors);
+    }
+
+    // Use validated data for business logic
+    const validatedData = validationResult.data!;
+    const newGroup = await createGroup(validatedData);
     
     // Log successful group request submission
     logger.info('Group request submitted', {
@@ -126,17 +134,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Error submitting group request:', error);
 
-    // Check if it's a ValidationError from createGroup
-    if (isValidationError(error)) {
-      return error.toResponse();
-    }
-
-    // Generic error for other types of errors
-    const response: GroupSubmitResponse = {
-      success: false,
-      error: 'Failed to submit group request'
-    };
-
-    return NextResponse.json(response, { status: 500 });
+    // Consistent error handling
+    return apiErrorResponse(error, 'Fehler beim Übermitteln der Gruppenanfrage');
   }
 }

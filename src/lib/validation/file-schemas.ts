@@ -13,18 +13,25 @@ export const FILE_SIZE_LIMITS = {
   DEFAULT: 5 * 1024 * 1024, // 5MB
   LOGO: 5 * 1024 * 1024, // 5MB
   ATTACHMENT: 5 * 1024 * 1024, // 5MB
-  COVER_IMAGE: 10 * 1024 * 1024 // 10MB
+  COVER_IMAGE: 10 * 1024 * 1024, // 10MB
+  ANTRAG: 5 * 1024 * 1024, // 5MB per file
+  ANTRAG_TOTAL: 10 * 1024 * 1024, // 10MB total for all files
+  ANTRAG_COUNT: 5 // Maximum 5 files
 } as const;
 
 /**
  * Common file type configurations
  */
 export const FILE_TYPES = {
-  IMAGE: ['image/jpeg', 'image/png', 'image/webp'],
-  DOCUMENT: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  IMAGE_AND_PDF: ['image/jpeg', 'image/png', 'application/pdf'],
-  ALL: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-} as const;
+  IMAGE: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as string[],
+  DOCUMENT: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] as string[],
+  IMAGE_AND_PDF: ['image/jpeg', 'image/png', 'application/pdf'] as string[],
+  ALL: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] as string[],
+  // Context-specific file types
+  ANTRAG: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] as string[],
+  EMAIL_ATTACHMENT: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] as string[],
+  STATUS_REPORT: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] as string[]
+};
 
 /**
  * Base file schema with size validation
@@ -39,7 +46,7 @@ export const createFileSchema = (maxSize: number = FILE_SIZE_LIMITS.DEFAULT, fie
  * File schema with type validation
  */
 export const createTypedFileSchema = (
-  allowedTypes: readonly string[] = FILE_TYPES.IMAGE_AND_PDF,
+  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF,
   maxSize: number = FILE_SIZE_LIMITS.DEFAULT,
   fieldName: string = 'Datei'
 ) =>
@@ -54,7 +61,7 @@ export const createTypedFileSchema = (
 export const createMultipleFilesSchema = (
   maxFiles: number = 5,
   maxSizePerFile: number = FILE_SIZE_LIMITS.DEFAULT,
-  allowedTypes: readonly string[] = FILE_TYPES.IMAGE_AND_PDF,
+  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF,
   fieldName: string = 'Dateien'
 ) =>
   z.array(createTypedFileSchema(allowedTypes, maxSizePerFile, fieldName))
@@ -103,7 +110,7 @@ export function validateFiles(
   files: File[],
   maxFiles: number = 5,
   maxSizePerFile: number = FILE_SIZE_LIMITS.DEFAULT,
-  allowedTypes: readonly string[] = FILE_TYPES.IMAGE_AND_PDF
+  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF
 ): { isValid: boolean; errors?: string[] } {
   const errors: string[] = [];
 

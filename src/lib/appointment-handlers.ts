@@ -7,12 +7,12 @@ import {
   AppError,
   apiErrorResponse,
   validationErrorResponse,
-  ValidationError,
   handleFileUploadError,
   handleDatabaseError,
   getLocalizedErrorMessage
 } from './errors';
-import { validateAppointmentSubmitWithZod } from './validation/appointment';
+import { validateFile, ALLOWED_ATTACHMENT_TYPES, FileUploadError } from './file-handlers';
+import { validateAppointmentSubmitWithZod, type AppointmentSubmitData } from './validation/appointment';
 
 /**
  * Types for appointment operations
@@ -22,41 +22,41 @@ interface AppointmentMetadata {
   croppedCoverImageUrl?: string;
 }
 export interface AppointmentUpdateData {
-  id: number;
-  processed?: boolean;
-  status?: 'pending' | 'accepted' | 'rejected';
-  title?: string;
-  teaser?: string;
-  mainText?: string;
-  startDateTime?: string | Date;
-  endDateTime?: string | Date | null;
-  street?: string | null;
-  city?: string | null;
-  state?: string | null;
-  postalCode?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  recurringText?: string | null;
-  fileUrls?: string | null;
-  featured?: boolean;
-  metadata?: string | null;
-  rejectionReason?: string | null;
+  id: number;         // Pre-validated: valid appointment ID, required
+  processed?: boolean; // Pre-validated: boolean value (when provided)
+  status?: 'pending' | 'accepted' | 'rejected'; // Pre-validated: valid status enum (when provided)
+  title?: string;     // Pre-validated: 3-200 chars (when provided)
+  teaser?: string;    // Pre-validated: 10-500 chars (when provided)
+  mainText?: string;  // Pre-validated: 10-10000 chars (when provided)
+  startDateTime?: string | Date; // Pre-validated: valid ISO datetime (when provided)
+  endDateTime?: string | Date | null; // Pre-validated: valid ISO datetime or null (when provided)
+  street?: string | null;    // Pre-validated: max 100 chars (when provided)
+  city?: string | null;      // Pre-validated: max 100 chars (when provided)
+  state?: string | null;     // Pre-validated: max 100 chars (when provided)
+  postalCode?: string | null; // Pre-validated: valid postal code format (when provided)
+  firstName?: string | null;  // Pre-validated: 2-50 chars (when provided)
+  lastName?: string | null;   // Pre-validated: 2-50 chars (when provided)
+  recurringText?: string | null; // Pre-validated: max 500 chars (when provided)
+  fileUrls?: string | null;   // Pre-validated: JSON string of valid URLs (when provided)
+  featured?: boolean;         // Pre-validated: boolean value (when provided)
+  metadata?: string | null;   // Pre-validated: JSON string format (when provided)
+  rejectionReason?: string | null; // Pre-validated: max 1000 chars (when provided)
 }
 
 export interface AppointmentCreateData {
-  title: string;
-  teaser: string;
-  mainText: string;
-  startDateTime: string;
-  endDateTime?: string | null;
-  street?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  firstName?: string;
-  lastName?: string;
-  recurringText?: string;
-  featured?: boolean;
+  title: string;      // Pre-validated: 3-200 chars, required
+  teaser: string;     // Pre-validated: 10-500 chars, required
+  mainText: string;   // Pre-validated: 10-10000 chars, required
+  startDateTime: string; // Pre-validated: valid ISO datetime, required
+  endDateTime?: string | null; // Pre-validated: valid ISO datetime or null (when provided)
+  street?: string;    // Pre-validated: max 100 chars (when provided)
+  city?: string;      // Pre-validated: max 100 chars (when provided)
+  state?: string;     // Pre-validated: max 100 chars (when provided)
+  postalCode?: string; // Pre-validated: valid postal code format (when provided)
+  firstName?: string; // Pre-validated: 2-50 chars (when provided)
+  lastName?: string;  // Pre-validated: 2-50 chars (when provided)
+  recurringText?: string; // Pre-validated: max 500 chars (when provided)
+  featured?: boolean; // Pre-validated: boolean value (when provided)
 }
 
 /**
@@ -71,7 +71,15 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * Get all appointments with optional filtering and pagination
+ * Retrieves appointments with filtering, pagination, and proper caching headers.
+ *
+ * @param request Pre-validated NextRequest with query parameters from API route level
+ * @returns Promise resolving to NextResponse with paginated appointment data
+ * @throws Error Only for business logic failures (database operations, query processing, caching failures)
+ *
+ * Note: Query parameter validation is handled at API route level.
+ * This function assumes all parameter validation has already passed.
+ * Handles different view modes, status filtering, and optimized database queries with caching.
  */
 export async function getAppointments(request: NextRequest) {
   try {
@@ -178,7 +186,15 @@ export async function getAppointments(request: NextRequest) {
 }
 
 /**
- * Get public appointments (accepted status only) with pagination
+ * Retrieves public appointments (accepted status only) with caching optimization.
+ *
+ * @param request Pre-validated NextRequest with query parameters from API route level
+ * @returns Promise resolving to NextResponse with public appointment data
+ * @throws Error Only for business logic failures (database operations, caching issues, query processing)
+ *
+ * Note: Query parameter validation is handled at API route level.
+ * This function assumes all parameter validation has already passed.
+ * Only returns accepted appointments for public consumption with optimized caching headers.
  */
 export async function getPublicAppointments(request: NextRequest) {
   try {
@@ -273,7 +289,15 @@ export async function getPublicAppointments(request: NextRequest) {
 }
 
 /**
- * Get newsletter ready appointments (accepted and future date) with pagination
+ * Retrieves newsletter-ready appointments (accepted and future date) with pagination.
+ *
+ * @param request Pre-validated NextRequest with query parameters from API route level
+ * @returns Promise resolving to NextResponse with paginated newsletter appointment data
+ * @throws Error Only for business logic failures (database operations, query processing, date filtering)
+ *
+ * Note: Query parameter validation is handled at API route level.
+ * This function assumes all parameter validation has already passed.
+ * Returns only future accepted appointments with minimal fields optimized for newsletter inclusion.
  */
 export async function getNewsletterAppointments(request: NextRequest) {
   try {
@@ -337,7 +361,15 @@ export async function getNewsletterAppointments(request: NextRequest) {
 }
 
 /**
- * Update appointment featured status
+ * Updates appointment featured status with validation.
+ *
+ * @param request Pre-validated NextRequest with JSON body from API route level
+ * @returns Promise resolving to NextResponse with updated appointment data
+ * @throws Error Only for business logic failures (database operations, record not found, status update failures)
+ *
+ * Note: Request body validation is handled at API route level.
+ * This function assumes ID and featured status validation has already passed.
+ * Simple operation for toggling featured flag with database consistency checks.
  */
 export async function updateFeaturedStatus(request: NextRequest) {
   try {
@@ -376,44 +408,36 @@ export async function updateFeaturedStatus(request: NextRequest) {
 }
 
 /**
- * Create a new appointment submission
+ * Creates a new appointment with validated data, file uploads, and cover image processing.
+ *
+ * @param validatedData Pre-validated appointment data from Zod schema validation at API route level
+ * @param formData Form data containing files for upload to Vercel Blob Storage
+ * @param featured Whether appointment should be featured (requires cover image)
+ * @returns Promise resolving to created appointment with uploaded file URLs and metadata
+ * @throws AppError Only for business logic failures (database operations, file upload failures, external service errors)
+ *
+ * Note: Input validation is handled at API route level using Zod schemas.
+ * This function assumes all field validation has already passed.
+ * Handles file uploads to Vercel Blob, cover image processing, and database transactions.
+ *
+ * Business rules enforced:
+ * - Featured appointments require cover image
+ * - Files are validated against ALLOWED_ATTACHMENT_TYPES
+ * - Database connection is verified before operations
+ * - File URLs are stored as JSON strings in database
  */
-export async function createAppointment(request: NextRequest) {
-  try {
-    const formData = await request.formData();
+export async function createAppointmentWithFiles(
+  validatedData: AppointmentSubmitData,
+  formData: FormData,
+  featured: boolean
+) {
+  // Note: Validation is handled by the route handler
 
-    // Extract text fields
-    const appointmentData = {
-      title: formData.get('title') as string,
-      teaser: formData.get('teaser') as string || undefined,
-      mainText: formData.get('mainText') as string,
-      startDateTime: formData.get('startDateTime') as string,
-      endDateTime: (formData.get('endDateTime') as string) || undefined,
-      street: formData.get('street') as string || undefined,
-      city: formData.get('city') as string || undefined,
-      state: formData.get('state') as string || undefined,
-      postalCode: formData.get('postalCode') as string || undefined,
-      firstName: formData.get('firstName') as string || undefined,
-      lastName: formData.get('lastName') as string || undefined,
-      recurringText: formData.get('recurringText') as string || undefined
-    };
-
-    const featured = formData.get('featured') === 'true';
-
-    // Validate appointment data using Zod schema
-    const validationResult = await validateAppointmentSubmitWithZod(appointmentData);
-    if (!validationResult.isValid && validationResult.errors) {
-      return validationErrorResponse(validationResult.errors);
-    }
-
-    // Use validated data from Zod (guaranteed to be correct after validation)
-    const validatedData = validationResult.data!;
-
-    // Process multiple file uploads if present using Vercel Blob Store
-    const fileCount = formData.get('fileCount');
-    const fileUrls: string[] = [];
-    let coverImageUrl: string | null = null;
-    let croppedCoverImageUrl: string | null = null;
+  // Process multiple file uploads if present using Vercel Blob Store
+  const fileCount = formData.get('fileCount');
+  const fileUrls: string[] = [];
+  let coverImageUrl: string | null = null;
+  let croppedCoverImageUrl: string | null = null;
 
     if (fileCount) {
       const count = parseInt(fileCount as string, 10);
@@ -423,21 +447,14 @@ export async function createAppointment(request: NextRequest) {
         const file = formData.get(`file-${i}`) as File | null;
 
         if (file) {
-          // Check file size (5MB)
-          if (file.size > 5 * 1024 * 1024) {
-            throw AppError.validation(
-              getLocalizedErrorMessage('File size exceeds limit'),
-              { fileName: file.name, fileSize: file.size, maxSize: 5 * 1024 * 1024 }
-            );
-          }
-
-          // Check file type
-          const fileType = file.type;
-          if (!['image/jpeg', 'image/png', 'application/pdf'].includes(fileType)) {
-            throw AppError.validation(
-              getLocalizedErrorMessage('Unsupported file type'),
-              { fileName: file.name, fileType, allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'] }
-            );
+          // Validate file using centralized validation
+          try {
+            validateFile(file, ALLOWED_ATTACHMENT_TYPES);
+          } catch (error) {
+            if (error instanceof FileUploadError) {
+              throw handleFileUploadError(error, { fileName: file.name });
+            }
+            throw handleFileUploadError(error, { fileName: file.name });
           }
 
           try {
@@ -577,23 +594,86 @@ export async function createAppointment(request: NextRequest) {
       const newAppointment = await prisma.appointment.create({
         data: appointmentData,
       });
-      
+
       console.log('✅ Appointment successfully saved to database with ID:', newAppointment.id);
-      return NextResponse.json({ 
-        success: true, 
-        appointmentId: newAppointment.id,
-        message: 'Terminanfrage erfolgreich eingereicht' 
-      });
+      return newAppointment;
     } catch (dbError) {
       throw handleDatabaseError(dbError, 'appointment creation');
     }
+}
+
+/**
+ * Creates a new appointment submission (legacy handler with validation).
+ *
+ * @param request Pre-validated NextRequest with FormData from API route level
+ * @returns Promise resolving to NextResponse with creation success message
+ * @throws Error Only for business logic failures (database operations, file upload failures, validation failures)
+ *
+ * Note: This function maintains backward compatibility by extracting form data.
+ * Performs Zod validation internally before calling createAppointmentWithFiles.
+ * Will be deprecated in favor of direct createAppointmentWithFiles usage.
+ */
+export async function createAppointment(request: NextRequest) {
+  try {
+    const formData = await request.formData();
+
+    // Extract text fields
+    const appointmentData = {
+      title: formData.get('title') as string,
+      teaser: formData.get('teaser') as string || undefined,
+      mainText: formData.get('mainText') as string,
+      startDateTime: formData.get('startDateTime') as string,
+      endDateTime: (formData.get('endDateTime') as string) || undefined,
+      street: formData.get('street') as string || undefined,
+      city: formData.get('city') as string || undefined,
+      state: formData.get('state') as string || undefined,
+      postalCode: formData.get('postalCode') as string || undefined,
+      firstName: formData.get('firstName') as string || undefined,
+      lastName: formData.get('lastName') as string || undefined,
+      recurringText: formData.get('recurringText') as string || undefined
+    };
+
+    const featured = formData.get('featured') === 'true';
+
+    // Validate appointment data using Zod schema
+    const validationResult = await validateAppointmentSubmitWithZod(appointmentData);
+    if (!validationResult.isValid && validationResult.errors) {
+      return validationErrorResponse(validationResult.errors);
+    }
+
+    // Use validated data from Zod (guaranteed to be correct after validation)
+    const validatedData = validationResult.data!;
+
+    // Call the new business logic function
+    const newAppointment = await createAppointmentWithFiles(validatedData, formData, featured);
+
+    // Return the same response format as before
+    return NextResponse.json({
+      success: true,
+      appointmentId: newAppointment.id,
+      message: 'Terminanfrage erfolgreich eingereicht'
+    });
   } catch (error) {
     return apiErrorResponse(error, 'Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.');
   }
 }
 
 /**
- * Update an existing appointment
+ * Updates an existing appointment with complex multi-part data handling.
+ *
+ * @param request Pre-validated NextRequest with FormData or JSON from API route level
+ * @returns Promise resolving to NextResponse with updated appointment data
+ * @throws Error Only for business logic failures (database operations, file upload failures, external service errors)
+ *
+ * Note: Input validation is handled at API route level.
+ * This function assumes all field validation has already passed.
+ * Handles both JSON and multipart requests with comprehensive file management.
+ *
+ * Complex operations handled:
+ * - File attachment uploads and deletions via Vercel Blob
+ * - Cover image processing and cleanup for featured appointments
+ * - Metadata serialization and database updates
+ * - Transactional operations with proper error handling
  */
 export async function updateAppointment(request: NextRequest) {
   try {
@@ -963,7 +1043,21 @@ export async function updateAppointment(request: NextRequest) {
 }
 
 /**
- * Delete an appointment
+ * Deletes an appointment with complete cleanup of associated resources.
+ *
+ * @param request Pre-validated NextRequest with appointment ID from API route level
+ * @returns Promise resolving to NextResponse with deletion success confirmation
+ * @throws Error Only for business logic failures (database operations, file cleanup failures, external service errors)
+ *
+ * Note: ID validation is handled at API route level.
+ * This function assumes appointment ID validation has already passed.
+ * Performs complete cleanup including file attachments and cover images from Vercel Blob.
+ *
+ * Cleanup operations:
+ * - Deletes all file attachments from Blob storage
+ * - Removes cover images and cropped versions from storage
+ * - Removes database record with consistency checks
+ * - Continues operation even if some file deletions fail (graceful degradation)
  */
 export async function deleteAppointment(request: NextRequest) {
   try {
