@@ -69,25 +69,25 @@ export const createMultipleFilesSchema = (
     .optional();
 
 /**
- * Common file schemas for reuse
+ * Common file schemas for reuse - lazy evaluation to prevent server crashes
  */
 
 // Logo file schema (single image file, optional)
-export const logoFileSchema = createTypedFileSchema(
+export const createLogoFileSchema = () => createTypedFileSchema(
   FILE_TYPES.IMAGE,
   FILE_SIZE_LIMITS.LOGO,
   'Logo'
 ).optional();
 
 // Cover image schema (single image file, optional)
-export const coverImageSchema = createTypedFileSchema(
+export const createCoverImageSchema = () => createTypedFileSchema(
   FILE_TYPES.IMAGE,
   FILE_SIZE_LIMITS.COVER_IMAGE,
   'Cover-Bild'
 ).optional();
 
 // Attachment files schema (up to 5 files, images and PDFs)
-export const attachmentFilesSchema = createMultipleFilesSchema(
+export const createAttachmentFilesSchema = () => createMultipleFilesSchema(
   5,
   FILE_SIZE_LIMITS.ATTACHMENT,
   FILE_TYPES.IMAGE_AND_PDF,
@@ -95,7 +95,7 @@ export const attachmentFilesSchema = createMultipleFilesSchema(
 );
 
 // Document files schema (up to 5 files, all document types)
-export const documentFilesSchema = createMultipleFilesSchema(
+export const createDocumentFilesSchema = () => createMultipleFilesSchema(
   5,
   FILE_SIZE_LIMITS.ATTACHMENT,
   FILE_TYPES.ALL,

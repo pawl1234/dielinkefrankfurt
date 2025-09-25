@@ -15,6 +15,22 @@ import {
 } from './schemas';
 import { validationMessages } from '@/lib/validation-messages';
 
+// SINGLE SOURCE OF TRUTH for limits
+export const STATUS_REPORT_LIMITS = {
+  title: {
+    min: 3,
+    max: 100
+  },
+  content: {
+    min: 10,
+    max: 5000
+  },
+  files: {
+    maxCount: 5,
+    maxSizeMB: 5
+  }
+} as const;
+
 /**
  * Base status report schema with default limits
  */
@@ -28,26 +44,59 @@ const baseStatusReportSchema = z.object({
 });
 
 /**
- * Create a status report schema with configurable limits
- * Used when newsletter settings are available
+ * Status report schema with FIXED limits
+ * No more dynamic limits - they're defined in STATUS_REPORT_LIMITS
  */
-export function createStatusReportSchema(titleLimit: number = 100, contentLimit: number = 5000) {
-  return z.object({
-    groupId: groupIdSchema,
-    title: z.string()
-      .min(1, validationMessages.required('title'))
-      .min(3, validationMessages.minLength('title', 3))
-      .max(titleLimit, validationMessages.maxLength('title', titleLimit))
-      .trim(),
-    content: z.string()
-      .min(1, validationMessages.required('content'))
-      .max(contentLimit, validationMessages.maxLength('content', contentLimit))
-      .trim(),
-    reporterFirstName: firstNameSchema,
-    reporterLastName: lastNameSchema,
-    fileUrls: fileUrlsSchema
-  });
-}
+export const statusReportSchema = z.object({
+  groupId: groupIdSchema,
+  title: z.string()
+    .min(1, validationMessages.required('title'))
+    .min(STATUS_REPORT_LIMITS.title.min, validationMessages.minLength('title', STATUS_REPORT_LIMITS.title.min))
+    .max(STATUS_REPORT_LIMITS.title.max, validationMessages.maxLength('title', STATUS_REPORT_LIMITS.title.max))
+    .trim(),
+  content: z.string()
+    .min(1, validationMessages.required('content'))
+    .trim()
+    // Handle empty HTML from rich text editor
+    .refine(
+      (val) => val !== '<p></p>' && val !== '<p><br></p>' && val !== '<p><br /></p>',
+      { message: validationMessages.required('content') }
+    )
+    // Check actual content length after HTML (strip tags for min length check)
+    .refine(
+      (val) => {
+        const textContent = val.replace(/<[^>]*>/g, '').trim();
+        return textContent.length >= STATUS_REPORT_LIMITS.content.min;
+      },
+      { message: validationMessages.minLength('content', STATUS_REPORT_LIMITS.content.min) }
+    )
+    .refine(
+      (val) => val.length <= STATUS_REPORT_LIMITS.content.max,
+      { message: validationMessages.maxLength('content', STATUS_REPORT_LIMITS.content.max) }
+    ),
+  reporterFirstName: z.string()
+    .min(1, validationMessages.required('reporterFirstName'))
+    .min(2, validationMessages.minLength('reporterFirstName', 2))
+    .max(50, validationMessages.maxLength('reporterFirstName', 50))
+    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterFirstName'))
+    .trim(),
+  reporterLastName: z.string()
+    .min(1, validationMessages.required('reporterLastName'))
+    .min(2, validationMessages.minLength('reporterLastName', 2))
+    .max(50, validationMessages.maxLength('reporterLastName', 50))
+    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterLastName'))
+    .trim(),
+  files: z.array(z.any()).optional()
+    .refine(
+      (files) => !files || files.length <= STATUS_REPORT_LIMITS.files.maxCount,
+      { message: validationMessages.tooManyFiles('files', STATUS_REPORT_LIMITS.files.maxCount) }
+    )
+    .refine(
+      (files) => !files || files.every((file: any) => file && file.size <= STATUS_REPORT_LIMITS.files.maxSizeMB * 1024 * 1024),
+      { message: validationMessages.fileSizeExceeds('files', STATUS_REPORT_LIMITS.files.maxSizeMB) }
+    ),
+  fileUrls: z.array(z.string().url()).optional()
+});
 
 /**
  * Default status report schema (uses standard limits)
@@ -73,30 +122,12 @@ export type StatusReportCreateData = z.infer<typeof statusReportCreateDataSchema
 export type StatusReportUpdateData = z.infer<typeof statusReportUpdateDataSchema>;
 
 /**
- * Validation function that uses Zod schema with configurable limits
+ * Validation function using fixed limits from STATUS_REPORT_LIMITS
  * Direct replacement for validateStatusReportData() from status-report-validator.ts
  */
 export async function validateStatusReportWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
-
-  try {
-    // Try to get configurable limits from newsletter settings
-    const { getNewsletterSettings } = await import('@/lib/newsletter-service');
-    const settings = await getNewsletterSettings();
-    const titleLimit = settings?.statusReportTitleLimit || 100;
-    const contentLimit = settings?.statusReportContentLimit || 5000;
-
-    // Use schema with configurable limits
-    const schema = createStatusReportSchema(titleLimit, contentLimit);
-    return zodToValidationResult(schema, data);
-  } catch (settingsError) {
-    // Fallback to default limits if settings cannot be retrieved (common in tests)
-    // Only warn in non-test environments
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn('Could not retrieve newsletter settings, using default limits:', settingsError);
-    }
-    return zodToValidationResult(statusReportCreateDataSchema, data);
-  }
+  return zodToValidationResult(statusReportSchema, data);
 }
 
 /**

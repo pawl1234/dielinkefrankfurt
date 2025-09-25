@@ -1,34 +1,30 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { useForm, Controller, FieldValues, Control } from 'react-hook-form';
-import RichTextEditor from '../../editor/RichTextEditor';
-import FileUpload from '@/components/upload/FileUpload';
-import CoverImageUpload from '@/components/upload/CoverImageUpload';
-import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail';
-import DateTimePicker from '@/components/ui/DateTimePicker'; // Updated DateTimePicker will be used
-import AddressFields from '../shared/AddressFields';
-import RequesterFields from '../shared/RequesterFields';
-// Captcha feature removed
-import FormSection from '../shared/FormSection';
+import { FieldValues } from 'react-hook-form';
+import { useZodForm } from '@/hooks/useZodForm';
+import { appointmentSubmitDataSchema } from '@/lib/validation/appointment';
 import FormBase, { FieldRefMap, CustomValidationEntry } from '../shared/FormBase';
-import {
-  Box, Typography, TextField, Checkbox, FormControlLabel,
-  Collapse, Paper, Button,
-} from '@mui/material';
+import RequesterSection from './sections/RequesterSection';
+import DescriptionSection from './sections/DescriptionSection';
+import CoverImageSection from './sections/CoverImageSection';
+import FileAttachmentsSection from './sections/FileAttachmentsSection';
+import DateTimeSection from './sections/DateTimeSection';
+import AddressSection from './sections/AddressSection';
+import { Box, Typography } from '@mui/material';
 
 interface FormInput extends FieldValues {
   title: string;
-  teaser: string; // Keeping this for database compatibility
+  teaser?: string; // Optional for compatibility with Zod schema
   mainText: string;
-  startDateTime: Date | null;
-  endDateTime?: Date | null;
+  startDateTime: string; // Changed to string to match Zod schema
+  endDateTime?: string; // Changed to string to match Zod schema
   street?: string;
   city?: string;
   state?: string;
   postalCode?: string;
-  firstName: string; // Required field now
-  lastName: string; // Required field now
+  firstName?: string; // Made optional to match Zod schema
+  lastName?: string; // Made optional to match Zod schema
   recurringText?: string;
   // captchaToken removed
 }
@@ -86,104 +82,21 @@ export default function AppointmentForm({
   const [initialCoverImageUrl, setInitialCoverImageUrl] = useState<string | undefined>(undefined);
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
 
-  useEffect(() => { /* ... parsing initialValues as before ... */
-    if (initialValues?.fileUrls) {
-        try { const urls = JSON.parse(initialValues.fileUrls); setExistingFileUrls(Array.isArray(urls) ? urls : []); }
-        catch (err) { console.error('Error parsing file URLs:', err); }
-    }
-    if (initialValues?.featured && initialValues?.metadata) {
-        try {
-            const metadata = JSON.parse(initialValues.metadata);
-            if (metadata.coverImageUrl) setInitialCoverImageUrl(metadata.coverImageUrl);
-        } catch (err) { console.error('Error parsing appointment metadata:', err); }
-    }
-  }, [initialValues]);
-
-  const defaultValues = useMemo<FormInput>(() => ({
-    title: initialValues?.title || '',
-    teaser: initialValues?.teaser || '', // Keep this for database compatibility
-    mainText: initialValues?.mainText || '',
-    startDateTime: initialValues?.startDateTime ? new Date(initialValues.startDateTime) : null,
-    endDateTime: initialValues?.endDateTime ? new Date(initialValues.endDateTime) : null,
-    street: initialValues?.street || '', city: initialValues?.city || '', state: initialValues?.state || '', postalCode: initialValues?.postalCode || '',
-    firstName: initialValues?.firstName || '', lastName: initialValues?.lastName || '',
-    recurringText: initialValues?.recurringText || '',
-  }), [initialValues]);
-
-  const methods = useForm<FormInput>({ defaultValues });
-  const { register, watch, setValue, control, formState: { errors }, getValues } = methods;
-
-  useEffect(() => {
-    register('mainText');
-    // Ensure teaser is registered and has a default empty value
-    register('teaser');
-    setValue('teaser', initialValues?.teaser || '');
-  }, [register, setValue, initialValues?.teaser]);
-
-  // Captcha feature removed
-  const watchedStartDateTime = watch('startDateTime');
-
-  const fieldRefs: FieldRefMap = useMemo(() => ({
-    'firstName': requesterRef, 'lastName': requesterRef, 'title': titleRef, /* 'teaser': teaserRef, */ 'mainText': mainTextRef,
-    'coverImage': coverImageRef, 'files': fileRef, 'startDateTime': dateTimeRef,
-    'endDateTime': dateTimeRef, 'recurringText': dateTimeRef, 'street': addressRef,
-  }), []);
-
-  const fieldOrder: string[] = useMemo(() => [
-    'firstName', 'lastName', 'title', /* 'teaser', */ 'mainText', 'coverImage', 'files',
-    'startDateTime', 'endDateTime', 'recurringText',
-    'street',
-  ], []);
-
-  const customValidations: CustomValidationEntry[] = useMemo(() => [
-    { field: 'mainText', isValid: !!mainTextEditorContent && mainTextEditorContent.trim() !== '' && mainTextEditorContent.trim() !== '<p></p>', message: 'Beschreibung ist erforderlich.' },
-    { field: 'coverImage', isValid: !isFeatured || !!coverImageFile || !!initialCoverImageUrl, message: 'Cover-Bild für Featured Termin erforderlich.' },
-    { field: 'recurringText', isValid: !isRecurring || (!!getValues('recurringText') && getValues('recurringText')?.trim() !== ''), message: 'Beschreibung für Wiederholung erforderlich.' },
-    { field: 'files', isValid: !fileUploadError, message: fileUploadError || '' },
-    // Captcha validation removed
-  ], [mainTextEditorContent, isFeatured, coverImageFile, initialCoverImageUrl, isRecurring, getValues, fileUploadError]);
-
-  const handleMainTextChange = useCallback((value: string) => {
-    setMainTextEditorContent(value);
-    setValue('mainText', value, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-  }, [setValue]);
-
-  const handleCoverImageSelect = useCallback((original: File | Blob | null, cropped: File | Blob | null) => {
-    setCoverImageFile(original); setCroppedCoverImageFile(cropped);
-    // Note: 'coverImage' is handled by custom validation, not RHF fields
-  }, []);
-
-  const handleFileSelect = useCallback((files: (File | Blob)[]) => {
-    setFileList(files);
-  }, []);
-
-  const handleReset = () => { /* ... as before: reset local state ... */
-    setMainTextEditorContent(initialValues?.mainText || '');
-    setFileList([]);
-    setDeletedFileUrls([]);
-    setIsRecurring(!!initialValues?.recurringText);
-    // Reset teaser value handled by setValue below
-    setValue('teaser', initialValues?.teaser || ''); // Reset teaser in React Hook Form
-    setIsFeatured(initialValues?.featured || false);
-    setCoverImageFile(null); setCroppedCoverImageFile(null);
-    setFileUploadError(null); // Reset file upload error
-    setFormResetKey(prevKey => prevKey + 1); // For things not reset by RHF
-  };
-
-  const handleFormSubmit = async (data: FormInput) => { /* ... as before: prepare and send data ... */
+  // Move form submission handler implementation here
+  const handleFormSubmit = async (data: FormInput) => {
     // Make sure teaser always has a value
-    const submissionPayload: FormInput & { 
+    const submissionPayload: FormInput & {
       id?: number;
       featured: boolean;
       newCoverImageForUpload?: File | Blob;
       newCroppedCoverImageForUpload?: File | Blob;
-    } = { 
-      ...data, 
+    } = {
+      ...data,
       teaser: data.teaser || '',  // Ensure teaser is never null
-      mainText: mainTextEditorContent, 
-      featured: isFeatured 
+      mainText: mainTextEditorContent,
+      featured: isFeatured
     };
-    
+
     if (initialValues?.id) submissionPayload.id = initialValues.id;
     if (isFeatured) {
       if (coverImageFile) submissionPayload.newCoverImageForUpload = coverImageFile;
@@ -205,16 +118,16 @@ export default function AppointmentForm({
     const apiEndpoint = mode === 'edit' && initialValues?.id ? `/api/appointments/submit/${initialValues.id}` : '/api/appointments/submit';
     const apiMethod = mode === 'edit' && initialValues?.id ? 'PUT' : 'POST';
     const response = await fetch(apiEndpoint, { method: apiMethod, body: formData });
-    
+
     // Handle 413 Request Entity Too Large specifically
     if (response.status === 413) {
       throw new Error('Die hochgeladenen Dateien sind zu groß. Bitte reduzieren Sie die Dateigröße oder Anzahl der Anhänge und versuchen Sie es erneut.');
     }
-    
+
     // Handle other non-2xx responses
     if (!response.ok) {
       let errorMessage = 'Ein Fehler ist aufgetreten.';
-      
+
       try {
         // Try to parse JSON error response
         const result = await response.json();
@@ -229,18 +142,147 @@ export default function AppointmentForm({
           errorMessage = 'Ihre Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben.';
         }
       }
-      
+
       throw new Error(errorMessage);
     }
   };
 
-  const getCustomError = (fieldName: string): string | undefined => {
-    if (methods.formState.isSubmitted || methods.formState.submitCount > 0) {
-        const validation = customValidations.find(cv => cv.field === fieldName && !cv.isValid);
-        return validation?.message;
+  useEffect(() => { /* ... parsing initialValues as before ... */
+    if (initialValues?.fileUrls) {
+        try { const urls = JSON.parse(initialValues.fileUrls); setExistingFileUrls(Array.isArray(urls) ? urls : []); }
+        catch (err) { console.error('Error parsing file URLs:', err); }
     }
-    return undefined;
+    if (initialValues?.featured && initialValues?.metadata) {
+        try {
+            const metadata = JSON.parse(initialValues.metadata);
+            if (metadata.coverImageUrl) setInitialCoverImageUrl(metadata.coverImageUrl);
+        } catch (err) { console.error('Error parsing appointment metadata:', err); }
+    }
+  }, [initialValues]);
+
+  const defaultValues = useMemo(() => ({
+    title: initialValues?.title || '',
+    teaser: initialValues?.teaser || '', // Keep this for database compatibility
+    mainText: initialValues?.mainText || '',
+    startDateTime: initialValues?.startDateTime || '',
+    endDateTime: initialValues?.endDateTime || '',
+    street: initialValues?.street || '',
+    city: initialValues?.city || '',
+    state: initialValues?.state || '',
+    postalCode: initialValues?.postalCode || '',
+    firstName: initialValues?.firstName || '',
+    lastName: initialValues?.lastName || '',
+    recurringText: initialValues?.recurringText || '',
+  }), [initialValues]);
+
+  // Initialize form with basic setup
+  const form = useZodForm({
+    schema: appointmentSubmitDataSchema,
+    defaultValues: {
+      title: defaultValues.title,
+      teaser: defaultValues.teaser,
+      mainText: mainTextEditorContent,
+      startDateTime: defaultValues.startDateTime,
+      endDateTime: defaultValues.endDateTime,
+      street: defaultValues.street,
+      city: defaultValues.city,
+      state: defaultValues.state,
+      postalCode: defaultValues.postalCode,
+      firstName: defaultValues.firstName,
+      lastName: defaultValues.lastName,
+      recurringText: defaultValues.recurringText
+    },
+    onSubmit: handleFormSubmit
+  });
+
+  const { control, setValue, watch } = form;
+
+  const watchedStartDateTime = watch('startDateTime');
+  const watchedRecurringText = watch('recurringText');
+
+  // Custom validations for rich text editor, file uploads, and conditional fields
+  const customValidations: CustomValidationEntry[] = useMemo(() => [
+    {
+      field: 'mainText',
+      isValid: !!mainTextEditorContent &&
+               mainTextEditorContent.trim() !== '' &&
+               mainTextEditorContent.trim() !== '<p></p>' &&
+               mainTextEditorContent.length <= 10000,
+      message: mainTextEditorContent.length > 10000
+        ? `Beschreibung ist zu lang. Maximal 10000 Zeichen erlaubt (aktuell: ${mainTextEditorContent.length})`
+        : 'Beschreibung ist erforderlich und muss Inhalt haben.'
+    },
+    {
+      field: 'coverImage',
+      isValid: !isFeatured || !!coverImageFile || !!initialCoverImageUrl,
+      message: 'Cover-Bild für Featured Termin erforderlich.'
+    },
+    {
+      field: 'recurringText',
+      isValid: !isRecurring || (!!watchedRecurringText && watchedRecurringText.trim() !== ''),
+      message: 'Beschreibung für Wiederholung erforderlich.'
+    },
+    {
+      field: 'files',
+      isValid: !fileUploadError,
+      message: fileUploadError || 'Datei-Upload-Fehler'
+    }
+  ], [mainTextEditorContent, isFeatured, coverImageFile, initialCoverImageUrl, isRecurring, watchedRecurringText, fileUploadError]);
+
+  // Field references for FormBase error scrolling
+  const fieldRefs: FieldRefMap = useMemo(() => ({
+    'firstName': requesterRef,
+    'lastName': requesterRef,
+    'title': titleRef,
+    'mainText': mainTextRef,
+    'coverImage': coverImageRef,
+    'files': fileRef,
+    'startDateTime': dateTimeRef,
+    'recurringText': dateTimeRef,
+    'street': addressRef
+  }), []);
+
+  // Field order for FormBase error handling
+  const fieldOrder: string[] = useMemo(() => [
+    'firstName',
+    'lastName',
+    'title',
+    'mainText',
+    'coverImage',
+    'files',
+    'startDateTime',
+    'recurringText',
+    'street'
+  ], []);
+
+  const handleMainTextChange = useCallback((value: string) => {
+    setMainTextEditorContent(value);
+    setValue('mainText', value, { shouldValidate: false, shouldDirty: true });
+  }, [setValue]);
+
+  const handleCoverImageSelect = useCallback((original: File | Blob | null, cropped: File | Blob | null) => {
+    setCoverImageFile(original);
+    setCroppedCoverImageFile(cropped);
+  }, []);
+
+  const handleFileSelect = useCallback((files: (File | Blob)[]) => {
+    setFileList(files);
+  }, []);
+
+  const handleReset = () => {
+    setMainTextEditorContent(initialValues?.mainText || '');
+    setFileList([]);
+    setDeletedFileUrls([]);
+    setIsRecurring(!!initialValues?.recurringText);
+    setIsFeatured(initialValues?.featured || false);
+    setCoverImageFile(null);
+    setCroppedCoverImageFile(null);
+    setFileUploadError(null);
+    setFormResetKey(prevKey => prevKey + 1);
   };
+
+  // Remove duplicate function definition
+
 
   
   // Restored full help texts
@@ -255,117 +297,77 @@ export default function AppointmentForm({
 
   return (
     <FormBase
-      formMethods={methods} onSubmit={handleFormSubmit} onReset={handleReset} onCancel={onCancel}
-      submitButtonText={submitButtonText} mode={mode}
-      successTitle={mode === 'create' ? "Vielen Dank für Ihre Terminanfrage!" : "Termin erfolgreich aktualisiert!"}
-      successMessage={mode === 'create' ? "Ihre Anfrage wurde erfolgreich übermittelt." : "Die Termindaten wurden gespeichert."}
-      fieldRefs={fieldRefs} fieldOrder={fieldOrder}
+      formMethods={form}
+      onSubmit={handleFormSubmit}
+      fieldRefs={fieldRefs}
+      fieldOrder={fieldOrder}
+      onReset={handleReset}
+      onCancel={onCancel}
       customValidations={customValidations}
+      submitButtonText={submitButtonText}
+      mode={mode}
+      successMessage={mode === 'create' ? "Vielen Dank für Ihre Terminanfrage!" : "Termin erfolgreich aktualisiert!"}
       files={fileList}
     >
-      <FormSection title="Antragsteller" helpTitle="Ihre Kontaktdaten" helpText={helpTextRequester}>
-        <Box ref={requesterRef}><RequesterFields register={register} errors={errors} control={control} /></Box>
-      </FormSection>
+      <RequesterSection
+        control={control}
+        requesterRef={requesterRef}
+        helpText={helpTextRequester}
+      />
 
-      <FormSection title="Beschreibung der Veranstaltung" helpTitle="Über die Veranstaltung" helpText={helpTextDescription}>
-        <Box sx={{ mb: 3 }} ref={titleRef}>
-          <Typography variant="subtitle1" component="label" htmlFor="appointment-title-input" sx={{ fontWeight: 600 }}>
-            Titel <Box component="span" sx={{ color: "primary.main" }}>*</Box>
-          </Typography>
-          <Controller name="title" control={control} rules={{ required: 'Titel ist erforderlich', minLength: { value: 5, message: 'Mind. 5 Zeichen' }, maxLength: { value: 100, message: 'Max. 100 Zeichen' } }}
-            render={({ field }) => <TextField id="appointment-title-input" {...field} fullWidth placeholder="Titel der Veranstaltung..." error={!!errors.title} helperText={errors.title?.message || `${(field.value || '').length}/100`} margin="normal" />}
-          />
-        </Box>
-        {/* Teaser section removed as no longer needed */}
-        <Box sx={{ mb: 3 }} ref={mainTextRef}>
-          <Typography variant="subtitle1" component="label" sx={{ fontWeight: 600 }}>Beschreibung <Box component="span" sx={{ color: "primary.main" }}>*</Box></Typography>
-          <Typography variant="body2" display="block" gutterBottom sx={{ mb: 2 }}> Ausführliche und motivierende Beschreibung des Events. Text kann hier formatiert und Emojis verwendet werden. </Typography>
-          <RichTextEditor value={mainTextEditorContent} onChange={handleMainTextChange} maxLength={5000} placeholder="Ausführliche Beschreibung..." />
-          {getCustomError('mainText') && <Typography variant="caption" color="error" sx={{mt:1, display:'block'}}>{getCustomError('mainText')}</Typography>}
-        </Box>
-        <Box sx={{ mt: 3 }}>
-          <FormControlLabel control={<Checkbox checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} color="primary" />} label="Als Featured Termin markieren (wird im Newsletter hervorgehoben)" />
-          <Button size="small" onClick={() => setHelpOpen(!helpOpen)} sx={{ ml: 1, textTransform: 'none' }}>{helpOpen ? 'Weniger Info' : 'Mehr Info'}</Button>
-          <Collapse in={helpOpen}><Paper sx={{ mt: 2, p: 2, bgcolor: 'grey.50' }}> <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}> Featured Termine </Typography> <Typography variant="body2"> Featured Termine werden im Newsletter besonders hervorgehoben. Sie erscheinen mit einem größeren Bild und mehr Platz. </Typography> <Typography variant="body2" sx={{ mt: 1 }}> Wenn Sie diese Option aktivieren, können Sie ein Titelbild hochladen, welches im Newsletter verwendet wird. Ein Cover-Bild ist für Featured Termine erforderlich. </Typography> </Paper></Collapse>
-        </Box>
-      </FormSection>
+      <DescriptionSection
+        control={control}
+        titleRef={titleRef}
+        mainTextRef={mainTextRef}
+        helpText={helpTextDescription}
+        mainTextEditorContent={mainTextEditorContent}
+        handleMainTextChange={handleMainTextChange}
+        isFeatured={isFeatured}
+        setIsFeatured={setIsFeatured}
+        helpOpen={helpOpen}
+        setHelpOpen={setHelpOpen}
+        customValidations={customValidations}
+      />
 
       {isFeatured && (
-        <FormSection title="Cover-Bild für Newsletter" helpTitle="Cover-Bild hochladen" helpText={helpTextCoverImage}>
-          <Box ref={coverImageRef}>
-            <CoverImageUpload onImageSelect={handleCoverImageSelect} initialCoverImageUrl={initialCoverImageUrl} />
-            {getCustomError('coverImage') && <Typography variant="caption" color="error" sx={{mt:1, display:'block'}}>{getCustomError('coverImage')}</Typography>}
-          </Box>
-        </FormSection>
+        <CoverImageSection
+          handleCoverImageSelect={handleCoverImageSelect}
+          initialCoverImageUrl={initialCoverImageUrl}
+          coverImageRef={coverImageRef}
+          helpText={helpTextCoverImage}
+          customValidations={customValidations}
+        />
       )}
 
-      <FormSection title="Datei Anhänge (optional)" helpTitle="Anhänge hochladen" helpText={helpTextAttachments}>
-        <Box ref={fileRef} sx={{mb:2}}><FileUpload onFilesSelect={handleFileSelect} maxFiles={5} onError={setFileUploadError} /></Box>
-        {mode === 'edit' && existingFileUrls.length > 0 && (
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Vorhandene Anhänge
-            </Typography>
-            <FileThumbnailGrid
-              files={parseFileUrls(JSON.stringify(existingFileUrls))}
-              gridSize={{ xs: 12, sm: 6, md: 4 }}
-              height={140}
-              showRemoveButton={true}
-              onRemove={(file) => {
-                if (file.url) {
-                  // Add URL to deletion list
-                  setDeletedFileUrls(prev => [...prev, file.url!]);
-                  // Remove from existing files list
-                  setExistingFileUrls(prev => prev.filter(url => url !== file.url));
-                }
-              }}
-            />
-          </Box>
-        )}
-      </FormSection>
+      <FileAttachmentsSection
+        mode={mode}
+        handleFileSelect={handleFileSelect}
+        setFileUploadError={setFileUploadError}
+        existingFileUrls={existingFileUrls}
+        setExistingFileUrls={setExistingFileUrls}
+        setDeletedFileUrls={setDeletedFileUrls}
+        fileRef={fileRef}
+        helpText={helpTextAttachments}
+        customValidations={customValidations}
+      />
 
-      <FormSection title="Datum und Uhrzeit" helpTitle="Zeitliche Planung" helpText={helpTextDateTime}>
-        <Box ref={dateTimeRef}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-            <DateTimePicker
-                key={`start-date-${formResetKey}`} // Key for re-rendering on reset if needed
-                label="Startdatum und -uhrzeit"
-                name="startDateTime"
-                control={control as unknown as Control<FieldValues>}
-                rules={{ required: 'Startdatum und -uhrzeit sind erforderlich' }}
-                required={true} // For asterisk
-                error={errors.startDateTime?.message || undefined}
-                defaultValue={defaultValues.startDateTime || undefined} // Pass RHF default
-            />
-            <DateTimePicker
-                key={`end-date-${formResetKey}`}
-                label="Enddatum und -uhrzeit (optional)"
-                name="endDateTime"
-                control={control as unknown as Control<FieldValues>}
-                rules={{ validate: value => { const startDateVal = getValues('startDateTime'); if (startDateVal && value && value < startDateVal) { return 'Enddatum darf nicht vor dem Startdatum liegen.'; } return true; }}}
-                error={errors.endDateTime?.message || undefined}
-                minDate={watchedStartDateTime || undefined}
-                defaultValue={defaultValues.endDateTime || undefined} // Pass RHF default
-            />
-          </Box>
-          <Box sx={{ mt: 2 }}><FormControlLabel control={<Checkbox checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} color="primary" />} label="Handelt es sich um einen wiederkehrenden Termin?" /></Box>
-          {isRecurring && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" component="label" htmlFor="recurring-text-input" sx={{ fontWeight: 600, display:'block', mb:1 }}>Beschreibung der Wiederholung <Box component="span" sx={{ color: "primary.main" }}>*</Box></Typography>
-              <Typography variant="body2" display="block" sx={{ mb: 1 }}> Beschreiben Sie den wiederkehrenden Termin in eigenen Worten, z. B. &apos;Jeden zweiten Mittwoch im Monat um 19 Uhr&apos;. </Typography>
-              <Controller name="recurringText" control={control}
-                render={({ field }) => <TextField id="recurring-text-input" {...field} fullWidth multiline rows={3} placeholder="z.B. Jeden Montag um 18:00 Uhr" error={!!errors.recurringText || !!getCustomError('recurringText')} helperText={errors.recurringText?.message || getCustomError('recurringText')} margin="normal" />}
-              />
-            </Box>
-          )}
-        </Box>
-      </FormSection>
+      <DateTimeSection
+        control={control}
+        watchedStartDateTime={watchedStartDateTime}
+        defaultValues={defaultValues}
+        formResetKey={formResetKey}
+        isRecurring={isRecurring}
+        setIsRecurring={setIsRecurring}
+        dateTimeRef={dateTimeRef}
+        helpText={helpTextDateTime}
+        customValidations={customValidations}
+      />
 
-      <FormSection title="Veranstaltungsort (optional)" helpTitle="Adressinformationen" helpText={helpTextAddress}>
-        <Box ref={addressRef}><AddressFields register={register} errors={errors} control={control} /></Box>
-      </FormSection>
-
-      {/* Captcha section removed */}
+      <AddressSection
+        control={control}
+        addressRef={addressRef}
+        helpText={helpTextAddress}
+      />
     </FormBase>
   );
 }

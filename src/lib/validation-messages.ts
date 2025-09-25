@@ -36,6 +36,7 @@ export const fieldLabels: Record<string, string> = {
   'content': 'Inhalt',
   'reporterFirstName': 'Vorname des Berichterstatters',
   'reporterLastName': 'Nachname des Berichterstatters',
+  'files': 'Datei-Anhänge',
 
   // Antrag fields and nested purposes
   'summary': 'Zusammenfassung',

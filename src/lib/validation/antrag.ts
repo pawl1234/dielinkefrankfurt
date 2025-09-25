@@ -17,7 +17,7 @@ import {
   createOptionalTextSchema,
   fileUrlsSchema
 } from './schemas';
-import { documentFilesSchema } from './file-schemas';
+import { createDocumentFilesSchema } from './file-schemas';
 import { antragMessages, validationMessages } from '@/lib/validation-messages';
 
 /**
@@ -171,7 +171,7 @@ export const antragFormDataSchema = z.object({
   summary: summarySchema,
   purposes: purposesSchema,
   fileUrls: fileUrlsSchema,
-  files: documentFilesSchema,
+  files: createDocumentFilesSchema(),
   recaptchaToken: z.string().optional()
 });
 

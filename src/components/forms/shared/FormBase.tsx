@@ -38,8 +38,8 @@ export interface CustomValidationEntry {
 export interface FormBaseProps<TFormValues extends FieldValues> {
   formMethods: UseFormReturn<TFormValues>;
   onSubmit: (data: TFormValues, files?: (File | Blob)[]) => Promise<void>;
-  fieldRefs: FieldRefMap; // Now explicitly non-optional
-  fieldOrder: string[];  // Now explicitly non-optional
+  fieldRefs?: FieldRefMap; // CHANGE: Now optional (was required)
+  fieldOrder?: string[];   // CHANGE: Now optional (was required)
   submitButtonText?: string;
   resetButtonText?: string;
   mode?: 'create' | 'edit';
@@ -55,11 +55,77 @@ export interface FormBaseProps<TFormValues extends FieldValues> {
   serverFieldErrors?: Record<string, string>; // NEW: Server field errors
 }
 
+/**
+ * FormBase - Comprehensive form wrapper with validation and error handling
+ *
+ * This component provides a standardized foundation for all forms in the application,
+ * including:
+ * - Consistent form layout and styling
+ * - Integrated error handling and display
+ * - Automatic error scrolling to first validation error
+ * - Form submission state management
+ * - Success and error messaging
+ * - Form reset functionality
+ * - Cancel handling for edit forms
+ *
+ * @example
+ * ```tsx
+ * // Basic form usage
+ * <FormBase
+ *   formMethods={form}
+ *   onSubmit={handleSubmit}
+ *   fieldRefs={fieldRefs}
+ *   fieldOrder={fieldOrder}
+ *   submitButtonText="Submit"
+ * >
+ *   <ValidatedTextField name="title" label="Title" />
+ * </FormBase>
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Form with custom validations and file upload
+ * <FormBase
+ *   formMethods={form}
+ *   onSubmit={handleSubmit}
+ *   fieldRefs={fieldRefs}
+ *   fieldOrder={fieldOrder}
+ *   customValidations={customValidations}
+ *   files={fileList}
+ *   mode="edit"
+ *   onCancel={handleCancel}
+ * >
+ *   <FormSection title="Content">
+ *     <ValidatedTextField name="title" label="Title" />
+ *     <FieldError name="customField" mode="block" customValidations={customValidations} />
+ *   </FormSection>
+ * </FormBase>
+ * ```
+ *
+ * @template TFormValues - Form data type (should match the form schema)
+ * @param formMethods - React Hook Form methods from useForm or useZodForm
+ * @param onSubmit - Form submission handler
+ * @param fieldRefs - Map of field names to DOM element references for error scrolling
+ * @param fieldOrder - Array defining the order for error scrolling priority
+ * @param submitButtonText - Text for the submit button (default: "Absenden")
+ * @param resetButtonText - Text for the reset button (default: "Zurücksetzen")
+ * @param mode - Form mode affecting button behavior ("create" | "edit")
+ * @param successTitle - Title for success message (default: "Erfolgreich übermittelt!")
+ * @param successMessage - Success message content
+ * @param errorTitle - Title for error messages (default: "Fehler beim Absenden des Formulars")
+ * @param onRetry - Optional retry handler for failed submissions
+ * @param files - Optional files array for forms with file uploads
+ * @param children - Form content (sections, fields, etc.)
+ * @param onReset - Optional custom reset handler
+ * @param onCancel - Optional cancel handler (shows cancel button if provided)
+ * @param customValidations - Additional validation rules not handled by the form schema
+ * @param serverFieldErrors - Server-side field validation errors
+ */
 export default function FormBase<TFormValues extends FieldValues>({
   formMethods,
   onSubmit,
-  fieldRefs, // Destructure non-optional prop
-  fieldOrder, // Destructure non-optional prop
+  fieldRefs, // Now optional - no default value needed
+  fieldOrder, // Now optional - no default value needed
   submitButtonText = 'Absenden',
   resetButtonText = 'Zurücksetzen',
   mode = 'create',
@@ -98,11 +164,13 @@ export default function FormBase<TFormValues extends FieldValues>({
   });
 
   const handleValidRHFSubmit: SubmitHandler<TFormValues> = (data) => {
+    // Only check custom validations if they exist AND refs are provided
     if (customValidations.length > 0) {
       const firstInvalidCustom = customValidations.find(cv => !cv.isValid);
-      if (firstInvalidCustom) {
+      if (firstInvalidCustom && fieldRefs && fieldOrder) {
+        // Only scroll if we have the infrastructure
         FormValidationHelper.scrollToFirstError(
-          {}, customValidations, fieldRefs, fieldOrder || [] // Pass fieldOrder (guaranteed by props) or empty array as ultimate fallback
+          {}, customValidations, fieldRefs, fieldOrder
         );
         return;
       }
@@ -111,9 +179,13 @@ export default function FormBase<TFormValues extends FieldValues>({
   };
 
   const handleInvalidRHFSubmit = (rhfValidationErrors: FieldErrors<TFormValues>) => {
-    FormValidationHelper.scrollToFirstError(
-      rhfValidationErrors, customValidations, fieldRefs, fieldOrder || [] // Pass fieldOrder or empty array
-    );
+    // Only scroll to errors if refs are provided
+    if (fieldRefs && fieldOrder) {
+      FormValidationHelper.scrollToFirstError(
+        rhfValidationErrors, customValidations, fieldRefs, fieldOrder
+      );
+    }
+    // If no refs provided, let RHF handle focus naturally
   };
 
   return (

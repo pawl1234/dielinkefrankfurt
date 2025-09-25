@@ -29,16 +29,16 @@ interface Appointment {
 
 interface FormInput {
   title: string;
-  teaser: string;
+  teaser?: string; // Optional for compatibility with Zod schema
   mainText: string;
-  startDateTime: Date | null;
-  endDateTime?: Date | null;
+  startDateTime: string; // Changed to string to match Zod schema
+  endDateTime?: string; // Changed to string to match Zod schema
   street?: string;
   city?: string;
   state?: string;
   postalCode?: string;
-  firstName?: string;
-  lastName?: string;
+  firstName?: string; // Made optional to match Zod schema
+  lastName?: string; // Made optional to match Zod schema
   recurringText?: string;
   captchaToken?: string;
   files?: (File | Blob)[];
@@ -87,14 +87,14 @@ export default function EditAppointmentWrapper({
 
       // Handle date formatting
       if (data.startDateTime) {
-        formData.append('startDateTime', data.startDateTime instanceof Date ?
-          data.startDateTime.toISOString() :
+        formData.append('startDateTime', typeof data.startDateTime === 'string' ?
+          data.startDateTime :
           new Date(data.startDateTime).toISOString());
       }
 
       if (data.endDateTime) {
-        formData.append('endDateTime', data.endDateTime instanceof Date ?
-          data.endDateTime.toISOString() :
+        formData.append('endDateTime', typeof data.endDateTime === 'string' ?
+          data.endDateTime :
           new Date(data.endDateTime).toISOString());
       }
 

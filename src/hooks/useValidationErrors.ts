@@ -35,7 +35,10 @@ export function useValidationErrors<TFormValues extends FieldValues>({
 }: UseValidationErrorsProps<TFormValues>) {
 
   const validationErrors = useMemo(() => {
-    if (!isSubmitted) {
+    // Show file validation errors immediately (they validate on selection, not submission)
+    const hasFileErrors = formErrors?.files;
+
+    if (!isSubmitted && !hasFileErrors) {
       return [];
     }
 
@@ -75,18 +78,23 @@ export function useValidationErrors<TFormValues extends FieldValues>({
     // Finally, collect React Hook Form field errors (lowest priority)
     Object.entries(formErrors).forEach(([fieldName, error]) => {
       if (error?.message) {
-        // Check if we already have a custom or server validation error for this field
-        const hasExistingError = errors.some(err => err.field === fieldName);
+        // Show file errors immediately, other field errors only after submission
+        const shouldShowError = isSubmitted || fieldName === 'files';
 
-        if (!hasExistingError) {
-          const label = fieldLabels[fieldName] || fieldName;
-          const message = typeof error.message === 'string' ? error.message : 'Ungültiger Wert';
+        if (shouldShowError) {
+          // Check if we already have a custom or server validation error for this field
+          const hasExistingError = errors.some(err => err.field === fieldName);
 
-          errors.push({
-            field: fieldName,
-            label,
-            message
-          });
+          if (!hasExistingError) {
+            const label = fieldLabels[fieldName] || fieldName;
+            const message = typeof error.message === 'string' ? error.message : 'Ungültiger Wert';
+
+            errors.push({
+              field: fieldName,
+              label,
+              message
+            });
+          }
         }
       }
     });

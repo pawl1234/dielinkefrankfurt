@@ -18,6 +18,22 @@ import {
 import { validationMessages } from '@/lib/validation-messages';
 
 /**
+ * Slug schema for group URLs (kebab-case format)
+ * Used for group slugs in URLs
+ */
+const slugSchema = z.string()
+  .min(1)
+  .max(100)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .trim();
+
+/**
+ * Group status schema
+ * Matches Prisma GroupStatus enum
+ */
+const groupStatusSchema = z.enum(['NEW', 'ACTIVE', 'ARCHIVED']);
+
+/**
  * Logo metadata schema for cropped images
  */
 const logoMetadataSchema = z.object({
@@ -42,17 +58,32 @@ export const groupCreateDataSchema = z.object({
  */
 export const groupUpdateDataSchema = z.object({
   name: nameSchema.optional(),
+  slug: slugSchema.optional(),
   description: longDescriptionSchema.optional(),
+  status: groupStatusSchema.optional(),
   logoUrl: fileUrlSchema.optional(),
   logoMetadata: logoMetadataSchema,
   responsiblePersons: responsiblePersonsSchema.optional()
 }).partial();
 
 /**
+ * Schema specifically for EditGroupForm with required fields for editing
+ * Includes slug and status which are not in the basic update schema
+ */
+export const groupEditFormSchema = z.object({
+  name: nameSchema,
+  slug: slugSchema,
+  description: longDescriptionSchema,
+  status: groupStatusSchema,
+  responsiblePersons: responsiblePersonsSchema
+});
+
+/**
  * TypeScript types derived from Zod schemas
  */
 export type GroupCreateData = z.infer<typeof groupCreateDataSchema>;
 export type GroupUpdateData = z.infer<typeof groupUpdateDataSchema>;
+export type GroupEditFormData = z.infer<typeof groupEditFormSchema>;
 export type ResponsiblePersonData = z.infer<typeof responsiblePersonSchema>;
 
 /**
