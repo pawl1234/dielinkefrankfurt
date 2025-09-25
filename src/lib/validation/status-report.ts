@@ -48,7 +48,9 @@ const baseStatusReportSchema = z.object({
  * No more dynamic limits - they're defined in STATUS_REPORT_LIMITS
  */
 export const statusReportSchema = z.object({
-  groupId: groupIdSchema,
+  groupId: z.string()
+    .min(1, validationMessages.required('groupId'))
+    .regex(/^c[a-z0-9]{24}$/, validationMessages.invalidGroupId('groupId')),
   title: z.string()
     .min(1, validationMessages.required('title'))
     .min(STATUS_REPORT_LIMITS.title.min, validationMessages.minLength('title', STATUS_REPORT_LIMITS.title.min))
@@ -70,8 +72,17 @@ export const statusReportSchema = z.object({
       },
       { message: validationMessages.minLength('content', STATUS_REPORT_LIMITS.content.min) }
     )
+    // Security: Limit total HTML length to prevent DoS attacks
     .refine(
-      (val) => val.length <= STATUS_REPORT_LIMITS.content.max,
+      (val) => val.length <= STATUS_REPORT_LIMITS.content.max * 3, // Allow 3x for HTML markup
+      { message: validationMessages.htmlContentTooLarge('content', STATUS_REPORT_LIMITS.content.max * 3) }
+    )
+    // UX: Limit visible text content for readability
+    .refine(
+      (val) => {
+        const textContent = val.replace(/<[^>]*>/g, '').trim();
+        return textContent.length <= STATUS_REPORT_LIMITS.content.max;
+      },
       { message: validationMessages.maxLength('content', STATUS_REPORT_LIMITS.content.max) }
     ),
   reporterFirstName: z.string()

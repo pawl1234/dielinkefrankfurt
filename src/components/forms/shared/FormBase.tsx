@@ -38,8 +38,8 @@ export interface CustomValidationEntry {
 export interface FormBaseProps<TFormValues extends FieldValues> {
   formMethods: UseFormReturn<TFormValues>;
   onSubmit: (data: TFormValues, files?: (File | Blob)[]) => Promise<void>;
-  fieldRefs?: FieldRefMap; // CHANGE: Now optional (was required)
-  fieldOrder?: string[];   // CHANGE: Now optional (was required)
+  fieldRefs?: FieldRefMap;
+  fieldOrder?: string[];
   submitButtonText?: string;
   resetButtonText?: string;
   mode?: 'create' | 'edit';
@@ -52,7 +52,9 @@ export interface FormBaseProps<TFormValues extends FieldValues> {
   onReset?: () => void;
   onCancel?: () => void;
   customValidations?: CustomValidationEntry[];
-  serverFieldErrors?: Record<string, string>; // NEW: Server field errors
+  serverFieldErrors?: Record<string, string>;
+  loading?: boolean;
+  loadingMessage?: string;
 }
 
 /**
@@ -124,8 +126,8 @@ export interface FormBaseProps<TFormValues extends FieldValues> {
 export default function FormBase<TFormValues extends FieldValues>({
   formMethods,
   onSubmit,
-  fieldRefs, // Now optional - no default value needed
-  fieldOrder, // Now optional - no default value needed
+  fieldRefs,
+  fieldOrder,
   submitButtonText = 'Absenden',
   resetButtonText = 'Zurücksetzen',
   mode = 'create',
@@ -139,6 +141,8 @@ export default function FormBase<TFormValues extends FieldValues>({
   onCancel,
   customValidations = [],
   serverFieldErrors,
+  loading = false,
+  loadingMessage = 'Lade Formular...',
 }: FormBaseProps<TFormValues>) {
   const { handleSubmit: rhfHandleSubmit, reset, formState } = formMethods;
 
@@ -187,6 +191,16 @@ export default function FormBase<TFormValues extends FieldValues>({
     }
     // If no refs provided, let RHF handle focus naturally
   };
+
+  // Handle loading state
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>{loadingMessage}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <FormProvider {...formMethods}>

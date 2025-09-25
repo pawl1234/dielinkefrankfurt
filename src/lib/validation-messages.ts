@@ -323,6 +323,22 @@ export const validationMessages = {
    */
   uploadFailedWithRetries: (_field: string): string => {
     return 'Upload nach mehreren Versuchen fehlgeschlagen. Bitte versuchen Sie es später erneut.';
+  },
+
+  /**
+   * HTML content too large (security validation)
+   */
+  htmlContentTooLarge: (field: string, maxLength: number): string => {
+    const label = fieldLabels[field] || field;
+    return `${label} ist zu lang (einschließlich Formatierung). Maximal ${maxLength} Zeichen erlaubt.`;
+  },
+
+  /**
+   * Invalid group ID format
+   */
+  invalidGroupId: (field: string): string => {
+    const label = fieldLabels[field] || field;
+    return `${label} muss ausgewählt werden.`;
   }
 };
 

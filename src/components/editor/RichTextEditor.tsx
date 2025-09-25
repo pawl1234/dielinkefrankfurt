@@ -92,11 +92,12 @@ const RichTextEditor = ({ value, onChange, maxLength = 50000, placeholder, minHe
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      const currentCount = html.length;
+      const textContent = editor.getText();
+      const currentCount = textContent.length;
 
       setCharCount(currentCount);
 
-      if (currentCount <= maxLength) {
+      if (html.length <= maxLength) {
         onChange(html);
         setShowLimitMessage(false);
       } else {

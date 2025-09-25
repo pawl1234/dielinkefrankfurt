@@ -204,6 +204,7 @@ export const amountSchema = numberSchema
  * Group ID schema (CUID format)
  */
 export const groupIdSchema = z.string()
+  .min(1)  // Ensures it's not empty
   .regex(/^c[a-z0-9]{24}$/);
 
 /**

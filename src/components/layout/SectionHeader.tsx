@@ -66,7 +66,9 @@ const SectionHeader = ({ title, helpTitle, helpText }: SectionHeaderProps) => {
             </Typography>
           )}
           
-          {helpText}
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+            {helpText}
+          </Typography>
         </Paper>
       </Collapse>
     </Box>
