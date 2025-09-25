@@ -14,6 +14,7 @@ import {
   fileUrlsSchema
 } from './schemas';
 import { validationMessages } from '@/lib/validation-messages';
+import { FILE_TYPES, createSecureFilesSchema } from './file-schemas';
 
 // SINGLE SOURCE OF TRUTH for limits
 export const STATUS_REPORT_LIMITS = {
@@ -97,15 +98,12 @@ export const statusReportSchema = z.object({
     .max(50, validationMessages.maxLength('reporterLastName', 50))
     .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterLastName'))
     .trim(),
-  files: z.array(z.any()).optional()
-    .refine(
-      (files) => !files || files.length <= STATUS_REPORT_LIMITS.files.maxCount,
-      { message: validationMessages.tooManyFiles('files', STATUS_REPORT_LIMITS.files.maxCount) }
-    )
-    .refine(
-      (files) => !files || files.every((file: any) => file && file.size <= STATUS_REPORT_LIMITS.files.maxSizeMB * 1024 * 1024),
-      { message: validationMessages.fileSizeExceeds('files', STATUS_REPORT_LIMITS.files.maxSizeMB) }
-    ),
+  files: createSecureFilesSchema(
+    STATUS_REPORT_LIMITS.files.maxCount,
+    STATUS_REPORT_LIMITS.files.maxSizeMB * 1024 * 1024,
+    FILE_TYPES.STATUS_REPORT,
+    'files'
+  ),
   fileUrls: z.array(z.string().url()).optional()
 });
 

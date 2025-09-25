@@ -3,7 +3,8 @@
  * Centralizes file size, type, and count validation rules.
  */
 
-import { z } from 'zod';
+import { file, z } from 'zod';
+import { fileTypeFromBuffer } from 'file-type';
 import { validationMessages } from '../validation-messages';
 
 /**
@@ -39,7 +40,7 @@ export const FILE_TYPES = {
 export const createFileSchema = (maxSize: number = FILE_SIZE_LIMITS.DEFAULT, fieldName: string = 'Datei') =>
   z.instanceof(File).refine(
     (file) => file.size <= maxSize,
-    validationMessages.fileSizeExceeds(fieldName, Math.round(maxSize / (1024 * 1024)))
+    validationMessages.fileSizeExceeds(Math.round(maxSize / (1024 * 1024)))
   );
 
 /**
@@ -52,7 +53,7 @@ export const createTypedFileSchema = (
 ) =>
   createFileSchema(maxSize, fieldName).refine(
     (file) => allowedTypes.includes(file.type),
-    validationMessages.unsupportedFileType(fieldName)
+    validationMessages.unsupportedFileType()
   );
 
 /**
@@ -65,8 +66,52 @@ export const createMultipleFilesSchema = (
   fieldName: string = 'Dateien'
 ) =>
   z.array(createTypedFileSchema(allowedTypes, maxSizePerFile, fieldName))
-    .max(maxFiles, validationMessages.tooManyFiles(fieldName, maxFiles))
+    .max(maxFiles, validationMessages.tooManyFiles(maxFiles))
     .optional();
+
+/**
+ * Secure files schema with magic bytes validation
+ * Use this for forms that need enhanced security validation
+ */
+export const createSecureFilesSchema = (
+  maxFiles: number = 5,
+  maxSizePerFile: number = FILE_SIZE_LIMITS.DEFAULT,
+  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF,
+  fieldName: string = 'files'
+) =>
+  z.array(z.any()).optional()
+    .refine(
+      (files) => !files || files.length <= maxFiles,
+      { message: validationMessages.tooManyFiles(maxFiles) }
+    )
+    .refine(
+      (files) => !files || files.every((file: any) => file && file.size <= maxSizePerFile),
+      { message: validationMessages.fileSizeExceeds(Math.round(maxSizePerFile / (1024 * 1024))) }
+    )
+    .refine(
+      (files) => !files || files.every((file: any) => allowedTypes.includes(file.type)),
+      { message: validationMessages.unsupportedFileType() }
+    )
+    .refine(
+      async (files) => {
+        if (!files || files.length === 0) return true;
+
+        for (const file of files) {
+          try {
+            const buffer = await file.arrayBuffer();
+            const detectedType = await fileTypeFromBuffer(buffer);
+
+            if (!detectedType || !allowedTypes.includes(detectedType.mime)) {
+              return false;
+            }
+          } catch {
+            return false;
+          }
+        }
+        return true;
+      },
+      { message: validationMessages.fileTypeMismatch(fieldName) }
+    );
 
 /**
  * Common file schemas for reuse - lazy evaluation to prevent server crashes

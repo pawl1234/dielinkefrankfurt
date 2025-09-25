@@ -130,7 +130,7 @@ function handleMaximumValidationError(
     if (isAmountField(fieldPath)) {
       return antragMessages.zuschussAmountMaximum;
     }
-    return validationMessages.maxValue(fieldPath, maximum);
+    return validationMessages.maxValue(maximum);
   }
 
   // Handle array count validation

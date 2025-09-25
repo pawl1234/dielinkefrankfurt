@@ -62,7 +62,6 @@ export const fieldLabels: Record<string, string> = {
   'responsiblePersons.email': 'E-Mail-Adresse (Verantwortliche Person)',
 
   // File handling
-  'files': 'Dateianhänge',
   'fileUrls': 'Datei-URLs',
 
   // Common validation fields
@@ -191,9 +190,8 @@ export const validationMessages = {
   /**
    * Must not exceed maximum value
    */
-  maxValue: (field: string, max: number): string => {
-    const label = fieldLabels[field] || field;
-    return `${label} darf maximal ${max} betragen`;
+  maxValue: (max: number): string => {
+    return `darf maximal ${max} betragen`;
   },
 
   // Date/time validation
@@ -208,9 +206,8 @@ export const validationMessages = {
   /**
    * File size exceeds limit
    */
-  fileSizeExceeds: (field: string, maxSizeMB: number): string => {
-    const label = fieldLabels[field] || field;
-    return `${label}: Dateigröße überschreitet das Limit von ${maxSizeMB}MB`;
+  fileSizeExceeds: (maxSizeMB: number): string => {
+    return `Dateigröße überschreitet das Limit von ${maxSizeMB}MB`;
   },
 
   /**
@@ -223,9 +220,8 @@ export const validationMessages = {
   /**
    * Unsupported file type
    */
-  unsupportedFileType: (field: string): string => {
-    const label = fieldLabels[field] || field;
-    return `${label}: Nicht unterstützter Dateityp`;
+  unsupportedFileType: (): string => {
+    return `Nicht unterstützter Dateityp`;
   },
 
   /**
@@ -238,9 +234,8 @@ export const validationMessages = {
   /**
    * Too many files
    */
-  tooManyFiles: (field: string, max: number): string => {
-    const label = fieldLabels[field] || field;
-    return `${label}: Maximal ${max} Dateien erlaubt`;
+  tooManyFiles: (max: number): string => {
+    return `Maximal ${max} Dateien erlaubt`;
   },
 
   /**
@@ -339,6 +334,39 @@ export const validationMessages = {
   invalidGroupId: (field: string): string => {
     const label = fieldLabels[field] || field;
     return `${label} muss ausgewählt werden.`;
+  },
+
+  // File security validation messages
+  /**
+   * File type mismatch (magic bytes don't match declared type)
+   */
+  fileTypeMismatch: (field: string): string => {
+    const label = fieldLabels[field] || field;
+    return `${label}: Datei entspricht nicht dem angegebenen Dateityp`;
+  },
+
+  /**
+   * File appears to be corrupted or invalid
+   */
+  fileCorrupted: (field: string): string => {
+    const label = fieldLabels[field] || field;
+    return `${label}: Datei ist beschädigt oder ungültig`;
+  },
+
+  /**
+   * File content validation failed
+   */
+  fileContentInvalid: (field: string): string => {
+    const label = fieldLabels[field] || field;
+    return `${label}: Datei enthält ungültige Inhalte`;
+  },
+
+  /**
+   * File potentially malicious
+   */
+  filePotentiallyMalicious: (field: string): string => {
+    const label = fieldLabels[field] || field;
+    return `${label}: Datei könnte schädliche Inhalte enthalten`;
   }
 };
 
