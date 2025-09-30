@@ -172,136 +172,6 @@ export async function uploadFile(
   throw new FileUploadError('Maximum retries exceeded', 500, 'MAX_RETRIES_EXCEEDED');
 }
 
-/**
- * Upload a cropped image pair to Vercel Blob Storage with retry capability
- * 
- * @param originalFile - The original image file
- * @param croppedFile - The cropped version of the image
- * @param category - The category for organizing files (e.g., "groups")
- * @param prefix - Optional prefix to add to the filename (e.g., "logo")
- * @param config - Optional configuration for retries and progress
- * @returns Object containing URLs for both the original and cropped images
- * @throws FileUploadError if upload fails after retries
- */
-export async function uploadCroppedImagePair(
-  originalFile: File,
-  croppedFile: File | Blob,
-  category: string,
-  prefix: string,
-  config: FileUploadConfig = {}
-): Promise<{ originalUrl: string; croppedUrl: string }> {
-  // Combine default config with provided config
-  const { maxRetries, retryDelay, timeout, onProgress, onRetry } = {
-    ...DEFAULT_CONFIG,
-    ...config
-  };
-
-  // Generate unique pathnames for both images
-  const timestamp = new Date().getTime();
-  const sanitizedFileName = originalFile.name.replace(/\s+/g, '-');
-  
-  // Original image pathname
-  const originalBlobPathname = `${category}/${timestamp}-${prefix}-${sanitizedFileName}`;
-  
-  // Prepare original image blob
-  const originalArrayBuffer = await originalFile.arrayBuffer();
-  const originalBlob = new Blob([originalArrayBuffer], { type: originalFile.type });
-  
-  // Prepare cropped image blob
-  let croppedBlob: Blob;
-  if (croppedFile instanceof Blob) {
-    croppedBlob = croppedFile;
-  } else {
-    const croppedArrayBuffer = await (croppedFile as File).arrayBuffer();
-    croppedBlob = new Blob([croppedArrayBuffer], { type: 'image/jpeg' });
-  }
-  
-  // Use _crop suffix to identify cropped versions
-  const fileNameWithoutExt = sanitizedFileName.replace(/\.[^.]+$/, '');
-  const croppedBlobPathname = `${category}/${timestamp}-${prefix}-${fileNameWithoutExt}_crop.jpg`;
-  
-  let attempt = 0;
-  let lastError: Error | null = null;
-  
-  // Retry loop
-  while (attempt <= maxRetries!) {
-    try {
-      // If this is a retry, notify via callback
-      if (attempt > 0 && onRetry && lastError) {
-        onRetry(attempt, lastError);
-        console.log(`🔄 Retrying image pair upload (attempt ${attempt}/${maxRetries})...`);
-      }
-      
-      // Update progress - start
-      if (onProgress) {
-        onProgress(0);
-      }
-      
-      // Create abort controller for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      // Upload the original image
-      const { url: originalUrl } = await put(originalBlobPathname, originalBlob, {
-        access: 'public',
-        contentType: originalFile.type,
-        addRandomSuffix: false,
-        cacheControlMaxAge: 31536000, // Cache for 1 year
-      });
-      
-      console.log(`✅ Original image uploaded successfully to: ${originalUrl}`);
-      
-      // Update progress - halfway
-      if (onProgress) {
-        onProgress(50);
-      }
-      
-      // Upload the cropped image
-      const { url: croppedUrl } = await put(croppedBlobPathname, croppedBlob, {
-        access: 'public',
-        contentType: 'image/jpeg',
-        addRandomSuffix: false,
-        cacheControlMaxAge: 31536000, // Cache for 1 year
-      });
-      
-      clearTimeout(timeoutId);
-      
-      // Update progress - complete
-      if (onProgress) {
-        onProgress(100);
-      }
-      
-      console.log(`✅ Cropped image uploaded successfully to: ${croppedUrl}`);
-      
-      return {
-        originalUrl,
-        croppedUrl
-      };
-    } catch (error) {
-      // Save the error for potential callback
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.error(`❌ Image pair upload attempt ${attempt + 1}/${maxRetries! + 1} failed:`, error);
-      
-      // If we've reached max retries, throw the error
-      if (attempt >= maxRetries!) {
-        throw new FileUploadError(
-          validationMessages.uploadFailedWithRetries('files'),
-          500,
-          'UPLOAD_FAILED_WITH_RETRIES'
-        );
-      }
-      
-      // Otherwise, wait and retry with exponential backoff
-      const delay = retryDelay! * Math.pow(2, attempt);
-      console.log(`⏳ Waiting ${delay}ms before retry...`);
-      await sleep(delay);
-      attempt++;
-    }
-  }
-  
-  // This should never be reached due to the throw above, but TypeScript needs it
-  throw new FileUploadError('Maximum retries exceeded', 500, 'MAX_RETRIES_EXCEEDED');
-}
 
 /**
  * Delete files from Vercel Blob Storage with retry capability
@@ -399,14 +269,14 @@ export function validateStatusReportFiles(files: File[]): void {
       if (error instanceof FileUploadError) {
         if (error.code === 'INVALID_FILE_TYPE') {
           throw new FileUploadError(
-            `"${file.name}": ${validationMessages.unsupportedFileType('files')}`,
+            `"${file.name}": ${validationMessages.unsupportedFileType()}`,
             400,
             'INVALID_FILE_TYPE'
           );
         } else if (error.code === 'FILE_TOO_LARGE') {
           const maxSizeMB = MAX_FILE_SIZE / (1024 * 1024);
           throw new FileUploadError(
-            `"${file.name}": ${validationMessages.fileSizeExceeds('files', maxSizeMB)}`,
+            `"${file.name}": ${validationMessages.fileSizeExceeds(maxSizeMB)}`,
             400,
             'FILE_TOO_LARGE'
           );
@@ -418,23 +288,48 @@ export function validateStatusReportFiles(files: File[]): void {
     totalSize += file.size;
   }
 
-  // Validate combined file size
   if (totalSize > MAX_STATUS_REPORT_FILES_SIZE) {
     const maxSizeMB = MAX_STATUS_REPORT_FILES_SIZE / (1024 * 1024);
     throw new FileUploadError(
-      validationMessages.fileSizeExceeds('files', maxSizeMB),
+      validationMessages.fileSizeExceeds(maxSizeMB),
       400,
       'COMBINED_FILES_TOO_LARGE'
     );
   }
 }
 
+export async function uploadGroupLogo(logoFile: File | Blob): Promise<string> {
+  const isFileObject = logoFile && typeof logoFile === 'object' && 'name' in logoFile;
+
+  try {
+    const timestamp = new Date().getTime();
+    const fileName = isFileObject ? (logoFile as File).name : 'logo.jpg';
+    const sanitizedFileName = fileName.replace(/\s+/g, '-');
+    const blobPathname = `groups/${timestamp}-logo-${sanitizedFileName}`;
+
+    const arrayBuffer = await logoFile.arrayBuffer();
+    const blob = new Blob([arrayBuffer], {
+      type: logoFile.type || 'image/jpeg'
+    });
+
+    const { url } = await put(blobPathname, blob, {
+      access: 'public',
+      contentType: blob.type,
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000,
+    });
+
+    return url;
+  } catch (error) {
+    throw new FileUploadError(
+      validationMessages.uploadFailed('logo'),
+      500
+    );
+  }
+}
+
 /**
  * Uploads multiple files for status report attachments
- * 
- * @param files - Array of files to upload
- * @returns Array of uploaded file URLs
- * @throws FileUploadError if validation or upload fails
  */
 export async function uploadStatusReportFiles(files: File[]): Promise<string[]> {
   // Validate files first
@@ -483,27 +378,3 @@ export async function uploadStatusReportFiles(files: File[]): Promise<string[]> 
   }
 }
 
-/**
- * Validates a group logo file specifically
- * 
- * @param file - The logo file to validate
- * @returns void if valid, throws FileUploadError if invalid
- */
-export function validateGroupLogoFile(file: File): void {
-  validateFile(file, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE);
-}
-
-/**
- * Uploads a group logo file with validation
- * 
- * @param file - The logo file to upload
- * @returns The URL of the uploaded logo
- * @throws FileUploadError if validation or upload fails
- */
-export async function uploadGroupLogoFile(file: File): Promise<string> {
-  // Validate the logo file first
-  validateGroupLogoFile(file);
-  
-  // Upload the file
-  return uploadFile(file, 'groups', 'logo');
-}

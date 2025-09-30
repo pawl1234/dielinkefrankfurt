@@ -17,6 +17,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { FILE_SIZE_LIMITS, FILE_TYPES } from '@/lib/validation/file-schemas';
 
 interface GroupLogoUploadProps {
   onImageSelect: (originalImage: File | Blob, croppedImage: File | Blob) => void;  
@@ -151,26 +152,32 @@ const GroupLogoUpload = ({
         0, 0, canvas.width, canvas.height
       );
       
-      // Convert canvas to blob
       canvas.toBlob((blob) => {
         if (blob) {
-          // Clean up any previous URL
+          if (blob.size > FILE_SIZE_LIMITS.LOGO) {
+            const outputSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+            const maxSizeMB = FILE_SIZE_LIMITS.LOGO / (1024 * 1024);
+            setError(
+              `Das zugeschnittene Bild (${outputSizeMB}MB) überschreitet das ${maxSizeMB}MB Limit. ` +
+              `Bitte wählen Sie ein kleineres Bild oder einen kleineren Ausschnitt.`
+            );
+            return;
+          }
+
           if (croppedPreviewUrl && croppedPreviewUrl !== initialCroppedLogoUrl) {
             URL.revokeObjectURL(croppedPreviewUrl);
           }
-          
-          // Create a new File from the blob
+
           const croppedFile = new File([blob], 'logo-cropped.jpg', {
             type: 'image/jpeg',
             lastModified: Date.now(),
           });
-          
-          // Update state with new cropped image and URL
+
           setCroppedImage(croppedFile);
           const newUrl = URL.createObjectURL(croppedFile);
           setCroppedPreviewUrl(newUrl);
-          
-          // Notify parent if we have both original and cropped images
+          setError(null);
+
           if (originalImage) {
             onImageSelect(originalImage, croppedFile);
           }
@@ -192,18 +199,15 @@ const GroupLogoUpload = ({
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    const maxSize = 2 * 1024 * 1024; // 2MB for logos
+    const INPUT_SIZE_LIMIT = 20 * 1024 * 1024;
 
-    // Validate file type
-    if (!validTypes.includes(file.type)) {
+    if (!FILE_TYPES.IMAGE.includes(file.type)) {
       setError("Bitte lade nur JPEG, PNG oder GIF Bilder hoch.");
       return;
     }
 
-    // Validate file size
-    if (file.size > maxSize) {
-      setError("Bilddatei überschreitet 2MB Limit. Bitte lade ein kleineres Bild hoch.");
+    if (file.size > INPUT_SIZE_LIMIT) {
+      setError(`Bilddatei überschreitet ${INPUT_SIZE_LIMIT / (1024 * 1024)}MB Limit. Bitte lade ein kleineres Bild hoch.`);
       return;
     }
 
@@ -297,7 +301,7 @@ const GroupLogoUpload = ({
         component="label"
         sx={{ display: 'block', mb: 1, fontWeight: 600 }}
       >
-        Gruppen-Logo hochladen (JPEG, PNG, GIF, max. 2MB)
+        Gruppen-Logo hochladen
       </Typography>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -308,7 +312,7 @@ const GroupLogoUpload = ({
               Logo auswählen oder hierher ziehen
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              JPEG, PNG, GIF (max. 2MB)
+              JPEG, PNG, GIF
             </Typography>
             <input 
               type="file" 

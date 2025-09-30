@@ -9,6 +9,32 @@ interface ValidationError {
   message: string;
 }
 
+/**
+ * Recursively flattens nested React Hook Form errors into a single-level array
+ * Handles nested objects and arrays (e.g., responsiblePersons[0].firstName)
+ *
+ * @param errors - React Hook Form errors object
+ * @param prefix - Current path prefix for nested fields
+ * @returns Array of flattened error objects with path and message
+ */
+function flattenErrors(errors: any, prefix: string = ''): Array<{ path: string; message: string }> {
+  const result: Array<{ path: string; message: string }> = [];
+
+  Object.entries(errors).forEach(([key, value]: [string, any]) => {
+    const currentPath = prefix ? `${prefix}.${key}` : key;
+
+    if (value?.message) {
+      // Direct error message
+      result.push({ path: currentPath, message: value.message });
+    } else if (value && typeof value === 'object') {
+      // Nested errors (object or array)
+      result.push(...flattenErrors(value, currentPath));
+    }
+  });
+
+  return result;
+}
+
 interface UseValidationErrorsProps<TFormValues extends FieldValues> {
   formErrors: FieldErrors<TFormValues>;
   customValidations: CustomValidationEntry[];
@@ -76,25 +102,29 @@ export function useValidationErrors<TFormValues extends FieldValues>({
     }
 
     // Finally, collect React Hook Form field errors (lowest priority)
-    Object.entries(formErrors).forEach(([fieldName, error]) => {
-      if (error?.message) {
-        // Show file errors immediately, other field errors only after submission
-        const shouldShowError = isSubmitted || fieldName === 'files';
+    // Flatten nested errors to handle array fields like responsiblePersons[0].firstName
+    const flattenedErrors = flattenErrors(formErrors);
 
-        if (shouldShowError) {
-          // Check if we already have a custom or server validation error for this field
-          const hasExistingError = errors.some(err => err.field === fieldName);
+    flattenedErrors.forEach(({ path: fieldPath, message }) => {
+      // Show file errors immediately, other field errors only after submission
+      const shouldShowError = isSubmitted || fieldPath === 'files' || fieldPath.startsWith('files.');
 
-          if (!hasExistingError) {
-            const label = fieldLabels[fieldName] || fieldName;
-            const message = typeof error.message === 'string' ? error.message : 'Ungültiger Wert';
+      if (shouldShowError) {
+        // Check if we already have a custom or server validation error for this field
+        const hasExistingError = errors.some(err => err.field === fieldPath);
 
-            errors.push({
-              field: fieldName,
-              label,
-              message
-            });
-          }
+        if (!hasExistingError) {
+          // Extract the base field name for label lookup
+          // e.g., "responsiblePersons.0.firstName" -> "firstName"
+          const baseFieldName = fieldPath.split('.').pop() || fieldPath;
+          const label = fieldLabels[baseFieldName] || fieldLabels[fieldPath] || baseFieldName;
+          const errorMessage = typeof message === 'string' ? message : 'Ungültiger Wert';
+
+          errors.push({
+            field: fieldPath,
+            label,
+            message: errorMessage
+          });
         }
       }
     });

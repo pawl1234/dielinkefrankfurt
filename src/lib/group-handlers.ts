@@ -12,6 +12,7 @@ import {
 } from './email-senders';
 import { getNewsletterSettings } from './newsletter-service';
 import { validationMessages } from '@/lib/validation-messages';
+import { logger } from './logger';
 
 /**
  * Types for group operations
@@ -20,10 +21,6 @@ export interface GroupCreateData {
   name: string;        // Pre-validated: 3-100 chars, required
   description: string; // Pre-validated: 50-5000 chars, required
   logoUrl?: string;    // Pre-validated: valid URL format (optional)
-  logoMetadata?: {
-    originalUrl: string;  // Pre-validated: valid URL format
-    croppedUrl: string;   // Pre-validated: valid URL format
-  };
   responsiblePersons: ResponsiblePersonCreateData[]; // Pre-validated: 1-5 persons, all fields validated
 }
 
@@ -37,11 +34,7 @@ export interface GroupUpdateData {
   id: string;         // Pre-validated: valid UUID format, required
   name?: string;      // Pre-validated: 3-100 chars (when provided)
   description?: string; // Pre-validated: 50-5000 chars (when provided)
-  logoUrl?: string;   // Pre-validated: valid URL format (when provided)
-  logoMetadata?: {
-    originalUrl: string;  // Pre-validated: valid URL format
-    croppedUrl: string;   // Pre-validated: valid URL format
-  } | null; // null to remove logo
+  logoUrl?: string | null; // Pre-validated: valid URL format (when provided), null to remove
   status?: GroupStatus; // Pre-validated: valid enum value (when provided)
   responsiblePersons?: ResponsiblePersonCreateData[]; // Pre-validated: 1-5 persons, all fields validated (when provided)
 }
@@ -109,34 +102,20 @@ export function createGroupSlug(name: string): string {
  * Handles database transactions, slug generation, and metadata serialization.
  */
 export async function createGroup(data: GroupCreateData): Promise<Group> {
-  // Create a unique slug based on the group name
   const slug = createGroupSlug(data.name);
-  
+
   try {
-    // Use a transaction to ensure both the group and responsible persons are created
     const group = await prisma.$transaction(async (tx) => {
-      // Prepare metadata for logo if it exists
-      let logoMetadata = null;
-      if (data.logoMetadata) {
-        logoMetadata = JSON.stringify(data.logoMetadata);
-      }
-      
-      // Use the cropped URL as the main logoUrl if available
-      const logoUrl = data.logoMetadata?.croppedUrl || data.logoUrl;
-      
-      // Create the group
       const newGroup = await tx.group.create({
         data: {
           name: data.name,
           slug,
           description: data.description,
-          logoUrl,
+          logoUrl: data.logoUrl || null,
           status: 'NEW' as GroupStatus,
-          metadata: logoMetadata, // Store logo metadata in metadata field
         }
       });
-      
-      // Create responsible persons
+
       for (const person of data.responsiblePersons) {
         await tx.responsiblePerson.create({
           data: {
@@ -147,13 +126,13 @@ export async function createGroup(data: GroupCreateData): Promise<Group> {
           }
         });
       }
-      
+
       return newGroup;
     });
-    
+
     return group;
   } catch (error) {
-    console.error('Error creating group:', error);
+    logger.error('Error creating group', { context: { error } });
     throw error;
   }
 }
@@ -474,23 +453,11 @@ export async function updateGroup(data: GroupUpdateData): Promise<Group> {
     
     if (data.name) updateData.name = data.name;
     if (data.description) updateData.description = data.description;
-    
-    // Handle logo updates
-    if (data.logoMetadata !== undefined) {
-      if (data.logoMetadata === null) {
-        // Remove logo
-        updateData.logoUrl = null;
-        updateData.metadata = null;
-      } else {
-        // Update logo
-        updateData.logoUrl = data.logoMetadata.croppedUrl;
-        updateData.metadata = JSON.stringify(data.logoMetadata);
-      }
-    } else if (data.logoUrl) {
-      // Simple logoUrl update without metadata
+
+    if (data.logoUrl !== undefined) {
       updateData.logoUrl = data.logoUrl;
     }
-    
+
     if (data.status) updateData.status = data.status;
     
     // If name is changing, generate a new slug

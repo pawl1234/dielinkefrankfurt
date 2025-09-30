@@ -1,18 +1,16 @@
 import { put, del, list, PutCommandOptions } from '@vercel/blob';
 import { createHash } from 'crypto';
-import { FILE_TYPES } from './validation/file-schemas';
+import { FILE_TYPES, FILE_SIZE_LIMITS } from './validation/file-schemas';
 import { validationMessages } from '@/lib/validation-messages';
 
-// Define maximum file sizes
-const MAX_INDIVIDUAL_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_INDIVIDUAL_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024;
 
-// Additional size constants for backward compatibility with file-upload.ts
-export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB for logos
-export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for general attachments
-export const MAX_COMBINED_FILES_SIZE = 10 * 1024 * 1024; // 10MB total per submission
-export const MAX_STATUS_REPORT_FILES_SIZE = 5 * 1024 * 1024; // 5MB total for status report files
-export const MAX_STATUS_REPORT_FILES_COUNT = 5; // Maximum 5 files per status report
+export const MAX_LOGO_SIZE = FILE_SIZE_LIMITS.LOGO;
+export const MAX_FILE_SIZE = FILE_SIZE_LIMITS.DEFAULT;
+export const MAX_COMBINED_FILES_SIZE = 10 * 1024 * 1024;
+export const MAX_STATUS_REPORT_FILES_SIZE = 5 * 1024 * 1024;
+export const MAX_STATUS_REPORT_FILES_COUNT = 5;
 
 // Define allowed file types for different contexts using centralized configuration
 export const ALLOWED_IMAGE_TYPES = FILE_TYPES.IMAGE;
@@ -78,20 +76,18 @@ export function validateFile(
     );
   }
 
-  // Check file type
   if (!allowedTypes.includes(file.type)) {
     throw new FileUploadError(
-      validationMessages.unsupportedFileType('file'),
+      validationMessages.unsupportedFileType(),
       400,
       'INVALID_FILE_TYPE'
     );
   }
 
-  // Check file size
   if (file.size > maxSize) {
     const maxSizeMB = maxSize / (1024 * 1024);
     throw new FileUploadError(
-      validationMessages.fileSizeExceeds('file', maxSizeMB),
+      validationMessages.fileSizeExceeds(maxSizeMB),
       400,
       'FILE_TOO_LARGE'
     );
@@ -200,7 +196,7 @@ export async function uploadMultipleFiles(
   if (totalSize > MAX_TOTAL_UPLOAD_SIZE) {
     const maxSizeMB = Math.round(MAX_TOTAL_UPLOAD_SIZE / (1024 * 1024));
     throw new FileUploadError(
-      validationMessages.fileSizeExceeds('files', maxSizeMB),
+      validationMessages.fileSizeExceeds(maxSizeMB),
       'TOTAL_SIZE_TOO_LARGE',
       { totalSize, maxSize: MAX_TOTAL_UPLOAD_SIZE }
     );

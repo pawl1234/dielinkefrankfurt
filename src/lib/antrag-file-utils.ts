@@ -65,7 +65,7 @@ export function validateAntragFiles(files: File[]): void {
   if (totalSize > FILE_SIZE_LIMITS.ANTRAG_TOTAL) {
     const maxSizeMB = FILE_SIZE_LIMITS.ANTRAG_TOTAL / (1024 * 1024);
     throw new ValidationError({
-      files: validationMessages.fileSizeExceeds('files', maxSizeMB)
+      files: validationMessages.fileSizeExceeds(maxSizeMB)
     });
   }
 }

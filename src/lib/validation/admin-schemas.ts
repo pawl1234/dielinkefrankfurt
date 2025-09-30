@@ -34,10 +34,6 @@ export const adminGroupUpdateSchema = createAdminUpdateSchema({
   name: nameSchema,
   description: longDescriptionSchema,
   logoUrl: z.string().url().nullable(),
-  logoMetadata: z.object({
-    originalUrl: z.string().url(),
-    croppedUrl: z.string().url()
-  }).nullable(),
   status: z.enum(['NEW', 'ACTIVE', 'ARCHIVED']),
   responsiblePersons: responsiblePersonsSchema
 });

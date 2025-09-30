@@ -12,6 +12,7 @@ export const fieldLabels: Record<string, string> = {
   // Group form fields
   'name': 'Gruppenname',
   'description': 'Beschreibung',
+  'slug': 'URL-Kennung',
   'responsiblePersons': 'Verantwortliche Personen',
   'logo': 'Logo',
   'firstName': 'Vorname',

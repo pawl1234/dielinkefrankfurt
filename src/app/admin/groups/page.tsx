@@ -162,25 +162,20 @@ export default function AdminGroupsPage() {
 
   const handleEditGroupFormSubmit = async (
     groupId: string,
-    formData: EditGroupFormInput, // Contains responsiblePersons array
-    newLogoFile: File | Blob | null,
-    newCroppedLogoFile: File | Blob | null
+    formData: EditGroupFormInput,
+    newLogoFile: File | Blob | null
   ) => {
     const apiFormData = new FormData();
-    // ID is in the URL for PUT /api/admin/groups/[id]
     apiFormData.append('name', formData.name);
     apiFormData.append('slug', formData.slug);
     apiFormData.append('description', formData.description);
     apiFormData.append('status', formData.status);
 
     if (newLogoFile) apiFormData.append('logo', newLogoFile);
-    if (newCroppedLogoFile) apiFormData.append('croppedLogo', newCroppedLogoFile);
-    
-    // Check if logo should be removed
+
     const groupBeingEdited = adminState.items.find(g => g.id === groupId);
-    if (!newLogoFile && !newCroppedLogoFile && groupBeingEdited?.logoUrl) {
-      // This flag is checked by your backend PUT /api/admin/groups/[id]
-      apiFormData.append('removeLogo', 'true'); 
+    if (!newLogoFile && groupBeingEdited?.logoUrl) {
+      apiFormData.append('removeLogo', 'true');
     }
 
     // Append responsible persons
@@ -188,7 +183,7 @@ export default function AdminGroupsPage() {
     // and then indexed fields like 'responsiblePerson[0].firstName'.
     if (formData.responsiblePersons && formData.responsiblePersons.length > 0) {
       apiFormData.append('responsiblePersonsCount', formData.responsiblePersons.length.toString());
-      formData.responsiblePersons.forEach((person, index) => {
+      formData.responsiblePersons.forEach((person: { firstName: string; lastName: string; email: string }, index: number) => {
         apiFormData.append(`responsiblePerson[${index}].firstName`, person.firstName);
         apiFormData.append(`responsiblePerson[${index}].lastName`, person.lastName);
         apiFormData.append(`responsiblePerson[${index}].email`, person.email);
@@ -378,7 +373,7 @@ export default function AdminGroupsPage() {
                         {isEditingThisGroup && initialFormDataForGroupEdit ? (
                           <EditGroupForm
                             group={initialFormDataForGroupEdit}
-                            onSubmit={(data, logo, croppedLogo) => handleEditGroupFormSubmit(group.id, data, logo, croppedLogo)}
+                            onSubmit={(data, logo) => handleEditGroupFormSubmit(group.id, data, logo)}
                             onCancel={handleEditGroupFormCancel}
                           />
                         ) : (
