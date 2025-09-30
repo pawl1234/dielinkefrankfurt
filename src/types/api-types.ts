@@ -227,6 +227,32 @@ export interface StatusReportSubmissionResponse {
 }
 
 /**
+ * Status report data structure (matches database)
+ * Used for displaying and editing existing status reports
+ */
+export interface StatusReportData {
+  id: string;
+  groupId: string;
+  title: string;
+  content: string;
+  reporterFirstName: string;
+  reporterLastName: string;
+  status: 'NEW' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED';
+  createdAt: string;
+  updatedAt: string;
+  fileUrls: string | null;
+}
+
+/**
+ * Status report submission data for admin (includes status)
+ * Used for admin form submissions
+ */
+export interface StatusReportAdminSubmission extends StatusReportSubmissionRequest {
+  status: 'NEW' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED';
+  existingFileUrls?: string[];
+}
+
+/**
  * Group entity - represents a single group in the system
  */
 export interface Group {

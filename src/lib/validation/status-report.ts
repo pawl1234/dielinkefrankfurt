@@ -125,6 +125,16 @@ export const statusReportUpdateDataSchema = z.object({
 }).partial();
 
 /**
+ * Admin schema for editing status reports (includes status field)
+ */
+export const statusReportAdminSchema = statusReportSchema.extend({
+  status: z.enum(['NEW', 'ACTIVE', 'ARCHIVED', 'REJECTED'], {
+    message: 'Status ist erforderlich'
+  }),
+  existingFileUrls: z.array(z.string().url()).optional()
+});
+
+/**
  * TypeScript types derived from Zod schemas
  */
 export type StatusReportCreateData = z.infer<typeof statusReportCreateDataSchema>;

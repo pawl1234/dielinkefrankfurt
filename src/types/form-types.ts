@@ -67,19 +67,35 @@ export interface FormSuccessMessageProps {
 export interface FormFieldProps {
   /** Label for the field */
   label: string;
-  
+
   /** Name of the field */
   name: string;
-  
+
   /** Whether the field is required */
   required?: boolean;
-  
+
   /** Error message for the field */
   error?: string;
-  
+
   /** Placeholder text */
   placeholder?: string;
-  
+
   /** Helper text */
   helperText?: string;
+}
+
+/**
+ * Properties for EditStatusReportForm component
+ */
+export interface EditStatusReportFormProps {
+  /** The status report data to edit */
+  statusReport: import('./api-types').StatusReportData;
+
+  /** Callback when form is submitted */
+  onSubmit: (
+    data: import('./api-types').StatusReportAdminSubmission
+  ) => Promise<void>;
+
+  /** Callback when form is cancelled */
+  onCancel: () => void;
 }

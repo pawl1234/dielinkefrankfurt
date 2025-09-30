@@ -112,16 +112,8 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       }
       
       // Handle file uploads if present
-      const files: File[] = [];
-      const fileCount = parseInt(formData.get('fileCount') as string, 10) || 0;
-      
-      for (let i = 0; i < fileCount; i++) {
-        const file = formData.get(`file-${i}`) as File | null;
-        if (file && file.size > 0) {
-          files.push(file);
-        }
-      }
-      
+      const files = formData.getAll('files') as File[];
+
       // Upload new files if any
       if (files.length > 0) {
         try {

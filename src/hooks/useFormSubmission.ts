@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 interface UseFormSubmissionProps<T> {
-  onSubmit: (data: T, files?: (File | Blob)[]) => Promise<void>;
+  onSubmit: (data: T) => Promise<void>;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
   fieldRefs?: Record<string, React.RefObject<HTMLElement>>;
@@ -72,14 +72,14 @@ export function useFormSubmission<T>({
     return null;
   };
 
-  const handleSubmit = async (data: T, files?: (File | Blob)[]) => {
+  const handleSubmit = async (data: T) => {
     setIsSubmitting(true);
     setSubmissionError(null);
     setSubmissionSuccess(false);
     setFieldErrors([]);
 
     try {
-      await onSubmit(data, files);
+      await onSubmit(data);
       
       setSubmissionSuccess(true);
       if (onSuccess) onSuccess();

@@ -123,15 +123,13 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
     }
     
     // Handle file uploads if any
-    const fileCount = formData.get('fileCount');
+    const files = formData.getAll('files') as File[];
     const uploadedFiles: string[] = [];
-    
-    if (fileCount && parseInt(fileCount as string) > 0) {
-      const count = parseInt(fileCount as string);
-      
-      for (let i = 0; i < count; i++) {
-        const file = formData.get(`file-${i}`);
-        if (file instanceof Blob) {
+
+    if (files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file && file.size > 0) {
           // Process file upload
           try {
             // Create a unique pathname for the blob

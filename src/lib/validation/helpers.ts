@@ -23,11 +23,11 @@ export interface ZodValidationResult<T> extends ValidationResult {
  * @param data - Data to validate
  * @returns ValidationResult with German field errors matching existing patterns
  */
-export function zodToValidationResult<T>(
+export async function zodToValidationResult<T>(
   schema: z.ZodSchema<T>,
   data: unknown
-): ZodValidationResult<T> {
-  const result = schema.safeParse(data);
+): Promise<ZodValidationResult<T>> {
+  const result = await schema.safeParseAsync(data);
 
   if (result.success) {
     return {
@@ -63,8 +63,8 @@ export function zodToValidationResult<T>(
  * @returns Function that validates data and returns ValidationResult
  */
 export function createZodValidator<T>(schema: z.ZodSchema<T>) {
-  return (data: unknown): ZodValidationResult<T> => {
-    return zodToValidationResult(schema, data);
+  return async (data: unknown): Promise<ZodValidationResult<T>> => {
+    return await zodToValidationResult(schema, data);
   };
 }
 
@@ -77,8 +77,8 @@ export function createZodValidator<T>(schema: z.ZodSchema<T>) {
  * @returns Validated and typed data
  * @throws ValidationError if validation fails
  */
-export function validateWithZod<T>(schema: z.ZodSchema<T>, data: unknown): T {
-  const result = zodToValidationResult(schema, data);
+export async function validateWithZod<T>(schema: z.ZodSchema<T>, data: unknown): Promise<T> {
+  const result = await zodToValidationResult(schema, data);
 
   if (!result.isValid && result.errors) {
     // Import ValidationError here to avoid circular dependency
@@ -97,8 +97,8 @@ export function validateWithZod<T>(schema: z.ZodSchema<T>, data: unknown): T {
  * @param data - Data to validate
  * @returns ZodValidationResult with typed data or errors
  */
-export function safeValidateWithZod<T>(schema: z.ZodSchema<T>, data: unknown): ZodValidationResult<T> {
-  return zodToValidationResult(schema, data);
+export async function safeValidateWithZod<T>(schema: z.ZodSchema<T>, data: unknown): Promise<ZodValidationResult<T>> {
+  return await zodToValidationResult(schema, data);
 }
 
 /**

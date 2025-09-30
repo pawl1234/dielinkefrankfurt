@@ -10,7 +10,7 @@ import { CustomValidationEntry } from '@/components/forms/shared/FormBase';
 interface UseZodFormProps<TFormValues extends FieldValues>
   extends Omit<UseFormProps<TFormValues>, 'resolver'> {
   schema: z.ZodSchema<TFormValues>;
-  onSubmit: (data: TFormValues, files?: (File | Blob)[]) => Promise<void>;
+  onSubmit: (data: TFormValues) => Promise<void>;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
   customValidations?: CustomValidationEntry[];
@@ -24,7 +24,7 @@ interface UseZodFormReturn<TFormValues extends FieldValues> extends UseFormRetur
   hasAnyErrors: boolean;
   isSubmitting: boolean;
   submissionSuccess: boolean;
-  onSubmit: (data: TFormValues, files?: (File | Blob)[]) => Promise<void>;
+  onSubmit: (data: TFormValues) => Promise<void>;
   setSubmissionError: (error: string | null) => void;
   setSubmissionSuccess: (success: boolean) => void;
 }
