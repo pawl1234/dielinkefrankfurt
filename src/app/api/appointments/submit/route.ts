@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       teaser: formData.get('teaser') as string || undefined,
       mainText: formData.get('mainText') as string,
       startDateTime: formData.get('startDateTime') as string,
-      endDateTime: (formData.get('endDateTime') as string) || undefined,
+      endDateTime: formData.get('endDateTime') as string || undefined,
       street: formData.get('street') as string || undefined,
       city: formData.get('city') as string || undefined,
       state: formData.get('state') as string || undefined,

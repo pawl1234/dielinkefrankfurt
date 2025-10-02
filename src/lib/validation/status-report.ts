@@ -11,7 +11,8 @@ import {
   contentSchema,
   firstNameSchema,
   lastNameSchema,
-  fileUrlsSchema
+  fileUrlsSchema,
+  richTextSchema
 } from './schemas';
 import { validationMessages } from '@/lib/validation-messages';
 import { FILE_TYPES, createSecureFilesSchema } from './file-schemas';
@@ -57,47 +58,9 @@ export const statusReportSchema = z.object({
     .min(STATUS_REPORT_LIMITS.title.min, validationMessages.minLength('title', STATUS_REPORT_LIMITS.title.min))
     .max(STATUS_REPORT_LIMITS.title.max, validationMessages.maxLength('title', STATUS_REPORT_LIMITS.title.max))
     .trim(),
-  content: z.string()
-    .min(1, validationMessages.required('content'))
-    .trim()
-    // Handle empty HTML from rich text editor
-    .refine(
-      (val) => val !== '<p></p>' && val !== '<p><br></p>' && val !== '<p><br /></p>',
-      { message: validationMessages.required('content') }
-    )
-    // Check actual content length after HTML (strip tags for min length check)
-    .refine(
-      (val) => {
-        const textContent = val.replace(/<[^>]*>/g, '').trim();
-        return textContent.length >= STATUS_REPORT_LIMITS.content.min;
-      },
-      { message: validationMessages.minLength('content', STATUS_REPORT_LIMITS.content.min) }
-    )
-    // Security: Limit total HTML length to prevent DoS attacks
-    .refine(
-      (val) => val.length <= STATUS_REPORT_LIMITS.content.max * 3, // Allow 3x for HTML markup
-      { message: validationMessages.htmlContentTooLarge('content', STATUS_REPORT_LIMITS.content.max * 3) }
-    )
-    // UX: Limit visible text content for readability
-    .refine(
-      (val) => {
-        const textContent = val.replace(/<[^>]*>/g, '').trim();
-        return textContent.length <= STATUS_REPORT_LIMITS.content.max;
-      },
-      { message: validationMessages.maxLength('content', STATUS_REPORT_LIMITS.content.max) }
-    ),
-  reporterFirstName: z.string()
-    .min(1, validationMessages.required('reporterFirstName'))
-    .min(2, validationMessages.minLength('reporterFirstName', 2))
-    .max(50, validationMessages.maxLength('reporterFirstName', 50))
-    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterFirstName'))
-    .trim(),
-  reporterLastName: z.string()
-    .min(1, validationMessages.required('reporterLastName'))
-    .min(2, validationMessages.minLength('reporterLastName', 2))
-    .max(50, validationMessages.maxLength('reporterLastName', 50))
-    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterLastName'))
-    .trim(),
+  content: richTextSchema,
+  reporterFirstName: firstNameSchema,
+  reporterLastName: lastNameSchema,
   files: createSecureFilesSchema(
     STATUS_REPORT_LIMITS.files.maxCount,
     STATUS_REPORT_LIMITS.files.maxSizeMB * 1024 * 1024,
@@ -114,7 +77,7 @@ export const statusReportCreateDataSchema = baseStatusReportSchema;
 
 /**
  * Schema for updating an existing status report
- */
+
 export const statusReportUpdateDataSchema = z.object({
   groupId: groupIdSchema.optional(),
   title: titleSchema.optional(),
@@ -123,7 +86,7 @@ export const statusReportUpdateDataSchema = z.object({
   reporterLastName: lastNameSchema.optional(),
   fileUrls: fileUrlsSchema
 }).partial();
-
+ */
 /**
  * Admin schema for editing status reports (includes status field)
  */
@@ -138,7 +101,7 @@ export const statusReportAdminSchema = statusReportSchema.extend({
  * TypeScript types derived from Zod schemas
  */
 export type StatusReportCreateData = z.infer<typeof statusReportCreateDataSchema>;
-export type StatusReportUpdateData = z.infer<typeof statusReportUpdateDataSchema>;
+//export type StatusReportUpdateData = z.infer<typeof statusReportUpdateDataSchema>;
 
 /**
  * Validation function using fixed limits from STATUS_REPORT_LIMITS
@@ -151,12 +114,12 @@ export async function validateStatusReportWithZod(data: unknown) {
 
 /**
  * Validation function for status report updates
- */
+
 export async function validateStatusReportUpdateWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(statusReportUpdateDataSchema, data);
 }
-
+ */
 /**
  * Simple validation without configurable limits (for cases where newsletter service is unavailable)
  */

@@ -22,7 +22,7 @@ export const fieldLabels: Record<string, string> = {
   // Appointment form fields
   'title': 'Titel',
   'teaser': 'Kurzbeschreibung',
-  'mainText': 'Haupttext',
+  'mainText': 'Beschreibung',
   'startDateTime': 'Startdatum und -zeit',
   'endDateTime': 'Enddatum und -zeit',
   'street': 'Straße',
@@ -199,7 +199,7 @@ export const validationMessages = {
   /**
    * Invalid date or time format
    */
-  invalidDateTime: (_field: string): string => {
+  invalidDateTime: (): string => {
     return 'Ungültiges Datum oder Uhrzeit-Format';
   },
 

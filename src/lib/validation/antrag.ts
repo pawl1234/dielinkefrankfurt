@@ -11,10 +11,7 @@ import {
   emailSchema,
   titleSchema,
   summarySchema,
-  amountSchema,
-  positiveIntegerSchema,
   booleanSchema,
-  createOptionalTextSchema,
   fileUrlsSchema
 } from './schemas';
 import { createDocumentFilesSchema } from './file-schemas';

@@ -5,6 +5,8 @@
  */
 
 import { z } from 'zod';
+import { validationMessages } from '@/lib/validation-messages';
+import sanitizeHtml from 'sanitize-html';
 
 /**
  * Name schema (3-100 characters)
@@ -19,10 +21,12 @@ export const nameSchema = z.string()
  * Title schema (3-200 characters)
  * Used for appointment titles, article titles, etc.
  */
-export const titleSchema = z.string()
-  .min(3)
-  .max(200)
-  .trim();
+export const titleSchema = (minLength: number, maxLength: number) => 
+   z.string()
+    .min(1, validationMessages.required('title'))
+    .min(minLength, validationMessages.minLength('title', minLength))
+    .max(maxLength, validationMessages.maxLength('title', maxLength))
+    .trim()
 
 /**
  * Long description schema (50-5000 characters)
@@ -47,27 +51,28 @@ export const shortDescriptionSchema = z.string()
  * Used for person names with German character validation
  */
 export const firstNameSchema = z.string()
-  .min(2)
-  .max(50)
-  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/)
-  .trim();
+    .min(1, validationMessages.required('reporterFirstName'))
+    .min(2, validationMessages.minLength('reporterFirstName', 2))
+    .max(50, validationMessages.maxLength('reporterFirstName', 50))
+    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterFirstName'))
+    .trim();
 
 /**
  * Last name schema (2-50 characters)
  * Used for person names with German character validation
  */
 export const lastNameSchema = z.string()
-  .min(2)
-  .max(50)
-  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/)
-  .trim();
+    .min(1, validationMessages.required('reporterLastName'))
+    .min(2, validationMessages.minLength('reporterLastName', 2))
+    .max(50, validationMessages.maxLength('reporterLastName', 50))
+    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterLastName'))
+    .trim();
 
 /**
  * Email schema
  * Validates email format and length
  */
-export const emailSchema = z.string()
-  .email()
+export const emailSchema = z.email()
   .max(100)
   .trim()
   .toLowerCase();
@@ -134,16 +139,24 @@ export const phoneSchema = z.string()
 
 /**
  * Date/time string schema
- * Validates ISO date strings
+ * Accepts ISO datetime strings and coerces them to Date objects
  */
-export const dateTimeSchema = z.string()
-  .datetime()
-  .or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/));
+export const dateTimeSchema = z.coerce.date({
+    error: issue =>
+      issue.input === "" || issue.input === undefined
+        ? "Datum und Uhrzeit sind erforderlich"
+        : validationMessages.invalidDateTime()
+});
 
 /**
  * Optional date/time string schema
+ * Accepts ISO datetime strings, empty strings, null, or undefined
  */
-export const optionalDateTimeSchema = dateTimeSchema.optional();
+export const optionalDateTimeSchema = z.coerce.date({
+    error: issue => validationMessages.invalidDateTime()
+}).optional()
+  .nullable()
+  .or(z.literal(""));
 
 /**
  * File URL schema
@@ -177,25 +190,12 @@ export const responsiblePersonsSchema = z.array(responsiblePersonSchema)
  */
 export const booleanSchema = z.boolean();
 
-/**
- * Number schema
- * Used for amounts, counts, etc.
- */
-export const numberSchema = z.number();
-
-/**
- * Positive integer schema
- * Used for counts, IDs, etc.
- */
-export const positiveIntegerSchema = numberSchema
-  .int()
-  .min(1);
 
 /**
  * Amount schema for financial values (1-999999)
  * Used for Antrag Zuschuss amounts
  */
-export const amountSchema = numberSchema
+export const amountSchema = z.number()
   .min(1)
   .max(999999)
   .refine(val => !isNaN(val));
@@ -222,3 +222,29 @@ export const antragStatusSchema = z.enum(['NEU', 'IN_BEARBEITUNG', 'GENEHMIGT', 
  * Featured flag schema for appointments
  */
 export const featuredSchema = booleanSchema.optional().default(false);
+
+/**
+ * TipTap Richtext Input validation
+ */
+const sanitizeConfig = {
+  allowedTags: ["b", "strong", "i", "em", "ul", "li", "a", "p"],
+  allowedAttributes: {
+    'a': ['href', 'target', 'rel']
+  }
+};
+
+export const richTextSchema = (minLength: number, maxLength: number, field: string) => z
+  .string()
+  .min(1, validationMessages.required(field))
+  .min(minLength, validationMessages.minLength(field, minLength))
+  .max(maxLength, validationMessages.maxLength(field, maxLength))
+  .trim()
+  .refine((val) => {
+    const sanitized = sanitizeHtml(val, sanitizeConfig);
+
+    // Reject if original != sanitized → unsafe HTML was present
+    const noExtraWhitespace = (s: string) => s.replace(/\s+/g, " ").trim();
+    return noExtraWhitespace(val) === noExtraWhitespace(sanitized);
+  }, {
+    message: validationMessages.invalidCharacters(field)
+  });
