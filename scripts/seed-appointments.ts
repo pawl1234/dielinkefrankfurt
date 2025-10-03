@@ -180,7 +180,6 @@ const generateAppointment = (config: AppointmentSeedConfig) => {
   // Return appointment data
   return {
     title: faker.lorem.words(getRandomInt(3, 6)),
-    teaser: faker.lorem.sentence(),
     mainText,
     startDateTime,
     endDateTime,

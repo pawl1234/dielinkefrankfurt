@@ -14,12 +14,15 @@ export async function POST(request: NextRequest) {
     // 1. Extract form data explicitly
     const formData = await request.formData();
 
+    // Parse date strings to Date objects before Zod validation
+    const startDateTimeStr = formData.get('startDateTime') as string;
+    const endDateTimeStr = formData.get('endDateTime') as string;
+
     const appointmentData = {
       title: formData.get('title') as string,
-      teaser: formData.get('teaser') as string || undefined,
       mainText: formData.get('mainText') as string,
-      startDateTime: formData.get('startDateTime') as string,
-      endDateTime: formData.get('endDateTime') as string || undefined,
+      startDateTime: startDateTimeStr ? new Date(startDateTimeStr) : undefined,
+      endDateTime: endDateTimeStr ? new Date(endDateTimeStr) : null,
       street: formData.get('street') as string || undefined,
       city: formData.get('city') as string || undefined,
       state: formData.get('state') as string || undefined,
@@ -31,19 +34,15 @@ export async function POST(request: NextRequest) {
 
     const featured = formData.get('featured') === 'true';
 
-    // 2. Direct Zod validation (explicit and visible)
     const validationResult = await validateAppointmentSubmitWithZod(appointmentData);
     if (!validationResult.isValid && validationResult.errors) {
       return validationErrorResponse(validationResult.errors);
     }
 
-    // 3. Use validated data
     const validatedData = validationResult.data!;
 
-    // 4. Handle file uploads and business logic
     const result = await createAppointmentWithFiles(validatedData, formData, featured);
 
-    // 5. Consistent success response
     return NextResponse.json({
       success: true,
       appointmentId: result.id,

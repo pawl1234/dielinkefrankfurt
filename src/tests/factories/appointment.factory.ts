@@ -138,7 +138,6 @@ export function createMockAppointmentFormData(overrides?: Partial<Record<string,
   
   return {
     title: 'Test Appointment',
-    teaser: 'Test teaser for the appointment',
     mainText: '<p>Herzlich willkommen zur monatlichen Mitgliederversammlung. Wir besprechen aktuelle politische Themen und planen kommende Aktionen.</p>',
     startDateTime: startDateTime.toISOString(),
     endDateTime: endDateTime.toISOString(),

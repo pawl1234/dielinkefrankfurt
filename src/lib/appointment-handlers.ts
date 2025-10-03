@@ -26,7 +26,6 @@ export interface AppointmentUpdateData {
   processed?: boolean; // Pre-validated: boolean value (when provided)
   status?: 'pending' | 'accepted' | 'rejected'; // Pre-validated: valid status enum (when provided)
   title?: string;     // Pre-validated: 3-200 chars (when provided)
-  teaser?: string;    // Pre-validated: 10-500 chars (when provided)
   mainText?: string;  // Pre-validated: 10-10000 chars (when provided)
   startDateTime?: string | Date; // Pre-validated: valid ISO datetime (when provided)
   endDateTime?: string | Date | null; // Pre-validated: valid ISO datetime or null (when provided)
@@ -45,7 +44,6 @@ export interface AppointmentUpdateData {
 
 export interface AppointmentCreateData {
   title: string;      // Pre-validated: 3-200 chars, required
-  teaser: string;     // Pre-validated: 10-500 chars, required
   mainText: string;   // Pre-validated: 10-10000 chars, required
   startDateTime: string; // Pre-validated: valid ISO datetime, required
   endDateTime?: string | null; // Pre-validated: valid ISO datetime or null (when provided)
@@ -333,7 +331,6 @@ export async function getNewsletterAppointments(request: NextRequest) {
       select: {
         id: true,
         title: true,
-        teaser: true,
         startDateTime: true,
         featured: true
       }
@@ -569,7 +566,6 @@ export async function createAppointmentWithFiles(
       // Connection successful, proceed with creating appointment
       const appointmentData = {
         title: validatedData.title,
-        teaser: validatedData.teaser || '',
         mainText: validatedData.mainText,
         startDateTime: new Date(validatedData.startDateTime),
         endDateTime: validatedData.endDateTime ? new Date(validatedData.endDateTime) : null,
@@ -600,62 +596,6 @@ export async function createAppointmentWithFiles(
     } catch (dbError) {
       throw handleDatabaseError(dbError, 'appointment creation');
     }
-}
-
-/**
- * Creates a new appointment submission (legacy handler with validation).
- *
- * @param request Pre-validated NextRequest with FormData from API route level
- * @returns Promise resolving to NextResponse with creation success message
- * @throws Error Only for business logic failures (database operations, file upload failures, validation failures)
- *
- * Note: This function maintains backward compatibility by extracting form data.
- * Performs Zod validation internally before calling createAppointmentWithFiles.
- * Will be deprecated in favor of direct createAppointmentWithFiles usage.
- */
-export async function createAppointment(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-
-    // Extract text fields
-    const appointmentData = {
-      title: formData.get('title') as string,
-      teaser: formData.get('teaser') as string || undefined,
-      mainText: formData.get('mainText') as string,
-      startDateTime: formData.get('startDateTime') as string,
-      endDateTime: (formData.get('endDateTime') as string) || undefined,
-      street: formData.get('street') as string || undefined,
-      city: formData.get('city') as string || undefined,
-      state: formData.get('state') as string || undefined,
-      postalCode: formData.get('postalCode') as string || undefined,
-      firstName: formData.get('firstName') as string || undefined,
-      lastName: formData.get('lastName') as string || undefined,
-      recurringText: formData.get('recurringText') as string || undefined
-    };
-
-    const featured = formData.get('featured') === 'true';
-
-    // Validate appointment data using Zod schema
-    const validationResult = await validateAppointmentSubmitWithZod(appointmentData);
-    if (!validationResult.isValid && validationResult.errors) {
-      return validationErrorResponse(validationResult.errors);
-    }
-
-    // Use validated data from Zod (guaranteed to be correct after validation)
-    const validatedData = validationResult.data!;
-
-    // Call the new business logic function
-    const newAppointment = await createAppointmentWithFiles(validatedData, formData, featured);
-
-    // Return the same response format as before
-    return NextResponse.json({
-      success: true,
-      appointmentId: newAppointment.id,
-      message: 'Terminanfrage erfolgreich eingereicht'
-    });
-  } catch (error) {
-    return apiErrorResponse(error, 'Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.');
-  }
 }
 
 /**
@@ -948,14 +888,13 @@ export async function updateAppointment(request: NextRequest) {
       data = await request.json() as AppointmentUpdateData;
     }
     
-    const { 
-      id, 
-      processed, 
-      status, 
-      title, 
-      teaser, 
-      mainText, 
-      startDateTime, 
+    const {
+      id,
+      processed,
+      status,
+      title,
+      mainText,
+      startDateTime,
       endDateTime,
       street,
       city,
@@ -1006,7 +945,6 @@ export async function updateAppointment(request: NextRequest) {
     
     // Handle other editable fields
     if (title !== undefined) updateData.title = title;
-    if (teaser !== undefined) updateData.teaser = teaser;
     if (mainText !== undefined) updateData.mainText = mainText;
     if (startDateTime !== undefined) updateData.startDateTime = new Date(startDateTime);
     if (endDateTime !== undefined) updateData.endDateTime = endDateTime ? new Date(endDateTime) : null;

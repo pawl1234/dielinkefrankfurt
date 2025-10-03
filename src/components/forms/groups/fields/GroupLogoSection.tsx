@@ -2,9 +2,9 @@
 
 import { Controller, Control, FieldValues, Path } from 'react-hook-form';
 import { Typography } from '@mui/material';
-import GroupLogoUpload from '../../../upload/GroupLogoUpload';
+import ImageCropUpload from '../../shared/ImageCropUpload';
 import FormSection from '../../shared/FormSection';
-import { FILE_SIZE_LIMITS } from '@/lib/validation/file-schemas';
+import { FILE_SIZE_LIMITS, FILE_TYPES } from '@/lib/validation/file-schemas';
 
 interface GroupLogoSectionProps<TFormValues extends FieldValues> {
   control: Control<TFormValues>;
@@ -19,9 +19,10 @@ export function GroupLogoSection<TFormValues extends FieldValues>({
   initialLogoUrl = null,
   required = false
 }: GroupLogoSectionProps<TFormValues>) {
-  const maxSizeMB = FILE_SIZE_LIMITS.LOGO / (1024 * 1024);
+  const maxInputSizeMB = 20; 
+  const maxOutputSizeMB = FILE_SIZE_LIMITS.LOGO / (1024 * 1024);
 
-  const helpText = `Ein Logo hilft, Ihre Gruppe auf der Website leichter erkennbar zu machen. Laden Sie ein quadratisches Logo hoch für optimale Darstellung. Unterstützt werden JPEG, PNG und GIF Dateien. Das zugeschnittene Bild darf maximal ${maxSizeMB}MB groß sein.`;
+  const helpText = `Ein Logo hilft, Ihre Gruppe auf der Website leichter erkennbar zu machen. Laden Sie ein quadratisches Logo hoch für optimale Darstellung. Unterstützt werden JPEG, PNG und GIF Dateien. Das zugeschnittene Bild darf maximal ${maxOutputSizeMB}MB groß sein.`;
 
   return (
     <FormSection
@@ -34,11 +35,20 @@ export function GroupLogoSection<TFormValues extends FieldValues>({
         name={logoFieldName}
         render={({ field: { onChange }, fieldState: { error } }) => (
           <>
-            <GroupLogoUpload
+            <ImageCropUpload
+              maxInputFileSize={maxInputSizeMB * 1024 * 1024}
+              maxOutputFileSize={FILE_SIZE_LIMITS.LOGO}
+              allowedFileTypes={FILE_TYPES.IMAGE}
+              aspectRatio={1}
+              initialImageUrl={initialLogoUrl}
+              initialCroppedImageUrl={initialLogoUrl}
+              uploadLabel="Gruppen-Logo hochladen"
+              uploadDescription={`JPEG, PNG, GIF (max. ${maxInputSizeMB}MB)`}
+              croppedImageLabel="Zugeschnittenes Logo"
+              aspectRatioText="Quadratisches Logo (1:1) für optimale Darstellung"
               onImageSelect={(originalFile: File | Blob | null, croppedFile: File | Blob | null) => {
                 onChange(croppedFile);
               }}
-              initialImageUrl={initialLogoUrl}
             />
             {error && (
               <Typography variant="caption" color="error" display="block" sx={{ mt: 1 }}>

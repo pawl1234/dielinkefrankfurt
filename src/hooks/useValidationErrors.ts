@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { FieldErrors, FieldValues } from 'react-hook-form';
-import { CustomValidationEntry } from '@/components/forms/shared/FormBase';
+import { CustomValidationEntry } from '@/types/form-types';
 import { fieldLabels } from '@/lib/validation-messages';
 
 interface ValidationError {

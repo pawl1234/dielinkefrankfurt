@@ -2,11 +2,17 @@
 
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { useForm, Controller, FieldValues } from 'react-hook-form';
-import FormBase, { FieldRefMap, CustomValidationEntry } from '../shared/FormBase';
+import FormBase from '../shared/FormBase';
 import FormSection from '../shared/FormSection';
+
+// TODO: Refactor this form to use useZodForm pattern like other forms
+// Temporary type definition until refactor is complete
+interface CustomValidationEntry {
+  field: string;
+  isValid: boolean;
+  message?: string;
+}
 import FileUpload from '@/components/upload/FileUpload';
-import ReCaptcha from '@/components/shared/ReCaptcha';
-import FormErrorBoundary from '../shared/FormErrorBoundary';
 import {
   Box,
   Typography,
@@ -70,8 +76,6 @@ export default function AntragForm({
   // State management
   const [formResetKey, setFormResetKey] = useState(0);
   const [fileList, setFileList] = useState<(File | Blob)[]>([]);
-  // Form submission state now handled by React Hook Form
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   
   // Remove old state management - now handled by React Hook Form
 
@@ -122,8 +126,8 @@ export default function AntragForm({
   const raumbuchungEnabled = watch('raumbuchungEnabled');
   const weiteresEnabled = watch('weiteresEnabled');
 
-  // Create field refs map for validation
-  const fieldRefs: FieldRefMap = useMemo(() => ({
+  // TODO: Remove fieldRefs when refactoring to useZodForm pattern
+  const fieldRefs = useMemo(() => ({
     firstName: requesterRef,
     lastName: requesterRef,
     email: requesterRef,
@@ -169,13 +173,6 @@ export default function AntragForm({
   const handleFileSelect = useCallback((files: (File | Blob)[]) => {
     setFileList(files);
   }, []);
-
-  // Handle reCAPTCHA verification
-  const handleRecaptchaVerify = useCallback((token: string | null) => {
-    setRecaptchaToken(token);
-  }, []);
-
-  // Remove old state management - now handled by React Hook Form
 
   // Define field order for validation scrolling
   const fieldOrder = useMemo(() => [
@@ -247,12 +244,7 @@ export default function AntragForm({
       });
       formData.append('fileCount', fileList.length.toString());
     }
-    
-    // Add reCAPTCHA token if available
-    if (recaptchaToken) {
-      formData.append('recaptchaToken', recaptchaToken);
-    }
-    
+
     // Submit to API endpoint
     const response = await fetch('/api/antraege/submit', {
       method: 'POST',
@@ -289,7 +281,6 @@ export default function AntragForm({
   // Handle form reset
   const handleReset = () => {
     setFileList([]);
-    setRecaptchaToken(null);
     setFormResetKey(prev => prev + 1);
   };
 
@@ -311,12 +302,6 @@ export default function AntragForm({
   );
 
   return (
-    <FormErrorBoundary 
-      formName="Antrag" 
-      onRetry={handleReset}
-      onReset={handleReset}
-      showFormData={true}
-    >
       <FormBase
         key={formResetKey}
         formMethods={methods}
@@ -826,15 +811,7 @@ export default function AntragForm({
           </FormSection>
         </div>
 
-        {/* reCAPTCHA Section - only show if enabled */}
-        {process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY && (
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <ReCaptcha onVerify={handleRecaptchaVerify} />
-          </Box>
-        )}
-
       </Box>
       </FormBase>
-    </FormErrorBoundary>
   );
 }

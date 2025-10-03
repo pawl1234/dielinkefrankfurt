@@ -19,7 +19,6 @@ model Appointment {
   // Identifiers and core fields
   id             Int       @id @default(autoincrement())
   title          String
-  teaser         String    // Short headline/title for the appointment
   mainText       String    // Detailed description
 
   // Date and time information

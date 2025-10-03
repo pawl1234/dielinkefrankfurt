@@ -99,3 +99,46 @@ export interface EditStatusReportFormProps {
   /** Callback when form is cancelled */
   onCancel: () => void;
 }
+
+/**
+ * Properties for EditAppointmentForm component
+ */
+export interface EditAppointmentFormProps {
+  /** The appointment data to edit */
+  appointment: {
+    id: number;
+    title: string;
+    mainText: string;
+    startDateTime: string;
+    endDateTime: string | null;
+    street: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    recurringText: string | null;
+    fileUrls: string | null;
+    featured: boolean;
+    metadata?: string | null;
+    status: 'pending' | 'accepted' | 'rejected';
+  };
+
+  /** Callback when form is submitted */
+  onSubmit: (
+    data: import('@/lib/validation/appointment').AppointmentSubmitData
+  ) => Promise<void>;
+
+  /** Callback when form is cancelled */
+  onCancel: () => void;
+}
+
+/**
+ * Custom validation entry for form fields that require validation beyond schema validation
+ * Used for complex fields like file uploads, rich text editors, etc.
+ */
+export interface CustomValidationEntry {
+  field: string;
+  isValid: boolean;
+  message?: string;
+}

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useValidationErrors } from './useValidationErrors';
 import { useFormSubmission } from './useFormSubmission';
-import { CustomValidationEntry } from '@/components/forms/shared/FormBase';
+import { CustomValidationEntry } from '@/types/form-types';
 
 interface UseZodFormProps<TFormValues extends FieldValues>
   extends Omit<UseFormProps<TFormValues>, 'resolver'> {

@@ -56,7 +56,6 @@ export const adminStatusReportUpdateSchema = createAdminUpdateSchema({
  */
 export const adminAppointmentUpdateSchema = createAdminUpdateSchema({
   title: titleSchema,
-  teaser: shortDescriptionSchema,
   mainText: contentSchema,
   startDateTime: dateTimeSchema,
   endDateTime: optionalDateTimeSchema.nullable(),

@@ -138,25 +138,24 @@ export const phoneSchema = z.string()
   .or(z.literal(''));
 
 /**
- * Date/time string schema
- * Accepts ISO datetime strings and coerces them to Date objects
+ * Date/time schema
+ * Expects Date objects (parsing from strings should happen before validation)
  */
-export const dateTimeSchema = z.coerce.date({
-    error: issue =>
-      issue.input === "" || issue.input === undefined
-        ? "Datum und Uhrzeit sind erforderlich"
-        : validationMessages.invalidDateTime()
+export const dateTimeSchema = z.date({
+  error: issue =>
+    issue.input === undefined
+      ? "Datum und Uhrzeit sind erforderlich"
+      : validationMessages.invalidDateTime()
 });
 
 /**
- * Optional date/time string schema
- * Accepts ISO datetime strings, empty strings, null, or undefined
+ * Optional date/time schema
+ * Expects Date objects, null, or undefined (parsing from strings should happen before validation)
  */
-export const optionalDateTimeSchema = z.coerce.date({
-    error: issue => validationMessages.invalidDateTime()
+export const optionalDateTimeSchema = z.date({
+  error: validationMessages.invalidDateTime()
 }).optional()
-  .nullable()
-  .or(z.literal(""));
+  .nullable();
 
 /**
  * File URL schema
