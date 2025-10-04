@@ -159,7 +159,7 @@ const FileUpload = ({
     }
   };
 
-  const fileExtensions = getFileExtensions(allowedMimeTypes);
+  const fileExtensions = getFileExtensions(allowedMimeTypes || []);
   const maxFileSizeMB = Math.round(maxFileSize / (1024 * 1024));
 
   return (
@@ -227,7 +227,7 @@ const FileUpload = ({
                 ref={fileInputRef}
                 style={{ display: 'none' }}
                 onChange={handleFileChange}
-                accept={allowedMimeTypes.join(',')}
+                accept={allowedMimeTypes?.join(',') || '*'}
                 multiple={fileItems.length < maxFiles - 1}
                 disabled={disabled || isUploading}
               />
