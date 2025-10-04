@@ -428,66 +428,69 @@ export async function createAppointmentWithFiles(
   // Note: Validation is handled by the route handler
 
   // Process multiple file uploads if present using Vercel Blob Store
-  const fileCount = formData.get('fileCount');
+  const files = formData.getAll('files') as (File | Blob)[];
   const fileUrls: string[] = [];
   let coverImageUrl: string | null = null;
   let croppedCoverImageUrl: string | null = null;
 
-    if (fileCount) {
-      const count = parseInt(fileCount as string, 10);
+  if (files && files.length > 0) {
+    console.log(`Processing ${files.length} file attachment(s)...`);
 
-      // Process files sequentially to upload to Vercel Blob Store
-      for (let i = 0; i < count; i++) {
-        const file = formData.get(`file-${i}`) as File | null;
+    // Process files sequentially to upload to Vercel Blob Store
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-        if (file) {
-          // Validate file using centralized validation
-          try {
-            validateFile(file, ALLOWED_ATTACHMENT_TYPES);
-          } catch (error) {
-            if (error instanceof FileUploadError) {
-              throw handleFileUploadError(error, { fileName: file.name });
-            }
-            throw handleFileUploadError(error, { fileName: file.name });
+      if (file && file instanceof Blob) {
+        // Get file name - File objects have name property, Blob objects don't
+        const fileName = 'name' in file ? (file as File).name : `attachment-${i}`;
+
+        // Validate file using centralized validation
+        try {
+          validateFile(file, ALLOWED_ATTACHMENT_TYPES);
+        } catch (error) {
+          if (error instanceof FileUploadError) {
+            throw handleFileUploadError(error, { fileName });
           }
+          throw handleFileUploadError(error, { fileName });
+        }
 
-          try {
-            // Create a unique pathname for the blob
-            const timestamp = new Date().getTime();
-            const sanitizedFileName = file.name.replace(/\s+/g, '-');
-            const blobPathname = `appointments/${timestamp}-${i}-${sanitizedFileName}`;
+        try {
+          // Create a unique pathname for the blob
+          const timestamp = new Date().getTime();
+          const sanitizedFileName = fileName.replace(/\s+/g, '-');
+          const blobPathname = `appointments/${timestamp}-${i}-${sanitizedFileName}`;
 
-            // Upload the file to Vercel Blob Store
-            console.log(`Uploading file ${i+1}/${count} to Blob Store: ${blobPathname}`);
+          // Upload the file to Vercel Blob Store
+          console.log(`Uploading file ${i+1}/${files.length} to Blob Store: ${blobPathname}`);
 
-            // Get the file data as an ArrayBuffer and convert to Blob for upload
-            const arrayBuffer = await file.arrayBuffer();
-            const blob = new Blob([arrayBuffer], { type: file.type });
+          // Get the file data as an ArrayBuffer and convert to Blob for upload
+          const arrayBuffer = await file.arrayBuffer();
+          const blob = new Blob([arrayBuffer], { type: file.type });
 
-            // Upload to Vercel Blob Store with public access
-            const { url } = await put(blobPathname, blob, {
-              access: 'public',
-              contentType: file.type,
-              // Add useful metadata
-              addRandomSuffix: false, // Use our own timestamp-based naming
-              cacheControlMaxAge: 31536000, // Cache for 1 year (60 * 60 * 24 * 365)
-            });
+          // Upload to Vercel Blob Store with public access
+          const { url } = await put(blobPathname, blob, {
+            access: 'public',
+            contentType: file.type,
+            // Add useful metadata
+            addRandomSuffix: false, // Use our own timestamp-based naming
+            cacheControlMaxAge: 31536000, // Cache for 1 year (60 * 60 * 24 * 365)
+          });
 
-            console.log(`✅ File uploaded successfully to: ${url}`);
+          console.log(`✅ File uploaded successfully to: ${url}`);
 
-            // Add the URL to the array for storing in the database
-            fileUrls.push(url);
-          } catch (uploadError) {
-            throw handleFileUploadError(uploadError, { 
-              fileName: file.name,
-              fileSize: file.size,
-              fileType: file.type,
-              index: i
-            });
-          }
+          // Add the URL to the array for storing in the database
+          fileUrls.push(url);
+        } catch (uploadError) {
+          throw handleFileUploadError(uploadError, {
+            fileName,
+            fileSize: file.size,
+            fileType: file.type,
+            index: i
+          });
         }
       }
     }
+  }
 
     // Process cover image if present (for featured appointments)
     if (featured) {

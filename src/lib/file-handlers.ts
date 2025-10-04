@@ -56,13 +56,13 @@ export class FileUploadError extends Error {
 /**
  * Validates a file based on specified constraints
  *
- * @param file - The file to validate
+ * @param file - The file or blob to validate
  * @param allowedTypes - Array of allowed MIME types
  * @param maxSize - Maximum file size in bytes
  * @returns void if valid, throws FileUploadError if invalid
  */
 export function validateFile(
-  file: File,
+  file: File | Blob,
   allowedTypes: string[] = ALLOWED_FILE_TYPES,
   maxSize: number = MAX_FILE_SIZE
 ): void {
