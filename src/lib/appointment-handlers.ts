@@ -5,14 +5,11 @@ import { serverErrorResponse } from './api-auth';
 import { put, del } from '@vercel/blob';
 import {
   AppError,
-  apiErrorResponse,
-  validationErrorResponse,
   handleFileUploadError,
-  handleDatabaseError,
-  getLocalizedErrorMessage
+  handleDatabaseError
 } from './errors';
 import { validateFile, ALLOWED_ATTACHMENT_TYPES, FileUploadError } from './file-handlers';
-import { validateAppointmentSubmitWithZod, type AppointmentSubmitData } from './validation/appointment';
+import { type AppointmentSubmitData } from './validation/appointment';
 
 /**
  * Types for appointment operations

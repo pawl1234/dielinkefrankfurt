@@ -7,7 +7,6 @@ import { statusReportAdminSchema } from '@/lib/validation/status-report';
 import { useDataFetch } from '@/lib/hooks/useDataFetch';
 import {
   GroupsListResponse,
-  StatusReportData,
   StatusReportAdminSubmission
 } from '@/types/api-types';
 import { EditStatusReportFormProps } from '@/types/form-types';
@@ -53,7 +52,7 @@ export default function EditStatusReportForm({
         const urls = JSON.parse(statusReport.fileUrls);
         const validUrls = Array.isArray(urls) ? urls : [];
         form.setValue('existingFileUrls', validUrls);
-      } catch (err) {
+      } catch {
         form.setValue('existingFileUrls', []);
       }
     }

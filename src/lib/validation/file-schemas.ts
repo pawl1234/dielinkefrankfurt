@@ -3,7 +3,7 @@
  * Centralizes file size, type, and count validation rules.
  */
 
-import { file, z } from 'zod';
+import { z } from 'zod';
 import { fileTypeFromBuffer } from 'file-type';
 import { validationMessages } from '../validation-messages';
 
@@ -37,7 +37,7 @@ export const FILE_TYPES = {
 /**
  * Base file schema with size validation
  */
-export const createFileSchema = (maxSize: number = FILE_SIZE_LIMITS.DEFAULT, fieldName: string = 'Datei') =>
+export const createFileSchema = (maxSize: number = FILE_SIZE_LIMITS.DEFAULT, _fieldName: string = 'Datei') =>
   z.instanceof(File).refine(
     (file) => file.size <= maxSize,
     validationMessages.fileSizeExceeds(Math.round(maxSize / (1024 * 1024)))

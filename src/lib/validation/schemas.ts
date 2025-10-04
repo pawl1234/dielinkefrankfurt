@@ -18,10 +18,20 @@ export const nameSchema = z.string()
   .trim();
 
 /**
- * Title schema (3-200 characters)
+ * Standard title limits
+ * Used across different entities (Antrag, StatusReport, etc.)
+ */
+export const TITLE_LIMITS = {
+  STANDARD: { min: 3, max: 200 },    // General titles (Antrag, etc.)
+  STATUS_REPORT: { min: 3, max: 100 }, // Status report titles
+  APPOINTMENT: { min: 3, max: 100 }    // Appointment titles
+} as const;
+
+/**
+ * Title schema factory (configurable min/max)
  * Used for appointment titles, article titles, etc.
  */
-export const titleSchema = (minLength: number, maxLength: number) => 
+export const titleSchema = (minLength: number, maxLength: number) =>
    z.string()
     .min(1, validationMessages.required('title'))
     .min(minLength, validationMessages.minLength('title', minLength))

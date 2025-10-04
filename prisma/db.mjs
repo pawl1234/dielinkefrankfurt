@@ -1,9 +1,13 @@
 /**
  * Prisma database utilities for development and production
  */
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 const SCHEMA_PATH = path.join(__dirname, 'schema.prisma');
@@ -220,7 +224,7 @@ main();
         try {
           console.log('Attempting database reset via psql...');
           execSync(`psql "${process.env.DATABASE_URL}" -f "${sqlPath}"`, { stdio: 'inherit' });
-        } catch (psqlError) {
+        } catch (_psqlError) {
           console.log('psql not available, falling back to Prisma...');
           
           // Fall back to prisma db execute
@@ -259,7 +263,7 @@ function deploySchema() {
       execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
       console.log('✅ Schema push completed');
       return true;
-    } catch (pushError) {
+    } catch (_pushError) {
       console.error('❌ Schema push failed, falling back to migrate deploy');
       
       // Fall back to migrate deploy
@@ -493,7 +497,7 @@ function deploySchemaSafely() {
 }
 
 // Export all functions
-module.exports = {
+export {
   validateEnvironment,
   validateSchema,
   resetMigrations,

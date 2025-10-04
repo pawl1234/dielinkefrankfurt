@@ -45,7 +45,6 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
     schema: groupEditFormSchema,
     defaultValues: {
       name: group.name,
-      slug: group.slug,
       description: group.description,
       status: group.status,
       responsiblePersons: group.responsiblePersons?.map(rp => ({
@@ -64,7 +63,6 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
   useEffect(() => {
     form.reset({
       name: group.name,
-      slug: group.slug,
       description: group.description,
       status: group.status,
       responsiblePersons: group.responsiblePersons?.map(rp => ({
@@ -74,7 +72,7 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
       })) || [{ firstName: '', lastName: '', email: '' }],
       logo: null
     });
-  }, [group.id]);
+  }, [group.id, group.name, group.description, group.status, group.responsiblePersons, form]);
 
   return (
     <FormBase

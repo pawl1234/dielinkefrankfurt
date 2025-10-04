@@ -3,7 +3,6 @@ import { createHash } from 'crypto';
 import { FILE_TYPES, FILE_SIZE_LIMITS } from './validation/file-schemas';
 import { validationMessages } from '@/lib/validation-messages';
 
-const MAX_INDIVIDUAL_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024;
 
 export const MAX_LOGO_SIZE = FILE_SIZE_LIMITS.LOGO;

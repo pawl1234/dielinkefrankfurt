@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createStatusReport } from '@/lib/group-handlers';
-import { uploadStatusReportFiles, FileUploadError } from '@/lib/file-upload';
+import { uploadStatusReportFiles } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
 import { del } from '@vercel/blob';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';

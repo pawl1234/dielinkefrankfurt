@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Controller, Control, FormState, FieldValues, Path, useWatch } from 'react-hook-form';
+import { Controller, Control, FormState, FieldValues, Path } from 'react-hook-form';
 import { Box, Typography, TextField, Checkbox, FormControlLabel, Collapse, Paper, Button } from '@mui/material';
 import FormSection from '../../shared/FormSection';
 import RichTextEditor from '../../../editor/RichTextEditor';

@@ -73,9 +73,8 @@ function log(level: LogLevel, message: string | Error, options: LogOptions = {})
   if (process.env.NODE_ENV === 'production' && level === 'debug') return;
 
   const includeTimestamp = options.timestamp !== false;
-  // Extract timestamp but don't use it since we use includeTimestamp
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { timestamp, ...restOptions } = options;
+  // Extract timestamp option but don't use it directly since we use includeTimestamp flag
+  const { timestamp: _timestamp, ...restOptions } = options;
   let errorInfo;
   let finalMessage = message;
 

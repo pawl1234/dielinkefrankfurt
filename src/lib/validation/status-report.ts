@@ -38,7 +38,7 @@ export const STATUS_REPORT_LIMITS = {
  */
 const baseStatusReportSchema = z.object({
   groupId: groupIdSchema,
-  title: titleSchema,
+  title: titleSchema(STATUS_REPORT_LIMITS.title.min, STATUS_REPORT_LIMITS.title.max),
   content: contentSchema,
   reporterFirstName: firstNameSchema,
   reporterLastName: lastNameSchema,
@@ -58,7 +58,7 @@ export const statusReportSchema = z.object({
     .min(STATUS_REPORT_LIMITS.title.min, validationMessages.minLength('title', STATUS_REPORT_LIMITS.title.min))
     .max(STATUS_REPORT_LIMITS.title.max, validationMessages.maxLength('title', STATUS_REPORT_LIMITS.title.max))
     .trim(),
-  content: richTextSchema,
+  content: richTextSchema(STATUS_REPORT_LIMITS.content.min, STATUS_REPORT_LIMITS.content.max, 'content'),
   reporterFirstName: firstNameSchema,
   reporterLastName: lastNameSchema,
   files: createSecureFilesSchema(
@@ -80,7 +80,7 @@ export const statusReportCreateDataSchema = baseStatusReportSchema;
 
 export const statusReportUpdateDataSchema = z.object({
   groupId: groupIdSchema.optional(),
-  title: titleSchema.optional(),
+  title: titleSchema(STATUS_REPORT_LIMITS.title.min, STATUS_REPORT_LIMITS.title.max).optional(),
   content: contentSchema.optional(),
   reporterFirstName: firstNameSchema.optional(),
   reporterLastName: lastNameSchema.optional(),

@@ -1,7 +1,7 @@
 /**
  * Script to completely reset the database schema
  */
-const db = require('./db');
+import * as db from './db.mjs';
 
 console.log('🔄 Resetting PostgreSQL database...');
 

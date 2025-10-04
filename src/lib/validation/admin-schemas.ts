@@ -7,8 +7,8 @@ import { z } from 'zod';
 import {
   nameSchema,
   titleSchema,
+  TITLE_LIMITS,
   longDescriptionSchema,
-  shortDescriptionSchema,
   contentSchema,
   emailSchema,
   firstNameSchema,
@@ -42,7 +42,7 @@ export const adminGroupUpdateSchema = createAdminUpdateSchema({
  * Status report admin update schema
  */
 export const adminStatusReportUpdateSchema = createAdminUpdateSchema({
-  title: titleSchema,
+  title: titleSchema(TITLE_LIMITS.STATUS_REPORT.min, TITLE_LIMITS.STATUS_REPORT.max),
   content: contentSchema,
   reporterFirstName: firstNameSchema,
   reporterLastName: lastNameSchema,
@@ -55,7 +55,7 @@ export const adminStatusReportUpdateSchema = createAdminUpdateSchema({
  * Appointment admin update schema
  */
 export const adminAppointmentUpdateSchema = createAdminUpdateSchema({
-  title: titleSchema,
+  title: titleSchema(TITLE_LIMITS.APPOINTMENT.min, TITLE_LIMITS.APPOINTMENT.max),
   mainText: contentSchema,
   startDateTime: dateTimeSchema,
   endDateTime: optionalDateTimeSchema.nullable(),

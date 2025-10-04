@@ -167,7 +167,6 @@ export default function AdminGroupsPage() {
   ) => {
     const apiFormData = new FormData();
     apiFormData.append('name', formData.name);
-    apiFormData.append('slug', formData.slug);
     apiFormData.append('description', formData.description);
     apiFormData.append('status', formData.status);
 

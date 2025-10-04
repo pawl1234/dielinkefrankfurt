@@ -6,7 +6,6 @@ import {
   Typography,
   Paper,
   Button,
-  FormHelperText,
   Card,
   CardContent,
   CardMedia,
@@ -74,7 +73,6 @@ interface FileItem {
 const FileUpload = ({
   files = [],
   onChange,
-  error,
   maxFiles,
   maxFileSize,
   allowedMimeTypes,
@@ -83,7 +81,7 @@ const FileUpload = ({
   uploadProgress = 0
 }: FileUploadProps) => {
   const [fileItems, setFileItems] = useState<FileItem[]>([]);
-  const [processingFiles, setProcessingFiles] = useState<string[]>([]);
+  const [processingFiles, _setProcessingFiles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper function to convert MIME types to file extensions for display

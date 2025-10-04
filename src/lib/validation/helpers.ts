@@ -82,7 +82,7 @@ export async function validateWithZod<T>(schema: z.ZodSchema<T>, data: unknown):
 
   if (!result.isValid && result.errors) {
     // Import ValidationError here to avoid circular dependency
-    const { ValidationError } = require('@/lib/errors');
+    const { ValidationError } = await import('@/lib/errors');
     throw new ValidationError(result.errors);
   }
 

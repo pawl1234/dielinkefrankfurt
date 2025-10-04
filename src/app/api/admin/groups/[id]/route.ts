@@ -3,10 +3,10 @@ import { withAdminAuth } from '@/lib/api-auth';
 import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/group-handlers';
 import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
 import { GroupWithResponsiblePersons } from '@/types/email-types';
-import { uploadGroupLogo, deleteFiles, FileUploadError } from '@/lib/file-upload';
+import { uploadGroupLogo, deleteFiles } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
 import { validateGroupUpdateWithZod } from '@/lib/validation/group';
-import { apiErrorResponse, validationErrorResponse, ValidationError } from '@/lib/errors';
+import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 
 
 /**

@@ -7,21 +7,13 @@
 import { z } from 'zod';
 import {
   titleSchema,
-  shortDescriptionSchema,
-  contentSchema,
   dateTimeSchema,
   optionalDateTimeSchema,
-  streetSchema,
-  citySchema,
-  stateSchema,
-  postalCodeSchema,
   firstNameSchema,
   lastNameSchema,
-  featuredSchema,
   createOptionalTextSchema,
   richTextSchema
 } from './schemas';
-import { validationMessages } from '@/lib/validation-messages';
 import { FILE_TYPES, FILE_SIZE_LIMITS, createSecureFilesSchema } from './file-schemas';
 
 // SINGLE SOURCE OF TRUTH for limits
@@ -90,8 +82,7 @@ export const appointmentSubmitDataSchema = z.object({
     }
   }
 
-  // Validate recurring text is required when recurringText is empty but implied
-  const hasRecurringPattern = data.recurringText && data.recurringText.trim().length > 0;
+  // Validate recurring text - allow empty recurring text (means not recurring)
   if (data.recurringText !== undefined && data.recurringText !== null && data.recurringText.trim().length === 0) {
     // Allow empty recurring text (means not recurring)
   }

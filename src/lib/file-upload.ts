@@ -1,12 +1,8 @@
 import { put, del } from '@vercel/blob';
-import { FILE_TYPES } from './validation/file-schemas';
 import {
   FileUploadError,
   validateFile,
-  ALLOWED_IMAGE_TYPES,
-  ALLOWED_DOCUMENT_TYPES,
   ALLOWED_FILE_TYPES,
-  MAX_LOGO_SIZE,
   MAX_FILE_SIZE,
   MAX_STATUS_REPORT_FILES_SIZE,
   MAX_STATUS_REPORT_FILES_COUNT
@@ -251,7 +247,7 @@ export function validateStatusReportFiles(files: File[]): void {
   // Check file count
   if (files.length > MAX_STATUS_REPORT_FILES_COUNT) {
     throw new FileUploadError(
-      validationMessages.tooManyFiles('files', MAX_STATUS_REPORT_FILES_COUNT),
+      validationMessages.tooManyFiles(MAX_STATUS_REPORT_FILES_COUNT),
       400,
       'TOO_MANY_FILES'
     );
@@ -320,7 +316,7 @@ export async function uploadGroupLogo(logoFile: File | Blob): Promise<string> {
     });
 
     return url;
-  } catch (error) {
+  } catch {
     throw new FileUploadError(
       validationMessages.uploadFailed('logo'),
       500

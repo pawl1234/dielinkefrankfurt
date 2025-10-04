@@ -10,6 +10,7 @@ import {
   lastNameSchema,
   emailSchema,
   titleSchema,
+  TITLE_LIMITS,
   summarySchema,
   booleanSchema,
   fileUrlsSchema
@@ -164,7 +165,7 @@ export const antragFormDataSchema = z.object({
   firstName: firstNameSchema,
   lastName: lastNameSchema,
   email: emailSchema,
-  title: titleSchema,
+  title: titleSchema(TITLE_LIMITS.STANDARD.min, TITLE_LIMITS.STANDARD.max),
   summary: summarySchema,
   purposes: purposesSchema,
   fileUrls: fileUrlsSchema,
@@ -179,7 +180,7 @@ export const antragUpdateDataSchema = z.object({
   firstName: firstNameSchema.optional(),
   lastName: lastNameSchema.optional(),
   email: emailSchema.optional(),
-  title: titleSchema.optional(),
+  title: titleSchema(TITLE_LIMITS.STANDARD.min, TITLE_LIMITS.STANDARD.max).optional(),
   summary: summarySchema.optional(),
   purposes: purposesSchema.optional(),
   fileUrls: fileUrlsSchema
@@ -231,7 +232,7 @@ export async function validateAntragWithFilesWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
 
   // First validate the schema
-  const baseResult = zodToValidationResult(antragFormDataSchema, data);
+  const baseResult = await zodToValidationResult(antragFormDataSchema, data);
 
   if (!baseResult.isValid) {
     return baseResult;

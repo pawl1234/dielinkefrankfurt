@@ -53,7 +53,7 @@ export function ReportContentSection<TFormValues extends FieldValues>({
         <Controller
           control={control}
           name={contentFieldName}
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
+          render={({ field: { onChange, value } }) => (
             <RichTextEditor
               value={value || ''}
               onChange={onChange}

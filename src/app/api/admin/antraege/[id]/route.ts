@@ -3,10 +3,8 @@ import { withAdminAuth } from '@/lib/api-auth';
 import prisma from '@/lib/prisma';
 import { put, del } from '@vercel/blob';
 import {
-  validateAntragUpdateWithZod,
-  antragUpdateDataSchema
+  validateAntragUpdateWithZod
 } from '@/lib/validation/antrag';
-import { isValidZodResult } from '@/lib/validation/helpers';
 
 /**
  * GET /api/admin/antraege/[id]

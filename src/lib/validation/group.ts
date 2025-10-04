@@ -151,10 +151,10 @@ export const groupUpdateDataSchema = z.object({
 
 /**
  * Schema for EditGroupForm - includes logo file upload
+ * Note: slug is not editable in the UI, only set on creation
  */
 export const groupEditFormSchema = z.object({
   name: nameSchema,
-  slug: slugSchema.optional(),
   description: longDescriptionSchema,
   status: groupStatusSchema,
   responsiblePersons: responsiblePersonsSchema,

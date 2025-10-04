@@ -10,7 +10,6 @@ import {
   sendGroupRejectionEmail,
   sendGroupArchivingEmail
 } from './email-senders';
-import { getNewsletterSettings } from './newsletter-service';
 import { validationMessages } from '@/lib/validation-messages';
 import { logger } from './logger';
 

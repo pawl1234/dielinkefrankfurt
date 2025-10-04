@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import { validationMessages, antragMessages, getFieldPathLabel } from '@/lib/validation-messages';
+import { validationMessages, antragMessages } from '@/lib/validation-messages';
 
 /**
  * Configuration for field-specific error message handling.
@@ -163,12 +163,6 @@ function handleCustomValidationError(message: string, fieldPath: string): string
 }
 
 
-/**
- * Handle array validation errors (minimum length requirements).
- */
-function handleArrayValidationError(fieldPath: string): string {
-  return validationMessages.atLeastOne(fieldPath);
-}
 
 /**
  * Determine the appropriate field path for error mapping.
@@ -235,7 +229,7 @@ function isNameField(fieldPath: string): boolean {
  * @returns Zod error map function
  */
 export function createGermanZodErrorMap() {
-  return (issue: any, ctx: any) => {
+  return (issue: any) => {
     const fieldPath = issue.path?.join('.') || 'field';
     const message = mapZodErrorToGerman(issue, fieldPath);
     return { message };

@@ -1,7 +1,7 @@
 /**
  * Simplified script to reset Prisma migrations
  */
-const db = require('./db');
+import * as db from './db.mjs';
 
 console.log('🔄 Resetting Prisma migrations for PostgreSQL...');
 

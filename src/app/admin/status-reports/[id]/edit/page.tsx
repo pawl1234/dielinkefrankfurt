@@ -31,7 +31,6 @@ import {
   Save as SaveIcon,
   Delete as DeleteIcon,
   AttachFile as AttachFileIcon,
-  UploadFile as UploadFileIcon,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -207,14 +206,9 @@ export default function EditStatusReport({ params }: { params: { id: string } })
     }
   };
 
-  // Handle file upload
-  const handleFilesAdded = (files: File[]) => {
-    setNewFiles(prev => [...prev, ...files]);
-  };
-
-  // Handle removing a new file before upload
-  const handleRemoveNewFile = (index: number) => {
-    setNewFiles(prev => prev.filter((_, i) => i !== index));
+  // Handle file upload using controlled component pattern
+  const handleFilesChange = (files: File[]) => {
+    setNewFiles(files);
   };
 
   // Handle removing an existing file
@@ -456,36 +450,20 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                   <Typography variant="subtitle1" gutterBottom>
                     Add New Attachments
                   </Typography>
-                  
+
                   <FileUpload
-                    onFilesAdded={handleFilesAdded}
+                    files={newFiles}
+                    onChange={handleFilesChange}
+                    maxFiles={5}
                     maxFileSize={5 * 1024 * 1024} // 5MB
-                    allowedFileTypes={['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']}
-                    multiple
+                    allowedMimeTypes={[
+                      'application/pdf',
+                      'application/msword',
+                      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                      'image/jpeg',
+                      'image/png'
+                    ]}
                   />
-                  
-                  {/* Show new files to be uploaded */}
-                  {newFiles.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Files to Upload
-                      </Typography>
-                      
-                      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                        {newFiles.map((file, index) => (
-                          <Chip
-                            key={index}
-                            label={file.name}
-                            onDelete={() => handleRemoveNewFile(index)}
-                            deleteIcon={<DeleteIcon />}
-                            icon={<UploadFileIcon />}
-                            variant="outlined"
-                            sx={{ mb: 1 }}
-                          />
-                        ))}
-                      </Stack>
-                    </Box>
-                  )}
                 </Grid>
                 
                 {/* Form buttons */}

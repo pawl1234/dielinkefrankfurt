@@ -207,7 +207,7 @@ export class AIService {
       await this.initialize();
     }
 
-    const { generatedText, refinementRequest, conversationHistory } = params;
+    const { refinementRequest, conversationHistory } = params;
 
     logger.info('Refining newsletter intro', {
       context: {
@@ -216,7 +216,7 @@ export class AIService {
       }
     });
 
-    const prompt = buildRefinementPrompt(generatedText, refinementRequest, conversationHistory);
+    const prompt = buildRefinementPrompt(refinementRequest);
 
     if (process.env.NODE_ENV === 'development') {
       logger.debug('Refinement prompt', { 

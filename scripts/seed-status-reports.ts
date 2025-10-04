@@ -1,8 +1,8 @@
 // scripts/seed-reports.ts
-const { PrismaClient, StatusReportStatus } = require('@prisma/client');
-const { faker } = require('@faker-js/faker/locale/de');
-const fs = require('fs');
-const path = require('path');
+import { PrismaClient, StatusReportStatus } from '@prisma/client';
+import { faker } from '@faker-js/faker/locale/de';
+import fs from 'fs';
+import path from 'path';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();

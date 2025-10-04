@@ -1,7 +1,7 @@
 /**
  * Optimized build script for Vercel deployment with Neon PostgreSQL
  */
-const db = require('./db');
+import * as db from './db.mjs';
 
 console.log('🔧 Running Vercel build script for Prisma with PostgreSQL...');
 console.log(`🔍 Environment: ${db.IS_VERCEL ? 'Vercel' : 'Local'}`);
