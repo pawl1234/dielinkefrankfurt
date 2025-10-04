@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createStatusReport } from '@/lib/group-handlers';
-import { uploadStatusReportFiles } from '@/lib/file-upload';
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import { logger } from '@/lib/logger';
-import { del } from '@vercel/blob';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { validateStatusReportWithZod } from '@/lib/validation/status-report';
 import { StatusReportSubmissionRequest, StatusReportSubmissionResponse } from '@/types/api-types';
@@ -30,7 +29,10 @@ export async function POST(request: NextRequest) {
 
     if (submissionData.files && submissionData.files.length > 0) {
       try {
-        fileUrls = await uploadStatusReportFiles(submissionData.files);
+        const uploadResults = await uploadFiles(submissionData.files, {
+          category: 'status-reports'
+        });
+        fileUrls = uploadResults.map(r => r.url);
         logger.info('File upload successful');
       } catch (error) {
         logger.error('File upload failed', {
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (fileUrls.length > 0) {
       try {
-        await del(fileUrls);
+        await deleteFiles(fileUrls);
         logger.info('File cleanup successful after error');
       } catch (deleteError) {
         logger.error('File cleanup failed', {

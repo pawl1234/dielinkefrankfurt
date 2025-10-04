@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import prisma from '@/lib/prisma';
-import { put, del } from '@vercel/blob';
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import {
   validateAntragUpdateWithZod
 } from '@/lib/validation/antrag';
@@ -150,29 +150,20 @@ export const PUT = withAdminAuth(async (
 
     // Delete files marked for deletion
     if (filesToDelete.length > 0) {
-      for (const fileUrl of filesToDelete) {
-        try {
-          await del(fileUrl);
-          updatedFileUrls = updatedFileUrls.filter(url => url !== fileUrl);
-        } catch (error) {
-          console.error(`Failed to delete file: ${fileUrl}`, error);
-        }
+      const deleteResult = await deleteFiles(filesToDelete);
+      if (deleteResult.success) {
+        updatedFileUrls = updatedFileUrls.filter(url => !filesToDelete.includes(url));
+      } else {
+        console.error('Failed to delete some files:', deleteResult.failedUrls);
       }
     }
 
     // Upload new files
     if (newFiles.length > 0) {
-      const uploadPromises = newFiles.map(async (file) => {
-        const timestamp = Date.now();
-        const filename = `antraege/${id}/${timestamp}-${(file as unknown as { name: string }).name}`;
-        const blob = await put(filename, file, {
-          access: 'public',
-          addRandomSuffix: false,
-        });
-        return blob.url;
+      const uploadResults = await uploadFiles(newFiles as File[], {
+        category: 'antraege',
       });
-
-      const newFileUrls = await Promise.all(uploadPromises);
+      const newFileUrls = uploadResults.map(result => result.url);
       updatedFileUrls = [...updatedFileUrls, ...newFileUrls];
     }
 
@@ -265,28 +256,17 @@ export const DELETE = withAdminAuth(async (
 
     // Delete files from blob storage first (atomic operation)
     // If any file deletion fails, abort the entire operation
-    const deletionErrors: string[] = [];
-    
     if (filesToDelete.length > 0) {
       console.log(`Deleting ${filesToDelete.length} files for antrag ${id}`);
-      
-      for (const fileUrl of filesToDelete) {
-        try {
-          await del(fileUrl);
-          console.log(`Successfully deleted file: ${fileUrl}`);
-        } catch (error) {
-          const errorMessage = `Failed to delete file: ${fileUrl}`;
-          console.error(errorMessage, error);
-          deletionErrors.push(errorMessage);
-        }
-      }
+
+      const deleteResult = await deleteFiles(filesToDelete);
 
       // If any file deletion failed, abort the operation
-      if (deletionErrors.length > 0) {
+      if (!deleteResult.success && deleteResult.failedUrls && deleteResult.failedUrls.length > 0) {
         return NextResponse.json(
-          { 
+          {
             error: 'Failed to delete associated files. Antrag deletion aborted to maintain data integrity.',
-            details: deletionErrors
+            details: deleteResult.failedUrls.map(url => `Failed to delete file: ${url}`)
           },
           { status: 500 }
         );

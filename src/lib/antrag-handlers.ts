@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
 import type { Antrag, Prisma } from '@prisma/client';
 import { serverErrorResponse } from './api-auth';
-import { del } from '@vercel/blob';
-import { 
-  validationErrorResponse, 
+import { deleteFiles } from './blob-storage';
+import {
+  validationErrorResponse,
   handleDatabaseError
 } from './errors';
 import type { AntragPurposes } from './validation/antrag';
@@ -291,19 +291,11 @@ export async function deleteAntrag(request: NextRequest) {
     if (existingAntrag.fileUrls) {
       try {
         const fileUrls = JSON.parse(existingAntrag.fileUrls);
-        if (Array.isArray(fileUrls)) {
-          await Promise.all(
-            fileUrls.map(async (url: string) => {
-              try {
-                await del(url);
-              } catch (error) {
-                console.warn(`Failed to delete file: ${url}`, error);
-              }
-            })
-          );
+        if (Array.isArray(fileUrls) && fileUrls.length > 0) {
+          await deleteFiles(fileUrls);
         }
       } catch (error) {
-        console.warn('Failed to parse file URLs for deletion:', error);
+        console.warn('Failed to delete files from blob storage:', error);
       }
     }
 

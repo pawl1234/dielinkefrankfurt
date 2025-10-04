@@ -1,6 +1,6 @@
 import prisma from './prisma';
 import { Group, GroupStatus, ResponsiblePerson, StatusReport, StatusReportStatus, Prisma } from '@prisma/client';
-import { del } from '@vercel/blob';
+import { deleteFiles } from './blob-storage';
 import slugify from 'slugify';
 import {
   sendStatusReportAcceptanceEmail,
@@ -580,7 +580,7 @@ export async function deleteGroup(id: string): Promise<boolean> {
     // Delete files from blob storage
     if (filesToDelete.length > 0) {
       try {
-        await del(filesToDelete);
+        await deleteFiles(filesToDelete);
       } catch (deleteError) {
         console.error('Error deleting files from blob storage:', deleteError);
         // Continue even if file deletion fails
@@ -969,7 +969,7 @@ export async function deleteStatusReport(id: string): Promise<boolean> {
       try {
         const fileUrls = JSON.parse(statusReport.fileUrls);
         if (Array.isArray(fileUrls) && fileUrls.length > 0) {
-          await del(fileUrls);
+          await deleteFiles(fileUrls);
         }
       } catch (parseError) {
         console.error(`Error parsing/deleting fileUrls for status report ${id}:`, parseError);

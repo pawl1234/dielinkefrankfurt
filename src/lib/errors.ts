@@ -392,3 +392,34 @@ export class ValidationError extends AppError {
 export function isValidationError(error: unknown): error is ValidationError {
   return error instanceof ValidationError;
 }
+
+/**
+ * File upload error class with status code and error code support
+ * Used for file validation and upload failures
+ */
+export class FileUploadError extends Error {
+  public readonly status: number;
+  public readonly code?: string;
+  public readonly details?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    statusOrCode: number | string = 500,
+    codeOrDetails?: string | Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'FileUploadError';
+
+    // Support both constructor signatures for backward compatibility
+    if (typeof statusOrCode === 'number') {
+      // New signature: (message, status, code?)
+      this.status = statusOrCode;
+      this.code = typeof codeOrDetails === 'string' ? codeOrDetails : undefined;
+    } else {
+      // Old signature: (message, code, details?)
+      this.status = 500;
+      this.code = statusOrCode;
+      this.details = typeof codeOrDetails === 'object' ? codeOrDetails : undefined;
+    }
+  }
+}

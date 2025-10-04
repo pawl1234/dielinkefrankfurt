@@ -3,7 +3,8 @@ import { withAdminAuth } from '@/lib/api-auth';
 import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/group-handlers';
 import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
 import { GroupWithResponsiblePersons } from '@/types/email-types';
-import { uploadGroupLogo, deleteFiles } from '@/lib/file-upload';
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
+import { FILE_TYPES } from '@/lib/validation/file-schemas';
 import { logger } from '@/lib/logger';
 import { validateGroupUpdateWithZod } from '@/lib/validation/group';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
@@ -174,7 +175,12 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
         }
       } else if (logo && logo.size > 0) {
         try {
-          logoUrl = await uploadGroupLogo(logo);
+          const uploadResults = await uploadFiles([logo], {
+            category: 'groups',
+            prefix: 'logo',
+            allowedTypes: FILE_TYPES.IMAGE
+          });
+          logoUrl = uploadResults[0].url;
           logger.info('Logo upload successful', { context: { logoUrl } });
 
           if (existingGroup.logoUrl) {

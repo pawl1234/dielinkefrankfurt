@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createGroup } from '@/lib/group-handlers';
-import { uploadGroupLogo } from '@/lib/file-upload';
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
+import { FILE_TYPES } from '@/lib/validation/file-schemas';
 import { logger } from '@/lib/logger';
-import { del } from '@vercel/blob';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { validateGroupWithZod } from '@/lib/validation/group';
 
@@ -66,7 +66,12 @@ export async function POST(request: NextRequest) {
     const logo = formData.get('logo') as File | null;
     if (logo && logo.size > 0) {
       try {
-        logoUrl = await uploadGroupLogo(logo);
+        const uploadResults = await uploadFiles([logo], {
+          category: 'groups',
+          prefix: 'logo',
+          allowedTypes: FILE_TYPES.IMAGE
+        });
+        logoUrl = uploadResults[0].url;
         logger.info('Logo upload successful', { context: { logoUrl } });
       } catch (error) {
         logger.error('Logo upload failed', {
@@ -107,7 +112,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (logoUrl) {
       try {
-        await del(logoUrl);
+        await deleteFiles([logoUrl]);
         logger.info('Logo cleanup successful after error');
       } catch (deleteError) {
         logger.error('Logo cleanup failed', {

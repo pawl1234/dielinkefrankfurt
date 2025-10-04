@@ -1,9 +1,9 @@
 import sharp from 'sharp';
-import { put } from '@vercel/blob';
 import crypto from 'crypto';
 import { CompositeGenerationRequest } from '@/types/api-types';
 import { AppError, ErrorType } from './errors';
 import { logger } from './logger';
+import { uploadBuffer } from './blob-storage';
 
 /**
  * Image composition error class for specific image processing errors
@@ -276,8 +276,8 @@ export class HeaderCompositionService {
   }
   
   /**
-   * Uploads a buffer to Vercel Blob Storage.
-   * 
+   * Uploads a buffer to Vercel Blob Storage using the blob-storage module.
+   *
    * @param buffer - Image buffer to upload
    * @param filename - Filename for the blob
    * @returns URL of the uploaded image
@@ -292,23 +292,21 @@ export class HeaderCompositionService {
         }
       });
 
-      const { url } = await put(filename, buffer, {
-        access: 'public',
+      const result = await uploadBuffer(buffer, filename, {
+        category: 'newsletter-headers',
         contentType: 'image/jpeg',
-        addRandomSuffix: false,
-        allowOverwrite: true, // Allow overwriting existing files with same name
-        cacheControlMaxAge: 31536000, // Cache for 1 year
+        allowOverwrite: true,
       });
-      
+
       logger.debug('Successfully uploaded to blob storage', {
         module: 'imageComposition',
-        context: { 
-          filename, 
-          url
+        context: {
+          filename,
+          url: result.url
         }
       });
-      
-      return url;
+
+      return result.url;
     } catch (error) {
       logger.error(error as Error, {
         module: 'imageComposition',

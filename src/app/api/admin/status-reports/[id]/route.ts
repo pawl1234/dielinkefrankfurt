@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import { getStatusReportById, updateStatusReport, deleteStatusReport, StatusReportUpdateData } from '@/lib/group-handlers';
-import { uploadStatusReportFiles, FileUploadError, deleteFiles } from '@/lib/file-upload';
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
+import { FileUploadError } from '@/lib/errors';
 import { StatusReport } from '@prisma/client';
 
 /**
@@ -117,9 +118,11 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       // Upload new files if any
       if (files.length > 0) {
         try {
-          const newFileUrls = await uploadStatusReportFiles(files);
-          fileUrls = newFileUrls;
-          console.log(`✅ Successfully uploaded ${newFileUrls.length} files for status report update`);
+          const uploadResults = await uploadFiles(files, {
+            category: 'status-reports'
+          });
+          fileUrls = uploadResults.map(r => r.url);
+          console.log(`✅ Successfully uploaded ${fileUrls.length} files for status report update`);
         } catch (error) {
           console.error('Error uploading files:', error);
           

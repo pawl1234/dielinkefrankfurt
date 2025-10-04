@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAntrag } from '@/lib/db/antrag-operations';
-import { uploadAntragFiles, deleteAntragFiles } from '@/lib/antrag-file-utils';
-import { FileUploadError } from '@/lib/file-upload';
+import { deleteAntragFiles } from '@/lib/antrag-file-utils';
+import { uploadFiles } from '@/lib/blob-storage';
+import { FILE_TYPES, FILE_SIZE_LIMITS } from '@/lib/validation/file-schemas';
+import { FileUploadError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import {
   validateAntragWithZod,
@@ -101,11 +103,16 @@ export async function POST(request: NextRequest) {
     // Upload files if present
     if (files.length > 0) {
       try {
-        uploadedFileUrls = await uploadAntragFiles(files);
+        const uploadResults = await uploadFiles(files, {
+          category: 'antraege',
+          allowedTypes: FILE_TYPES.ANTRAG,
+          maxSizePerFile: FILE_SIZE_LIMITS.ANTRAG
+        });
+        uploadedFileUrls = uploadResults.map(r => r.url);
         console.log(`✅ Successfully uploaded ${uploadedFileUrls.length} files for Antrag`);
       } catch (error) {
         console.error('Error uploading files:', error);
-        
+
         // Handle FileUploadError with appropriate status code
         if (error instanceof FileUploadError) {
           const response: AntragSubmitResponse = {

@@ -1,6 +1,6 @@
 import prisma from '../prisma';
 import { Antrag, AntragStatus, Prisma } from '@prisma/client';
-import { del } from '@vercel/blob';
+import { deleteFiles } from '../blob-storage';
 import type { AntragPurposes } from '@/types/api-types';
 
 /**
@@ -253,7 +253,7 @@ export async function deleteAntrag(id: string): Promise<{ success: boolean; file
     // Delete files from blob storage if they exist
     if (fileUrls.length > 0) {
       try {
-        await del(fileUrls);
+        await deleteFiles(fileUrls);
       } catch (deleteError) {
         console.error('Error deleting files from blob storage:', deleteError);
         // Continue even if file deletion fails

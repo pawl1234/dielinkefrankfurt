@@ -2,22 +2,48 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
 import type { Appointment, Prisma } from '@prisma/client';
 import { serverErrorResponse } from './api-auth';
-import { put, del } from '@vercel/blob';
 import {
-  AppError,
-  handleFileUploadError,
   handleDatabaseError
 } from './errors';
-import { validateFile, ALLOWED_ATTACHMENT_TYPES, FileUploadError } from './file-handlers';
+import { FILE_TYPES } from './validation/file-schemas';
 import { type AppointmentSubmitData } from './validation/appointment';
+import { uploadFiles, deleteFiles } from './blob-storage';
+import { logger } from './logger';
+
+const ALLOWED_ATTACHMENT_TYPES = FILE_TYPES.EMAIL_ATTACHMENT;
+
+/**
+ * Appointment metadata structure for cover images
+ */
+export interface AppointmentMetadata {
+  coverImageUrl?: string;
+  croppedCoverImageUrl?: string | null;
+}
+
+/**
+ * Parses appointment metadata from JSON string.
+ * Centralized to avoid repetition and ensure consistent error handling.
+ *
+ * @param metadataJson JSON string containing metadata
+ * @returns Parsed metadata object or empty object if parsing fails
+ */
+export function parseAppointmentMetadata(metadataJson: string | null | undefined): AppointmentMetadata {
+  if (!metadataJson) return {};
+
+  try {
+    return JSON.parse(metadataJson);
+  } catch (error) {
+    logger.warn('Failed to parse appointment metadata', {
+      module: 'appointment-handlers',
+      context: { error }
+    });
+    return {};
+  }
+}
 
 /**
  * Types for appointment operations
  */
-interface AppointmentMetadata {
-  coverImageUrl?: string;
-  croppedCoverImageUrl?: string;
-}
 export interface AppointmentUpdateData {
   id: number;         // Pre-validated: valid appointment ID, required
   processed?: boolean; // Pre-validated: boolean value (when provided)
@@ -175,7 +201,10 @@ export async function getAppointments(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error fetching appointments:', error);
+    logger.error('Error fetching appointments', {
+      module: 'appointment-handlers',
+      context: { error }
+    });
     return serverErrorResponse('Failed to fetch appointments');
   }
 }
@@ -278,7 +307,10 @@ export async function getPublicAppointments(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error fetching public appointments:', error);
+    logger.error('Error fetching public appointments', {
+      module: 'appointment-handlers',
+      context: { error }
+    });
     return serverErrorResponse('Failed to fetch appointments');
   }
 }
@@ -349,7 +381,10 @@ export async function getNewsletterAppointments(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Error fetching newsletter appointments:', error);
+    logger.error('Error fetching newsletter appointments', {
+      module: 'appointment-handlers',
+      context: { error }
+    });
     return serverErrorResponse('Failed to fetch appointments');
   }
 }
@@ -392,11 +427,17 @@ export async function updateFeaturedStatus(request: NextRequest) {
       
       return NextResponse.json(updatedAppointment);
     } catch (dbError) {
-      console.error('Could not update appointment featured status in DB:', dbError);
+      logger.error('Could not update appointment featured status in DB', {
+        module: 'appointment-handlers',
+        context: { error: dbError }
+      });
       return serverErrorResponse('Failed to update appointment in database');
     }
   } catch (error) {
-    console.error('Error updating appointment featured status:', error);
+    logger.error('Error updating appointment featured status', {
+      module: 'appointment-handlers',
+      context: { error }
+    });
     return serverErrorResponse('Failed to update appointment featured status');
   }
 }
@@ -408,7 +449,7 @@ export async function updateFeaturedStatus(request: NextRequest) {
  * @param formData Form data containing files for upload to Vercel Blob Storage
  * @param featured Whether appointment should be featured (requires cover image)
  * @returns Promise resolving to created appointment with uploaded file URLs and metadata
- * @throws AppError Only for business logic failures (database operations, file upload failures, external service errors)
+ * @throws Error Only for business logic failures (database operations, file upload failures, external service errors)
  *
  * Note: Input validation is handled at API route level using Zod schemas.
  * This function assumes all field validation has already passed.
@@ -417,154 +458,55 @@ export async function updateFeaturedStatus(request: NextRequest) {
  * Business rules enforced:
  * - Featured appointments require cover image
  * - Files are validated against ALLOWED_ATTACHMENT_TYPES
- * - Database connection is verified before operations
  * - File URLs are stored as JSON strings in database
  */
 export async function createAppointmentWithFiles(
   validatedData: AppointmentSubmitData,
   formData: FormData,
   featured: boolean
-) {
-  // Note: Validation is handled by the route handler
-
-  // Process multiple file uploads if present using Vercel Blob Store
+): Promise<Appointment> {
+  // Upload regular attachments
   const files = formData.getAll('files') as (File | Blob)[];
-  const fileUrls: string[] = [];
-  let coverImageUrl: string | null = null;
-  let croppedCoverImageUrl: string | null = null;
+  let fileUrls: string[] = [];
 
-  if (files && files.length > 0) {
-    console.log(`Processing ${files.length} file attachment(s)...`);
-
-    // Process files sequentially to upload to Vercel Blob Store
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-
-      if (file && file instanceof Blob) {
-        // Get file name - File objects have name property, Blob objects don't
-        const fileName = 'name' in file ? (file as File).name : `attachment-${i}`;
-
-        // Validate file using centralized validation
-        try {
-          validateFile(file, ALLOWED_ATTACHMENT_TYPES);
-        } catch (error) {
-          if (error instanceof FileUploadError) {
-            throw handleFileUploadError(error, { fileName });
-          }
-          throw handleFileUploadError(error, { fileName });
-        }
-
-        try {
-          // Create a unique pathname for the blob
-          const timestamp = new Date().getTime();
-          const sanitizedFileName = fileName.replace(/\s+/g, '-');
-          const blobPathname = `appointments/${timestamp}-${i}-${sanitizedFileName}`;
-
-          // Upload the file to Vercel Blob Store
-          console.log(`Uploading file ${i+1}/${files.length} to Blob Store: ${blobPathname}`);
-
-          // Get the file data as an ArrayBuffer and convert to Blob for upload
-          const arrayBuffer = await file.arrayBuffer();
-          const blob = new Blob([arrayBuffer], { type: file.type });
-
-          // Upload to Vercel Blob Store with public access
-          const { url } = await put(blobPathname, blob, {
-            access: 'public',
-            contentType: file.type,
-            // Add useful metadata
-            addRandomSuffix: false, // Use our own timestamp-based naming
-            cacheControlMaxAge: 31536000, // Cache for 1 year (60 * 60 * 24 * 365)
-          });
-
-          console.log(`✅ File uploaded successfully to: ${url}`);
-
-          // Add the URL to the array for storing in the database
-          fileUrls.push(url);
-        } catch (uploadError) {
-          throw handleFileUploadError(uploadError, {
-            fileName,
-            fileSize: file.size,
-            fileType: file.type,
-            index: i
-          });
-        }
-      }
-    }
+  if (files.length > 0) {
+    const uploadResults = await uploadFiles(files, {
+      category: 'appointments',
+      allowedTypes: ALLOWED_ATTACHMENT_TYPES
+    });
+    fileUrls = uploadResults.map(r => r.url);
   }
 
-    // Process cover image if present (for featured appointments)
-    if (featured) {
-      const coverImage = formData.get('coverImage') as File | null;
-      const croppedCoverImage = formData.get('croppedCoverImage') as File | null;
+  // Upload cover images if featured
+  let metadata: AppointmentMetadata = {};
 
-      if (!coverImage && featured) {
-        throw AppError.validation('Cover-Bild ist für Featured-Termine erforderlich');
-      }
+  if (featured) {
+    const coverImage = formData.get('coverImage') as File | null;
+    const croppedCoverImage = formData.get('croppedCoverImage') as File | null;
 
-      if (coverImage) {
-        try {
-          // Create unique pathnames for both images
-          const timestamp = new Date().getTime();
-          const sanitizedFileName = coverImage.name.replace(/\s+/g, '-');
-          const originalBlobPathname = `appointments/${timestamp}-cover-${sanitizedFileName}`;
-          
-          // Upload original cover image
-          const arrayBuffer = await coverImage.arrayBuffer();
-          const blob = new Blob([arrayBuffer], { type: coverImage.type });
-          
-          const { url } = await put(originalBlobPathname, blob, {
-            access: 'public',
-            contentType: coverImage.type,
-            addRandomSuffix: false,
-            cacheControlMaxAge: 31536000, // Cache for 1 year
-          });
-          
-          console.log(`✅ Cover image uploaded successfully to: ${url}`);
-          coverImageUrl = url;
-          
-          // Upload cropped cover image if available
-          if (croppedCoverImage) {
-            const croppedArrayBuffer = await croppedCoverImage.arrayBuffer();
-            const croppedBlob = new Blob([croppedArrayBuffer], { type: croppedCoverImage.type });
-            
-            // Use _crop suffix to identify cropped versions
-            const croppedBlobPathname = `appointments/${timestamp}-cover-${sanitizedFileName.replace(/\.[^.]+$/, '')}_crop.jpg`;
-            
-            const { url: croppedUrl } = await put(croppedBlobPathname, croppedBlob, {
-              access: 'public',
-              contentType: 'image/jpeg',
-              addRandomSuffix: false,
-              cacheControlMaxAge: 31536000, // Cache for 1 year
-            });
-            
-            console.log(`✅ Cropped cover image uploaded successfully to: ${croppedUrl}`);
-            croppedCoverImageUrl = croppedUrl;
-          }
-        } catch (uploadError) {
-          throw handleFileUploadError(uploadError, { 
-            fileName: coverImage.name,
-            fileSize: coverImage.size,
-            fileType: coverImage.type,
-            isCoverImage: true
-          });
-        }
-      }
+    if (!coverImage) {
+      throw new Error('Cover-Bild ist für Featured-Termine erforderlich');
     }
 
-    // Save appointment to database
-    try {
-      // First check database connection
-      try {
-        // Use a simple query that works with both PostgreSQL and SQLite
-        const result = await prisma.$queryRaw`SELECT 1 as connection_test`;
-        console.log('✅ Database connection confirmed:', result);
-      } catch (connectionError) {
-        throw AppError.database('Database connection failed. Please try again later.', 
-          connectionError instanceof Error ? connectionError : undefined);
-      }
+    // Upload both cover images
+    const coverImagesToUpload = [coverImage, croppedCoverImage].filter((img): img is File => img !== null);
+    const coverUploadResults = await uploadFiles(coverImagesToUpload, {
+      category: 'appointments',
+      allowedTypes: FILE_TYPES.IMAGE,
+      prefix: 'cover'
+    });
 
-      // Connection successful, proceed with creating appointment
-      const appointmentData = {
+    // Map results to metadata structure
+    metadata = {
+      coverImageUrl: coverUploadResults[0]?.url,
+      croppedCoverImageUrl: coverUploadResults[1]?.url || null
+    };
+  }
+
+  // Save to database
+  try {
+    const appointment = await prisma.appointment.create({
+      data: {
         title: validatedData.title,
         mainText: validatedData.mainText,
         startDateTime: new Date(validatedData.startDateTime),
@@ -577,25 +519,21 @@ export async function createAppointmentWithFiles(
         lastName: validatedData.lastName || '',
         recurringText: validatedData.recurringText || '',
         featured,
-        status: 'pending' as const,
-        // Store file URLs as JSON strings
+        status: 'pending',
         fileUrls: fileUrls.length > 0 ? JSON.stringify(fileUrls) : null,
-        // Store cover image URLs in metadata field
-        metadata: coverImageUrl ? JSON.stringify({
-          coverImageUrl,
-          croppedCoverImageUrl
-        }) : null,
-      };
-      
-      const newAppointment = await prisma.appointment.create({
-        data: appointmentData,
-      });
+        metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+      },
+    });
 
-      console.log('✅ Appointment successfully saved to database with ID:', newAppointment.id);
-      return newAppointment;
-    } catch (dbError) {
-      throw handleDatabaseError(dbError, 'appointment creation');
-    }
+    logger.info('Appointment created', {
+      module: 'appointment-handlers',
+      context: { id: appointment.id }
+    });
+
+    return appointment;
+  } catch (dbError) {
+    throw handleDatabaseError(dbError, 'appointment creation');
+  }
 }
 
 /**
@@ -649,37 +587,37 @@ export async function updateAppointment(request: NextRequest) {
       const fileCount = formData.get('fileCount');
       if (fileCount && parseInt(fileCount as string) > 0) {
         const count = parseInt(fileCount as string);
-        const uploadedFiles = [];
-        
+        const filesToUpload: File[] = [];
+
         for (let i = 0; i < count; i++) {
           const file = formData.get(`file-${i}`);
-          if (file instanceof Blob) {
-            // Process file upload
-            try {
-              // Create a unique pathname for the blob
-              const timestamp = new Date().getTime();
-              const sanitizedFileName = file.name ? file.name.replace(/\s+/g, '-') : `file-${i}`;
-              const blobPathname = `appointments/${timestamp}-${i}-${sanitizedFileName}`;
-              
-              // Upload the file to Vercel Blob Store
-              const arrayBuffer = await file.arrayBuffer();
-              const blob = new Blob([arrayBuffer], { type: file.type });
-              
-              const { url } = await put(blobPathname, blob, {
-                access: 'public',
-                contentType: file.type,
-                addRandomSuffix: false,
-                cacheControlMaxAge: 31536000, // Cache for 1 year
-              });
-              
-              console.log(`✅ File uploaded successfully to: ${url}`);
-              uploadedFiles.push(url);
-            } catch (uploadError) {
-              console.error('Error uploading file:', uploadError);
-            }
+          if (file instanceof File) {
+            filesToUpload.push(file);
           }
         }
-        
+
+        // Upload all files at once using blob-storage module
+        let uploadedUrls: string[] = [];
+        if (filesToUpload.length > 0) {
+          try {
+            const uploadResults = await uploadFiles(filesToUpload, {
+              category: 'appointments',
+              allowedTypes: ALLOWED_ATTACHMENT_TYPES,
+            });
+            uploadedUrls = uploadResults.map(result => result.url);
+
+            logger.debug('Files uploaded successfully', {
+              module: 'appointment-handlers',
+              context: { count: uploadedUrls.length }
+            });
+          } catch (uploadError) {
+            logger.error('Error uploading files', {
+              module: 'appointment-handlers',
+              context: { error: uploadError }
+            });
+          }
+        }
+
         // Get existing file URLs if any
         let existingFiles: string[] = [];
         const existingFileUrls = formData.get('existingFileUrls');
@@ -687,12 +625,15 @@ export async function updateAppointment(request: NextRequest) {
           try {
             existingFiles = JSON.parse(existingFileUrls);
           } catch (e) {
-            console.error('Error parsing existing file URLs:', e);
+            logger.warn('Error parsing existing file URLs', {
+              module: 'appointment-handlers',
+              context: { error: e }
+            });
           }
         }
-        
+
         // Combine existing and new file URLs
-        data.fileUrls = JSON.stringify([...existingFiles, ...uploadedFiles]);
+        data.fileUrls = JSON.stringify([...existingFiles, ...uploadedUrls]);
       } else {
         // If no new files, just preserve existing files
         const existingFileUrls = formData.get('existingFileUrls');
@@ -701,7 +642,10 @@ export async function updateAppointment(request: NextRequest) {
             const existingFiles = JSON.parse(existingFileUrls);
             data.fileUrls = JSON.stringify(existingFiles);
           } catch (e) {
-            console.error('Error parsing existing file URLs:', e);
+            logger.warn('Error parsing existing file URLs', {
+              module: 'appointment-handlers',
+              context: { error: e }
+            });
             data.fileUrls = null;
           }
         } else {
@@ -715,12 +659,17 @@ export async function updateAppointment(request: NextRequest) {
         try {
           const urlsToDelete = JSON.parse(deletedFileUrls);
           if (Array.isArray(urlsToDelete) && urlsToDelete.length > 0) {
-            console.log(`🗑️ Deleting ${urlsToDelete.length} removed attachment files:`, urlsToDelete);
-            await del(urlsToDelete);
-            console.log(`✅ Removed attachment files deleted successfully`);
+            logger.info('Deleting removed attachment files', {
+              module: 'appointment-handlers',
+              context: { count: urlsToDelete.length, urlsToDelete }
+            });
+            await deleteFiles(urlsToDelete);
           }
         } catch (deleteError) {
-          console.error(`❌ Error deleting removed attachment files:`, deleteError);
+          logger.error('Error deleting removed attachment files', {
+            module: 'appointment-handlers',
+            context: { error: deleteError }
+          });
           // Continue with the update even if deletion fails
         }
       }
@@ -740,147 +689,98 @@ export async function updateAppointment(request: NextRequest) {
       if (!featured && existingAppointment?.featured) {
         try {
           // Parse existing metadata if available
-          let oldCoverImageUrl: string | null = null;
-          let oldCroppedCoverImageUrl: string | null = null;
-          
-          if (existingAppointment?.metadata) {
-            try {
-              const metadata: AppointmentMetadata = 
-                JSON.parse(existingAppointment.metadata);
-              oldCoverImageUrl = metadata.coverImageUrl || null;
-              oldCroppedCoverImageUrl = metadata.croppedCoverImageUrl || null;
-            } catch (e) {
-              console.error('Error parsing existing metadata:', e);
-            }
-          }
+          const metadata = parseAppointmentMetadata(existingAppointment?.metadata);
+          const oldCoverImageUrl = metadata.coverImageUrl || null;
+          const oldCroppedCoverImageUrl = metadata.croppedCoverImageUrl || null;
           
           // Delete old images if they exist
           if (oldCoverImageUrl || oldCroppedCoverImageUrl) {
             try {
               const urlsToDelete = [];
-              
+
               if (oldCoverImageUrl) urlsToDelete.push(oldCoverImageUrl);
               if (oldCroppedCoverImageUrl) urlsToDelete.push(oldCroppedCoverImageUrl);
-              
+
               if (urlsToDelete.length > 0) {
-                console.log(`🗑️ Removing cover images for non-featured appointment:`, urlsToDelete);
-                await del(urlsToDelete);
-                console.log(`✅ Cover images removed successfully`);
+                logger.info('Removing cover images for non-featured appointment', {
+                  module: 'appointment-handlers',
+                  context: { urlsToDelete }
+                });
+                await deleteFiles(urlsToDelete);
               }
             } catch (deleteError) {
-              console.error(`❌ Error deleting cover images:`, deleteError);
+              logger.error('Error deleting cover images', {
+                module: 'appointment-handlers',
+                context: { error: deleteError }
+              });
             }
           }
           
           // Clear metadata for cover images
           data.metadata = JSON.stringify({});
         } catch (error) {
-          console.error('Error handling featured status change:', error);
+          logger.error('Error handling featured status change', {
+            module: 'appointment-handlers',
+            context: { error }
+          });
         }
       }
-      
+
       if (featured && coverImage) {
         try {
-          console.log("Processing cover image upload...");
-          console.log("Cover image type:", coverImage.type);
-          console.log("Cover image size:", coverImage.size);
-          
-          // Create a unique pathname for the blob
-          const timestamp = new Date().getTime();
-          const sanitizedFileName = coverImage.name ? coverImage.name.replace(/\s+/g, '-') : 'cover.jpg';
-          const originalBlobPathname = `appointments/${timestamp}-cover-${sanitizedFileName}`;
-          
-          console.log("Original blob pathname:", originalBlobPathname);
-          
-          // Upload original cover image
-          const arrayBuffer = await coverImage.arrayBuffer();
-          console.log("Array buffer obtained, size:", arrayBuffer.byteLength);
-          
-          const blob = new Blob([arrayBuffer], { type: coverImage.type || 'image/jpeg' });
-          console.log("Created blob with type:", blob.type);
-          
-          console.log("Uploading original cover image...");
-          const { url } = await put(originalBlobPathname, blob, {
-            access: 'public',
-            contentType: coverImage.type || 'image/jpeg',
-            addRandomSuffix: false,
-            cacheControlMaxAge: 31536000, // Cache for 1 year
+          // Upload new cover images
+          const coverImagesToUpload = [coverImage, croppedCoverImage].filter((img): img is File => img !== null);
+          const coverUploadResults = await uploadFiles(coverImagesToUpload, {
+            category: 'appointments',
+            allowedTypes: FILE_TYPES.IMAGE,
+            prefix: 'cover'
           });
-          
-          console.log(`✅ Cover image uploaded successfully to: ${url}`);
-          const coverImageUrl = url;
-          let croppedCoverImageUrl = null;
-          
-          // Upload cropped cover image if available
-          if (croppedCoverImage) {
-            console.log("Processing cropped cover image...");
-            console.log("Cropped image type:", croppedCoverImage.type);
-            console.log("Cropped image size:", croppedCoverImage.size);
-            
-            const croppedArrayBuffer = await croppedCoverImage.arrayBuffer();
-            console.log("Cropped array buffer obtained, size:", croppedArrayBuffer.byteLength);
-            
-            const croppedBlob = new Blob([croppedArrayBuffer], { type: croppedCoverImage.type || 'image/jpeg' });
-            console.log("Created cropped blob with type:", croppedBlob.type);
-            
-            // Use _crop suffix to identify cropped versions
-            const croppedBlobPathname = `appointments/${timestamp}-cover-${sanitizedFileName.replace(/\.[^.]+$/, '')}_crop.jpg`;
-            console.log("Cropped blob pathname:", croppedBlobPathname);
-            
-            console.log("Uploading cropped cover image...");
-            const { url: croppedUrl } = await put(croppedBlobPathname, croppedBlob, {
-              access: 'public',
-              contentType: 'image/jpeg',
-              addRandomSuffix: false,
-              cacheControlMaxAge: 31536000, // Cache for 1 year
-            });
-            
-            console.log(`✅ Cropped cover image uploaded successfully to: ${croppedUrl}`);
-            croppedCoverImageUrl = croppedUrl;
-          }
-          
-          // Parse existing metadata if available
-          let metadata: AppointmentMetadata = {};
-          let oldCoverImageUrl: string | null = null;
-          let oldCroppedCoverImageUrl: string | null = null;
-          
-          if (existingAppointment?.metadata) {
-            try {
-              metadata = JSON.parse(existingAppointment.metadata);
-              oldCoverImageUrl = metadata.coverImageUrl || null;
-              oldCroppedCoverImageUrl = metadata.croppedCoverImageUrl || null;
-            } catch (e) {
-              console.error('Error parsing existing metadata:', e);
-            }
-          }
-          
+
+          // Map results to metadata structure
+          const newCoverImages = {
+            coverImageUrl: coverUploadResults[0]?.url,
+            croppedCoverImageUrl: coverUploadResults[1]?.url || null
+          };
+
+          // Parse existing metadata
+          const metadata = parseAppointmentMetadata(existingAppointment?.metadata);
+          const oldCoverImageUrl = metadata.coverImageUrl || null;
+          const oldCroppedCoverImageUrl = metadata.croppedCoverImageUrl || null;
+
           // Delete old images if they exist
           if (oldCoverImageUrl || oldCroppedCoverImageUrl) {
             try {
               const urlsToDelete = [];
-              
+
               if (oldCoverImageUrl) urlsToDelete.push(oldCoverImageUrl);
               if (oldCroppedCoverImageUrl) urlsToDelete.push(oldCroppedCoverImageUrl);
-              
+
               if (urlsToDelete.length > 0) {
-                console.log(`🗑️ Deleting old cover images:`, urlsToDelete);
-                await del(urlsToDelete);
-                console.log(`✅ Old cover images deleted successfully`);
+                logger.info('Deleting old cover images', {
+                  module: 'appointment-handlers',
+                  context: { urlsToDelete }
+                });
+                await deleteFiles(urlsToDelete);
               }
             } catch (deleteError) {
-              console.error(`❌ Error deleting old cover images:`, deleteError);
+              logger.error('Error deleting old cover images', {
+                module: 'appointment-handlers',
+                context: { error: deleteError }
+              });
               // Continue with the update even if deletion fails
             }
           }
-          
+
           // Update metadata with new cover image URLs
           data.metadata = JSON.stringify({
             ...metadata,
-            coverImageUrl,
-            croppedCoverImageUrl
+            ...newCoverImages
           });
         } catch (uploadError) {
-          console.error(`❌ Error uploading cover image to Blob Store:`, uploadError);
+          logger.error('Error uploading cover image to Blob Store', {
+            module: 'appointment-handlers',
+            context: { error: uploadError }
+          });
         }
       }
     } else {
@@ -960,22 +860,25 @@ export async function updateAppointment(request: NextRequest) {
     if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason;
     if (data.metadata !== undefined) {
       updateData.metadata = data.metadata;
-      console.log("📝 Adding metadata to update:", data.metadata);
     }
-
-    console.log("📊 Final update data being sent to database:", updateData);
 
     const updatedAppointment = await prisma.appointment.update({
       where: { id: Number(id) },
       data: updateData,
     });
-    
-    console.log("✅ Appointment updated successfully with ID:", updatedAppointment.id);
+
+    logger.info('Appointment updated', {
+      module: 'appointment-handlers',
+      context: { id: updatedAppointment.id }
+    });
 
     // Clear cache for this appointment
     return NextResponse.json(updatedAppointment);
   } catch (error) {
-    console.error('Error updating appointment:', error);
+    logger.error('Error updating appointment', {
+      module: 'appointment-handlers',
+      context: { error }
+    });
     return serverErrorResponse('Failed to update appointment');
   }
 }
@@ -1036,45 +939,57 @@ export async function deleteAppointment(request: NextRequest) {
           filesToDelete.push(...fileUrls);
         }
       } catch (e) {
-        console.error('Error parsing file URLs:', e);
+        logger.warn('Error parsing file URLs', {
+          module: 'appointment-handlers',
+          context: { error: e }
+        });
       }
     }
     
     // Check for cover images in metadata
     if (appointment.metadata) {
-      try {
-        const metadata = JSON.parse(appointment.metadata);
-        if (metadata.coverImageUrl) {
-          filesToDelete.push(metadata.coverImageUrl);
-        }
-        if (metadata.croppedCoverImageUrl) {
-          filesToDelete.push(metadata.croppedCoverImageUrl);
-        }
-      } catch (e) {
-        console.error('Error parsing metadata:', e);
+      const metadata = parseAppointmentMetadata(appointment.metadata);
+      if (metadata.coverImageUrl) {
+        filesToDelete.push(metadata.coverImageUrl);
+      }
+      if (metadata.croppedCoverImageUrl) {
+        filesToDelete.push(metadata.croppedCoverImageUrl);
       }
     }
     
     // Delete files from blob storage
     if (filesToDelete.length > 0) {
       try {
-        console.log(`🗑️ Deleting ${filesToDelete.length} files from blob storage`);
-        await del(filesToDelete);
-        console.log('✅ Files deleted successfully');
+        logger.info('Deleting files from blob storage', {
+          module: 'appointment-handlers',
+          context: { count: filesToDelete.length }
+        });
+        await deleteFiles(filesToDelete);
       } catch (deleteError) {
-        console.error('❌ Error deleting files from blob storage:', deleteError);
+        logger.error('Error deleting files from blob storage', {
+          module: 'appointment-handlers',
+          context: { error: deleteError }
+        });
         // Continue with appointment deletion even if file deletion fails
       }
     }
-    
+
     // Delete the appointment from the database
     await prisma.appointment.delete({
       where: { id: Number(id) }
     });
-    
+
+    logger.info('Appointment deleted', {
+      module: 'appointment-handlers',
+      context: { id: Number(id) }
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting appointment:', error);
+    logger.error('Error deleting appointment', {
+      module: 'appointment-handlers',
+      context: { error }
+    });
     return serverErrorResponse('Failed to delete appointment');
   }
 }

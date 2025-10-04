@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
-import { 
-  getStatusReports, 
-  updateStatusReport, 
+import {
+  getStatusReports,
+  updateStatusReport,
   deleteStatusReport,
   StatusReportUpdateData
 } from '@/lib/group-handlers';
-import { put, del } from '@vercel/blob';
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 
 /**
  * GET /api/admin/status-reports
@@ -127,33 +127,14 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
     const uploadedFiles: string[] = [];
 
     if (files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file && file.size > 0) {
-          // Process file upload
-          try {
-            // Create a unique pathname for the blob
-            const timestamp = new Date().getTime();
-            const sanitizedFileName = file.name ? file.name.replace(/\s+/g, '-') : `file-${i}`;
-            const blobPathname = `status-reports/${timestamp}-${i}-${sanitizedFileName}`;
-            
-            // Upload the file to Vercel Blob Store
-            const arrayBuffer = await file.arrayBuffer();
-            const blob = new Blob([arrayBuffer], { type: file.type });
-            
-            const { url } = await put(blobPathname, blob, {
-              access: 'public',
-              contentType: file.type,
-              addRandomSuffix: false,
-              cacheControlMaxAge: 31536000, // Cache for 1 year
-            });
-            
-            console.log(`✅ File uploaded successfully to: ${url}`);
-            uploadedFiles.push(url);
-          } catch (uploadError) {
-            console.error('Error uploading file:', uploadError);
-          }
-        }
+      try {
+        const uploadResults = await uploadFiles(files, {
+          category: 'status-reports'
+        });
+        uploadResults.forEach(result => uploadedFiles.push(result.url));
+        console.log(`✅ Files uploaded successfully: ${uploadedFiles.length} files`);
+      } catch (uploadError) {
+        console.error('Error uploading files:', uploadError);
       }
     }
     
@@ -184,7 +165,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
           if (filesToDelete.length > 0) {
             try {
               console.log(`🗑️ Deleting ${filesToDelete.length} removed files:`, filesToDelete);
-              await del(filesToDelete);
+              await deleteFiles(filesToDelete);
               console.log('✅ Removed files deleted successfully');
             } catch (deleteError) {
               console.error('❌ Error deleting removed files:', deleteError);

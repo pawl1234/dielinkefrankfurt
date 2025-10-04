@@ -74,17 +74,17 @@ export const parseFileUrls = (fileUrls: string | null): FileAttachment[] => {
 
 /**
  * Converts appointment metadata to cover image FileAttachment array
- * 
+ *
  * @param metadata - JSON string containing appointment metadata
  * @returns Array of FileAttachment objects for cover images
  */
 export const parseCoverImages = (metadata: string | null): FileAttachment[] => {
   if (!metadata) return [];
-  
+
   try {
     const meta = JSON.parse(metadata);
     const coverImages: FileAttachment[] = [];
-    
+
     if (meta.coverImageUrl) {
       coverImages.push({
         url: meta.coverImageUrl,
@@ -92,65 +92,12 @@ export const parseCoverImages = (metadata: string | null): FileAttachment[] => {
         description: 'Cover-Bild'
       });
     }
-    
+
     return coverImages;
   } catch (error) {
     console.error('Error parsing metadata:', error);
     return [];
   }
-};
-
-/**
- * Converts File/Blob array to FileAttachment array for uploads
- * 
- * @param files - Array of File or Blob objects
- * @param previews - Optional preview URLs keyed by file ID
- * @returns Array of FileAttachment objects
- */
-export const parseUploadedFiles = (
-  files: (File | Blob)[], 
-  previews?: { [key: string]: string }
-): FileAttachment[] => {
-  return files.map((file, index) => {
-    const id = `file-${Date.now()}-${index}`;
-    const type = getFileType(file);
-    
-    return {
-      id,
-      file,
-      name: file instanceof File ? file.name : `File-${index + 1}`,
-      type: type as 'image' | 'pdf' | 'other',
-      preview: previews?.[id]
-    };
-  });
-};
-
-/**
- * Converts FileItem array (from FileUpload component) to FileAttachment array
- * 
- * @param fileItems - Array of file items from upload component
- * @returns Array of FileAttachment objects
- */
-export const parseFileItems = (
-  fileItems: { 
-    id: string; 
-    name: string; 
-    type: string; 
-    preview?: string; 
-    file: File | Blob 
-  }[]
-): FileAttachment[] => {
-  return fileItems.map(item => {
-    const type = getFileType(item.file);
-    
-    return {
-      id: item.id,
-      file: item.file,
-      name: item.name,
-      type: type as 'image' | 'pdf' | 'other',
-      preview: item.preview
-    };
-  });
 };
 
 /**
