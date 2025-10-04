@@ -93,18 +93,18 @@ export const PUT = withAdminAuth(async (
     // Handle both JSON and FormData
     const contentType = request.headers.get('content-type');
     let body: Record<string, unknown>;
-    const newFiles: File[] = [];
+    const newFiles: Blob[] = [];
     let filesToDelete: string[] = [];
 
     if (contentType?.includes('multipart/form-data')) {
       const formData = await request.formData();
       body = {};
-      
+
       // Extract fields from FormData
       for (const [key, value] of formData.entries()) {
         if (key.startsWith('file-')) {
           // New file upload
-          if (value instanceof File) {
+          if (value instanceof Blob) {
             newFiles.push(value);
           }
         } else if (key === 'filesToDelete') {
@@ -164,7 +164,7 @@ export const PUT = withAdminAuth(async (
     if (newFiles.length > 0) {
       const uploadPromises = newFiles.map(async (file) => {
         const timestamp = Date.now();
-        const filename = `antraege/${id}/${timestamp}-${file.name}`;
+        const filename = `antraege/${id}/${timestamp}-${(file as unknown as { name: string }).name}`;
         const blob = await put(filename, file, {
           access: 'public',
           addRandomSuffix: false,

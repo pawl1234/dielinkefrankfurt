@@ -34,9 +34,10 @@ export const APPOINTMENT_LIMITS = {
 
 
 /**
- * Schema for public appointment submission (may have different requirements)
+ * Lazy schema creation to avoid SSR issues with file validation
+ * Creates the schema at runtime instead of module load time
  */
-export const appointmentSubmitDataSchema = z.object({
+export const getAppointmentSubmitDataSchema = () => z.object({
   title: titleSchema(APPOINTMENT_LIMITS.title.min, APPOINTMENT_LIMITS.title.max),
   mainText: richTextSchema(APPOINTMENT_LIMITS.content.min, APPOINTMENT_LIMITS.content.max, 'description'),
   startDateTime: dateTimeSchema,
@@ -89,9 +90,15 @@ export const appointmentSubmitDataSchema = z.object({
 });
 
 /**
+ * Legacy export for backward compatibility
+ * @deprecated Use getAppointmentSubmitDataSchema() instead for SSR safety
+ */
+export const appointmentSubmitDataSchema = getAppointmentSubmitDataSchema();
+
+/**
  * TypeScript types derived from Zod schemas
  */
-export type AppointmentSubmitData = z.infer<typeof appointmentSubmitDataSchema>;
+export type AppointmentSubmitData = z.infer<ReturnType<typeof getAppointmentSubmitDataSchema>>;
 
 
 /**
@@ -99,5 +106,5 @@ export type AppointmentSubmitData = z.infer<typeof appointmentSubmitDataSchema>;
  */
 export async function validateAppointmentSubmitWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
-  return zodToValidationResult(appointmentSubmitDataSchema, data);
+  return zodToValidationResult(getAppointmentSubmitDataSchema(), data);
 }

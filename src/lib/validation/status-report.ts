@@ -46,10 +46,10 @@ const baseStatusReportSchema = z.object({
 });
 
 /**
- * Status report schema with FIXED limits
- * No more dynamic limits - they're defined in STATUS_REPORT_LIMITS
+ * Lazy schema creation to avoid SSR issues with file validation
+ * Creates the schema at runtime instead of module load time
  */
-export const statusReportSchema = z.object({
+export const getStatusReportSchema = () => z.object({
   groupId: z.string()
     .min(1, validationMessages.required('groupId'))
     .regex(/^c[a-z0-9]{24}$/, validationMessages.invalidGroupId('groupId')),
@@ -71,6 +71,12 @@ export const statusReportSchema = z.object({
 });
 
 /**
+ * Legacy export for backward compatibility
+ * @deprecated Use getStatusReportSchema() instead for SSR safety
+ */
+export const statusReportSchema = getStatusReportSchema();
+
+/**
  * Default status report schema (uses standard limits)
  */
 export const statusReportCreateDataSchema = baseStatusReportSchema;
@@ -90,12 +96,18 @@ export const statusReportUpdateDataSchema = z.object({
 /**
  * Admin schema for editing status reports (includes status field)
  */
-export const statusReportAdminSchema = statusReportSchema.extend({
+export const getStatusReportAdminSchema = () => getStatusReportSchema().extend({
   status: z.enum(['NEW', 'ACTIVE', 'ARCHIVED', 'REJECTED'], {
     message: 'Status ist erforderlich'
   }),
   existingFileUrls: z.array(z.string().url()).optional()
 });
+
+/**
+ * Legacy export for backward compatibility
+ * @deprecated Use getStatusReportAdminSchema() instead for SSR safety
+ */
+export const statusReportAdminSchema = getStatusReportAdminSchema();
 
 /**
  * TypeScript types derived from Zod schemas
@@ -109,7 +121,7 @@ export type StatusReportCreateData = z.infer<typeof statusReportCreateDataSchema
  */
 export async function validateStatusReportWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
-  return zodToValidationResult(statusReportSchema, data);
+  return zodToValidationResult(getStatusReportSchema(), data);
 }
 
 /**

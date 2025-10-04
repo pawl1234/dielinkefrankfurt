@@ -38,7 +38,10 @@ export const FILE_TYPES = {
  * Base file schema with size validation
  */
 export const createFileSchema = (maxSize: number = FILE_SIZE_LIMITS.DEFAULT, _fieldName: string = 'Datei') =>
-  z.instanceof(File).refine(
+  z.custom<File | Blob>((val) => {
+    // Check if it's a Blob (File extends Blob)
+    return val instanceof Blob || (typeof File !== 'undefined' && val instanceof File);
+  }).refine(
     (file) => file.size <= maxSize,
     validationMessages.fileSizeExceeds(Math.round(maxSize / (1024 * 1024)))
   );
@@ -81,20 +84,20 @@ export const createSecureFilesSchema = (
 ) =>
   z.array(z.any()).optional()
     .refine(
-      (files) => !files || files.length <= maxFiles,
+      (files) => !files || !Array.isArray(files) || files.length <= maxFiles,
       { message: validationMessages.tooManyFiles(maxFiles) }
     )
     .refine(
-      (files) => !files || files.every((file: any) => file && file.size <= maxSizePerFile),
+      (files) => !files || !Array.isArray(files) || files.every((file: any) => file && file.size <= maxSizePerFile),
       { message: validationMessages.fileSizeExceeds(Math.round(maxSizePerFile / (1024 * 1024))) }
     )
     .refine(
-      (files) => !files || files.every((file: any) => allowedTypes.includes(file.type)),
+      (files) => !files || !Array.isArray(files) || files.every((file: any) => allowedTypes.includes(file.type)),
       { message: validationMessages.unsupportedFileType() }
     )
     .refine(
       async (files) => {
-        if (!files || files.length === 0) return true;
+        if (!files || !Array.isArray(files) || files.length === 0) return true;
 
         for (const file of files) {
           try {

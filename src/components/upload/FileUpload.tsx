@@ -34,7 +34,7 @@ interface FileUploadProps {
   /** Maximum file size in bytes (from constants) */
   maxFileSize: number;
   /** Allowed MIME types (from constants) */
-  allowedMimeTypes: string[];
+  allowedMimeTypes?: string[];
 
   /** Whether component is disabled */
   disabled?: boolean;
