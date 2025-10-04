@@ -6,15 +6,13 @@
 
 import { z } from 'zod';
 import {
-  groupIdSchema,
-  titleSchema,
-  contentSchema,
-  firstNameSchema,
-  lastNameSchema,
-  fileUrlsSchema,
-  richTextSchema
+  createGroupIdSchema,
+  createTitleSchema,
+  createContentSchema,
+  createPersonNameSchema,
+  createFileUrlsSchema,
+  createRichTextSchema
 } from './schemas';
-import { validationMessages } from '@/lib/validation-messages';
 import { FILE_TYPES, createSecureFilesSchema } from './file-schemas';
 
 // SINGLE SOURCE OF TRUTH for limits
@@ -37,12 +35,12 @@ export const STATUS_REPORT_LIMITS = {
  * Base status report schema with default limits
  */
 const baseStatusReportSchema = z.object({
-  groupId: groupIdSchema,
-  title: titleSchema(STATUS_REPORT_LIMITS.title.min, STATUS_REPORT_LIMITS.title.max),
-  content: contentSchema,
-  reporterFirstName: firstNameSchema,
-  reporterLastName: lastNameSchema,
-  fileUrls: fileUrlsSchema
+  groupId: createGroupIdSchema('groupId'),
+  title: createTitleSchema(STATUS_REPORT_LIMITS.title.min, STATUS_REPORT_LIMITS.title.max, 'title'),
+  content: createContentSchema(STATUS_REPORT_LIMITS.content.min, STATUS_REPORT_LIMITS.content.max, 'content'),
+  reporterFirstName: createPersonNameSchema(2, 50, 'reporterFirstName'),
+  reporterLastName: createPersonNameSchema(2, 50, 'reporterLastName'),
+  fileUrls: createFileUrlsSchema('fileUrls')
 });
 
 /**
@@ -50,17 +48,11 @@ const baseStatusReportSchema = z.object({
  * Creates the schema at runtime instead of module load time
  */
 export const getStatusReportSchema = () => z.object({
-  groupId: z.string()
-    .min(1, validationMessages.required('groupId'))
-    .regex(/^c[a-z0-9]{24}$/, validationMessages.invalidGroupId('groupId')),
-  title: z.string()
-    .min(1, validationMessages.required('title'))
-    .min(STATUS_REPORT_LIMITS.title.min, validationMessages.minLength('title', STATUS_REPORT_LIMITS.title.min))
-    .max(STATUS_REPORT_LIMITS.title.max, validationMessages.maxLength('title', STATUS_REPORT_LIMITS.title.max))
-    .trim(),
-  content: richTextSchema(STATUS_REPORT_LIMITS.content.min, STATUS_REPORT_LIMITS.content.max, 'content'),
-  reporterFirstName: firstNameSchema,
-  reporterLastName: lastNameSchema,
+  groupId: createGroupIdSchema('groupId'),
+  title: createTitleSchema(STATUS_REPORT_LIMITS.title.min, STATUS_REPORT_LIMITS.title.max, 'title'),
+  content: createRichTextSchema(STATUS_REPORT_LIMITS.content.min, STATUS_REPORT_LIMITS.content.max, 'content'),
+  reporterFirstName: createPersonNameSchema(2, 50, 'reporterFirstName'),
+  reporterLastName: createPersonNameSchema(2, 50, 'reporterLastName'),
   files: createSecureFilesSchema(
     STATUS_REPORT_LIMITS.files.maxCount,
     STATUS_REPORT_LIMITS.files.maxSizeMB * 1024 * 1024,

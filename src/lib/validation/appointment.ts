@@ -6,18 +6,17 @@
 
 import { z } from 'zod';
 import {
-  titleSchema,
-  dateTimeSchema,
-  optionalDateTimeSchema,
-  firstNameSchema,
-  lastNameSchema,
+  createTitleSchema,
+  createDateTimeSchema,
+  createOptionalDateTimeSchema,
+  createPersonNameSchema,
   createOptionalTextSchema,
-  richTextSchema
+  createRichTextSchema,
 } from './schemas';
-import { FILE_TYPES, FILE_SIZE_LIMITS, createSecureFilesSchema } from './file-schemas';
+import { FILE_TYPES, FILE_SIZE_LIMITS, createSecureFilesSchema, createSecureFileSchema } from './file-schemas';
 
-// SINGLE SOURCE OF TRUTH for limits
-export const APPOINTMENT_LIMITS = {
+// SINGLE SOURCE OF TRUTH for limits - internal only
+const APPOINTMENT_LIMITS = {
   title: {
     min: 3,
     max: 100
@@ -36,18 +35,19 @@ export const APPOINTMENT_LIMITS = {
 /**
  * Lazy schema creation to avoid SSR issues with file validation
  * Creates the schema at runtime instead of module load time
+ * Internal only - use appointmentSubmitDataSchema or validateAppointmentSubmitWithZod()
  */
-export const getAppointmentSubmitDataSchema = () => z.object({
-  title: titleSchema(APPOINTMENT_LIMITS.title.min, APPOINTMENT_LIMITS.title.max),
-  mainText: richTextSchema(APPOINTMENT_LIMITS.content.min, APPOINTMENT_LIMITS.content.max, 'description'),
-  startDateTime: dateTimeSchema,
-  endDateTime:optionalDateTimeSchema,
-  street: createOptionalTextSchema(200),
-  city: createOptionalTextSchema(100),
-  state: createOptionalTextSchema(100),
-  postalCode: createOptionalTextSchema(10),
-  firstName: firstNameSchema,
-  lastName: lastNameSchema.optional(),
+const getAppointmentSubmitDataSchema = () => z.object({
+  title: createTitleSchema(APPOINTMENT_LIMITS.title.min, APPOINTMENT_LIMITS.title.max, 'title'),
+  mainText: createRichTextSchema(APPOINTMENT_LIMITS.content.min, APPOINTMENT_LIMITS.content.max, 'description'),
+  startDateTime: createDateTimeSchema('startDateTime'),
+  endDateTime: createOptionalDateTimeSchema(),
+  street: createOptionalTextSchema(200, 'Straße'),
+  city: createOptionalTextSchema(100, 'Ort'),
+  state: createOptionalTextSchema(100, 'Bundesland'),
+  postalCode: createOptionalTextSchema(10, 'Postleitzahl'),
+  firstName: createPersonNameSchema(2, 50, 'firstName'),
+  lastName: createPersonNameSchema(2, 50, 'lastName').optional(),
   recurringText: createOptionalTextSchema(500, 'Wiederholungsbeschreibung'),
   featured: z.boolean().optional(),
   files: createSecureFilesSchema(
@@ -56,8 +56,16 @@ export const getAppointmentSubmitDataSchema = () => z.object({
     FILE_TYPES.IMAGE_AND_PDF,
     'files'
   ),
-  coverImage: z.any().optional(),
-  croppedCoverImage: z.any().optional(),
+  coverImage: createSecureFileSchema(
+    FILE_SIZE_LIMITS.COVER_IMAGE,
+    FILE_TYPES.IMAGE,
+    'Cover-Bild'
+  ).optional(),
+  croppedCoverImage: createSecureFileSchema(
+    FILE_SIZE_LIMITS.COVER_IMAGE,
+    FILE_TYPES.IMAGE,
+    'Zugeschnittenes Cover-Bild'
+  ).optional(),
   existingFileUrls: z.array(z.url()).optional(),
   deletedFileUrls: z.array(z.url()).optional()
 }).superRefine((data, ctx) => {
@@ -90,8 +98,8 @@ export const getAppointmentSubmitDataSchema = () => z.object({
 });
 
 /**
- * Legacy export for backward compatibility
- * @deprecated Use getAppointmentSubmitDataSchema() instead for SSR safety
+ * Zod schema for appointment form validation.
+ * Use this in client-side forms with react-hook-form.
  */
 export const appointmentSubmitDataSchema = getAppointmentSubmitDataSchema();
 

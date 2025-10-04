@@ -4,12 +4,7 @@ import { uploadAntragFiles, deleteAntragFiles } from '@/lib/antrag-file-utils';
 import { FileUploadError } from '@/lib/file-upload';
 import { logger } from '@/lib/logger';
 import {
-  validateRecaptcha,
-  shouldRateLimit,
-  cleanupRateLimitMap
-} from '@/lib/validation/utils';
-import {
-  validateAntragWithFilesWithZod,
+  validateAntragWithZod,
   type AntragFormData
 } from '@/lib/validation/antrag';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
@@ -34,68 +29,36 @@ export interface AntragSubmitResponse {
   fieldErrors?: Record<string, string>;
 }
 
-// Rate limiting: Store request counts per IP
-export const requestCounts = new Map<string, { count: number; firstRequest: number }>();
-
-// Clean up old entries every 5 minutes
-const cleanupInterval = setInterval(() => {
-  cleanupRateLimitMap(requestCounts, 60000); // 1 minute window
-}, 5 * 60 * 1000);
-
-// Clear interval on process exit to prevent memory leaks in tests
-if (process.env.NODE_ENV === 'test') {
-  process.on('exit', () => clearInterval(cleanupInterval));
-}
-
 /**
  * POST /api/antraege/submit
- * 
+ *
  * Public endpoint for submitting a new Antrag an Kreisvorstand.
  * Handles both form data with file uploads and JSON data without files.
- * Includes rate limiting and reCAPTCHA verification.
  */
 export async function POST(request: NextRequest) {
   let uploadedFileUrls: string[] = [];
-  
+
   try {
-    // Rate limiting check
-    const ip = request.headers.get('x-forwarded-for') || 
-                request.headers.get('x-real-ip') || 
-                'unknown';
-    
-    if (shouldRateLimit(ip, requestCounts, 5, 60000)) { // 5 requests per minute
-      logger.warn('Rate limit exceeded for Antrag submission', {
-        context: { ip }
-      });
-      
-      const response: AntragSubmitResponse = {
-        success: false,
-        error: 'Zu viele Anfragen. Bitte versuchen Sie es in einer Minute erneut.'
-      };
-      return NextResponse.json(response, { status: 429 });
-    }
     // Check content type to determine parsing method
     const contentType = request.headers.get('content-type') || '';
     let formData: AntragFormData;
     const files: File[] = [];
-    let recaptchaToken: string | undefined;
-    
+
     if (contentType.includes('multipart/form-data')) {
       // Parse form data for file upload handling
       const formDataRaw = await request.formData();
-      
+
       // Extract basic fields
       const firstName = formDataRaw.get('firstName') as string;
       const lastName = formDataRaw.get('lastName') as string;
       const email = formDataRaw.get('email') as string;
       const title = formDataRaw.get('title') as string;
       const summary = formDataRaw.get('summary') as string;
-      recaptchaToken = formDataRaw.get('recaptchaToken') as string;
-      
+
       // Parse purposes JSON
       const purposesStr = formDataRaw.get('purposes') as string;
       const purposes = purposesStr ? JSON.parse(purposesStr) : {};
-      
+
       // Collect files
       const fileCount = parseInt(formDataRaw.get('fileCount') as string, 10) || 0;
       for (let i = 0; i < fileCount; i++) {
@@ -104,8 +67,8 @@ export async function POST(request: NextRequest) {
           files.push(file);
         }
       }
-      
-      formData = { firstName, lastName, email, title, summary, purposes, files, recaptchaToken };
+
+      formData = { firstName, lastName, email, title, summary, purposes, files };
     } else {
       // Parse JSON data from request body
       const jsonData = await request.json();
@@ -113,27 +76,10 @@ export async function POST(request: NextRequest) {
         ...jsonData,
         files: [] // No files in JSON requests
       };
-      recaptchaToken = jsonData.recaptchaToken;
     }
     
-    // Verify reCAPTCHA if enabled
-    if (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
-      const isHuman = await validateRecaptcha(recaptchaToken);
-      if (!isHuman) {
-        logger.warn('reCAPTCHA validation failed for Antrag submission', {
-          context: { ip, email: formData.email }
-        });
-        
-        const response: AntragSubmitResponse = {
-          success: false,
-          error: 'reCAPTCHA-Überprüfung fehlgeschlagen. Bitte versuchen Sie es erneut.'
-        };
-        return NextResponse.json(response, { status: 400 });
-      }
-    }
-    
-    // Validate form data using Zod schema
-    const validationResult = await validateAntragWithFilesWithZod(formData);
+    // Validate form data using Zod schema (includes file validation with magic bytes)
+    const validationResult = await validateAntragWithZod(formData);
     if (!validationResult.isValid && validationResult.errors) {
       // Use consistent validationErrorResponse for field errors
       return validationErrorResponse(validationResult.errors);

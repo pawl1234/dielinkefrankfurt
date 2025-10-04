@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { fileTypeFromBuffer } from 'file-type';
-import { validationMessages } from '../validation-messages';
+import { validationMessages } from './validation-messages';
 
 /**
  * Common file size limits
@@ -35,46 +35,51 @@ export const FILE_TYPES = {
 };
 
 /**
- * Base file schema with size validation
+ * Secure single file schema with magic bytes validation
+ * Validates file size, type (MIME), and actual file content using magic bytes
+ *
+ * @param maxSize - Maximum file size in bytes
+ * @param allowedTypes - Array of allowed MIME types
+ * @param fieldName - Field name for error messages
+ * @returns Zod schema with async validation
  */
-export const createFileSchema = (maxSize: number = FILE_SIZE_LIMITS.DEFAULT, _fieldName: string = 'Datei') =>
-  z.custom<File | Blob>((val) => {
-    // Check if it's a Blob (File extends Blob)
-    return val instanceof Blob || (typeof File !== 'undefined' && val instanceof File);
-  }).refine(
-    (file) => file.size <= maxSize,
-    validationMessages.fileSizeExceeds(Math.round(maxSize / (1024 * 1024)))
-  );
-
-/**
- * File schema with type validation
- */
-export const createTypedFileSchema = (
-  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF,
+export const createSecureFileSchema = (
   maxSize: number = FILE_SIZE_LIMITS.DEFAULT,
+  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF,
   fieldName: string = 'Datei'
 ) =>
-  createFileSchema(maxSize, fieldName).refine(
-    (file) => allowedTypes.includes(file.type),
-    validationMessages.unsupportedFileType()
-  );
+  z.any()
+    .refine(
+      (file) => file && file.size <= maxSize,
+      { message: validationMessages.fileSizeExceeds(Math.round(maxSize / (1024 * 1024))) }
+    )
+    .refine(
+      (file) => file && allowedTypes.includes(file.type),
+      { message: validationMessages.unsupportedFileType() }
+    )
+    .refine(
+      async (file) => {
+        if (!file) return false;
+        try {
+          const buffer = await file.arrayBuffer();
+          const detectedType = await fileTypeFromBuffer(buffer);
+          return detectedType && allowedTypes.includes(detectedType.mime);
+        } catch {
+          return false;
+        }
+      },
+      { message: validationMessages.fileTypeMismatch(fieldName) }
+    );
 
 /**
- * Multiple files schema with count limit
- */
-export const createMultipleFilesSchema = (
-  maxFiles: number = 5,
-  maxSizePerFile: number = FILE_SIZE_LIMITS.DEFAULT,
-  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF,
-  fieldName: string = 'Dateien'
-) =>
-  z.array(createTypedFileSchema(allowedTypes, maxSizePerFile, fieldName))
-    .max(maxFiles, validationMessages.tooManyFiles(maxFiles))
-    .optional();
-
-/**
- * Secure files schema with magic bytes validation
+ * Secure multiple files schema with magic bytes validation
  * Use this for forms that need enhanced security validation
+ *
+ * @param maxFiles - Maximum number of files allowed
+ * @param maxSizePerFile - Maximum size per file in bytes
+ * @param allowedTypes - Array of allowed MIME types
+ * @param fieldName - Field name for error messages
+ * @returns Zod schema with async validation
  */
 export const createSecureFilesSchema = (
   maxFiles: number = 5,
@@ -82,114 +87,7 @@ export const createSecureFilesSchema = (
   allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF,
   fieldName: string = 'files'
 ) =>
-  z.array(z.any()).optional()
-    .refine(
-      (files) => !files || !Array.isArray(files) || files.length <= maxFiles,
-      { message: validationMessages.tooManyFiles(maxFiles) }
-    )
-    .refine(
-      (files) => !files || !Array.isArray(files) || files.every((file: any) => file && file.size <= maxSizePerFile),
-      { message: validationMessages.fileSizeExceeds(Math.round(maxSizePerFile / (1024 * 1024))) }
-    )
-    .refine(
-      (files) => !files || !Array.isArray(files) || files.every((file: any) => allowedTypes.includes(file.type)),
-      { message: validationMessages.unsupportedFileType() }
-    )
-    .refine(
-      async (files) => {
-        if (!files || !Array.isArray(files) || files.length === 0) return true;
+  z.array(createSecureFileSchema(maxSizePerFile, allowedTypes, fieldName))
+    .max(maxFiles, validationMessages.tooManyFiles(maxFiles))
+    .optional();
 
-        for (const file of files) {
-          try {
-            const buffer = await file.arrayBuffer();
-            const detectedType = await fileTypeFromBuffer(buffer);
-
-            if (!detectedType || !allowedTypes.includes(detectedType.mime)) {
-              return false;
-            }
-          } catch {
-            return false;
-          }
-        }
-        return true;
-      },
-      { message: validationMessages.fileTypeMismatch(fieldName) }
-    );
-
-/**
- * Common file schemas for reuse - lazy evaluation to prevent server crashes
- */
-
-// Logo file schema (single image file, optional)
-export const createLogoFileSchema = () => createTypedFileSchema(
-  FILE_TYPES.IMAGE,
-  FILE_SIZE_LIMITS.LOGO,
-  'Logo'
-).optional();
-
-// Cover image schema (single image file, optional)
-export const createCoverImageSchema = () => createTypedFileSchema(
-  FILE_TYPES.IMAGE,
-  FILE_SIZE_LIMITS.COVER_IMAGE,
-  'Cover-Bild'
-).optional();
-
-// Attachment files schema (up to 5 files, images and PDFs)
-export const createAttachmentFilesSchema = () => createMultipleFilesSchema(
-  5,
-  FILE_SIZE_LIMITS.ATTACHMENT,
-  FILE_TYPES.IMAGE_AND_PDF,
-  'Anhänge'
-);
-
-// Document files schema (up to 5 files, all document types)
-export const createDocumentFilesSchema = () => createMultipleFilesSchema(
-  5,
-  FILE_SIZE_LIMITS.ATTACHMENT,
-  FILE_TYPES.ALL,
-  'Dokumente'
-);
-
-/**
- * Helper to validate files outside of Zod schemas
- * Useful for progressive validation in form handlers
- */
-export function validateFiles(
-  files: File[],
-  maxFiles: number = 5,
-  maxSizePerFile: number = FILE_SIZE_LIMITS.DEFAULT,
-  allowedTypes: string[] = FILE_TYPES.IMAGE_AND_PDF
-): { isValid: boolean; errors?: string[] } {
-  const errors: string[] = [];
-
-  if (files.length > maxFiles) {
-    errors.push(validationMessages.tooManyFilesShort(maxFiles));
-  }
-
-  files.forEach((file, index) => {
-    if (file.size > maxSizePerFile) {
-      errors.push(`Datei ${index + 1} ${validationMessages.fileSizeExceedsShort('file')}`);
-    }
-    if (!allowedTypes.includes(file.type)) {
-      errors.push(`Datei ${index + 1}: ${validationMessages.unsupportedFileTypeShort('file')}`);
-    }
-  });
-
-  return {
-    isValid: errors.length === 0,
-    errors: errors.length > 0 ? errors : undefined
-  };
-}
-
-/**
- * TypeScript types for file validation results
- */
-export type FileValidationResult = {
-  isValid: boolean;
-  errors?: string[];
-};
-
-export type ValidatedFile = File & {
-  validatedSize: number;
-  validatedType: string;
-};

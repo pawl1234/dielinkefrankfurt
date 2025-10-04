@@ -5,21 +5,20 @@
 
 import { z } from 'zod';
 import {
-  nameSchema,
-  titleSchema,
+  createNameSchema,
+  createTitleSchema,
   TITLE_LIMITS,
-  longDescriptionSchema,
-  contentSchema,
-  emailSchema,
-  firstNameSchema,
-  lastNameSchema,
-  dateTimeSchema,
-  optionalDateTimeSchema,
+  createDescriptionSchema,
+  createContentSchema,
+  createEmailSchema,
+  createPersonNameSchema,
+  createDateTimeSchema,
+  createOptionalDateTimeSchema,
   createOptionalTextSchema,
   booleanSchema,
-  responsiblePersonsSchema
+  createResponsiblePersonsSchema
 } from './schemas';
-import { validationMessages } from '../validation-messages';
+import { validationMessages } from './validation-messages';
 
 /**
  * Common admin update schema pattern - all fields optional
@@ -31,21 +30,21 @@ const createAdminUpdateSchema = <T extends z.ZodRawShape>(shape: T) =>
  * Group admin update schema
  */
 export const adminGroupUpdateSchema = createAdminUpdateSchema({
-  name: nameSchema,
-  description: longDescriptionSchema,
+  name: createNameSchema(3, 100, 'name'),
+  description: createDescriptionSchema(50, 5000, 'description'),
   logoUrl: z.string().url().nullable(),
   status: z.enum(['NEW', 'ACTIVE', 'ARCHIVED']),
-  responsiblePersons: responsiblePersonsSchema
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons')
 });
 
 /**
  * Status report admin update schema
  */
 export const adminStatusReportUpdateSchema = createAdminUpdateSchema({
-  title: titleSchema(TITLE_LIMITS.STATUS_REPORT.min, TITLE_LIMITS.STATUS_REPORT.max),
-  content: contentSchema,
-  reporterFirstName: firstNameSchema,
-  reporterLastName: lastNameSchema,
+  title: createTitleSchema(TITLE_LIMITS.STATUS_REPORT.min, TITLE_LIMITS.STATUS_REPORT.max, 'title'),
+  content: createContentSchema(10, 10000, 'content'),
+  reporterFirstName: createPersonNameSchema(2, 50, 'reporterFirstName'),
+  reporterLastName: createPersonNameSchema(2, 50, 'reporterLastName'),
   status: z.enum(['NEW', 'ACCEPTED', 'REJECTED']),
   fileUrls: z.array(z.string().url()),
   groupId: z.string().cuid()
@@ -55,10 +54,10 @@ export const adminStatusReportUpdateSchema = createAdminUpdateSchema({
  * Appointment admin update schema
  */
 export const adminAppointmentUpdateSchema = createAdminUpdateSchema({
-  title: titleSchema(TITLE_LIMITS.APPOINTMENT.min, TITLE_LIMITS.APPOINTMENT.max),
-  mainText: contentSchema,
-  startDateTime: dateTimeSchema,
-  endDateTime: optionalDateTimeSchema.nullable(),
+  title: createTitleSchema(TITLE_LIMITS.APPOINTMENT.min, TITLE_LIMITS.APPOINTMENT.max, 'title'),
+  mainText: createContentSchema(10, 10000, 'mainText'),
+  startDateTime: createDateTimeSchema('startDateTime'),
+  endDateTime: createOptionalDateTimeSchema().nullable(),
   street: createOptionalTextSchema(200, 'Straße'),
   city: createOptionalTextSchema(100, 'Ort'),
   state: createOptionalTextSchema(100, 'Bundesland'),
@@ -89,8 +88,8 @@ export const adminNewsletterSettingsSchema = z.object({
  * Antrag config update schema
  */
 export const adminAntragConfigSchema = z.object({
-  recipientEmails: z.array(emailSchema).min(1, validationMessages.atLeastOneEmailRequired('recipientEmails')),
-  ccEmails: z.array(emailSchema).optional(),
+  recipientEmails: z.array(createEmailSchema(100, 'email')).min(1, validationMessages.atLeastOneEmailRequired('recipientEmails')),
+  ccEmails: z.array(createEmailSchema(100, 'email')).optional(),
   enableAutoNotification: booleanSchema.optional().default(true),
   requireApproval: booleanSchema.optional().default(true)
 });
@@ -105,8 +104,8 @@ export const adminListQuerySchema = z.object({
   search: z.string().optional(),
   sortBy: z.string().optional(),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
-  dateFrom: dateTimeSchema.optional(),
-  dateTo: dateTimeSchema.optional()
+  dateFrom: createDateTimeSchema('dateFrom').optional(),
+  dateTo: createDateTimeSchema('dateTo').optional()
 });
 
 /**

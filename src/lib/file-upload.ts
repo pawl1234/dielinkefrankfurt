@@ -7,7 +7,7 @@ import {
   MAX_STATUS_REPORT_FILES_SIZE,
   MAX_STATUS_REPORT_FILES_COUNT
 } from './file-handlers';
-import { validationMessages } from '@/lib/validation-messages';
+import { validationMessages } from './validation/validation-messages';
 
 /**
  * File size limits in bytes

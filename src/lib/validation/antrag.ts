@@ -6,16 +6,16 @@
 
 import { z } from 'zod';
 import {
-  firstNameSchema,
-  lastNameSchema,
-  emailSchema,
-  titleSchema,
+  createPersonNameSchema,
+  createEmailSchema,
+  createTitleSchema,
   TITLE_LIMITS,
-  summarySchema,
+  createContentSchema,
   booleanSchema,
-  fileUrlsSchema
+  createFileUrlsSchema
 } from './schemas';
-import { antragMessages, validationMessages } from '@/lib/validation-messages';
+import { antragMessages, validationMessages } from './validation-messages';
+import { FILE_TYPES, FILE_SIZE_LIMITS, createSecureFilesSchema } from './file-schemas';
 
 /**
  * Zuschuss (financial support) purpose schema
@@ -161,28 +161,32 @@ const purposesSchema = z.object({
  * Migrates all validation rules from validateAntragFormData()
  */
 export const antragFormDataSchema = z.object({
-  firstName: firstNameSchema,
-  lastName: lastNameSchema,
-  email: emailSchema,
-  title: titleSchema(TITLE_LIMITS.STANDARD.min, TITLE_LIMITS.STANDARD.max),
-  summary: summarySchema,
+  firstName: createPersonNameSchema(2, 50, 'firstName'),
+  lastName: createPersonNameSchema(2, 50, 'lastName'),
+  email: createEmailSchema(100, 'email'),
+  title: createTitleSchema(TITLE_LIMITS.STANDARD.min, TITLE_LIMITS.STANDARD.max, 'title'),
+  summary: createContentSchema(10, 300, 'summary'),
   purposes: purposesSchema,
-  fileUrls: fileUrlsSchema,
-  files: z.array(z.any()).optional(), // File validation happens at runtime
-  recaptchaToken: z.string().optional()
+  fileUrls: createFileUrlsSchema('fileUrls'),
+  files: createSecureFilesSchema(
+    FILE_SIZE_LIMITS.ANTRAG_COUNT,
+    FILE_SIZE_LIMITS.ANTRAG,
+    FILE_TYPES.ANTRAG,
+    'files'
+  )
 });
 
 /**
  * Schema for updating an existing Antrag (all fields optional except purposes validation)
  */
 export const antragUpdateDataSchema = z.object({
-  firstName: firstNameSchema.optional(),
-  lastName: lastNameSchema.optional(),
-  email: emailSchema.optional(),
-  title: titleSchema(TITLE_LIMITS.STANDARD.min, TITLE_LIMITS.STANDARD.max).optional(),
-  summary: summarySchema.optional(),
+  firstName: createPersonNameSchema(2, 50, 'firstName').optional(),
+  lastName: createPersonNameSchema(2, 50, 'lastName').optional(),
+  email: createEmailSchema(100, 'email').optional(),
+  title: createTitleSchema(TITLE_LIMITS.STANDARD.min, TITLE_LIMITS.STANDARD.max, 'title').optional(),
+  summary: createContentSchema(10, 300, 'summary').optional(),
   purposes: purposesSchema.optional(),
-  fileUrls: fileUrlsSchema
+  fileUrls: createFileUrlsSchema('fileUrls')
 }).partial();
 
 /**
@@ -221,37 +225,4 @@ export async function validateAntragUpdateWithZod(data: unknown) {
 export async function validateAntragPurposesWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(purposesSchema, data);
-}
-
-/**
- * Validation with file validation integration
- * Combines Zod schema validation with existing file validation from antrag-file-utils
- */
-export async function validateAntragWithFilesWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./helpers');
-
-  // First validate the schema
-  const baseResult = await zodToValidationResult(antragFormDataSchema, data);
-
-  if (!baseResult.isValid) {
-    return baseResult;
-  }
-
-  // If files are present, validate them using existing file validation
-  const validatedData = baseResult.data!;
-  if (validatedData.files && validatedData.files.length > 0) {
-    try {
-      const { validateAntragFiles } = await import('@/lib/antrag-file-utils');
-      validateAntragFiles(validatedData.files);
-    } catch (error) {
-      return {
-        isValid: false,
-        errors: {
-          files: error instanceof Error ? error.message : 'Fehler bei der Dateivalidierung'
-        }
-      };
-    }
-  }
-
-  return baseResult;
 }

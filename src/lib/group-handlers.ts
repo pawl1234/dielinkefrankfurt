@@ -10,7 +10,7 @@ import {
   sendGroupRejectionEmail,
   sendGroupArchivingEmail
 } from './email-senders';
-import { validationMessages } from '@/lib/validation-messages';
+import { validationMessages } from './validation/validation-messages';
 import { logger } from './logger';
 
 /**

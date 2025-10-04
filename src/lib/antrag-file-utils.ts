@@ -1,8 +1,6 @@
 import { put, del } from '@vercel/blob';
 import { AppError } from './errors';
-import { ValidationError } from '@/lib/validation';
-import { FILE_TYPES, FILE_SIZE_LIMITS, validateFiles } from './validation/file-schemas';
-import { validationMessages } from '@/lib/validation-messages';
+import { FILE_TYPES } from './validation/file-schemas';
 
 /**
  * File constraints for Antrag attachments
@@ -33,60 +31,21 @@ export function getAllowedFileExtensions(): string {
  */
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * Validates files for Antrag attachments
- * Uses centralized validation with custom total size check
- *
- * @param files - Array of files to validate
- * @returns void if valid, throws ValidationError if invalid
- */
-export function validateAntragFiles(files: File[]): void {
-  if (!files || files.length === 0) {
-    return; // No files to validate
-  }
-
-  // Use centralized validation for file count, individual file size, and file types
-  const validationResult = validateFiles(
-    files,
-    FILE_SIZE_LIMITS.ANTRAG_COUNT,
-    FILE_SIZE_LIMITS.ANTRAG,
-    FILE_TYPES.ANTRAG
-  );
-
-  // Handle basic validation errors
-  if (!validationResult.isValid && validationResult.errors) {
-    throw new ValidationError({
-      files: validationResult.errors[0] || validationMessages.required('files')
-    });
-  }
-
-  // Add custom total size validation (not covered by centralized helper)
-  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-  if (totalSize > FILE_SIZE_LIMITS.ANTRAG_TOTAL) {
-    const maxSizeMB = FILE_SIZE_LIMITS.ANTRAG_TOTAL / (1024 * 1024);
-    throw new ValidationError({
-      files: validationMessages.fileSizeExceeds(maxSizeMB)
-    });
-  }
-}
 
 /**
  * Uploads multiple files for Antrag attachments with retry capability
- * 
+ *
  * @param files - Array of files to upload
  * @param maxRetries - Maximum number of retry attempts (default: 3)
  * @param retryDelay - Base delay in ms between retries (default: 1000)
  * @returns Array of uploaded file URLs
- * @throws ValidationError if validation fails, AppError if upload fails
+ * @throws AppError if upload fails
  */
 export async function uploadAntragFiles(
   files: File[],
   maxRetries: number = 3,
   retryDelay: number = 1000
 ): Promise<string[]> {
-  // Validate files first
-  validateAntragFiles(files);
-
   // Skip if no files
   if (!files || files.length === 0) {
     return [];
@@ -152,8 +111,8 @@ export async function uploadAntragFiles(
 
     return uploadedUrls;
   } catch (error) {
-    // Re-throw ValidationError or AppError
-    if (error instanceof ValidationError || error instanceof AppError) {
+    // Re-throw AppError
+    if (error instanceof AppError) {
       throw error;
     }
 

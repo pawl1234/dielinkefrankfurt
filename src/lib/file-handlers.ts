@@ -1,7 +1,7 @@
 import { put, del, list, PutCommandOptions } from '@vercel/blob';
 import { createHash } from 'crypto';
 import { FILE_TYPES, FILE_SIZE_LIMITS } from './validation/file-schemas';
-import { validationMessages } from '@/lib/validation-messages';
+import { validationMessages } from './validation/validation-messages';
 
 const MAX_TOTAL_UPLOAD_SIZE = 50 * 1024 * 1024;
 

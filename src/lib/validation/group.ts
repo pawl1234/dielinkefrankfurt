@@ -5,76 +5,15 @@
  */
 
 import { z } from 'zod';
-import { validationMessages } from '@/lib/validation-messages';
-import { FILE_SIZE_LIMITS, FILE_TYPES } from './file-schemas';
+import { validationMessages } from './validation-messages';
+import { FILE_SIZE_LIMITS, FILE_TYPES, createSecureFileSchema } from './file-schemas';
+import {
+  createNameSchema,
+  createDescriptionSchema,
+  createFileUrlSchema,
+  createResponsiblePersonsSchema
+} from './schemas';
 
-/**
- * Name schema with German error messages (3-100 characters)
- */
-const nameSchema = z.string()
-  .min(1, validationMessages.required('name'))
-  .min(3, validationMessages.minLength('name', 3))
-  .max(100, validationMessages.maxLength('name', 100))
-  .trim();
-
-/**
- * Long description schema with German error messages (50-5000 characters)
- */
-const longDescriptionSchema = z.string()
-  .min(1, validationMessages.required('description'))
-  .min(50, validationMessages.minLength('description', 50))
-  .max(5000, validationMessages.maxLength('description', 5000))
-  .trim();
-
-/**
- * First name schema with German error messages (2-50 characters)
- */
-const firstNameSchema = z.string()
-  .min(1, validationMessages.required('firstName'))
-  .min(2, validationMessages.minLength('firstName', 2))
-  .max(50, validationMessages.maxLength('firstName', 50))
-  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('firstName'))
-  .trim();
-
-/**
- * Last name schema with German error messages (2-50 characters)
- */
-const lastNameSchema = z.string()
-  .min(1, validationMessages.required('lastName'))
-  .min(2, validationMessages.minLength('lastName', 2))
-  .max(50, validationMessages.maxLength('lastName', 50))
-  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('lastName'))
-  .trim();
-
-/**
- * Email schema with German error messages
- */
-const emailSchema = z.string()
-  .min(1, validationMessages.required('email'))
-  .email(validationMessages.email('email'))
-  .max(100, validationMessages.maxLength('email', 100))
-  .trim()
-  .toLowerCase();
-
-/**
- * File URL schema with German error messages
- */
-const fileUrlSchema = z.string().url(validationMessages.invalidUrl('fileUrls'));
-
-/**
- * Responsible person schema with German error messages
- */
-const responsiblePersonSchema = z.object({
-  firstName: firstNameSchema,
-  lastName: lastNameSchema,
-  email: emailSchema
-});
-
-/**
- * Array of responsible persons (at least one required)
- */
-const responsiblePersonsSchema = z.array(responsiblePersonSchema)
-  .min(1, validationMessages.atLeastOne('responsiblePersons'));
 
 /**
  * Slug schema for group URLs (kebab-case format)
@@ -94,59 +33,45 @@ const groupStatusSchema = z.enum(['NEW', 'ACTIVE', 'ARCHIVED'], {
 
 /**
  * Complete group creation schema (for API validation)
+ * Internal only - use validateGroupWithZod() for validation
  */
-export const groupCreateDataSchema = z.object({
-  name: nameSchema,
-  description: longDescriptionSchema,
-  logoUrl: fileUrlSchema.optional(),
-  responsiblePersons: responsiblePersonsSchema
+const groupCreateDataSchema = z.object({
+  name: createNameSchema(3, 100, 'name'),
+  description: createDescriptionSchema(50, 5000, 'description'),
+  logoUrl: createFileUrlSchema('logoUrl').optional(),
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons')
 });
 
 /**
- * Logo file schema for client-side validation
- * Uses z.any() to avoid File/Blob issues in server environment
+ * Logo file schema with secure magic bytes validation
  */
-const logoFileSchema = z.any()
-  .optional()
-  .refine(
-    (file) => {
-      if (!file || typeof file !== 'object' || !file.size) return true;
-      return file.size <= FILE_SIZE_LIMITS.LOGO;
-    },
-    {
-      message: validationMessages.fileSizeExceeds(FILE_SIZE_LIMITS.LOGO / (1024 * 1024))
-    }
-  )
-  .refine(
-    (file) => {
-      if (!file || typeof file !== 'object' || !file.type) return true;
-      return FILE_TYPES.IMAGE.includes(file.type);
-    },
-    {
-      message: validationMessages.unsupportedFileType()
-    }
-  );
+const logoFileSchema = createSecureFileSchema(
+  FILE_SIZE_LIMITS.LOGO,
+  FILE_TYPES.IMAGE,
+  'Logo'
+).optional();
 
 /**
  * Frontend group request form schema
  */
 export const groupRequestFormSchema = z.object({
-  name: nameSchema,
-  description: longDescriptionSchema,
-  responsiblePersons: responsiblePersonsSchema,
+  name: createNameSchema(3, 100, 'name'),
+  description: createDescriptionSchema(50, 5000, 'description'),
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
   logo: logoFileSchema
 });
 
 /**
  * Schema for updating an existing group
+ * Internal only - use validateGroupUpdateWithZod() for validation
  */
-export const groupUpdateDataSchema = z.object({
-  name: nameSchema.optional(),
+const groupUpdateDataSchema = z.object({
+  name: createNameSchema(3, 100, 'name').optional(),
   slug: slugSchema.optional(),
-  description: longDescriptionSchema.optional(),
+  description: createDescriptionSchema(50, 5000, 'description').optional(),
   status: groupStatusSchema.optional(),
-  logoUrl: fileUrlSchema.optional(),
-  responsiblePersons: responsiblePersonsSchema.optional()
+  logoUrl: createFileUrlSchema('logoUrl').optional(),
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons').optional()
 }).partial();
 
 /**
@@ -154,21 +79,19 @@ export const groupUpdateDataSchema = z.object({
  * Note: slug is not editable in the UI, only set on creation
  */
 export const groupEditFormSchema = z.object({
-  name: nameSchema,
-  description: longDescriptionSchema,
+  name: createNameSchema(3, 100, 'name'),
+  description: createDescriptionSchema(50, 5000, 'description'),
   status: groupStatusSchema,
-  responsiblePersons: responsiblePersonsSchema,
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
   logo: logoFileSchema.nullable()
 });
 
 /**
  * TypeScript types derived from Zod schemas
+ * Note: GroupCreateData and GroupUpdateData types are defined in group-handlers.ts
  */
-export type GroupCreateData = z.infer<typeof groupCreateDataSchema>;
 export type GroupRequestFormData = z.infer<typeof groupRequestFormSchema>;
-export type GroupUpdateData = z.infer<typeof groupUpdateDataSchema>;
 export type GroupEditFormData = z.infer<typeof groupEditFormSchema>;
-export type ResponsiblePersonData = z.infer<typeof responsiblePersonSchema>;
 
 /**
  * Validation function that uses Zod schema and returns ValidationResult
@@ -185,13 +108,4 @@ export async function validateGroupWithZod(data: unknown) {
 export async function validateGroupUpdateWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(groupUpdateDataSchema, data);
-}
-
-/**
- * Helper function to validate only responsible persons array
- * Useful for partial validation scenarios
- */
-export async function validateResponsiblePersonsWithZod(data: unknown) {
-  const { zodToValidationResult } = await import('./helpers');
-  return zodToValidationResult(responsiblePersonsSchema, data);
 }

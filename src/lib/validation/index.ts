@@ -3,6 +3,9 @@
  * Import validators from this single location for consistency.
  */
 
+// Export validation messages and localization
+export * from './validation-messages';
+
 // Export Zod integration utilities and schemas
 export * from './helpers';
 export * from './schemas';
@@ -14,9 +17,6 @@ export * from './group';
 export * from './status-report';
 export * from './appointment';
 export * from './admin-schemas';
-
-// Export validation utilities
-export * from './utils';
 
 // Re-export ValidationResult and ValidationError from errors.ts for convenience
 export type { ValidationResult } from '@/lib/errors';

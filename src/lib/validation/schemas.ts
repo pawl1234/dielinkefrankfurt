@@ -1,239 +1,224 @@
 /**
- * Clean Zod validation schemas focused on validation rules.
- * All error message localization is handled by the centralized localization.ts module.
- * This keeps schemas simple and maintainable.
+ * Reusable factory functions for Zod validation schemas.
+ * All schemas use factory pattern for maximum flexibility and reusability.
+ * Error message localization is handled by the centralized validation-messages module.
  */
 
 import { z } from 'zod';
-import { validationMessages } from '@/lib/validation-messages';
+import { validationMessages } from './validation-messages';
 import sanitizeHtml from 'sanitize-html';
-
-/**
- * Name schema (3-100 characters)
- * Used for group names, general names, etc.
- */
-export const nameSchema = z.string()
-  .min(3)
-  .max(100)
-  .trim();
 
 /**
  * Standard title limits
  * Used across different entities (Antrag, StatusReport, etc.)
  */
 export const TITLE_LIMITS = {
-  STANDARD: { min: 3, max: 200 },    // General titles (Antrag, etc.)
-  STATUS_REPORT: { min: 3, max: 100 }, // Status report titles
-  APPOINTMENT: { min: 3, max: 100 }    // Appointment titles
+  STANDARD: { min: 3, max: 200 },
+  STATUS_REPORT: { min: 3, max: 100 },
+  APPOINTMENT: { min: 3, max: 100 }
 } as const;
 
 /**
- * Title schema factory (configurable min/max)
- * Used for appointment titles, article titles, etc.
+ * Factory: Name schema with configurable length
+ *
+ * @param minLength - Minimum character length (default: 3)
+ * @param maxLength - Maximum character length (default: 100)
+ * @param fieldName - Field name for error messages (default: 'name')
  */
-export const titleSchema = (minLength: number, maxLength: number) =>
-   z.string()
-    .min(1, validationMessages.required('title'))
-    .min(minLength, validationMessages.minLength('title', minLength))
-    .max(maxLength, validationMessages.maxLength('title', maxLength))
-    .trim()
-
-/**
- * Long description schema (50-5000 characters)
- * Used for group descriptions, detailed content, etc.
- */
-export const longDescriptionSchema = z.string()
-  .min(50)
-  .max(5000)
+export const createNameSchema = (
+  minLength: number = 3,
+  maxLength: number = 100,
+  fieldName: string = 'name'
+) => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .min(minLength, validationMessages.minLength(fieldName, minLength))
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
   .trim();
 
 /**
- * Short description/teaser schema (10-500 characters)
- * Used for teasers, short summaries, etc.
+ * Factory: Title schema with configurable length
+ *
+ * @param minLength - Minimum character length
+ * @param maxLength - Maximum character length
+ * @param fieldName - Field name for error messages (default: 'title')
  */
-export const shortDescriptionSchema = z.string()
-  .min(10)
-  .max(500)
+export const createTitleSchema = (
+  minLength: number,
+  maxLength: number,
+  fieldName: string = 'title'
+) => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .min(minLength, validationMessages.minLength(fieldName, minLength))
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
   .trim();
 
 /**
- * First name schema (2-50 characters)
- * Used for person names with German character validation
+ * Factory: Description schema with configurable length
+ *
+ * @param minLength - Minimum character length
+ * @param maxLength - Maximum character length
+ * @param fieldName - Field name for error messages (default: 'description')
  */
-export const firstNameSchema = z.string()
-    .min(1, validationMessages.required('reporterFirstName'))
-    .min(2, validationMessages.minLength('reporterFirstName', 2))
-    .max(50, validationMessages.maxLength('reporterFirstName', 50))
-    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterFirstName'))
-    .trim();
+export const createDescriptionSchema = (
+  minLength: number,
+  maxLength: number,
+  fieldName: string = 'description'
+) => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .min(minLength, validationMessages.minLength(fieldName, minLength))
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
+  .trim();
 
 /**
- * Last name schema (2-50 characters)
- * Used for person names with German character validation
+ * Factory: Person name schema with German character validation
+ *
+ * @param minLength - Minimum character length (default: 2)
+ * @param maxLength - Maximum character length (default: 50)
+ * @param fieldName - Field name for error messages
  */
-export const lastNameSchema = z.string()
-    .min(1, validationMessages.required('reporterLastName'))
-    .min(2, validationMessages.minLength('reporterLastName', 2))
-    .max(50, validationMessages.maxLength('reporterLastName', 50))
-    .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat('reporterLastName'))
-    .trim();
+export const createPersonNameSchema = (
+  minLength: number = 2,
+  maxLength: number = 50,
+  fieldName: string
+) => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .min(minLength, validationMessages.minLength(fieldName, minLength))
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
+  .regex(/^[a-zA-ZäöüÄÖÜß\s\-']+$/, validationMessages.invalidFormat(fieldName))
+  .trim();
 
 /**
- * Email schema
- * Validates email format and length
+ * Factory: Email schema with configurable length
+ *
+ * @param maxLength - Maximum character length (default: 100)
+ * @param fieldName - Field name for error messages (default: 'email')
  */
-export const emailSchema = z.email()
-  .max(100)
+export const createEmailSchema = (
+  maxLength: number = 100,
+  fieldName: string = 'email'
+) => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .email(validationMessages.email(fieldName))
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
   .trim()
   .toLowerCase();
 
 /**
- * Content schema (10-10000 characters)
- * Used for main content fields like status report content
+ * Factory: Text content schema with configurable length
+ *
+ * @param minLength - Minimum character length
+ * @param maxLength - Maximum character length
+ * @param fieldName - Field name for error messages (default: 'content')
  */
-export const contentSchema = z.string()
-  .min(10)
-  .max(10000)
+export const createContentSchema = (
+  minLength: number,
+  maxLength: number,
+  fieldName: string = 'content'
+) => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .min(minLength, validationMessages.minLength(fieldName, minLength))
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
   .trim();
 
 /**
- * Summary schema for Antrag (10-300 characters)
- * Used for Antrag summaries
+ * Factory: Optional text schema with configurable maximum length
+ *
+ * @param maxLength - Maximum character length
+ * @param fieldName - Field name for error messages (default: 'text')
  */
-export const summarySchema = z.string()
-  .min(10)
-  .max(300)
-  .trim();
-
-/**
- * Optional text schema with configurable maximum length
- * Returns a function that creates a Zod schema for optional text fields
- */
-export const createOptionalTextSchema = (maxLength: number, _fieldName: string = 'text') =>
-  z.string()
-    .max(maxLength)
-    .trim()
-    .optional()
-    .or(z.literal(''));
-
-/**
- * Street address schema (optional, max 200 characters)
- */
-export const streetSchema = createOptionalTextSchema(200, 'street');
-
-/**
- * City schema (optional, max 100 characters)
- */
-export const citySchema = createOptionalTextSchema(100, 'city');
-
-/**
- * State schema (optional, max 100 characters)
- */
-export const stateSchema = createOptionalTextSchema(100, 'state');
-
-/**
- * Postal code schema (optional, max 20 characters)
- */
-export const postalCodeSchema = createOptionalTextSchema(20, 'postalCode');
-
-/**
- * Phone number schema (optional, German format)
- */
-export const phoneSchema = z.string()
-  .regex(/^(\+49|0)[0-9\s\-\/()]+$/)
-  .min(6)
-  .max(20)
+export const createOptionalTextSchema = (
+  maxLength: number,
+  fieldName: string = 'text'
+) => z.string()
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
   .trim()
   .optional()
   .or(z.literal(''));
 
 /**
- * Date/time schema
- * Expects Date objects (parsing from strings should happen before validation)
+ * Factory: Date/time schema
+ *
+ * @param fieldName - Field name for error messages (default: 'dateTime')
  */
-export const dateTimeSchema = z.date({
+export const createDateTimeSchema = (fieldName: string = 'dateTime') => z.date({
   error: issue =>
     issue.input === undefined
-      ? "Datum und Uhrzeit sind erforderlich"
+      ? validationMessages.required(fieldName)
       : validationMessages.invalidDateTime()
 });
 
 /**
- * Optional date/time schema
- * Expects Date objects, null, or undefined (parsing from strings should happen before validation)
+ * Factory: Optional date/time schema
  */
-export const optionalDateTimeSchema = z.date({
+export const createOptionalDateTimeSchema = () => z.date({
   error: validationMessages.invalidDateTime()
-}).optional()
-  .nullable();
+}).optional().nullable();
 
 /**
- * File URL schema
- * Validates URL format for file references
+ * Factory: File URL schema
+ *
+ * @param fieldName - Field name for error messages (default: 'fileUrl')
  */
-export const fileUrlSchema = z.string().url();
+export const createFileUrlSchema = (fieldName: string = 'fileUrl') =>
+  z.string().url(validationMessages.invalidUrl(fieldName));
 
 /**
- * Array of file URLs schema
+ * Factory: Array of file URLs schema
+ *
+ * @param fieldName - Field name for error messages (default: 'fileUrls')
  */
-export const fileUrlsSchema = z.array(fileUrlSchema).optional();
+export const createFileUrlsSchema = (fieldName: string = 'fileUrls') =>
+  z.array(createFileUrlSchema(fieldName)).optional();
 
 /**
- * Responsible person schema for groups
- * Used in group validation for responsible persons array
+ * Factory: Group ID schema (CUID format)
+ *
+ * @param fieldName - Field name for error messages (default: 'groupId')
  */
-export const responsiblePersonSchema = z.object({
-  firstName: firstNameSchema,
-  lastName: lastNameSchema,
-  email: emailSchema
+export const createGroupIdSchema = (fieldName: string = 'groupId') => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .regex(/^c[a-z0-9]{24}$/, validationMessages.invalidGroupId(fieldName));
+
+/**
+ * Factory: Responsible person schema for groups
+ *
+ * @param firstNameField - Field name for first name (default: 'firstName')
+ * @param lastNameField - Field name for last name (default: 'lastName')
+ * @param emailField - Field name for email (default: 'email')
+ */
+export const createResponsiblePersonSchema = (
+  firstNameField: string = 'firstName',
+  lastNameField: string = 'lastName',
+  emailField: string = 'email'
+) => z.object({
+  firstName: createPersonNameSchema(2, 50, firstNameField),
+  lastName: createPersonNameSchema(2, 50, lastNameField),
+  email: createEmailSchema(100, emailField)
 });
 
 /**
- * Array of responsible persons (at least one required)
+ * Factory: Array of responsible persons (at least one required)
+ *
+ * @param minCount - Minimum number of persons required (default: 1)
+ * @param fieldName - Field name for error messages (default: 'responsiblePersons')
  */
-export const responsiblePersonsSchema = z.array(responsiblePersonSchema)
-  .min(1);
+export const createResponsiblePersonsSchema = (
+  minCount: number = 1,
+  fieldName: string = 'responsiblePersons'
+) => z.array(createResponsiblePersonSchema())
+  .min(minCount, validationMessages.atLeastOne(fieldName));
 
 /**
  * Boolean schema
  */
 export const booleanSchema = z.boolean();
 
-
 /**
- * Amount schema for financial values (1-999999)
- * Used for Antrag Zuschuss amounts
- */
-export const amountSchema = z.number()
-  .min(1)
-  .max(999999)
-  .refine(val => !isNaN(val));
-
-/**
- * Group ID schema (CUID format)
- */
-export const groupIdSchema = z.string()
-  .min(1)  // Ensures it's not empty
-  .regex(/^c[a-z0-9]{24}$/);
-
-/**
- * Generic ID schema (UUID format)
- */
-export const idSchema = z.string()
-  .uuid();
-
-/**
- * Status schema for Antrag
- */
-export const antragStatusSchema = z.enum(['NEU', 'IN_BEARBEITUNG', 'GENEHMIGT', 'ABGELEHNT']);
-
-/**
- * Featured flag schema for appointments
- */
-export const featuredSchema = booleanSchema.optional().default(false);
-
-/**
- * TipTap Richtext Input validation
+ * Factory: Rich text schema with HTML sanitization
+ *
+ * @param minLength - Minimum character length
+ * @param maxLength - Maximum character length
+ * @param fieldName - Field name for error messages
  */
 const sanitizeConfig = {
   allowedTags: ["b", "strong", "i", "em", "ul", "li", "a", "p"],
@@ -242,18 +227,19 @@ const sanitizeConfig = {
   }
 };
 
-export const richTextSchema = (minLength: number, maxLength: number, field: string) => z
-  .string()
-  .min(1, validationMessages.required(field))
-  .min(minLength, validationMessages.minLength(field, minLength))
-  .max(maxLength, validationMessages.maxLength(field, maxLength))
+export const createRichTextSchema = (
+  minLength: number,
+  maxLength: number,
+  fieldName: string
+) => z.string()
+  .min(1, validationMessages.required(fieldName))
+  .min(minLength, validationMessages.minLength(fieldName, minLength))
+  .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
   .trim()
   .refine((val) => {
     const sanitized = sanitizeHtml(val, sanitizeConfig);
-
-    // Reject if original != sanitized → unsafe HTML was present
     const noExtraWhitespace = (s: string) => s.replace(/\s+/g, " ").trim();
     return noExtraWhitespace(val) === noExtraWhitespace(sanitized);
   }, {
-    message: validationMessages.invalidCharacters(field)
+    message: validationMessages.invalidCharacters(fieldName)
   });

@@ -1,4 +1,4 @@
-import { POST, requestCounts } from '@/app/api/antraege/submit/route';
+import { POST } from '@/app/api/antraege/submit/route';
 import { createAntrag } from '@/lib/db/antrag-operations';
 import { uploadAntragFiles, deleteAntragFiles } from '@/lib/antrag-file-utils';
 import { FileUploadError } from '@/lib/file-upload';
@@ -15,13 +15,6 @@ jest.mock('@/lib/antrag-file-utils', () => ({
   validateAntragFiles: jest.requireActual('@/lib/antrag-file-utils').validateAntragFiles
 }));
 jest.mock('@/lib/logger');
-jest.mock('@/lib/validation/utils', () => {
-  const actual = jest.requireActual('@/lib/validation/utils');
-  return {
-    ...actual,
-    validateRecaptcha: jest.fn().mockResolvedValue(true)
-  };
-});
 
 const mockCreateAntrag = createAntrag as jest.MockedFunction<typeof createAntrag>;
 const mockUploadAntragFiles = uploadAntragFiles as jest.MockedFunction<typeof uploadAntragFiles>;
@@ -34,14 +27,11 @@ describe('POST /api/antraege/submit', () => {
     console.error = jest.fn(); // Suppress error logs in tests
     console.log = jest.fn(); // Suppress log messages in tests
     console.warn = jest.fn(); // Suppress warning logs in tests
-    // Clear rate limit map between tests
-    requestCounts.clear();
   });
 
   describe('Successful submission', () => {
     it('should create an Antrag with valid data', async () => {
       const requestData = AntragFactory.createData({ fileUrls: undefined });
-      requestData.recaptchaToken = 'mock-token'; // Add recaptcha token
       const createdAntrag = AntragFactory.create({
         ...requestData,
         purposes: JSON.stringify(requestData.purposes),

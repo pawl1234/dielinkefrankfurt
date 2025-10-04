@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import { validationMessages, antragMessages } from '@/lib/validation-messages';
+import { validationMessages, antragMessages } from './validation-messages';
 
 /**
  * Configuration for field-specific error message handling.
