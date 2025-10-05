@@ -50,16 +50,16 @@ export const createSecureFileSchema = (
 ) =>
   z.any()
     .refine(
-      (file) => file && file.size <= maxSize,
+      (file) => !file || file.size <= maxSize,
       { message: validationMessages.fileSizeExceeds(Math.round(maxSize / (1024 * 1024))) }
     )
     .refine(
-      (file) => file && allowedTypes.includes(file.type),
+      (file) => !file || allowedTypes.includes(file.type),
       { message: validationMessages.unsupportedFileType() }
     )
     .refine(
       async (file) => {
-        if (!file) return false;
+        if (!file) return true;
         try {
           const buffer = await file.arrayBuffer();
           const detectedType = await fileTypeFromBuffer(buffer);
