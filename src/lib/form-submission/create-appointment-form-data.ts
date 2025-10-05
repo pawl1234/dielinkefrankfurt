@@ -9,45 +9,60 @@ export function createAppointmentFormData<T extends Record<string, unknown>>(
   existingFileUrls?: string[],
   deletedFileUrls?: string[]
 ): FormData {
-  const formData = new FormData();
-
-  Object.entries(data).forEach(([key, value]) => {
-    if (value === null || value === undefined) return;
-
-    // Skip file-related fields that are handled separately
-    if (['files', 'coverImage', 'croppedCoverImage', 'existingFileUrls', 'deletedFileUrls'].includes(key)) {
-      return;
-    }
-
-    if (value instanceof Date) {
-      formData.append(key, value.toISOString());
-    } else if (typeof value === 'boolean') {
-      formData.append(key, value.toString());
-    } else if (typeof value === 'string' || typeof value === 'number') {
-      formData.append(key, String(value));
-    }
+  console.log('[FormData] Creating FormData for appointment submission', {
+    hasFiles: !!files && files.length > 0,
+    fileCount: files?.length || 0,
+    hasCoverImage: !!coverImage,
+    hasCroppedCoverImage: !!croppedCoverImage,
+    coverImageSize: coverImage ? `${(coverImage.size / (1024 * 1024)).toFixed(2)}MB` : 'N/A',
+    croppedCoverImageSize: croppedCoverImage ? `${(croppedCoverImage.size / (1024 * 1024)).toFixed(2)}MB` : 'N/A'
   });
 
-  // Handle file attachments
-  if (files && files.length > 0) {
-    files.forEach(file => formData.append('files', file));
-  }
+  try {
+    const formData = new FormData();
 
-  // Handle cover images for featured appointments
-  if (coverImage) {
-    formData.append('coverImage', coverImage);
-  }
-  if (croppedCoverImage) {
-    formData.append('croppedCoverImage', croppedCoverImage);
-  }
+    Object.entries(data).forEach(([key, value]) => {
+      if (value === null || value === undefined) return;
 
-  // Handle existing and deleted files (edit mode)
-  if (existingFileUrls && existingFileUrls.length > 0) {
-    formData.append('existingFileUrls', JSON.stringify(existingFileUrls));
-  }
-  if (deletedFileUrls && deletedFileUrls.length > 0) {
-    formData.append('deletedFileUrls', JSON.stringify(deletedFileUrls));
-  }
+      // Skip file-related fields that are handled separately
+      if (['files', 'coverImage', 'croppedCoverImage', 'existingFileUrls', 'deletedFileUrls'].includes(key)) {
+        return;
+      }
 
-  return formData;
+      if (value instanceof Date) {
+        formData.append(key, value.toISOString());
+      } else if (typeof value === 'boolean') {
+        formData.append(key, value.toString());
+      } else if (typeof value === 'string' || typeof value === 'number') {
+        formData.append(key, String(value));
+      }
+    });
+
+    // Handle file attachments
+    if (files && files.length > 0) {
+      files.forEach(file => formData.append('files', file));
+    }
+
+    // Handle cover images for featured appointments
+    if (coverImage) {
+      formData.append('coverImage', coverImage);
+    }
+    if (croppedCoverImage) {
+      formData.append('croppedCoverImage', croppedCoverImage);
+    }
+
+    // Handle existing and deleted files (edit mode)
+    if (existingFileUrls && existingFileUrls.length > 0) {
+      formData.append('existingFileUrls', JSON.stringify(existingFileUrls));
+    }
+    if (deletedFileUrls && deletedFileUrls.length > 0) {
+      formData.append('deletedFileUrls', JSON.stringify(deletedFileUrls));
+    }
+
+    console.log('[FormData] FormData created successfully');
+    return formData;
+  } catch (error) {
+    console.error('[FormData] Error creating FormData:', error);
+    throw error;
+  }
 }
