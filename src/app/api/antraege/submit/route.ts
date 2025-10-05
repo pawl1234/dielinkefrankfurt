@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAntrag } from '@/lib/db/antrag-operations';
-import { uploadAntragFiles, deleteAntragFiles } from '@/lib/antrag-file-utils';
-import { FileUploadError } from '@/lib/file-upload';
+import { deleteAntragFiles } from '@/lib/antrag-file-utils';
+import { uploadFiles } from '@/lib/blob-storage';
+import { FILE_TYPES, FILE_SIZE_LIMITS } from '@/lib/validation/file-schemas';
+import { FileUploadError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import { 
-  validateAntragFormData, 
-  validateRecaptcha, 
-  shouldRateLimit,
-  cleanupRateLimitMap,
-  type AntragFormData 
-} from '@/lib/validators/antrag-validator';
-import { apiErrorResponse } from '@/lib/errors';
+import {
+  validateAntragWithZod,
+  type AntragFormData
+} from '@/lib/validation/antrag';
+import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { getRecipientEmails } from '@/lib/db/antrag-config-operations';
 import { sendAntragSubmissionEmail } from '@/lib/email-senders';
 
@@ -32,68 +31,36 @@ export interface AntragSubmitResponse {
   fieldErrors?: Record<string, string>;
 }
 
-// Rate limiting: Store request counts per IP
-export const requestCounts = new Map<string, { count: number; firstRequest: number }>();
-
-// Clean up old entries every 5 minutes
-const cleanupInterval = setInterval(() => {
-  cleanupRateLimitMap(requestCounts, 60000); // 1 minute window
-}, 5 * 60 * 1000);
-
-// Clear interval on process exit to prevent memory leaks in tests
-if (process.env.NODE_ENV === 'test') {
-  process.on('exit', () => clearInterval(cleanupInterval));
-}
-
 /**
  * POST /api/antraege/submit
- * 
+ *
  * Public endpoint for submitting a new Antrag an Kreisvorstand.
  * Handles both form data with file uploads and JSON data without files.
- * Includes rate limiting and reCAPTCHA verification.
  */
 export async function POST(request: NextRequest) {
   let uploadedFileUrls: string[] = [];
-  
+
   try {
-    // Rate limiting check
-    const ip = request.headers.get('x-forwarded-for') || 
-                request.headers.get('x-real-ip') || 
-                'unknown';
-    
-    if (shouldRateLimit(ip, requestCounts, 5, 60000)) { // 5 requests per minute
-      logger.warn('Rate limit exceeded for Antrag submission', {
-        context: { ip }
-      });
-      
-      const response: AntragSubmitResponse = {
-        success: false,
-        error: 'Zu viele Anfragen. Bitte versuchen Sie es in einer Minute erneut.'
-      };
-      return NextResponse.json(response, { status: 429 });
-    }
     // Check content type to determine parsing method
     const contentType = request.headers.get('content-type') || '';
     let formData: AntragFormData;
     const files: File[] = [];
-    let recaptchaToken: string | undefined;
-    
+
     if (contentType.includes('multipart/form-data')) {
       // Parse form data for file upload handling
       const formDataRaw = await request.formData();
-      
+
       // Extract basic fields
       const firstName = formDataRaw.get('firstName') as string;
       const lastName = formDataRaw.get('lastName') as string;
       const email = formDataRaw.get('email') as string;
       const title = formDataRaw.get('title') as string;
       const summary = formDataRaw.get('summary') as string;
-      recaptchaToken = formDataRaw.get('recaptchaToken') as string;
-      
+
       // Parse purposes JSON
       const purposesStr = formDataRaw.get('purposes') as string;
       const purposes = purposesStr ? JSON.parse(purposesStr) : {};
-      
+
       // Collect files
       const fileCount = parseInt(formDataRaw.get('fileCount') as string, 10) || 0;
       for (let i = 0; i < fileCount; i++) {
@@ -102,8 +69,8 @@ export async function POST(request: NextRequest) {
           files.push(file);
         }
       }
-      
-      formData = { firstName, lastName, email, title, summary, purposes, files, recaptchaToken };
+
+      formData = { firstName, lastName, email, title, summary, purposes, files };
     } else {
       // Parse JSON data from request body
       const jsonData = await request.json();
@@ -111,54 +78,41 @@ export async function POST(request: NextRequest) {
         ...jsonData,
         files: [] // No files in JSON requests
       };
-      recaptchaToken = jsonData.recaptchaToken;
     }
     
-    // Verify reCAPTCHA if enabled
-    if (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
-      const isHuman = await validateRecaptcha(recaptchaToken);
-      if (!isHuman) {
-        logger.warn('reCAPTCHA validation failed for Antrag submission', {
-          context: { ip, email: formData.email }
-        });
-        
-        const response: AntragSubmitResponse = {
-          success: false,
-          error: 'reCAPTCHA-Überprüfung fehlgeschlagen. Bitte versuchen Sie es erneut.'
-        };
-        return NextResponse.json(response, { status: 400 });
-      }
+    // Validate form data using Zod schema (includes file validation with magic bytes)
+    const validationResult = await validateAntragWithZod(formData);
+    if (!validationResult.isValid && validationResult.errors) {
+      // Use consistent validationErrorResponse for field errors
+      return validationErrorResponse(validationResult.errors);
     }
-    
-    // Validate form data
-    const validationResult = validateAntragFormData(formData);
-    if (!validationResult.isValid) {
-      const response: AntragSubmitResponse = {
-        success: false,
-        error: 'Validierung fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.',
-        fieldErrors: validationResult.errors
-      };
-      return NextResponse.json(response, { status: 400 });
-    }
-    
+
+    // Use validated data from Zod (guaranteed to be correct after validation)
+    const validatedData = validationResult.data!;
+
     // Prepare Antrag data for database
     const antragData = {
-      firstName: formData.firstName!.trim(),
-      lastName: formData.lastName!.trim(),
-      email: formData.email!.trim(),
-      title: formData.title!.trim(),
-      summary: formData.summary!.trim(),
-      purposes: formData.purposes!
+      firstName: validatedData.firstName.trim(),
+      lastName: validatedData.lastName.trim(),
+      email: validatedData.email.trim(),
+      title: validatedData.title.trim(),
+      summary: validatedData.summary.trim(),
+      purposes: validatedData.purposes
     };
     
     // Upload files if present
     if (files.length > 0) {
       try {
-        uploadedFileUrls = await uploadAntragFiles(files);
+        const uploadResults = await uploadFiles(files, {
+          category: 'antraege',
+          allowedTypes: FILE_TYPES.ANTRAG,
+          maxSizePerFile: FILE_SIZE_LIMITS.ANTRAG
+        });
+        uploadedFileUrls = uploadResults.map(r => r.url);
         console.log(`✅ Successfully uploaded ${uploadedFileUrls.length} files for Antrag`);
       } catch (error) {
         console.error('Error uploading files:', error);
-        
+
         // Handle FileUploadError with appropriate status code
         if (error instanceof FileUploadError) {
           const response: AntragSubmitResponse = {

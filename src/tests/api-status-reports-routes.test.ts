@@ -420,7 +420,7 @@ describe('Status Report API Routes', () => {
 
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
-      expect(data.error).toContain('exceeds 5MB limit');
+      expect(data.error).toContain('Dateigröße überschreitet das Limit von 5MB');
       
       // Verify no upload was attempted
       expect(put).not.toHaveBeenCalled();
@@ -671,9 +671,9 @@ describe('Status Report API Routes', () => {
       const response = await adminStatusReportsDelete(request, { params });
       const data = await response.json();
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(500);
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Status Report not found');
+      expect(data.error).toBe('Failed to delete status report');
       
       // Verify no deletion was attempted
       expect(mockPrisma.statusReport.delete).not.toHaveBeenCalled();

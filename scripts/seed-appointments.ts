@@ -1,9 +1,9 @@
 // scripts/seed-appointments.ts
-const { PrismaClient } = require('@prisma/client');
-const { faker } = require('@faker-js/faker/locale/de');
-const { format, addDays, subDays, addHours } = require('date-fns');
-const fs = require('fs');
-const path = require('path');
+import { PrismaClient } from '@prisma/client';
+import { faker } from '@faker-js/faker/locale/de';
+import { addDays, subDays, addHours } from 'date-fns';
+import fs from 'fs';
+import path from 'path';
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
@@ -180,7 +180,6 @@ const generateAppointment = (config: AppointmentSeedConfig) => {
   // Return appointment data
   return {
     title: faker.lorem.words(getRandomInt(3, 6)),
-    teaser: faker.lorem.sentence(),
     mainText,
     startDateTime,
     endDateTime,

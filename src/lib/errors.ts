@@ -129,7 +129,8 @@ export class AppError extends Error {
  */
 export function validationErrorResponse(fieldErrors: Record<string, string>): NextResponse {
   return NextResponse.json({
-    error: 'Validation failed',
+    success: false,
+    error: 'Validierung fehlgeschlagen',
     type: ErrorType.VALIDATION,
     fieldErrors
   }, { status: 400 });
@@ -354,4 +355,71 @@ export class NewsletterValidationError extends AppError {
  */
 export function isNewsletterError(error: unknown): error is NewsletterNotFoundError | NewsletterValidationError {
   return error instanceof NewsletterNotFoundError || error instanceof NewsletterValidationError;
+}
+
+/**
+ * Validation result type for all validators
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errors?: Record<string, string>;
+}
+
+/**
+ * Validation error class for form field validation errors
+ */
+export class ValidationError extends AppError {
+  public readonly fieldErrors: Record<string, string>;
+
+  constructor(fieldErrors: Record<string, string>) {
+    const firstError = Object.values(fieldErrors)[0] || 'Validierung fehlgeschlagen';
+    super(firstError, ErrorType.VALIDATION, 400);
+    this.fieldErrors = fieldErrors;
+    this.name = 'ValidationError';
+  }
+
+  /**
+   * Converts the error to a NextResponse object using validationErrorResponse
+   */
+  toResponse(): NextResponse {
+    return validationErrorResponse(this.fieldErrors);
+  }
+}
+
+/**
+ * Type guard to check if an error is a ValidationError
+ */
+export function isValidationError(error: unknown): error is ValidationError {
+  return error instanceof ValidationError;
+}
+
+/**
+ * File upload error class with status code and error code support
+ * Used for file validation and upload failures
+ */
+export class FileUploadError extends Error {
+  public readonly status: number;
+  public readonly code?: string;
+  public readonly details?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    statusOrCode: number | string = 500,
+    codeOrDetails?: string | Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'FileUploadError';
+
+    // Support both constructor signatures for backward compatibility
+    if (typeof statusOrCode === 'number') {
+      // New signature: (message, status, code?)
+      this.status = statusOrCode;
+      this.code = typeof codeOrDetails === 'string' ? codeOrDetails : undefined;
+    } else {
+      // Old signature: (message, code, details?)
+      this.status = 500;
+      this.code = statusOrCode;
+      this.details = typeof codeOrDetails === 'object' ? codeOrDetails : undefined;
+    }
+  }
 }

@@ -86,7 +86,7 @@ export async function renderNotificationEmail(
         throw new Error(`Unknown template: ${templateName}`);
     }
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const html = await render(TemplateComponent(props as any));
     return html;
   } catch (error) {
@@ -144,7 +144,7 @@ export async function renderToPlainText(
         throw new Error(`Unknown template for plain text: ${templateName}`);
     }
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const plainText = await render(TemplateComponent(props as any), {
       plainText: true
     });

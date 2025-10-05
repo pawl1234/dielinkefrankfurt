@@ -2,39 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
 import type { Antrag, Prisma } from '@prisma/client';
 import { serverErrorResponse } from './api-auth';
-import { del } from '@vercel/blob';
-import { 
-  validationErrorResponse, 
+import { deleteFiles } from './blob-storage';
+import {
+  validationErrorResponse,
   handleDatabaseError
 } from './errors';
-import type { AntragPurposes } from '@/types/api-types';
+import type { AntragPurposes } from './validation/antrag';
 
 /**
  * Types for antrag operations
  */
 export interface AntragUpdateData {
-  id: string;
-  status?: 'NEU' | 'AKZEPTIERT' | 'ABGELEHNT';
-  title?: string;
-  summary?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  purposes?: AntragPurposes;
-  fileUrls?: string | null;
-  decisionComment?: string | null;
-  decidedBy?: string | null;
-  decidedAt?: Date | null;
+  id: string;         // Pre-validated: valid UUID format, required
+  status?: 'NEU' | 'AKZEPTIERT' | 'ABGELEHNT'; // Pre-validated: valid status enum (when provided)
+  title?: string;     // Pre-validated: 3-200 chars (when provided)
+  summary?: string;   // Pre-validated: 10-300 chars (when provided)
+  firstName?: string; // Pre-validated: 2-50 chars with German characters (when provided)
+  lastName?: string;  // Pre-validated: 2-50 chars with German characters (when provided)
+  email?: string;     // Pre-validated: valid email format, max 100 chars (when provided)
+  purposes?: AntragPurposes; // Pre-validated: complex purpose structure with conditional field requirements (when provided)
+  fileUrls?: string | null; // Pre-validated: JSON string of valid URLs (when provided)
+  decisionComment?: string | null; // Pre-validated: max 2000 chars (when provided)
+  decidedBy?: string | null;       // Pre-validated: max 100 chars (when provided)
+  decidedAt?: Date | null;         // Pre-validated: valid date object (when provided)
 }
 
 export interface AntragCreateData {
-  title: string;
-  summary: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  purposes: AntragPurposes;
-  fileUrls?: string | null;
+  title: string;      // Pre-validated: 3-200 chars, required
+  summary: string;    // Pre-validated: 10-300 chars, required
+  firstName: string;  // Pre-validated: 2-50 chars with German characters, required
+  lastName: string;   // Pre-validated: 2-50 chars with German characters, required
+  email: string;      // Pre-validated: valid email format, max 100 chars, required
+  purposes: AntragPurposes; // Pre-validated: complex purpose structure with conditional validation rules, at least one enabled
+  fileUrls?: string | null; // Pre-validated: JSON string of valid URLs (optional)
 }
 
 /**
@@ -49,7 +49,18 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * Get all Anträge with optional filtering and pagination
+ * Retrieves Anträge (requests) with filtering, search, and pagination capabilities.
+ *
+ * @param request Pre-validated NextRequest with query parameters from API route level
+ * @returns Promise resolving to NextResponse with paginated Antrag data
+ * @throws Error Only for business logic failures (database operations, query processing, search filtering)
+ *
+ * Note: Query parameter validation is handled at API route level.
+ * This function assumes all parameter validation has already passed.
+ * Supports comprehensive filtering, full-text search, and optimized pagination.
+ *
+ * Supported views: 'all', 'pending' (NEU), 'approved' (AKZEPTIERT), 'rejected' (ABGELEHNT)
+ * Search functionality covers: title, summary, firstName, lastName, email fields with case-insensitive matching.
  */
 export async function getAntraege(request: NextRequest) {
   try {
@@ -148,7 +159,21 @@ export async function getAntraege(request: NextRequest) {
 }
 
 /**
- * Update an existing antrag
+ * Updates an existing Antrag with validated data and handles status changes.
+ *
+ * @param request Pre-validated NextRequest with JSON body from API route level
+ * @returns Promise resolving to NextResponse with updated Antrag data
+ * @throws Error Only for business logic failures (database operations, Antrag not found, transaction failures)
+ *
+ * Note: Input validation is handled at API route level using Zod schemas.
+ * This function assumes all field validation has already passed.
+ * Handles status changes, decision tracking, and automatic timestamp updates.
+ *
+ * Business rules enforced:
+ * - Only existing Anträge can be updated (validates existence)
+ * - Status changes automatically update decision metadata
+ * - updatedAt timestamp is automatically managed by database
+ * - Complex purposes object is serialized to JSON for storage
  */
 export async function updateAntrag(request: NextRequest) {
   try {
@@ -225,7 +250,21 @@ export async function updateAntrag(request: NextRequest) {
 }
 
 /**
- * Delete an antrag
+ * Deletes an Antrag and its associated files from storage.
+ *
+ * @param request Pre-validated NextRequest with JSON body containing ID from API route level
+ * @returns Promise resolving to NextResponse with deletion confirmation
+ * @throws Error Only for business logic failures (database operations, Antrag not found, file deletion failures)
+ *
+ * Note: Input validation is handled at API route level using Zod schemas.
+ * This function assumes all field validation has already passed.
+ * Handles comprehensive cleanup of files and database records with graceful error handling.
+ *
+ * Business rules enforced:
+ * - Only existing Anträge can be deleted (validates existence)
+ * - Associated files are deleted from Vercel Blob Storage with error tolerance
+ * - Database deletion occurs after file cleanup attempts
+ * - File deletion failures don't block Antrag deletion (graceful degradation)
  */
 export async function deleteAntrag(request: NextRequest) {
   try {
@@ -252,19 +291,11 @@ export async function deleteAntrag(request: NextRequest) {
     if (existingAntrag.fileUrls) {
       try {
         const fileUrls = JSON.parse(existingAntrag.fileUrls);
-        if (Array.isArray(fileUrls)) {
-          await Promise.all(
-            fileUrls.map(async (url: string) => {
-              try {
-                await del(url);
-              } catch (error) {
-                console.warn(`Failed to delete file: ${url}`, error);
-              }
-            })
-          );
+        if (Array.isArray(fileUrls) && fileUrls.length > 0) {
+          await deleteFiles(fileUrls);
         }
       } catch (error) {
-        console.warn('Failed to parse file URLs for deletion:', error);
+        console.warn('Failed to delete files from blob storage:', error);
       }
     }
 
@@ -277,5 +308,47 @@ export async function deleteAntrag(request: NextRequest) {
   } catch (error) {
     console.error('Error deleting antrag:', error);
     return handleDatabaseError(error, 'deleteAntrag').toResponse();
+  }
+}
+
+/**
+ * Creates a new Antrag with validated data and file upload handling.
+ *
+ * @param data Pre-validated Antrag creation data from Zod schema validation at API route level
+ * @returns Promise resolving to created Antrag with NEU status
+ * @throws Error Only for business logic failures (database operations, file processing, external service failures)
+ *
+ * Note: Input validation is handled at API route level using Zod schemas.
+ * This function assumes all field validation has already passed.
+ * Sets initial status to 'NEU' and handles complex data serialization.
+ *
+ * Business rules enforced:
+ * - New Anträge always start with 'NEU' status (workflow requirement)
+ * - Complex purposes object is serialized to JSON for database storage
+ * - File URLs are stored as JSON strings when provided
+ * - Created and updated timestamps are automatically managed by database
+ */
+export async function createAntrag(data: AntragCreateData): Promise<Antrag> {
+  try {
+    // Create antrag with NEU status
+    const antrag = await prisma.antrag.create({
+      data: {
+        title: data.title,
+        summary: data.summary,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        purposes: JSON.stringify(data.purposes),
+        fileUrls: data.fileUrls || null,
+        status: 'NEU',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    return antrag;
+  } catch (error) {
+    console.error('Error creating antrag:', error);
+    throw error;
   }
 }

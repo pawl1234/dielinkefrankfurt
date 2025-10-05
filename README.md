@@ -38,7 +38,6 @@ This is a Next.js application for appointment submission for Die Linke Frankfurt
    ```bash
    npx prisma generate
    ```
-4. The project includes a default `.env.local` file with development settings that allow you to run the application without real reCAPTCHA credentials.
 
 #### Local Development with PostgreSQL
 
@@ -89,7 +88,6 @@ The build script will automatically skip the database operations if no DATABASE_
 
 In development mode:
 - SQLite database is used for easy local development
-- reCAPTCHA validation will be automatically bypassed in development
 - File uploads are stored in the public/uploads directory
 
 ## Environment Variables
@@ -102,9 +100,6 @@ In development mode:
 
 ### Database Configuration
 - `DATABASE_URL`: Connection string for your database
-
-### Optional Configuration
-- `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`: Google reCAPTCHA site key
 
 ## Preparing for Production
 
@@ -130,12 +125,7 @@ When you're ready to deploy the application to production, you'll need to:
    DATABASE_URL="postgresql://username:password@your-database-host:5432/database-name"
    ```
 
-3. Get a real Google reCAPTCHA v2 key from https://www.google.com/recaptcha/admin/ and update:
-   ```
-   NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your-real-recaptcha-site-key
-   ```
-
-4. Apply database migrations to your production database:
+3. Apply database migrations to your production database:
    ```bash
    npx prisma migrate deploy
    ```
@@ -253,7 +243,18 @@ To integrate the appointments on another website:
 - `/src/app`: Next.js app router files
 - `/src/components`: React components
 - `/src/app/api`: API routes for form submission and RSS feed
+- `/src/lib/validation`: Centralized validation and error handling system
 - `/public`: Static assets
+- `/docs/development`: Development documentation and guides
+
+## Developer Documentation
+
+For detailed development information, see the documentation in `/docs/development/`:
+
+- **[Error Handling & Validation System](docs/development/2025-09-23_error-handling-validation-system.md)** - Comprehensive guide to the centralized validation and error handling system
+- **[Development Guide](docs/development/README.md)** - General development setup and guidelines
+- **[Vercel Blob Storage](docs/development/vercel-blob-storage.md)** - File upload and storage configuration
+- **[Vercel Deployment](docs/development/vercel-deployment.md)** - Production deployment guide
 
 ## License
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -32,15 +32,16 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import FeaturedToggle from '@/components/newsletter/FeaturedToggle';
-import EditAppointmentWrapper from '@/components/forms/appointments/EditAppointmentWrapper';
+import EditAppointmentForm from '@/components/forms/appointments/EditAppointmentForm';
 import { useAdminState } from '@/hooks/useAdminState';
 import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components/ui/FileThumbnail';
+import { AppointmentSubmitData } from '@/lib/validation/appointment';
+import { createAppointmentFormData } from '@/lib/form-submission';
 
 // Define the Appointment type based on our Prisma schema
 interface Appointment {
   id: number;
   title: string;
-  teaser: string;
   mainText: string;
   startDateTime: string;
   endDateTime: string | null;
@@ -63,16 +64,20 @@ interface Appointment {
 export default function AdminAppointmentsPage() {
   const { status } = useSession();
   const router = useRouter();
-  
+
   // Use our custom hook for admin state management
   const adminState = useAdminState<Appointment>();
-  
+
   // Define view types
   type ViewType = 'pending' | 'upcoming' | 'archive';
   const views = useMemo<ViewType[]>(() => ['pending', 'upcoming', 'archive'], []);
-  
+
   // Get current view
   const currentView = views[adminState.tabValue];
+
+  // Edit state management
+  const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
+  const [expandedAccordionId, setExpandedAccordionId] = useState<number | null>(null);
   
   useEffect(() => {
     // Redirect if not authenticated
@@ -188,6 +193,50 @@ export default function AdminAppointmentsPage() {
     await handleAppointmentUpdate(id, { status: 'rejected' });
   };
 
+  // Edit form handlers
+  const handleEditFormSubmit = async (
+    appointmentId: number,
+    formData: AppointmentSubmitData
+  ) => {
+    const { files, coverImage, croppedCoverImage, existingFileUrls, deletedFileUrls, ...formFields } = formData;
+
+    const apiFormData = createAppointmentFormData(
+      { ...formFields, id: appointmentId, status: 'pending' },
+      files,
+      coverImage,
+      croppedCoverImage,
+      existingFileUrls,
+      deletedFileUrls
+    );
+
+    try {
+      const response = await fetch('/api/admin/appointments', {
+        method: 'PATCH',
+        body: apiFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update appointment');
+      }
+
+      adminState.showNotification('Termin erfolgreich aktualisiert.', 'success');
+      setEditingAppointmentId(null);
+      adminState.refreshTimestamp();
+    } catch (err) {
+      console.error('Error updating appointment:', err);
+      adminState.showNotification(
+        `Fehler: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`,
+        'error'
+      );
+      throw err;
+    }
+  };
+
+  const handleEditFormCancel = () => {
+    setEditingAppointmentId(null);
+  };
+
   // Define tab labels
   const getTabLabel = (view: ViewType) => {
     switch (view) {
@@ -267,7 +316,15 @@ export default function AdminAppointmentsPage() {
             <Grid container spacing={3}>
               {adminState.items.map((appointment) => (
                 <Grid size={{ xs: 12 }} key={appointment.id}>
-                  <Accordion>
+                  <Accordion
+                    expanded={expandedAccordionId === appointment.id}
+                    onChange={(_, isExpanded) => {
+                      setExpandedAccordionId(isExpanded ? appointment.id : null);
+                      if (!isExpanded && editingAppointmentId === appointment.id) {
+                        setEditingAppointmentId(null);
+                      }
+                    }}
+                  >
                     <AccordionSummary
                       expandIcon={<ExpandMoreIcon />}
                       aria-controls={`appointment-${appointment.id}-content`}
@@ -277,9 +334,6 @@ export default function AdminAppointmentsPage() {
                         <Box>
                           <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                             {appointment.title}
-                          </Typography>
-                          <Typography variant="body2">
-                            {appointment.teaser}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             {appointment.firstName} {appointment.lastName} • {format(new Date(appointment.startDateTime), 'PPP', { locale: de })}
@@ -340,18 +394,12 @@ export default function AdminAppointmentsPage() {
                                 color="secondary"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Open the accordion to allow editing
-                                  const accordionSummary = e.currentTarget.closest('.MuiAccordionSummary-root');
-                                  if (accordionSummary && !accordionSummary.classList.contains('Mui-expanded')) {
-                                    (accordionSummary as HTMLElement).click();
+                                  if (editingAppointmentId === appointment.id) {
+                                    setEditingAppointmentId(null);
+                                  } else {
+                                    setEditingAppointmentId(appointment.id);
+                                    setExpandedAccordionId(appointment.id);
                                   }
-                                  // Wait for accordion animation to complete before showing edit form
-                                  setTimeout(() => {
-                                    const editButton = document.querySelector(`[data-appointment-id="${appointment.id}"]`);
-                                    if (editButton) {
-                                      (editButton as HTMLButtonElement).click();
-                                    }
-                                  }, 300);
                                 }}
                                 size="small"
                                 sx={{
@@ -365,7 +413,7 @@ export default function AdminAppointmentsPage() {
                               >
                                 <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
                                 <Typography variant="button">
-                                  Bearbeiten
+                                  {editingAppointmentId === appointment.id ? 'Abbrechen' : 'Bearbeiten'}
                                 </Typography>
                               </IconButton>
                             </Box>
@@ -384,18 +432,12 @@ export default function AdminAppointmentsPage() {
                                 color="primary"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Open the accordion to allow editing
-                                  const accordionSummary = e.currentTarget.closest('.MuiAccordionSummary-root');
-                                  if (accordionSummary && !accordionSummary.classList.contains('Mui-expanded')) {
-                                    (accordionSummary as HTMLElement).click();
+                                  if (editingAppointmentId === appointment.id) {
+                                    setEditingAppointmentId(null);
+                                  } else {
+                                    setEditingAppointmentId(appointment.id);
+                                    setExpandedAccordionId(appointment.id);
                                   }
-                                  // Wait for accordion animation to complete before showing edit form
-                                  setTimeout(() => {
-                                    const editButton = document.querySelector(`[data-appointment-id="${appointment.id}"]`);
-                                    if (editButton) {
-                                      (editButton as HTMLButtonElement).click();
-                                    }
-                                  }, 300);
                                 }}
                                 size="small"
                                 sx={{
@@ -409,7 +451,7 @@ export default function AdminAppointmentsPage() {
                               >
                                 <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
                                 <Typography variant="button">
-                                  Bearbeiten
+                                  {editingAppointmentId === appointment.id ? 'Abbrechen' : 'Bearbeiten'}
                                 </Typography>
                               </IconButton>
                             </Box>
@@ -428,18 +470,12 @@ export default function AdminAppointmentsPage() {
                                 color="primary"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Open the accordion to allow editing
-                                  const accordionSummary = e.currentTarget.closest('.MuiAccordionSummary-root');
-                                  if (accordionSummary && !accordionSummary.classList.contains('Mui-expanded')) {
-                                    (accordionSummary as HTMLElement).click();
+                                  if (editingAppointmentId === appointment.id) {
+                                    setEditingAppointmentId(null);
+                                  } else {
+                                    setEditingAppointmentId(appointment.id);
+                                    setExpandedAccordionId(appointment.id);
                                   }
-                                  // Wait for accordion animation to complete before showing edit form
-                                  setTimeout(() => {
-                                    const editButton = document.querySelector(`[data-appointment-id="${appointment.id}"]`);
-                                    if (editButton) {
-                                      (editButton as HTMLButtonElement).click();
-                                    }
-                                  }, 300);
                                 }}
                                 size="small"
                                 sx={{
@@ -453,7 +489,7 @@ export default function AdminAppointmentsPage() {
                               >
                                 <EditIcon fontSize="small" sx={{ mr: 0.5 }} />
                                 <Typography variant="button">
-                                  Bearbeiten
+                                  {editingAppointmentId === appointment.id ? 'Abbrechen' : 'Bearbeiten'}
                                 </Typography>
                               </IconButton>
                             </Box>
@@ -463,16 +499,15 @@ export default function AdminAppointmentsPage() {
                     </AccordionSummary>
                     <AccordionDetails>
                       <Divider sx={{ mb: 2 }} />
-                      
-                      <EditAppointmentWrapper
-                        appointment={appointment}
-                        onEditComplete={() => {
-                          // Update timestamp to force refresh and break image cache
-                          adminState.refreshTimestamp();
-                          fetchAppointments(views[adminState.tabValue]);
-                        }}
-                        appointmentComponent={
-                          <>
+
+                      {editingAppointmentId === appointment.id ? (
+                        <EditAppointmentForm
+                          appointment={appointment}
+                          onSubmit={(data) => handleEditFormSubmit(appointment.id, data)}
+                          onCancel={handleEditFormCancel}
+                        />
+                      ) : (
+                        <>
                             <Grid container spacing={3}>
                               <Grid size={{ xs: 8 }}>
                                 <Typography variant="h6" gutterBottom>
@@ -647,8 +682,7 @@ export default function AdminAppointmentsPage() {
                               )}
                             </Box>
                           </>
-                        }
-                      />
+                      )}
                     </AccordionDetails>
                   </Accordion>
                 </Grid>

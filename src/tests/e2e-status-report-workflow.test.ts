@@ -21,7 +21,7 @@ describe('Status Report Integration', () => {
   describe('Status Report Submission', () => {
     it('should successfully submit a status report', async () => {
       const mockGroup = {
-        id: 'test-group-123',
+        id: 'cmnopqrstuvwxyz123456789a', // Valid CUID format
         name: 'Test Community Group',
         slug: 'test-community-group',
         status: 'ACTIVE',
@@ -80,7 +80,7 @@ describe('Status Report Integration', () => {
       formData.append('content', '<p>Test content</p>');
       formData.append('reporterFirstName', 'John');
       formData.append('reporterLastName', 'Doe');
-      formData.append('groupId', 'non-existent-group');
+      formData.append('groupId', 'cabcdefghijklmnopqrstuv12'); // Valid CUID format but non-existent
 
       const request = new NextRequest('http://localhost:3000/api/status-reports/submit', {
         method: 'POST',
@@ -91,7 +91,7 @@ describe('Status Report Integration', () => {
       const data = await response.json();
 
       expect(response.status).toBe(404);
-      expect(data.error).toContain('Group not found');
+      expect(data.error).toBe('Group not found or not active');
     });
 
     it('should handle database errors gracefully', async () => {
@@ -102,7 +102,7 @@ describe('Status Report Integration', () => {
       formData.append('content', '<p>Test content</p>');
       formData.append('reporterFirstName', 'John');
       formData.append('reporterLastName', 'Doe');
-      formData.append('groupId', 'test-group-123');
+      formData.append('groupId', 'cmnopqrstuvwxyz123456789a'); // Valid CUID format
 
       const request = new NextRequest('http://localhost:3000/api/status-reports/submit', {
         method: 'POST',
@@ -113,7 +113,7 @@ describe('Status Report Integration', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to submit status report');
+      expect(data.error).toBe('Fehler beim Übermitteln des Statusberichts');
     });
   });
 });

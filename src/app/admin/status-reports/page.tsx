@@ -13,10 +13,9 @@ import AdminNotification from '@/components/admin/AdminNotification';
 import SearchFilterBar from '@/components/admin/tables/SearchFilterBar';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { useAdminState } from '@/hooks/useAdminState';
-import EditStatusReportForm, {
-  InitialStatusReportData,
-  StatusReportFormInput
-} from '@/components/forms/status-reports/EditStatusReportForm';
+import EditStatusReportForm from '@/components/forms/status-reports/EditStatusReportForm';
+import { StatusReportData, StatusReportAdminSubmission } from '@/types/api-types';
+import { createEditFormData } from '@/lib/form-submission';
 import {
   Box, Typography, Paper, IconButton, Container, Button, CircularProgress, Grid, Chip,
   Dialog, DialogActions, DialogContent, DialogTitle, TextField, MenuItem, Select,
@@ -56,26 +55,6 @@ enum StatusReportStatus {
   REJECTED = "REJECTED"
 }
 
-// Helper to map page's enum status to form's literal status
-const mapToFormStatus = (status: StatusReportStatus): InitialStatusReportData['status'] => {
-  switch (status) {
-    case StatusReportStatus.NEW: return 'draft';
-    case StatusReportStatus.ACTIVE: return 'published';
-    case StatusReportStatus.ARCHIVED: return 'draft'; // Form might not have 'archived', map to 'draft' or preferred default
-    case StatusReportStatus.REJECTED: return 'rejected';
-    default: return 'draft';
-  }
-};
-
-// Helper to map form's literal status back to page's enum status for API
-const mapToApiStatus = (status: InitialStatusReportData['status']): StatusReportStatus => {
-  switch (status) {
-    case 'draft': return StatusReportStatus.NEW; 
-    case 'published': return StatusReportStatus.ACTIVE;
-    case 'rejected': return StatusReportStatus.REJECTED;
-    default: return StatusReportStatus.NEW; // Fallback
-  }
-};
 
 
 export default function AdminStatusReportsPage() {
@@ -180,31 +159,18 @@ export default function AdminStatusReportsPage() {
 
   const handleEditFormSubmit = async (
     reportId: string,
-    formDataFromForm: StatusReportFormInput, // Renamed to avoid confusion
-    newFiles: (File | Blob)[],
-    retainedExistingFileUrls: string[]
+    formDataFromForm: StatusReportAdminSubmission
   ) => {
-    const apiFormData = new FormData();
-    apiFormData.append('id', reportId);
-    apiFormData.append('groupId', formDataFromForm.groupId);
-    apiFormData.append('title', formDataFromForm.title);
-    apiFormData.append('content', formDataFromForm.content);
-    apiFormData.append('reporterFirstName', formDataFromForm.reporterFirstName);
-    apiFormData.append('reporterLastName', formDataFromForm.reporterLastName);
-    apiFormData.append('status', mapToApiStatus(formDataFromForm.status));
-    apiFormData.append('existingFileUrls', JSON.stringify(retainedExistingFileUrls));
+    const { files, existingFileUrls, ...formFields } = formDataFromForm;
+    const apiFormData = createEditFormData(
+      { ...formFields, id: reportId },
+      files,
+      existingFileUrls
+    );
 
-    // Add file count and files with correct naming format
-    if (newFiles.length > 0) {
-      apiFormData.append('fileCount', newFiles.length.toString());
-      newFiles.forEach((file, index) => {
-        apiFormData.append(`file-${index}`, file);
-      });
-    }
-    
     try {
-      const response = await fetch('/api/admin/status-reports', { 
-        method: 'PATCH', 
+      const response = await fetch('/api/admin/status-reports', {
+        method: 'PATCH',
         body: apiFormData,
       });
 
@@ -354,14 +320,14 @@ export default function AdminStatusReportsPage() {
                 const statusInfo = getStatusInfo(report.status);
                 const isEditingThisReport = editingReportId === report.id;
 
-                const initialFormDataForEdit: InitialStatusReportData | null = isEditingThisReport ? {
+                const initialFormDataForEdit: StatusReportData | null = isEditingThisReport ? {
                   id: report.id,
                   groupId: report.groupId,
                   title: report.title,
                   content: report.content,
                   reporterFirstName: report.reporterFirstName,
                   reporterLastName: report.reporterLastName,
-                  status: mapToFormStatus(report.status),
+                  status: report.status,
                   createdAt: report.createdAt,
                   updatedAt: report.updatedAt,
                   fileUrls: report.fileUrls || null,
@@ -471,8 +437,8 @@ export default function AdminStatusReportsPage() {
                         {isEditingThisReport && initialFormDataForEdit ? (
                           <EditStatusReportForm
                             statusReport={initialFormDataForEdit}
-                            onSubmit={(data, newFiles, retainedUrls) => 
-                              handleEditFormSubmit(report.id, data, newFiles, retainedUrls)
+                            onSubmit={(data) =>
+                              handleEditFormSubmit(report.id, data)
                             }
                             onCancel={handleEditFormCancel}
                           />

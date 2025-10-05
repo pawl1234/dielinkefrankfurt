@@ -122,14 +122,8 @@ export function buildTopicExtractionPrompt(
  * Build refinement prompt for conversation continuation
  */
 export function buildRefinementPrompt(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  generatedText: string,
-  refinementRequest: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  conversationHistory: Array<{ role: string; content: string }>
+  refinementRequest: string
 ): string {
   // For now, we just return the refinement request directly
-  // The generatedText and conversationHistory parameters are kept for interface compatibility
-  // but not used in the current implementation
   return refinementRequest;
 }

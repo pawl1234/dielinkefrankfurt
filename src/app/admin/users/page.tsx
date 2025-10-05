@@ -91,7 +91,7 @@ export default function UsersPage() {
     if (!validateForm(true) || !selectedUser) return;
     
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const { password: _, ...dataToSend } = formData;
       
       const res = await fetch(`/api/admin/users/${selectedUser.id}`, {

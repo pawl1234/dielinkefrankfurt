@@ -367,8 +367,8 @@ if (typeof Blob === 'undefined') {
       return this._parts.join('');
     }
     
-    slice(start = 0, end = this.size, contentType = '') {
-      return new Blob(this._parts, { type: contentType });
+    slice() {
+      return new Blob(this._parts, { type: '' });
     }
   };
 }

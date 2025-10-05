@@ -1,9 +1,9 @@
 // scripts/seed-groups.ts
-const { PrismaClient, GroupStatus } = require('@prisma/client');
-const { faker } = require('@faker-js/faker/locale/de');
-const fs = require('fs');
-const path = require('path');
-const slugify = require('slugify');
+import { PrismaClient, GroupStatus } from '@prisma/client';
+import { faker } from '@faker-js/faker/locale/de';
+import fs from 'fs';
+import path from 'path';
+import slugify from 'slugify';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -71,7 +71,7 @@ const shouldInclude = (percentage: number): boolean => {
 
 // Generate a unique slug from name
 const generateSlug = (name: string, existingSlugs: Set<string>): string => {
-  let baseSlug = slugify(name, { lower: true, strict: true });
+  const baseSlug = slugify(name, { lower: true, strict: true });
   let slug = baseSlug;
   let counter = 1;
   

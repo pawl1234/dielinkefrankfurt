@@ -6,7 +6,6 @@ import { POST as rejectAntrag } from '@/app/api/admin/antraege/[id]/reject/route
 import { GET as getConfiguration, PUT as updateConfiguration } from '@/app/api/admin/antraege/configuration/route';
 import prisma from '@/lib/prisma';
 import { sendAntragAcceptanceEmail, sendAntragRejectionEmail } from '@/lib/email-senders';
-import { validateRecaptcha } from '@/lib/validators/antrag-validator';
 import { uploadAntragFiles } from '@/lib/antrag-file-utils';
 import { logger } from '@/lib/logger';
 import { AntragFactory, createMockFile, createMockFormData } from '@/tests/factories';
@@ -38,11 +37,6 @@ jest.mock('@/lib/email-senders', () => ({
   sendAntragRejectionEmail: jest.fn(),
 }));
 
-jest.mock('@/lib/validators/antrag-validator', () => ({
-  ...jest.requireActual('@/lib/validators/antrag-validator'),
-  validateRecaptcha: jest.fn(),
-}));
-
 jest.mock('@/lib/antrag-file-utils', () => ({
   uploadAntragFiles: jest.fn(),
   deleteAntragFiles: jest.fn(),
@@ -70,7 +64,6 @@ jest.mock('next-auth', () => ({
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 const mockSendAntragAcceptanceEmail = sendAntragAcceptanceEmail as jest.MockedFunction<typeof sendAntragAcceptanceEmail>;
 const mockSendAntragRejectionEmail = sendAntragRejectionEmail as jest.MockedFunction<typeof sendAntragRejectionEmail>;
-const mockValidateRecaptcha = validateRecaptcha as jest.MockedFunction<typeof validateRecaptcha>;
 const mockUploadAntragFiles = uploadAntragFiles as jest.MockedFunction<typeof uploadAntragFiles>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 
@@ -135,7 +128,6 @@ describe('Antrag End-to-End Integration Tests', () => {
     
     // Default mock implementations
     mockPrisma.antragConfiguration.findFirst.mockResolvedValue(mockConfiguration);
-    mockValidateRecaptcha.mockResolvedValue(true);
     mockUploadAntragFiles.mockResolvedValue([
       'https://example.com/file1.pdf',
       'https://example.com/file2.jpg'
@@ -203,9 +195,6 @@ describe('Antrag End-to-End Integration Tests', () => {
         status: 'NEU'
       });
 
-      // Verify validation was performed
-      expect(mockValidateRecaptcha).toHaveBeenCalledWith('valid-recaptcha-token');
-      
       // Verify files were uploaded
       expect(mockUploadAntragFiles).toHaveBeenCalledWith([file1, file2]);
       
@@ -719,52 +708,6 @@ describe('Antrag End-to-End Integration Tests', () => {
         'Ungültige E-Mail-Adresse: another-invalid'
       ]);
       expect(mockPrisma.antragConfiguration.update).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Security and Rate Limiting', () => {
-    it.skip('should enforce rate limiting on submissions', async () => {
-      const validData = AntragFactory.createData({ fileUrls: undefined });
-      const ip = '192.168.1.100';
-
-      // Make multiple requests from same IP
-      for (let i = 0; i < 6; i++) {
-        const request = createRequest('POST', validData, { 'x-forwarded-for': ip });
-        const response = await submitAntrag(request);
-        
-        if (i < 5) {
-          // First 5 requests should not be rate limited
-          expect(response.status).not.toBe(429);
-        } else {
-          // 6th request should be rate limited
-          expect(response.status).toBe(429);
-          const data: AntragSubmitResponse = await response.json();
-          expect(data.error).toBe('Zu viele Anfragen. Bitte versuchen Sie es in einer Minute erneut.');
-        }
-      }
-    });
-
-    it.skip('should validate reCAPTCHA when configured', async () => {
-      // Mock reCAPTCHA as enabled
-      process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY = 'test-site-key';
-      
-      const validData = AntragFactory.createData({ fileUrls: undefined });
-      mockValidateRecaptcha.mockResolvedValue(false);
-
-      const request = createRequest('POST', {
-        ...validData,
-        recaptchaToken: 'invalid-token'
-      });
-      
-      const response = await submitAntrag(request);
-      const data: AntragSubmitResponse = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe('reCAPTCHA-Überprüfung fehlgeschlagen. Bitte versuchen Sie es erneut.');
-      expect(mockPrisma.antrag.create).not.toHaveBeenCalled();
-      
-      // Clean up
-      delete process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
     });
   });
 

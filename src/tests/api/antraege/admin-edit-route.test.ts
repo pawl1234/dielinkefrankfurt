@@ -106,8 +106,8 @@ describe('Admin Antrag Edit API', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.error).toBe('Validation failed');
-      expect(data.details).toBeDefined();
+      expect(data.error).toBe('Validierung fehlgeschlagen');
+      expect(data.fieldErrors).toBeDefined();
     });
   });
 
@@ -147,7 +147,7 @@ describe('Admin Antrag Edit API', () => {
     it('updates purposes field', async () => {
       const newPurposes = {
         zuschuss: { enabled: true, amount: 1000 },
-        raumbuchung: { enabled: true, location: 'Conference Room', numberOfPeople: 50 },
+        raumbuchung: { enabled: true, location: 'Conference Room', numberOfPeople: 50, details: 'Room booking details' },
       };
 
       (prisma.antrag.update as jest.Mock).mockResolvedValue({

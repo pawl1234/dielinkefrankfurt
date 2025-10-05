@@ -67,19 +67,78 @@ export interface FormSuccessMessageProps {
 export interface FormFieldProps {
   /** Label for the field */
   label: string;
-  
+
   /** Name of the field */
   name: string;
-  
+
   /** Whether the field is required */
   required?: boolean;
-  
+
   /** Error message for the field */
   error?: string;
-  
+
   /** Placeholder text */
   placeholder?: string;
-  
+
   /** Helper text */
   helperText?: string;
+}
+
+/**
+ * Properties for EditStatusReportForm component
+ */
+export interface EditStatusReportFormProps {
+  /** The status report data to edit */
+  statusReport: import('./api-types').StatusReportData;
+
+  /** Callback when form is submitted */
+  onSubmit: (
+    data: import('./api-types').StatusReportAdminSubmission
+  ) => Promise<void>;
+
+  /** Callback when form is cancelled */
+  onCancel: () => void;
+}
+
+/**
+ * Properties for EditAppointmentForm component
+ */
+export interface EditAppointmentFormProps {
+  /** The appointment data to edit */
+  appointment: {
+    id: number;
+    title: string;
+    mainText: string;
+    startDateTime: string;
+    endDateTime: string | null;
+    street: string | null;
+    city: string | null;
+    state: string | null;
+    postalCode: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    recurringText: string | null;
+    fileUrls: string | null;
+    featured: boolean;
+    metadata?: string | null;
+    status: 'pending' | 'accepted' | 'rejected';
+  };
+
+  /** Callback when form is submitted */
+  onSubmit: (
+    data: import('@/lib/validation/appointment').AppointmentSubmitData
+  ) => Promise<void>;
+
+  /** Callback when form is cancelled */
+  onCancel: () => void;
+}
+
+/**
+ * Custom validation entry for form fields that require validation beyond schema validation
+ * Used for complex fields like file uploads, rich text editors, etc.
+ */
+export interface CustomValidationEntry {
+  field: string;
+  isValid: boolean;
+  message?: string;
 }

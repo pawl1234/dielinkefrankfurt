@@ -83,17 +83,17 @@ export interface AntragPurposes {
   };
   personelleUnterstuetzung?: {
     enabled: boolean;
-    details: string; // Free text describing personnel needs
+    details?: string; // Free text describing personnel needs (optional but required when enabled)
   };
   raumbuchung?: {
     enabled: boolean;
-    location: string;
-    numberOfPeople: number;
-    details: string; // Additional details like time, duration, special requirements
+    location?: string;
+    numberOfPeople?: number;
+    details?: string; // Additional details like time, duration, special requirements (optional but required when enabled)
   };
   weiteres?: {
     enabled: boolean;
-    details: string; // Free text for other requirements
+    details?: string; // Free text for other requirements (optional but required when enabled)
   };
 }
 
@@ -201,4 +201,82 @@ export interface AIGenerationWithTopicsRequest {
   extractedTopics?: string; // Alternative to raw boardProtocol
   boardProtocol?: string; // Fallback to raw protocol (backward compatibility)
   previousIntro?: string;
+}
+
+/**
+ * Status Report submission request - API contract between frontend and backend
+ */
+export interface StatusReportSubmissionRequest {
+  groupId: string;
+  title: string;
+  content: string;
+  reporterFirstName: string;
+  reporterLastName: string;
+  files?: File[];
+}
+
+/**
+ * Status Report submission successful response
+ */
+export interface StatusReportSubmissionResponse {
+  success: true;
+  statusReport: {
+    id: string;
+    title: string;
+  };
+}
+
+/**
+ * Status report data structure (matches database)
+ * Used for displaying and editing existing status reports
+ */
+export interface StatusReportData {
+  id: string;
+  groupId: string;
+  title: string;
+  content: string;
+  reporterFirstName: string;
+  reporterLastName: string;
+  status: 'NEW' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED';
+  createdAt: string;
+  updatedAt: string;
+  fileUrls: string | null;
+}
+
+/**
+ * Status report submission data for admin (includes status)
+ * Used for admin form submissions
+ */
+export interface StatusReportAdminSubmission extends StatusReportSubmissionRequest {
+  status: 'NEW' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED';
+  existingFileUrls?: string[];
+}
+
+/**
+ * Group entity - represents a single group in the system
+ */
+export interface Group {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logoUrl?: string;
+  status?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+/**
+ * Groups list API response - supports both paginated and simple list responses
+ */
+export interface GroupsListResponse {
+  success: boolean;
+  groups: Group[];
+  // Pagination metadata (present when paginated)
+  totalItems?: number;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+  // Error info (present when success: false)
+  error?: string;
 }

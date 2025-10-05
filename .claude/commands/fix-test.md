@@ -76,6 +76,7 @@ to not only make the test work, but also optimized to test to give a real benefi
 
 ## Process
 IMPORTANT! Follow the defined process in the <process> section: 
+IMPORTANT! Only change the code of the test. Never add code to the project itself to make the test pass. 
 
 <process>
 1. Analyze the context of the test throughly
@@ -85,7 +86,7 @@ IMPORTANT! Follow the defined process in the <process> section:
 4. Judge whether the test adds benefit to the project in general. Does it make sense to fix the test?
 3. If test does not add benefit to the project according to best practices then sum your findings up. 
 4. If the gerneally test adds value the project, then investigate the root cause why the test is failing. 
-5. When you found the root cause, then apply a fix. 
+5. When you found the root cause, then apply a fix to the test. NEVER add code to project except test. 
 6. Reiterate over the test until it passes. 
 </process>
 

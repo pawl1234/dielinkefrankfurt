@@ -2,6 +2,9 @@ import AntragForm from '@/components/forms/antraege/AntragForm';
 import FormPageLayout from '@/components/forms/shared/FormPageLayout';
 import { Metadata } from 'next';
 
+// Force dynamic rendering to avoid SSR issues with file validation
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Antrag an Kreisvorstand | Die Linke Frankfurt',
   description: 'Online-Formular zur Einreichung von Anträgen an den Kreisvorstand der Linken Frankfurt. Beantragen Sie finanzielle Unterstützung, personelle Hilfe oder Raumnutzung.',

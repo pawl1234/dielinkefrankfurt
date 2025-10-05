@@ -88,4 +88,195 @@
 - **MUI v7 Grid usage**: Material UI v7 uses a new Grid system this code is wrong: `<Grid item xs={{12}}>` use the new correct way instead: `<Grid size={{ xs: 12, md: 6 }}>`.
 - **Date handling**: When working with date fields, be aware that the Prisma client uses JavaScript `Date` objects for datetime fields, but our interface definitions sometimes expect `string`. In components, use `Date | string` as the type for date fields.
 - **Form validation**: Forms should only show validation errors after submission. Use a `formSubmitted` state variable to conditionally display error messages. For component reuse, validation controls can accept a `showValidationErrors` prop.
-- **TypeScript**: NEVER use the `any` type. Always use specific types from `src/types/` (api-types.ts, component-types.ts, form-types.ts) or create proper interfaces. For Prisma models, use proper field types matching schema.prisma. For test mocks, create objects with all required fields instead of type assertions. While development make sure type safety is always ensured. 
+- **TypeScript**: NEVER use the `any` type. Always use specific types from `src/types/` (api-types.ts, component-types.ts, form-types.ts) or create proper interfaces. For Prisma models, use proper field types matching schema.prisma. For test mocks, create objects with all required fields instead of type assertions. While development make sure type safety is always ensured.
+
+## Error Handling & Validation System
+
+This project uses a centralized error handling and validation system located in `src/lib/validation/`. **ALWAYS use this system** for consistent error handling across the application.
+
+### Key Principles
+
+- **German localization**: All validation messages must be in German
+- **Structured field errors**: Use `ValidationError` class for form validation
+- **Consistent API responses**: Use `validationErrorResponse()` and `apiErrorResponse()`
+- **No string matching**: Never use string matching for error detection
+- **DRY validation**: Reuse shared validation schemas
+
+### Quick Usage Guide
+
+#### 1. API Route Error Handling
+```typescript
+import { ValidationError, isValidationError, apiErrorResponse } from '@/lib/errors';
+import { validateMyData } from '@/lib/validation';
+
+export async function POST(request: NextRequest) {
+  try {
+    // ... extract data from request
+
+    // Validate using centralized validator
+    const validationResult = await validateMyData(data);
+    if (!validationResult.isValid && validationResult.errors) {
+      throw new ValidationError(validationResult.errors);
+    }
+
+    // ... process data
+    return NextResponse.json({ success: true });
+
+  } catch (error) {
+    // Handle ValidationError (returns structured field errors)
+    if (isValidationError(error)) {
+      return error.toResponse();
+    }
+
+    // Handle other errors consistently
+    return apiErrorResponse(error, 'Operation failed');
+  }
+}
+```
+
+#### 2. Creating New Validators
+```typescript
+// src/lib/validation/my-validator.ts
+import { validationSchemas } from './schemas';
+import { ValidationResult } from '@/lib/errors';
+
+export async function validateMyData(data: Partial<MyDataType>): Promise<ValidationResult> {
+  const errors: Record<string, string> = {};
+
+  // Use shared schemas for consistency
+  const nameError = validationSchemas.name.validate(data.name || '', 'name');
+  if (nameError) errors.name = nameError;
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors: Object.keys(errors).length > 0 ? errors : undefined
+  };
+}
+
+// Export from src/lib/validation/index.ts
+export * from './my-validator';
+```
+
+#### 3. Handler Functions
+```typescript
+// src/lib/my-handlers.ts
+import { ValidationError } from '@/lib/errors';
+import { validateMyData } from '@/lib/validation';
+
+export async function createMyEntity(data: MyDataType) {
+  // Always validate first
+  const validationResult = await validateMyData(data);
+  if (!validationResult.isValid && validationResult.errors) {
+    throw new ValidationError(validationResult.errors);
+  }
+
+  // Business logic here...
+  return await prisma.myEntity.create({ data });
+}
+```
+
+#### 4. Frontend Integration
+The frontend already integrates via `useValidationErrors` hook:
+```typescript
+// Server field errors are automatically handled
+const { validationErrors, submissionError } = useValidationErrors({
+  formErrors,
+  customValidations,
+  submissionError,
+  serverFieldErrors, // ← Populated from ValidationError responses
+  isSubmitted
+});
+```
+
+### Available Validation Schemas
+
+Use these predefined schemas from `src/lib/validation/schemas.ts`:
+
+- `validationSchemas.name` - Names (3-100 chars)
+- `validationSchemas.title` - Titles (3-200 chars)
+- `validationSchemas.email` - Email validation
+- `validationSchemas.longDescription` - Long text (50-5000 chars)
+- `validationSchemas.shortDescription` - Short text (10-500 chars)
+- `validationSchemas.firstName` - Person first name (2-50 chars)
+- `validationSchemas.lastName` - Person last name (2-50 chars)
+- `validationSchemas.content` - Content fields (10-10000 chars)
+- `validationSchemas.optionalText(maxLength)` - Optional text with max length
+
+### Common Validators
+
+From `src/lib/validation/schemas.ts`:
+```typescript
+import { commonValidators } from '@/lib/validation/schemas';
+
+// Use these for custom validation
+commonValidators.required(value, 'fieldName');
+commonValidators.email(value, 'email');
+commonValidators.stringLength(value, 'name', 3, 100);
+commonValidators.arrayNotEmpty(array, 'items');
+```
+
+### German Field Labels
+
+All field labels are centralized in `src/lib/validation-messages.ts`. When adding new fields:
+
+1. Add to `fieldLabels` object:
+```typescript
+export const fieldLabels: Record<string, string> = {
+  'myNewField': 'Mein neues Feld',
+  // ...
+};
+```
+
+2. Use in validation messages:
+```typescript
+validationMessages.required('myNewField'); // Returns: "Mein neues Feld ist erforderlich"
+```
+
+### Error Response Patterns
+
+#### ✅ CORRECT - Use ValidationError
+```typescript
+if (!validationResult.isValid && validationResult.errors) {
+  throw new ValidationError(validationResult.errors);
+}
+```
+
+#### ✅ CORRECT - Use apiErrorResponse
+```typescript
+catch (error) {
+  return apiErrorResponse(error, 'German error message');
+}
+```
+
+#### ❌ WRONG - String matching
+```typescript
+// DON'T DO THIS
+if (error.message.includes('required')) {
+  return NextResponse.json({ error: error.message }, { status: 400 });
+}
+```
+
+#### ❌ WRONG - Custom error objects
+```typescript
+// DON'T DO THIS
+throw { validationErrors: errors, isValidationError: true };
+```
+
+### Testing Validation
+
+When testing validators, use real implementations (don't mock them):
+```typescript
+// ✅ CORRECT
+import { validateMyData } from '@/lib/validation/my-validator';
+
+describe('My Validator', () => {
+  it('should return German error messages', async () => {
+    const result = await validateMyData({});
+    expect(result.errors?.name).toBe('Name ist erforderlich');
+  });
+});
+```
+
+### Documentation
+
+For detailed information, see: [docs/development/2025-09-23_error-handling-validation-system.md](docs/development/2025-09-23_error-handling-validation-system.md) 

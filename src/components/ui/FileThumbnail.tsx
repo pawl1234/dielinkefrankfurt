@@ -300,4 +300,4 @@ export const FileThumbnailGrid: React.FC<FileThumbnailGridProps> = ({
 };
 
 // Re-export helper functions from file-utils
-export { parseFileUrls, parseCoverImages, parseUploadedFiles, parseFileItems } from '@/lib/file-utils';
+export { parseFileUrls, parseCoverImages } from '@/lib/file-utils';

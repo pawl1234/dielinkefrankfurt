@@ -1,38 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/api-auth';
 import prisma from '@/lib/prisma';
-import { put, del } from '@vercel/blob';
-import { z } from 'zod';
-
-// Validation schema for antrag updates
-const updateAntragSchema = z.object({
-  firstName: z.string().min(1).max(50).optional(),
-  lastName: z.string().min(1).max(50).optional(),
-  email: z.string().email().optional(),
-  title: z.string().min(1).max(200).optional(),
-  summary: z.string().min(1).max(300).optional(),
-  purposes: z.object({
-    zuschuss: z.object({
-      enabled: z.boolean(),
-      amount: z.number().min(0).optional(),
-    }).optional(),
-    personelleUnterstuetzung: z.object({
-      enabled: z.boolean(),
-      details: z.string().optional(),
-    }).optional(),
-    raumbuchung: z.object({
-      enabled: z.boolean(),
-      location: z.string().optional(),
-      numberOfPeople: z.number().min(1).optional(),
-      details: z.string().optional(),
-    }).optional(),
-    weiteres: z.object({
-      enabled: z.boolean(),
-      details: z.string().optional(),
-    }).optional(),
-  }).optional(),
-  fileUrls: z.array(z.string()).optional(),
-});
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
+import {
+  validateAntragUpdateWithZod
+} from '@/lib/validation/antrag';
 
 /**
  * GET /api/admin/antraege/[id]
@@ -121,18 +93,18 @@ export const PUT = withAdminAuth(async (
     // Handle both JSON and FormData
     const contentType = request.headers.get('content-type');
     let body: Record<string, unknown>;
-    const newFiles: File[] = [];
+    const newFiles: Blob[] = [];
     let filesToDelete: string[] = [];
 
     if (contentType?.includes('multipart/form-data')) {
       const formData = await request.formData();
       body = {};
-      
+
       // Extract fields from FormData
       for (const [key, value] of formData.entries()) {
         if (key.startsWith('file-')) {
           // New file upload
-          if (value instanceof File) {
+          if (value instanceof Blob) {
             newFiles.push(value);
           }
         } else if (key === 'filesToDelete') {
@@ -154,19 +126,15 @@ export const PUT = withAdminAuth(async (
       body = await request.json();
     }
 
-    // Validate the update data
-    const validationResult = updateAntragSchema.safeParse(body);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: 'Validation failed',
-          details: validationResult.error.flatten()
-        },
-        { status: 400 }
-      );
+    // Validate the update data using Zod schema with consistent error handling
+    const validationResult = await validateAntragUpdateWithZod(body);
+    if (!validationResult.isValid && validationResult.errors) {
+      // Use consistent validationErrorResponse for field errors
+      const { validationErrorResponse } = await import('@/lib/errors');
+      return validationErrorResponse(validationResult.errors);
     }
 
-    const updateData = validationResult.data;
+    const updateData = validationResult.data!;
 
     // Handle file operations
     let updatedFileUrls: string[] = [];
@@ -182,29 +150,20 @@ export const PUT = withAdminAuth(async (
 
     // Delete files marked for deletion
     if (filesToDelete.length > 0) {
-      for (const fileUrl of filesToDelete) {
-        try {
-          await del(fileUrl);
-          updatedFileUrls = updatedFileUrls.filter(url => url !== fileUrl);
-        } catch (error) {
-          console.error(`Failed to delete file: ${fileUrl}`, error);
-        }
+      const deleteResult = await deleteFiles(filesToDelete);
+      if (deleteResult.success) {
+        updatedFileUrls = updatedFileUrls.filter(url => !filesToDelete.includes(url));
+      } else {
+        console.error('Failed to delete some files:', deleteResult.failedUrls);
       }
     }
 
     // Upload new files
     if (newFiles.length > 0) {
-      const uploadPromises = newFiles.map(async (file) => {
-        const timestamp = Date.now();
-        const filename = `antraege/${id}/${timestamp}-${file.name}`;
-        const blob = await put(filename, file, {
-          access: 'public',
-          addRandomSuffix: false,
-        });
-        return blob.url;
+      const uploadResults = await uploadFiles(newFiles as File[], {
+        category: 'antraege',
       });
-
-      const newFileUrls = await Promise.all(uploadPromises);
+      const newFileUrls = uploadResults.map(result => result.url);
       updatedFileUrls = [...updatedFileUrls, ...newFileUrls];
     }
 
@@ -297,28 +256,17 @@ export const DELETE = withAdminAuth(async (
 
     // Delete files from blob storage first (atomic operation)
     // If any file deletion fails, abort the entire operation
-    const deletionErrors: string[] = [];
-    
     if (filesToDelete.length > 0) {
       console.log(`Deleting ${filesToDelete.length} files for antrag ${id}`);
-      
-      for (const fileUrl of filesToDelete) {
-        try {
-          await del(fileUrl);
-          console.log(`Successfully deleted file: ${fileUrl}`);
-        } catch (error) {
-          const errorMessage = `Failed to delete file: ${fileUrl}`;
-          console.error(errorMessage, error);
-          deletionErrors.push(errorMessage);
-        }
-      }
+
+      const deleteResult = await deleteFiles(filesToDelete);
 
       // If any file deletion failed, abort the operation
-      if (deletionErrors.length > 0) {
+      if (!deleteResult.success && deleteResult.failedUrls && deleteResult.failedUrls.length > 0) {
         return NextResponse.json(
-          { 
+          {
             error: 'Failed to delete associated files. Antrag deletion aborted to maintain data integrity.',
-            details: deletionErrors
+            details: deleteResult.failedUrls.map(url => `Failed to delete file: ${url}`)
           },
           { status: 500 }
         );

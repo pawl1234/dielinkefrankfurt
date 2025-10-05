@@ -86,7 +86,6 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
       select: {
         id: true,
         title: true,
-        teaser: true,
         startDateTime: true,
         featured: true
       }

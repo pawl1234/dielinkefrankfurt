@@ -3,8 +3,34 @@ import { withAdminAuth } from '@/lib/api-auth';
 import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/group-handlers';
 import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
 import { GroupWithResponsiblePersons } from '@/types/email-types';
-import { validateFile, uploadCroppedImagePair, deleteFiles, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE, FileUploadError } from '@/lib/file-upload';
+import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
+import { FILE_TYPES } from '@/lib/validation/file-schemas';
+import { logger } from '@/lib/logger';
+import { validateGroupUpdateWithZod } from '@/lib/validation/group';
+import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 
+
+/**
+ * Parse responsible persons from FormData
+ * @param formData - FormData object containing responsible persons
+ * @returns Array of responsible persons
+ */
+function parseResponsiblePersons(formData: FormData) {
+  const count = parseInt(formData.get('responsiblePersonsCount') as string, 10) || 0;
+  const persons = [];
+
+  for (let i = 0; i < count; i++) {
+    const firstName = formData.get(`responsiblePerson[${i}].firstName`) as string;
+    const lastName = formData.get(`responsiblePerson[${i}].lastName`) as string;
+    const email = formData.get(`responsiblePerson[${i}].email`) as string;
+
+    if (firstName && lastName && email) {
+      persons.push({ firstName, lastName, email });
+    }
+  }
+
+  return persons;
+}
 
 /**
  * Response type for group details
@@ -81,10 +107,12 @@ export const GET = withAdminAuth(async (request: NextRequest, context: { params:
  * Authentication required.
  */
 export const PUT = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+  let logoUrl: string | null = null;
+
   try {
     const params = await context.params;
     const { id } = params;
-    
+
     if (!id) {
       const response: GroupUpdateResponse = {
         success: false,
@@ -92,8 +120,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       };
       return NextResponse.json(response, { status: 400 });
     }
-    
-    // Get existing group to check if it exists
+
     const existingGroup = await getGroupById(id);
     if (!existingGroup) {
       const response: GroupUpdateResponse = {
@@ -102,175 +129,129 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       };
       return NextResponse.json(response, { status: 404 });
     }
-    
-    // Check if the request is multipart/form-data or JSON
+
     const contentType = request.headers.get('content-type') || '';
     let updateData: GroupUpdateData = { id };
-    let logoMetadata = undefined;
-    
+
     if (contentType.includes('multipart/form-data')) {
-      // Handle form data for file uploads
       const formData = await request.formData();
-      
-      // Extract basic fields
-      if (formData.has('name')) updateData.name = formData.get('name') as string;
-      if (formData.has('description')) updateData.description = formData.get('description') as string;
-      if (formData.has('status')) updateData.status = formData.get('status') as GroupStatus;
-      
-      // Handle responsible persons if provided
+
+      const parsedData: Partial<GroupUpdateData> = {};
+
+      if (formData.has('name')) {
+        parsedData.name = formData.get('name') as string;
+      }
+
+      if (formData.has('description')) {
+        parsedData.description = formData.get('description') as string;
+      }
+
+      if (formData.has('status')) {
+        parsedData.status = formData.get('status') as GroupStatus;
+      }
+
       if (formData.has('responsiblePersonsCount')) {
-        const responsiblePersonsCount = parseInt(formData.get('responsiblePersonsCount') as string, 10) || 0;
-        const responsiblePersons = [];
-        
-        for (let i = 0; i < responsiblePersonsCount; i++) {
-          const firstName = formData.get(`responsiblePerson[${i}].firstName`) as string;
-          const lastName = formData.get(`responsiblePerson[${i}].lastName`) as string;
-          const email = formData.get(`responsiblePerson[${i}].email`) as string;
-          
-          if (firstName && lastName && email) {
-            responsiblePersons.push({
-              firstName,
-              lastName,
-              email
+        parsedData.responsiblePersons = parseResponsiblePersons(formData);
+      }
+
+      updateData = {
+        id,
+        ...parsedData
+      };
+
+      const logo = formData.get('logo') as File | null;
+
+      if (formData.has('removeLogo') && formData.get('removeLogo') === 'true') {
+        updateData.logoUrl = null;
+        if (existingGroup.logoUrl) {
+          try {
+            await deleteFiles([existingGroup.logoUrl]);
+            logger.info('Old logo deleted successfully');
+          } catch (deleteError) {
+            logger.error('Error deleting old logo', {
+              context: { errorMessage: deleteError instanceof Error ? deleteError.message : String(deleteError) }
             });
           }
         }
-        
-        updateData.responsiblePersons = responsiblePersons;
-      }
-      
-      // Handle logo upload if present
-      const originalLogo = formData.get('logo') as File | null;
-      const croppedLogo = formData.get('croppedLogo') as File | null;
-      
-      // Check if removing logo
-      if (formData.has('removeLogo') && formData.get('removeLogo') === 'true') {
-        // Set logoMetadata to null to indicate removal
-        logoMetadata = null;
-      } 
-      // Handle logo update
-      else if (originalLogo && croppedLogo && originalLogo.size > 0 && croppedLogo.size > 0) {
+      } else if (logo && logo.size > 0) {
         try {
-          // Validate the original logo file
-          validateFile(originalLogo, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE);
-          
-          // Upload both original and cropped logos
-          const logoUrls = await uploadCroppedImagePair(originalLogo, croppedLogo, 'groups', 'logo');
-          
-          // If we had previous logo files, delete them
+          const uploadResults = await uploadFiles([logo], {
+            category: 'groups',
+            prefix: 'logo',
+            allowedTypes: FILE_TYPES.IMAGE
+          });
+          logoUrl = uploadResults[0].url;
+          logger.info('Logo upload successful', { context: { logoUrl } });
+
           if (existingGroup.logoUrl) {
             try {
-              const filesToDelete = [existingGroup.logoUrl];
-              
-              // Check if there's an original URL in metadata
-              if (existingGroup.metadata) {
-                try {
-                  const metadata = JSON.parse(existingGroup.metadata);
-                  if (metadata.originalUrl && metadata.originalUrl !== existingGroup.logoUrl) {
-                    filesToDelete.push(metadata.originalUrl);
-                  }
-                } catch (e) {
-                  console.error(`Error parsing metadata for group ${id}:`, e);
-                }
-              }
-              
-              await deleteFiles(filesToDelete);
+              await deleteFiles([existingGroup.logoUrl]);
+              logger.info('Old logo deleted successfully');
             } catch (deleteError) {
-              console.error('Error deleting old logo files:', deleteError);
-              // Continue even if deletion fails
+              logger.error('Error deleting old logo', {
+                context: { errorMessage: deleteError instanceof Error ? deleteError.message : String(deleteError) }
+              });
             }
           }
-          
-          // Store the URLs in metadata
-          logoMetadata = {
-            originalUrl: logoUrls.originalUrl,
-            croppedUrl: logoUrls.croppedUrl
-          };
-        } catch (uploadError) {
-          if (uploadError instanceof FileUploadError) {
-            const response: GroupUpdateResponse = {
-              success: false,
-              error: uploadError.message
-            };
-            return NextResponse.json(response, { status: uploadError.status });
-          }
-          
-          throw uploadError; // Re-throw if it's not a FileUploadError
+
+          updateData.logoUrl = logoUrl;
+        } catch (error) {
+          logger.error('Logo upload failed', {
+            context: { errorMessage: error instanceof Error ? error.message : String(error) }
+          });
+          return apiErrorResponse(error, 'Fehler beim Hochladen des Logos');
         }
-      }
-      
-      // Add logo metadata to update data if it was set
-      if (logoMetadata !== undefined) {
-        updateData.logoMetadata = logoMetadata;
       }
     } else {
-      // Handle JSON data
       updateData = await request.json() as GroupUpdateData;
-      updateData.id = id; // Ensure ID is set correctly
+      updateData.id = id;
     }
-    
-    // Validate responsible persons if they are being updated
-    if (updateData.responsiblePersons !== undefined) {
-      if (!updateData.responsiblePersons || updateData.responsiblePersons.length === 0) {
-        const response: GroupUpdateResponse = {
-          success: false,
-          error: 'At least one responsible person is required'
-        };
-        return NextResponse.json(response, { status: 400 });
-      }
-      
-      // Validate email formats
-      for (const person of updateData.responsiblePersons) {
-        if (!person.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email)) {
-          const response: GroupUpdateResponse = {
-            success: false,
-            error: 'Valid email is required for all responsible persons'
-          };
-          return NextResponse.json(response, { status: 400 });
-        }
-      }
+
+    const validationResult = await validateGroupUpdateWithZod(updateData);
+    if (!validationResult.isValid && validationResult.errors) {
+      return validationErrorResponse(validationResult.errors);
     }
-    
-    // Update the group
-    const updatedGroup = await updateGroup(updateData);
+
+    const validatedData = {
+      ...updateData,
+      ...validationResult.data
+    };
+
+    const updatedGroup = await updateGroup(validatedData);
     
     // If status was changed, send appropriate notification emails
-    if (updateData.status && updateData.status !== existingGroup.status) {
+    if (validatedData.status && validatedData.status !== existingGroup.status) {
       try {
-        // Import email functions
         const { sendGroupAcceptanceEmail, sendGroupArchivingEmail } = await import('@/lib/group-handlers');
-        
-        // Send emails based on new status
+
         let emailResult;
-        if (updateData.status === 'ACTIVE') {
+        if (validatedData.status === 'ACTIVE') {
           emailResult = await sendGroupAcceptanceEmail(updatedGroup as GroupWithResponsiblePersons);
-        } else if (updateData.status === 'ARCHIVED') {
+        } else if (validatedData.status === 'ARCHIVED') {
           emailResult = await sendGroupArchivingEmail(updatedGroup as GroupWithResponsiblePersons);
         }
-        
-        // Check if email sending failed
+
         if (emailResult && !emailResult.success) {
-          const { logger } = await import('@/lib/logger');
-          logger.error('Failed to send notification email for group approval', {
+          logger.error('Failed to send notification email', {
             context: {
               groupId: id,
-              error: emailResult.error instanceof Error ? emailResult.error : new Error(String(emailResult.error))
+              errorMessage: emailResult.error instanceof Error ? emailResult.error.message : String(emailResult.error)
             }
           });
         }
-        
-        // Note: No emails sent for REJECTED status per business requirements
       } catch (emailError) {
-        // Log the error but don't fail the update
-        const { logger } = await import('@/lib/logger');
-        logger.error('Failed to send notification email for group approval', {
+        logger.error('Failed to send notification email', {
           context: {
             groupId: id,
-            error: emailError instanceof Error ? emailError : new Error(String(emailError))
+            errorMessage: emailError instanceof Error ? emailError.message : String(emailError)
           }
         });
       }
     }
+
+    logger.info('Group updated successfully', {
+      context: { groupId: updatedGroup.id, name: updatedGroup.name }
+    });
     
     const response: GroupUpdateResponse = {
       success: true,
@@ -281,30 +262,17 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     
     return NextResponse.json(response);
   } catch (error) {
-    console.error(`Error updating group:`, error);
-    
-    // Return friendly error message based on the error
-    if (error instanceof Error) {
-      // Handle validation errors or other known error types
-      const response: GroupUpdateResponse = {
-        success: false,
-        error: error.message
-      };
-      
-      // Return 400 for validation errors, 500 for other errors
-      const status = error.message.includes('required') || 
-                    error.message.includes('must be between') ? 400 : 500;
-      
-      return NextResponse.json(response, { status });
+    if (logoUrl) {
+      try {
+        await deleteFiles([logoUrl]);
+      } catch (deleteError) {
+        logger.error('Logo cleanup failed', {
+          context: { errorMessage: deleteError instanceof Error ? deleteError.message : String(deleteError) }
+        });
+      }
     }
-    
-    // Generic error for other types of errors
-    const response: GroupUpdateResponse = {
-      success: false,
-      error: 'Failed to update group'
-    };
-    
-    return NextResponse.json(response, { status: 500 });
+
+    return apiErrorResponse(error, 'Fehler beim Aktualisieren der Gruppe');
   }
 });
 

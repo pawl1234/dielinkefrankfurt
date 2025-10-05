@@ -66,7 +66,7 @@ describe('File Upload System', () => {
         expect(() => validateFile(exeFile, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
         expect(() => validateFile(exeFile, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
-          .toThrow('Unsupported file type');
+          .toThrow('Datei: Nicht unterstützter Dateityp');
         
         expect(() => validateFile(zipFile, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
@@ -87,7 +87,7 @@ describe('File Upload System', () => {
         expect(() => validateFile(largeJpeg, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
         expect(() => validateFile(largeJpeg, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
-          .toThrow(/File size exceeds.*limit/);
+          .toThrow(/Dateigröße überschreitet das Limit/);
         
         expect(() => validateFile(hugePdf, ALLOWED_FILE_TYPES, MAX_FILE_SIZE))
           .toThrow(FileUploadError);
@@ -98,7 +98,7 @@ describe('File Upload System', () => {
         expect(() => validateFile(null, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
           .toThrow(FileUploadError);
         expect(() => validateFile(null, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
-          .toThrow('Invalid file provided');
+          .toThrow('Datei ist erforderlich');
         
         // @ts-expect-error: Intentionally passing undefined for testing
         expect(() => validateFile(undefined, ALLOWED_IMAGE_TYPES, MAX_LOGO_SIZE))
@@ -121,7 +121,7 @@ describe('File Upload System', () => {
         
         // Should throw for non-image files
         expect(() => validateGroupLogoFile(pdfFile)).toThrow(FileUploadError);
-        expect(() => validateGroupLogoFile(pdfFile)).toThrow('Unsupported file type');
+        expect(() => validateGroupLogoFile(pdfFile)).toThrow('Datei: Nicht unterstützter Dateityp');
       });
       
       it('should reject image files exceeding the logo size limit', () => {
@@ -129,7 +129,7 @@ describe('File Upload System', () => {
         
         // Should throw for oversized logos
         expect(() => validateGroupLogoFile(largeLogo)).toThrow(FileUploadError);
-        expect(() => validateGroupLogoFile(largeLogo)).toThrow(/File size exceeds.*limit/);
+        expect(() => validateGroupLogoFile(largeLogo)).toThrow(/Dateigröße überschreitet das Limit/);
       });
     });
 
@@ -153,7 +153,7 @@ describe('File Upload System', () => {
         
         // Should throw for too many files
         expect(() => validateStatusReportFiles(tooManyFiles)).toThrow(FileUploadError);
-        expect(() => validateStatusReportFiles(tooManyFiles)).toThrow(/Too many files/);
+        expect(() => validateStatusReportFiles(tooManyFiles)).toThrow(/Maximal.*Dateien erlaubt/);
       });
       
       it('should reject when any file type is not allowed', () => {
@@ -165,7 +165,7 @@ describe('File Upload System', () => {
         
         // Should throw for invalid file type in the set
         expect(() => validateStatusReportFiles(mixedFiles)).toThrow(FileUploadError);
-        expect(() => validateStatusReportFiles(mixedFiles)).toThrow(/Unsupported file type/);
+        expect(() => validateStatusReportFiles(mixedFiles)).toThrow(/Nicht unterstützter Dateityp/);
       });
       
       it('should reject when any file exceeds individual size limit', () => {
@@ -176,7 +176,7 @@ describe('File Upload System', () => {
         
         // Should throw for oversized file
         expect(() => validateStatusReportFiles(files)).toThrow(FileUploadError);
-        expect(() => validateStatusReportFiles(files)).toThrow(/exceeds.*limit/);
+        expect(() => validateStatusReportFiles(files)).toThrow(/Dateigröße überschreitet das Limit/);
       });
       
       it('should reject when combined file size exceeds the limit', () => {
@@ -190,7 +190,7 @@ describe('File Upload System', () => {
         
         // Should throw for combined size over limit
         expect(() => validateStatusReportFiles(files)).toThrow(FileUploadError);
-        expect(() => validateStatusReportFiles(files)).toThrow(/Total file size exceeds/);
+        expect(() => validateStatusReportFiles(files)).toThrow(/Dateianhänge: Dateigröße überschreitet das Limit/);
       });
       
       it('should accept an empty array of files', () => {
@@ -262,7 +262,7 @@ describe('File Upload System', () => {
         // Should throw a FileUploadError with short retry delays for testing
         const config = { maxRetries: 1, retryDelay: 10 };
         await expect(uploadFile(file, 'groups', 'logo', config)).rejects.toThrow(FileUploadError);
-        await expect(uploadFile(file, 'groups', 'logo', config)).rejects.toThrow('Failed to upload file after multiple attempts');
+        await expect(uploadFile(file, 'groups', 'logo', config)).rejects.toThrow('Upload nach mehreren Versuchen fehlgeschlagen');
         
         // Reset mock to default behavior for other tests
         (put as jest.Mock).mockImplementation((path) => {
@@ -324,7 +324,7 @@ describe('File Upload System', () => {
         await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo', config))
           .rejects.toThrow(FileUploadError);
         await expect(uploadCroppedImagePair(originalFile, croppedFile, 'groups', 'logo', config))
-          .rejects.toThrow('Failed to upload images after multiple attempts');
+          .rejects.toThrow('Upload nach mehreren Versuchen fehlgeschlagen');
         
         // Reset mock to default behavior for other tests
         (put as jest.Mock).mockImplementation((path) => {
