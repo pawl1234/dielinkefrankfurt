@@ -36,12 +36,29 @@ export async function submitForm(
       if (errorJson.error) {
         errorMessage = errorJson.error;
       }
-    } catch {
-      // Use default error message if JSON parsing fails
+
+      throw new Error(errorMessage);
     }
 
-    throw new Error(errorMessage);
-  }
+    console.log('[SubmitForm] Request successful');
+    return response;
 
-  return response;
+  } catch (error) {
+    // Log network errors separately from HTTP errors
+    if (error instanceof TypeError) {
+      // TypeError usually means network error (CORS, network failure, etc.)
+      console.error('[SubmitForm] Network error during fetch', {
+        error: error.message,
+        name: error.name,
+        endpoint
+      });
+    } else {
+      console.error('[SubmitForm] Fetch error', {
+        error: error instanceof Error ? error.message : String(error),
+        endpoint
+      });
+    }
+
+    throw error;
+  }
 }

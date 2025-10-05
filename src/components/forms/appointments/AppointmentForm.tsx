@@ -22,6 +22,13 @@ import {
 export default function AppointmentForm() {
 
   const handleFormSubmit = useCallback(async (data: AppointmentSubmitData): Promise<void> => {
+    console.log('[AppointmentForm] handleFormSubmit called', {
+      hasFiles: !!data.files && data.files.length > 0,
+      hasCoverImage: !!data.coverImage,
+      hasCroppedCoverImage: !!data.croppedCoverImage,
+      featured: data.featured
+    });
+
     const { files, coverImage, croppedCoverImage, existingFileUrls, deletedFileUrls, ...formFields } = data;
 
     const formData = createAppointmentFormData(

@@ -225,6 +225,8 @@ export function useZodForm<TFormValues extends FieldValues>({
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (data: TFormValues) => {
+    console.log('[useZodForm] handleSubmit called - validation passed, starting submission');
+
     setIsSubmitting(true);
     setSubmissionError(null);
     setSubmissionSuccess(false);
@@ -232,13 +234,14 @@ export function useZodForm<TFormValues extends FieldValues>({
     try {
       await onSubmit(data);
 
+      console.log('[useZodForm] Submission successful');
       setSubmissionSuccess(true);
       if (onSuccess) onSuccess();
 
       // Scroll to top of form to show success message
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('[useZodForm] Form submission error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Ein unbekannter Fehler ist aufgetreten.';
       setSubmissionError(errorMessage);
 
