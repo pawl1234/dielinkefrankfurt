@@ -33,11 +33,11 @@ export function CoverImageSection<TFormValues extends FieldValues>({
       <Controller
         control={control}
         name={"croppedCoverImage" as Path<TFormValues>}
-        render={({ field: { onChange: onCroppedImageChange }, fieldState: { error } }) => (
+        render={({ field: { onChange: onCroppedImageChange }, fieldState: { error: croppedError } }) => (
           <Controller
             control={control}
             name={"coverImage" as Path<TFormValues>}
-            render={({ field: { onChange: onOriginalImageChange } }) => (
+            render={({ field: { onChange: onOriginalImageChange }, fieldState: { error: coverError } }) => (
               <Box>
                 <ImageCropUpload
                   aspectRatio={5/4}
@@ -55,9 +55,14 @@ export function CoverImageSection<TFormValues extends FieldValues>({
                     onCroppedImageChange(cropped);
                   }}
                 />
-                {formState.isSubmitted && error && (
+                {formState.isSubmitted && coverError && (
                   <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                    {error.message}
+                    {coverError.message}
+                  </Typography>
+                )}
+                {formState.isSubmitted && croppedError && (
+                  <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                    {croppedError.message}
                   </Typography>
                 )}
               </Box>

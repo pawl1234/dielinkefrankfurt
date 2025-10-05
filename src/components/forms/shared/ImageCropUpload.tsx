@@ -208,19 +208,9 @@ const ImageCropUpload = ({
       );
 
       // Convert canvas to blob with configured compression quality
+      // No client-side size validation - relies on Zod + RHF
       canvas.toBlob((blob) => {
         if (blob) {
-          // Check if the cropped image exceeds the maximum allowed size
-          if (blob.size > maxOutputFileSize) {
-            const outputSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-            const maxSizeMB = (maxOutputFileSize / (1024 * 1024)).toFixed(0);
-            setError(
-              `Das zugeschnittene Bild (${outputSizeMB}MB) überschreitet das ${maxSizeMB}MB Limit. ` +
-              `Bitte wählen Sie ein kleineres Bild oder einen kleineren Ausschnitt.`
-            );
-            return;
-          }
-
           // Clean up previous cropped preview URL
           if (croppedPreviewUrl && croppedPreviewUrl !== initialCroppedImageUrl) {
             URL.revokeObjectURL(croppedPreviewUrl);
@@ -247,7 +237,7 @@ const ImageCropUpload = ({
         }
       }, 'image/jpeg', JPEG_COMPRESSION_QUALITY);
     }
-  }, [completedCrop, originalImage, croppedPreviewUrl, onImageSelect, initialCroppedImageUrl, maxOutputFileSize]);
+  }, [completedCrop, originalImage, croppedPreviewUrl, onImageSelect, initialCroppedImageUrl]);
 
   /**
    * Handle image load event to set initial crop
@@ -261,26 +251,13 @@ const ImageCropUpload = ({
 
   /**
    * Handle file selection from input
+   * No client-side validation - relies on Zod + RHF for all validation
    */
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
-
-    // Validate file type
-    if (!allowedFileTypes.includes(file.type)) {
-      const typeList = allowedFileTypes.map(t => t.split('/')[1].toUpperCase()).join(', ');
-      setError(`Bitte lade nur ${typeList} Bilder hoch.`);
-      return;
-    }
-
-    // Validate file size (input file, before cropping)
-    if (file.size > maxInputFileSize) {
-      const maxSizeMB = (maxInputFileSize / (1024 * 1024)).toFixed(0);
-      setError(`Bilddatei überschreitet ${maxSizeMB}MB Limit. Bitte lade ein kleineres Bild hoch.`);
-      return;
-    }
 
     // Clean up previous URLs
     if (previewUrl && previewUrl !== initialImageUrl) {
@@ -297,6 +274,9 @@ const ImageCropUpload = ({
     setOriginalImage(file);
     setCroppedImage(null);
     setError(null);
+
+    // Update form immediately so RHF can validate
+    onImageSelect(file, null);
 
     // Enter cropping mode
     setIsCropping(true);
