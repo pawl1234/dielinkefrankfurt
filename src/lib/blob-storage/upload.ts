@@ -214,7 +214,12 @@ export async function uploadFiles(
     // CRITICAL: Clean up uploaded files on ANY failure
     logger.error('Upload failed, cleaning up', {
       module: 'blob-storage',
-      context: { uploadedCount: uploadedUrls.length, error }
+      context: {
+        uploadedCount: uploadedUrls.length,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : 'Unknown'
+      },
+      tags: ['file-upload', 'upload-failed']
     });
 
     if (uploadedUrls.length > 0) {
@@ -227,7 +232,11 @@ export async function uploadFiles(
       } catch (deleteError) {
         logger.error('Cleanup failed', {
           module: 'blob-storage',
-          context: { error: deleteError }
+          context: {
+            errorMessage: deleteError instanceof Error ? deleteError.message : String(deleteError),
+            deletedCount: uploadedUrls.length
+          },
+          tags: ['file-upload', 'cleanup-failed']
         });
       }
     }

@@ -119,32 +119,53 @@ function log(level: LogLevel, message: string | Error, options: LogOptions = {})
 
   // Format the log for console output
   const formattedPrefix = `[${entry.timestamp}] [${level.toUpperCase()}]${entry.module ? ` [${entry.module}]` : ''}`;
-  
+
   if (level === 'error' || level === 'fatal') {
-    // For errors, log in expanded format
-    console.group(formattedPrefix);
-    logFn(entry.message);
-    
-    if (entry.error) {
-      if (entry.error.stack) {
-        console.error(entry.error.stack);
-      } else {
-        console.error(`${entry.error.name}: ${entry.error.message}`);
+    // In production, use simple format for better Vercel log capture
+    if (process.env.NODE_ENV === 'production') {
+      // Single-line structured log for production
+      const structuredLog = {
+        level: level.toUpperCase(),
+        message: entry.message,
+        module: entry.module,
+        timestamp: entry.timestamp,
+        ...(entry.error && {
+          error: {
+            name: entry.error.name,
+            message: entry.error.message,
+            stack: entry.error.stack
+          }
+        }),
+        ...(entry.context && Object.keys(entry.context).length > 0 && { context: entry.context }),
+        ...(entry.tags && entry.tags.length > 0 && { tags: entry.tags })
+      };
+      console.error(JSON.stringify(structuredLog));
+    } else {
+      // In development, use grouped format for readability
+      console.group(formattedPrefix);
+      logFn(entry.message);
+
+      if (entry.error) {
+        if (entry.error.stack) {
+          console.error(entry.error.stack);
+        } else {
+          console.error(`${entry.error.name}: ${entry.error.message}`);
+        }
       }
+
+      if (Object.keys(entry.context || {}).length > 0) {
+        console.log('Context:', entry.context);
+      }
+
+      if (entry.tags && entry.tags.length > 0) {
+        console.log('Tags:', entry.tags.join(', '));
+      }
+
+      console.groupEnd();
     }
-    
-    if (Object.keys(entry.context || {}).length > 0) {
-      console.log('Context:', entry.context);
-    }
-    
-    if (entry.tags && entry.tags.length > 0) {
-      console.log('Tags:', entry.tags.join(', '));
-    }
-    
-    console.groupEnd();
   } else {
     // For non-errors, use simpler format
-    logFn(`${formattedPrefix} ${entry.message}`, 
+    logFn(`${formattedPrefix} ${entry.message}`,
       Object.keys(entry.context || {}).length > 0 ? entry.context : '');
   }
 
