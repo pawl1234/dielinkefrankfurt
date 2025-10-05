@@ -5,7 +5,7 @@ import { serverErrorResponse } from './api-auth';
 import {
   handleDatabaseError
 } from './errors';
-import { FILE_TYPES } from './validation/file-schemas';
+import { FILE_TYPES, FILE_SIZE_LIMITS } from './validation/file-schemas';
 import { type AppointmentSubmitData } from './validation/appointment';
 import { uploadFiles, deleteFiles } from './blob-storage';
 import { logger } from './logger';
@@ -493,6 +493,7 @@ export async function createAppointmentWithFiles(
     const coverUploadResults = await uploadFiles(coverImagesToUpload, {
       category: 'appointments',
       allowedTypes: FILE_TYPES.IMAGE,
+      maxSizePerFile: FILE_SIZE_LIMITS.COVER_IMAGE,
       prefix: 'cover'
     });
 
@@ -733,6 +734,7 @@ export async function updateAppointment(request: NextRequest) {
           const coverUploadResults = await uploadFiles(coverImagesToUpload, {
             category: 'appointments',
             allowedTypes: FILE_TYPES.IMAGE,
+            maxSizePerFile: FILE_SIZE_LIMITS.COVER_IMAGE,
             prefix: 'cover'
           });
 
