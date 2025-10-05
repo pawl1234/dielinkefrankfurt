@@ -198,8 +198,14 @@ export function useZodForm<TFormValues extends FieldValues>({
         if (!hasExistingError) {
           // Extract the base field name for label lookup
           // e.g., "responsiblePersons.0.firstName" -> "firstName"
-          const baseFieldName = fieldPath.split('.').pop() || fieldPath;
-          const label = fieldLabels[baseFieldName] || fieldLabels[fieldPath] || baseFieldName;
+          // For array index paths like "files.0", use parent field for label
+          const parts = fieldPath.split('.');
+          const lastPart = parts[parts.length - 1];
+          const parentField = parts.length > 1 ? parts[parts.length - 2] : null;
+
+          // If last part is a number (array index), use parent field for label
+          const labelKey = /^\d+$/.test(lastPart) && parentField ? parentField : lastPart;
+          const label = fieldLabels[labelKey] || fieldLabels[fieldPath] || labelKey;
           const errorMessage = typeof message === 'string' ? message : 'Ungültiger Wert';
 
           errors.push({

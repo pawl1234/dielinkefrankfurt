@@ -29,17 +29,33 @@ const URL_CACHE = new Map<string, CacheEntry>();
  *
  * @param file - File to hash
  * @returns Promise resolving to SHA-256 hash string
+ * @throws Error if hash generation fails
  */
 export async function generateFileHash(file: File): Promise<string> {
-  // PATTERN: Stream file content to hash (memory efficient)
-  const buffer = await file.arrayBuffer();
+  try {
+    // PATTERN: Stream file content to hash (memory efficient)
+    const buffer = await file.arrayBuffer();
 
-  // CRITICAL: SHA-256 (not MD5) for collision resistance
-  const hash = createHash('sha256')
-    .update(Buffer.from(buffer))
-    .digest('hex');
+    // CRITICAL: SHA-256 (not MD5) for collision resistance
+    const hash = createHash('sha256')
+      .update(Buffer.from(buffer))
+      .digest('hex');
 
-  return hash;
+    return hash;
+  } catch (error) {
+    logger.error('File hash generation failed', {
+      module: 'blob-storage',
+      context: {
+        fileName: file.name,
+        fileSize: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+        fileType: file.type,
+        error: error instanceof Error ? error.message : String(error)
+      },
+      tags: ['hashing', 'failed']
+    });
+
+    throw error;
+  }
 }
 
 /**

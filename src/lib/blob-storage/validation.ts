@@ -6,6 +6,7 @@
 import { FILE_TYPES, FILE_SIZE_LIMITS } from '@/lib/validation/file-schemas';
 import { validationMessages } from '@/lib/validation/validation-messages';
 import { FileUploadError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 
 /**
  * Validates a single file based on specified constraints
@@ -31,6 +32,18 @@ export function validateFile(
 
   // Check file type
   if (!allowedTypes.includes(file.type)) {
+    const fileName = file instanceof File ? file.name : 'unknown';
+
+    logger.error('File type validation failed', {
+      module: 'blob-storage',
+      context: {
+        fileName,
+        fileType: file.type,
+        allowedTypes: allowedTypes.join(', ')
+      },
+      tags: ['file-upload', 'validation', 'invalid-type']
+    });
+
     throw new FileUploadError(
       validationMessages.unsupportedFileType(),
       400,
@@ -41,6 +54,20 @@ export function validateFile(
   // Check file size
   if (file.size > maxSize) {
     const maxSizeMB = maxSize / (1024 * 1024);
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    const fileName = file instanceof File ? file.name : 'unknown';
+
+    logger.error('File size validation failed', {
+      module: 'blob-storage',
+      context: {
+        fileName,
+        fileSize: fileSizeMB + 'MB',
+        maxSize: maxSizeMB + 'MB',
+        fileType: file.type
+      },
+      tags: ['file-upload', 'validation', 'size-exceeded']
+    });
+
     throw new FileUploadError(
       validationMessages.fileSizeExceeds(maxSizeMB),
       400,

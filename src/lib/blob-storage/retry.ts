@@ -5,6 +5,7 @@
  */
 
 import { FileUploadError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import { RetryConfig } from './types';
 import { DEFAULT_RETRY_CONFIG } from './constants';
 
@@ -55,12 +56,35 @@ export async function withRetry<T>(
 
       // If max retries exceeded, throw
       if (attempt >= finalConfig.maxRetries) {
+        logger.error('Operation failed after maximum retries', {
+          module: 'blob-storage',
+          context: {
+            attempts: attempt + 1,
+            maxRetries: finalConfig.maxRetries,
+            lastError: lastError.message,
+            timeout: finalConfig.timeout
+          },
+          tags: ['retry', 'max-retries-exceeded']
+        });
+
         throw new FileUploadError(
           'Operation failed after maximum retries',
           500,
           'MAX_RETRIES_EXCEEDED'
         );
       }
+
+      // Log retry attempt
+      logger.warn(`Retrying operation (attempt ${attempt + 1}/${finalConfig.maxRetries})`, {
+        module: 'blob-storage',
+        context: {
+          attempt: attempt + 1,
+          maxRetries: finalConfig.maxRetries,
+          error: lastError.message,
+          nextRetryDelay: `${finalConfig.baseDelay * Math.pow(2, attempt)}ms`
+        },
+        tags: ['retry', 'attempt']
+      });
 
       // Exponential backoff: 1s, 2s, 4s
       const delay = finalConfig.baseDelay * Math.pow(2, attempt);
