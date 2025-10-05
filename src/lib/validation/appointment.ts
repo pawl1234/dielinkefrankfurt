@@ -14,6 +14,7 @@ import {
   createRichTextSchema,
 } from './schemas';
 import { FILE_TYPES, FILE_SIZE_LIMITS, createSecureFilesSchema, createSecureFileSchema } from './file-schemas';
+import { validationMessages } from './validation-messages';
 
 // SINGLE SOURCE OF TRUTH for limits - internal only
 const APPOINTMENT_LIMITS = {
@@ -30,6 +31,9 @@ const APPOINTMENT_LIMITS = {
     maxSizeMB: 5
   }
 } as const;
+
+// Vercel has 4.5MB limit, use 4MB for safety margin (allows other form fields)
+const MAX_COMBINED_COVER_IMAGE_SIZE = 4 * 1024 * 1024; // 4MB in bytes
 
 
 /**
@@ -76,6 +80,24 @@ const getAppointmentSubmitDataSchema = () => z.object({
       message: 'Cover-Bild ist für Featured Termine erforderlich',
       path: ['coverImage']
     });
+  }
+
+  // Validate combined cover image size for featured appointments
+  if (data.featured && data.coverImage && data.croppedCoverImage) {
+    const coverSize = data.coverImage.size;
+    const croppedSize = data.croppedCoverImage.size;
+    const combinedSize = coverSize + croppedSize;
+
+    if (combinedSize > MAX_COMBINED_COVER_IMAGE_SIZE) {
+      const combinedMB = (combinedSize / (1024 * 1024)).toFixed(1);
+      const maxMB = MAX_COMBINED_COVER_IMAGE_SIZE / (1024 * 1024);
+
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: validationMessages.combinedCoverImageSizeExceeds(combinedMB, maxMB),
+        path: ['coverImage']  // Show error on coverImage field
+      });
+    }
   }
 
   // Validate end date is after start date

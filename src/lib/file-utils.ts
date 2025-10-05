@@ -3,6 +3,7 @@
  */
 
 import { FileAttachment } from '@/components/ui/FileThumbnail';
+import { logger } from './logger';
 
 /**
  * File type enumeration for better type safety
@@ -59,7 +60,7 @@ export const parseFileUrls = (fileUrls: string | null): FileAttachment[] => {
     return urls.map(url => {
       const fileName = url.split('/').pop() || '';
       const type = getFileType(url);
-      
+
       return {
         url,
         name: fileName,
@@ -67,7 +68,13 @@ export const parseFileUrls = (fileUrls: string | null): FileAttachment[] => {
       };
     });
   } catch (error) {
-    console.error('Error parsing fileUrls:', error);
+    logger.error('Error parsing fileUrls', {
+      module: 'file-utils',
+      context: {
+        fileUrls,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      }
+    });
     return [];
   }
 };
@@ -95,7 +102,13 @@ export const parseCoverImages = (metadata: string | null): FileAttachment[] => {
 
     return coverImages;
   } catch (error) {
-    console.error('Error parsing metadata:', error);
+    logger.error('Error parsing metadata', {
+      module: 'file-utils',
+      context: {
+        metadata,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      }
+    });
     return [];
   }
 };

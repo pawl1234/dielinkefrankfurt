@@ -9,7 +9,6 @@ import {
   Paper,
   FormHelperText,
   styled,
-  BoxProps,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CropIcon from '@mui/icons-material/Crop';
@@ -17,13 +16,15 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { compressImage } from '@/lib/image-compression';
+import { UploadBox } from '@/components/ui/UploadBox';
 
 /**
  * JPEG compression quality constant
- * 0.90 provides excellent quality while reducing file size by ~40-50%
+ * 0.75 provides excellent quality while significantly reducing file size
  * You can adjust this value between 0.0 (worst) and 1.0 (best)
  */
-const JPEG_COMPRESSION_QUALITY = 0.90;
+const JPEG_COMPRESSION_QUALITY = 0.75;
 
 interface ImageCropUploadProps {
   /** Callback when images are selected/cropped */
@@ -49,26 +50,6 @@ interface ImageCropUploadProps {
   /** Text describing the aspect ratio */
   aspectRatioText?: string;
 }
-
-/**
- * Styled component for the upload box
- */
-const UploadBox = styled(Box)<BoxProps>(({ theme }) => ({
-  border: `2px dashed ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: theme.palette.background.default,
-  transition: 'border-color 0.2s, background-color 0.2s',
-  cursor: 'pointer',
-  '&:hover': {
-    borderColor: theme.palette.primary.main,
-    backgroundColor: theme.palette.action.hover
-  }
-}));
 
 const CropContainer = styled(Box)(({ theme }) => ({
   position: 'relative',
@@ -119,7 +100,7 @@ function centerAspectCrop(
 const ImageCropUpload = ({
   onImageSelect,
   maxInputFileSize,
-  maxOutputFileSize,
+  maxOutputFileSize: _maxOutputFileSize,
   allowedFileTypes,
   aspectRatio = 1,
   initialImageUrl = null,
@@ -253,7 +234,7 @@ const ImageCropUpload = ({
    * Handle file selection from input
    * No client-side validation - relies on Zod + RHF for all validation
    */
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -268,15 +249,18 @@ const ImageCropUpload = ({
       setCroppedPreviewUrl(null);
     }
 
-    // Create a new URL for the file
-    const imageUrl = URL.createObjectURL(file);
+    // Compress original image before setting preview
+    const compressedOriginal = await compressImage(file, 2000, 0.75);
+
+    // Create a new URL for the compressed file
+    const imageUrl = URL.createObjectURL(compressedOriginal);
     setPreviewUrl(imageUrl);
-    setOriginalImage(file);
+    setOriginalImage(compressedOriginal);
     setCroppedImage(null);
     setError(null);
 
     // Update form immediately so RHF can validate
-    onImageSelect(file, null);
+    onImageSelect(compressedOriginal, null);
 
     // Enter cropping mode
     setIsCropping(true);

@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 /**
  * Submits FormData to API endpoint with consistent error handling.
  */
@@ -13,8 +15,22 @@ export async function submitForm(
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMessage = 'Übermittlung fehlgeschlagen. Bitte versuchen Sie es erneut.';
 
+    // Log ALL non-200 responses with full context
+    logger.error('HTTP error during form submission', {
+      module: 'form-submission',
+      context: {
+        status: response.status,
+        statusText: response.statusText,
+        endpoint,
+        method,
+        errorBody: errorText.substring(0, 500) // First 500 chars
+      },
+      tags: ['form-submission', 'http-error', `status-${response.status}`]
+    });
+
+    // Parse JSON error response for other errors
+    let errorMessage = 'Übermittlung fehlgeschlagen. Bitte versuchen Sie es erneut.';
     try {
       const errorJson = JSON.parse(errorText);
       if (errorJson.error) {

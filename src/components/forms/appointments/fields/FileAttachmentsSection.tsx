@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Controller, Control, FormState, FieldValues, Path } from 'react-hook-form';
 import { Box, Typography } from '@mui/material';
 import FormSection from '../../shared/FormSection';
-import FileUpload from '../../../upload/FileUpload';
+import FileUpload from '../../shared/FileUpload';
 import { FileThumbnailGrid, parseFileUrls } from '../../../ui/FileThumbnail';
 import { FILE_TYPES, FILE_SIZE_LIMITS } from '@/lib/validation/file-schemas';
 

@@ -5,21 +5,13 @@ import {
   Box,
   Typography,
   Paper,
-  Button,
-  Card,
-  CardContent,
-  CardMedia,
-  CardActions,
-  styled,
-  BoxProps,
   Grid,
   CircularProgress,
   LinearProgress
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { UploadBox } from '@/components/ui/UploadBox';
+import { FilePreview } from '@/components/ui/FilePreview';
 
 interface FileUploadProps {
   /** Current files value (controlled component) */
@@ -42,24 +34,6 @@ interface FileUploadProps {
   isUploading?: boolean;
   uploadProgress?: number;
 }
-
-// Styled component for the upload box
-const UploadBox = styled(Box)<BoxProps>(({ theme }) => ({
-  border: `2px dashed ${theme.palette.divider}`,
-  borderRadius: theme.shape.borderRadius,
-  padding: theme.spacing(3),
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: theme.palette.background.default,
-  transition: 'border-color 0.2s, background-color 0.2s',
-  cursor: 'pointer',
-  '&:hover': {
-    borderColor: theme.palette.primary.main,
-    backgroundColor: theme.palette.action.hover
-  }
-}));
 
 interface FileItem {
   id: string;
@@ -246,71 +220,14 @@ const FileUpload = ({
             <Grid container spacing={2}>
               {fileItems.map((fileItem) => (
                 <Grid size={{ xs: 12, sm: 6, md: 4 }} key={fileItem.id}>
-                  <Card variant="outlined" sx={{ opacity: fileItem.isProcessing ? 0.7 : 1 }}>
-                    {fileItem.isProcessing ? (
-                      <Box sx={{ 
-                        p: 3, 
-                        display: 'flex', 
-                        flexDirection: 'column',
-                        justifyContent: 'center', 
-                        alignItems: 'center',
-                        bgcolor: 'grey.50',
-                        aspectRatio: '4/3'
-                      }}>
-                        <CircularProgress size={32} sx={{ mb: 1 }} />
-                        <Typography variant="caption" color="text.secondary">
-                          Wird verarbeitet...
-                        </Typography>
-                      </Box>
-                    ) : fileItem.preview ? (
-                      <CardMedia
-                        component="img"
-                        image={fileItem.preview}
-                        alt={fileItem.name}
-                        sx={{
-                          aspectRatio: '4/3',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    ) : (
-                      <Box sx={{
-                        p: 3,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        bgcolor: 'grey.100',
-                        aspectRatio: '4/3'
-                      }}>
-                        {fileItem.type === 'application/pdf' ? (
-                          <PictureAsPdfIcon sx={{ fontSize: 48, color: 'error.main' }} />
-                        ) : (
-                          <InsertDriveFileIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-                        )}
-                      </Box>
-                    )}
-                    <CardContent sx={{ py: 1 }}>
-                      <Typography variant="body2" noWrap title={fileItem.name}>
-                        {fileItem.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {fileItem.isProcessing
-                          ? 'Wird verarbeitet...'
-                          : fileItem.type === 'application/pdf' ? 'PDF' : fileItem.type.split('/')[1].toUpperCase()
-                        }
-                      </Typography>
-                    </CardContent>
-                    <CardActions>
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={() => handleRemoveFile(fileItem.file as File)}
-                        startIcon={fileItem.isProcessing ? <CircularProgress size={16} /> : <DeleteIcon />}
-                        disabled={fileItem.isProcessing || disabled || isUploading}
-                      >
-                        {fileItem.isProcessing ? 'Verarbeitung...' : 'Entfernen'}
-                      </Button>
-                    </CardActions>
-                  </Card>
+                  <FilePreview
+                    name={fileItem.name}
+                    type={fileItem.type}
+                    preview={fileItem.preview}
+                    isProcessing={fileItem.isProcessing}
+                    onRemove={() => handleRemoveFile(fileItem.file as File)}
+                    disabled={disabled || isUploading}
+                  />
                 </Grid>
               ))}
             </Grid>
