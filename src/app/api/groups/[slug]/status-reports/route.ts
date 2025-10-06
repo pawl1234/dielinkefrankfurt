@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStatusReportsByGroupSlug } from '@/lib/group-handlers';
+import { getStatusReportsByGroupSlug } from '@/lib/groups';
 
 /**
  * GET /api/groups/[slug]/status-reports

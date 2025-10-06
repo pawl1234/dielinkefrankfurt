@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import prisma from '@/lib/prisma';
+import { withAdminAuth } from '@/lib/auth';
+import prisma from '@/lib/db/prisma';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import {
   validateAntragUpdateWithZod

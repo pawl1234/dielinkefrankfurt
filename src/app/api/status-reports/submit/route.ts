@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createStatusReport } from '@/lib/group-handlers';
+import { createStatusReport } from '@/lib/groups';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import { logger } from '@/lib/logger';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';

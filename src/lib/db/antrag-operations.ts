@@ -1,4 +1,4 @@
-import prisma from '../prisma';
+import prisma from './prisma';
 import { Antrag, AntragStatus, Prisma } from '@prisma/client';
 import { deleteFiles } from '../blob-storage';
 import type { AntragPurposes } from '@/types/api-types';

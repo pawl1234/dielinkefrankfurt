@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGroupBySlug } from '@/lib/group-handlers';
+import { getGroupBySlug } from '@/lib/groups';
 import { Group, StatusReport } from '@prisma/client';
 
 /**

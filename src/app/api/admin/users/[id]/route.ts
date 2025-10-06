@@ -1,7 +1,7 @@
 // src/app/api/admin/users/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 
 const prisma = new PrismaClient();

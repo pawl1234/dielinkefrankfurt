@@ -1,7 +1,7 @@
 // src/app/api/admin/change-password/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { hashPassword, comparePassword } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 import { getToken } from 'next-auth/jwt';

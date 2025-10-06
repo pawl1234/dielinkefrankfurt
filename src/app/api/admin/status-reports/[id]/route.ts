@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import { getStatusReportById, updateStatusReport, deleteStatusReport, StatusReportUpdateData } from '@/lib/group-handlers';
+import { withAdminAuth } from '@/lib/auth';
+import { getStatusReportById, updateStatusReport, deleteStatusReport, StatusReportUpdateData } from '@/lib/groups';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import { FileUploadError } from '@/lib/errors';
 import { StatusReport } from '@prisma/client';

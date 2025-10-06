@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { AppError, apiErrorResponse } from '@/lib/errors';
-import prisma from '@/lib/prisma';
+import prisma from '@/lib/db/prisma';
 import { Prisma } from '@prisma/client';
 
 /**

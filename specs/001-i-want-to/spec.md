@@ -70,7 +70,7 @@ As a developer working on the newsletter management system, I need to easily loc
 
 #### Code Organization Structure
 
-- **FR-001**: System MUST organize all domain-specific code (appointments, groups, anträge, newsletters, email) into separate subdirectories under src/lib
+- **FR-001**: System MUST organize all domain-specific code (appointments, groups, anträge, newsletters, email, ai, analytics, auth) into separate subdirectories under src/lib
 
 - **FR-002**: System MUST consolidate all database operations into src/lib/db/ directory with files named by domain (e.g., appointment-operations.ts, group-operations.ts, newsletter-operations.ts)
 

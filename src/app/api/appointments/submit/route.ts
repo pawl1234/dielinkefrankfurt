@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAppointmentWithFiles } from '@/lib/appointment-handlers';
+import { createAppointmentWithFiles } from '@/lib/appointments';
 import { validateAppointmentSubmitWithZod } from '@/lib/validation/appointment';
 import { validationErrorResponse, apiErrorResponse } from '@/lib/errors';
 

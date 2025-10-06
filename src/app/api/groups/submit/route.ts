@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGroup } from '@/lib/group-handlers';
+import { createGroup } from '@/lib/groups';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import { FILE_TYPES } from '@/lib/validation/file-schemas';
 import { logger } from '@/lib/logger';

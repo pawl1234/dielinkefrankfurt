@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getSentNewsletter } from '@/lib/newsletter-archive';
+import { getSentNewsletter } from '@/lib/newsletter';
 import { Box, Container, Typography, Link } from '@mui/material';
 import Image from 'next/image';
 

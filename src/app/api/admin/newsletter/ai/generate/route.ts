@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext, AIGenerationWithTopicsRequest, AIGenerationResponse } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { aiService } from '@/lib/ai-service';
-import prisma from '@/lib/prisma';
+import { aiService } from '@/lib/ai';
+import prisma from '@/lib/db/prisma';
 
 /**
  * POST /api/admin/newsletter/ai/generate

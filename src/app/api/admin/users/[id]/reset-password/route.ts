@@ -1,7 +1,7 @@
 // src/app/api/admin/users/[id]/reset-password/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { hashPassword } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPublicGroups } from '@/lib/group-handlers';
+import { getPublicGroups } from '@/lib/groups';
 import { Group } from '@prisma/client';
 
 /**

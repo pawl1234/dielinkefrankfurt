@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/api-auth';
-import { processRecipientList } from '@/lib/newsletter-sending';
+import { withAdminAuth } from '@/lib/auth';
+import { processRecipientList } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 

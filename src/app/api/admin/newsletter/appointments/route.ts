@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/prisma';
+import prisma from '@/lib/db/prisma';
 import type { Appointment } from '@prisma/client';
 
 interface PaginatedResponse<T> {

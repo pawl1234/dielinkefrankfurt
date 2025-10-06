@@ -1,7 +1,7 @@
 import { Img, Text, Heading, Section, Row, Column } from '@react-email/components';
 import { GroupWithReports } from '../../types/newsletter-types';
 import { Button } from './Button';
-import { formatDate, truncateText } from '../../lib/newsletter-helpers';
+import { formatDate, truncateText } from '@/lib/newsletter';
 import { subHeading, metaData, text } from '../lib/styling';
 
 interface StatusReportsProps {

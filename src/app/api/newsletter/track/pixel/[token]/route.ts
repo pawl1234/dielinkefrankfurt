@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { recordOpenEvent, TRANSPARENT_GIF_BUFFER } from '@/lib/newsletter-analytics';
-import { createFingerprint } from '@/lib/fingerprinting';
+import { recordOpenEvent, TRANSPARENT_GIF_BUFFER } from '@/lib/newsletter';
+import { createFingerprint } from '@/lib/analytics';
 
 /**
  * GET /api/newsletter/track/pixel/[token]

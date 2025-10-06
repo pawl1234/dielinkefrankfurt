@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/group-handlers';
+import { withAdminAuth } from '@/lib/auth';
+import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/groups';
 import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
 import { GroupWithResponsiblePersons } from '@/types/email-types';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
@@ -222,7 +222,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     // If status was changed, send appropriate notification emails
     if (validatedData.status && validatedData.status !== existingGroup.status) {
       try {
-        const { sendGroupAcceptanceEmail, sendGroupArchivingEmail } = await import('@/lib/email-senders');
+        const { sendGroupAcceptanceEmail, sendGroupArchivingEmail } = await import('@/lib/email');
 
         let emailResult;
         if (validatedData.status === 'ACTIVE') {

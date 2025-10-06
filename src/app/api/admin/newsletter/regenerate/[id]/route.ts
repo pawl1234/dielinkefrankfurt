@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
-import prisma from '@/lib/prisma';
-import { generateNewsletterHtml } from '@/lib/newsletter-template';
-import { getNewsletterSettings, fetchNewsletterAppointments, fetchNewsletterStatusReports } from '@/lib/newsletter-service';
+import { authOptions } from '@/lib/auth';
+import prisma from '@/lib/db/prisma';
+import { generateNewsletterHtml } from '@/lib/newsletter';
+import { getNewsletterSettings, fetchNewsletterAppointments, fetchNewsletterStatusReports } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
 
 interface Props {

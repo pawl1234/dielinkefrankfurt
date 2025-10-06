@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext, AITopicExtractionRequest, AITopicExtractionResponse } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { getNewsletterSettings } from '@/lib/newsletter-service';
-import { aiService } from '@/lib/ai-service';
+import { getNewsletterSettings } from '@/lib/newsletter';
+import { aiService } from '@/lib/ai';
 
 /**
  * POST /api/admin/newsletter/ai/extract-topics

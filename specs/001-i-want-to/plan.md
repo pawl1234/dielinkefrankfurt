@@ -31,7 +31,7 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-Reorganize src/lib directory structure to group related code by domain (appointments, groups, newsletters, etc.), consolidate all database operations into src/lib/db/, split files exceeding 500 lines, eliminate standards violations (console usage, misplaced DB operations), and improve overall code navigability while maintaining existing application behavior.
+Reorganize src/lib directory structure to group related code by domain (appointments, groups, newsletters, anträge, ai, analytics, auth), consolidate all database operations into src/lib/db/, extract cross-cutting email infrastructure to src/lib/email/ (serving all domains for sending, rendering, templates, attachments), split files exceeding 500 lines, eliminate standards violations (console usage, misplaced DB operations), and improve overall code navigability while maintaining existing application behavior.
 
 ## Technical Context
 **Language/Version**: TypeScript 5.9.2 with strict mode

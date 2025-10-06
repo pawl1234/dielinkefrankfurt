@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import { generateNewsletterHtml } from '@/lib/newsletter-template';
-import { getNewsletterSettings } from '@/lib/newsletter-service';
+import { withAdminAuth } from '@/lib/auth';
+import { generateNewsletterHtml } from '@/lib/newsletter';
+import { getNewsletterSettings } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
-import prisma from '@/lib/prisma';
+import prisma from '@/lib/db/prisma';
 
 /**
  * GET /api/admin/email-preview/newsletter
