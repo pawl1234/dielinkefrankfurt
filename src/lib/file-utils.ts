@@ -16,27 +16,27 @@ export enum FileType {
 
 /**
  * Detects file type based on file extension or MIME type
- * 
+ *
  * @param source - File path, File object, or Blob
  * @param providedType - Optional pre-determined type
  * @returns Detected file type
  */
 export const getFileType = (
-  source: string | File | Blob, 
+  source: string | File | Blob,
   providedType?: 'image' | 'pdf' | 'other'
 ): FileType => {
   if (providedType) return providedType as FileType;
-  
+
   let name = '';
   if (typeof source === 'string') {
     name = source.toLowerCase();
   } else if (source instanceof File) {
     name = source.name.toLowerCase();
   } else if (source instanceof Blob && source.type) {
-    return source.type.startsWith('image/') ? FileType.IMAGE : 
+    return source.type.startsWith('image/') ? FileType.IMAGE :
            source.type === 'application/pdf' ? FileType.PDF : FileType.OTHER;
   }
-  
+
   if (name.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
     return FileType.IMAGE;
   }
@@ -116,7 +116,7 @@ export const parseCoverImages = (metadata: string | null): FileAttachment[] => {
 /**
  * Opens a file in the appropriate way based on its type
  * Used when clicking on file thumbnails without buttons
- * 
+ *
  * @param file - FileAttachment to open
  * @param onImageClick - Optional callback for image files (e.g., lightbox)
  */

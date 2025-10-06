@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
 import prisma from './prisma';
 import { Appointment, Group, StatusReport, NewsletterItem } from '@prisma/client';
 import { NewsletterSettings } from '../types/newsletter-types';
@@ -7,7 +6,6 @@ import {
   getDefaultNewsletterSettings 
 } from './newsletter-template';
 import { sendTestEmail, sendEmail } from './email';
-import { serverErrorResponse } from './api-auth';
 import { subWeeks } from 'date-fns';
 import { getBaseUrl } from './base-url';
 import { logger } from './logger';
@@ -538,151 +536,18 @@ export async function sendNewsletterTestEmail(html: string, testRecipients?: str
   }
 }
 
-/**
- * API handler for getting newsletter settings
- */
-export async function handleGetNewsletterSettings(): Promise<NextResponse> {
-  try {
-    const settings = await getNewsletterSettings();
-    return NextResponse.json(settings);
-  } catch (error) {
-    console.error('Error fetching newsletter settings:', error);
-    return serverErrorResponse('Failed to fetch newsletter settings');
-  }
-}
-
-/**
- * API handler for updating newsletter settings
- */
-export async function handleUpdateNewsletterSettings(request: NextRequest): Promise<NextResponse> {
-  try {
-    const data = await request.json();
-    const updatedSettings = await updateNewsletterSettings(data);
-    return NextResponse.json(updatedSettings);
-  } catch (error) {
-    console.error('Error updating newsletter settings:', error);
-    return serverErrorResponse('Failed to update newsletter settings');
-  }
-}
-
-/**
- * API handler for generating newsletter HTML
- */
-export async function handleGenerateNewsletter(request: NextRequest): Promise<NextResponse> {
-  try {
-    // Get query parameters
-    const url = new URL(request.url);
-    const introductionText = url.searchParams.get('introductionText') || 
-      '<p>Herzlich willkommen zum Newsletter der Linken Frankfurt!</p>';
-    
-    // Generate the HTML
-    const html = await generateNewsletter(introductionText);
-    
-    // Return the generated HTML
-    return new NextResponse(html, {
-      headers: {
-        'Content-Type': 'text/html',
-      },
-    });
-  } catch (error) {
-    console.error('Error generating newsletter:', error);
-    return serverErrorResponse('Failed to generate newsletter');
-  }
-}
-
-/**
- * API handler for sending a test newsletter
- */
-export async function handleSendTestNewsletter(request: NextRequest): Promise<NextResponse> {
-  try {
-    const { html, newsletterId } = await request.json();
-    
-    let newsletterHtml = html;
-    
-    // If newsletterId is provided, fetch the newsletter content
-    if (newsletterId && !html) {
-      const newsletter = await prisma.newsletterItem.findUnique({
-        where: { id: newsletterId }
-      });
-      
-      if (!newsletter) {
-        return NextResponse.json(
-          { error: 'Newsletter not found' },
-          { status: 404 }
-        );
-      }
-      
-      newsletterHtml = fixUrlsInNewsletterHtml(newsletter.content || '');
-    } else if (html) {
-      // Fix URLs in the provided HTML as well
-      newsletterHtml = fixUrlsInNewsletterHtml(html);
-    }
-    
-    if (!newsletterHtml) {
-      return NextResponse.json(
-        { error: 'Newsletter HTML content is required' },
-        { status: 400 }
-      );
-    }
-    
-    const result = await sendNewsletterTestEmail(newsletterHtml);
-    
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: `Test emails sent successfully to ${result.recipientCount} recipient${result.recipientCount !== 1 ? 's' : ''}`,
-        messageId: result.messageId,
-        recipientCount: result.recipientCount
-      });
-    } else {
-      console.error('Failed to send test email:', result.error);
-      return NextResponse.json(
-        { 
-          error: 'Failed to send test email', 
-          details: result.error instanceof Error ? result.error.message : 'Unknown error',
-          recipientCount: result.recipientCount
-        },
-        { status: 500 }
-      );
-    }
-  } catch (error) {
-    console.error('Error sending test email:', error);
-    return serverErrorResponse('Failed to send test email');
-  }
-}
-
-/**
- * Interface for saving draft newsletter parameters
- */
-export interface SaveDraftNewsletterParams {
-  subject: string;
-  introductionText: string;
-  content?: string;
-  settings?: Record<string, unknown>;
-}
-
-/**
- * Interface for updating draft newsletter parameters
- */
-export interface UpdateDraftNewsletterParams extends Partial<SaveDraftNewsletterParams> {
-  id: string;
-}
-
-/**
- * Interface for listing draft newsletters parameters
- */
-export interface ListDraftNewslettersParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-}
 
 /**
  * Saves a draft newsletter
  * @param params Newsletter draft parameters
  * @returns Promise resolving to the created newsletter
  */
-export async function saveDraftNewsletter(params: SaveDraftNewsletterParams): Promise<NewsletterItem> {
+export async function saveDraftNewsletter(params: {
+  subject: string;
+  introductionText: string;
+  content?: string;
+  settings?: Record<string, unknown>;
+}): Promise<NewsletterItem> {
   try {
     const { subject, introductionText, content, settings } = params;
 
@@ -734,7 +599,13 @@ export async function saveDraftNewsletter(params: SaveDraftNewsletterParams): Pr
  * @param params Update parameters including newsletter ID
  * @returns Promise resolving to the updated newsletter
  */
-export async function updateDraftNewsletter(params: UpdateDraftNewsletterParams): Promise<NewsletterItem> {
+export async function updateDraftNewsletter(params: {
+  id: string;
+  subject?: string;
+  introductionText?: string;
+  content?: string;
+  settings?: Record<string, unknown>;
+}): Promise<NewsletterItem> {
   try {
     const { id, subject, introductionText, content, settings } = params;
 
@@ -808,7 +679,11 @@ export async function getNewsletter(id: string): Promise<NewsletterItem | null> 
  * @param params Pagination and search parameters
  * @returns Promise resolving to paginated result
  */
-export async function listDraftNewsletters(params: ListDraftNewslettersParams = {}): Promise<PaginatedResult<NewsletterItem>> {
+export async function listDraftNewsletters(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+} = {}): Promise<PaginatedResult<NewsletterItem>> {
   try {
     const { 
       page = 1, 

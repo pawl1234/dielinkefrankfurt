@@ -6,25 +6,6 @@ import { logger } from './logger';
 import { uploadBuffer } from './blob-storage';
 
 /**
- * Image composition error class for specific image processing errors
- */
-export class ImageCompositionError extends AppError {
-  public readonly imageUrl?: string;
-  public readonly step?: 'fetch' | 'process' | 'upload';
-
-  constructor(
-    message: string,
-    originalError?: Error,
-    context?: { imageUrl?: string; step?: 'fetch' | 'process' | 'upload'; [key: string]: unknown }
-  ) {
-    super(message, ErrorType.FILE_UPLOAD, 500, originalError, context);
-    this.name = 'ImageCompositionError';
-    this.imageUrl = context?.imageUrl;
-    this.step = context?.step;
-  }
-}
-
-/**
  * Header composition service for generating composite newsletter header images
  * Combines banner and logo images into a single image for better email client compatibility
  */
@@ -145,8 +126,10 @@ export class HeaderCompositionService {
         }
       });
 
-      throw new ImageCompositionError(
+      throw new AppError(
         'Failed to generate composite header image',
+        ErrorType.FILE_UPLOAD,
+        500,
         error as Error,
         { options, cacheKey }
       );
@@ -267,8 +250,10 @@ export class HeaderCompositionService {
         }
       });
 
-      throw new ImageCompositionError(
+      throw new AppError(
         `Failed to fetch image from ${imageUrl}`,
+        ErrorType.FILE_UPLOAD,
+        500,
         error as Error,
         { imageUrl, step: 'fetch' }
       );
@@ -317,8 +302,10 @@ export class HeaderCompositionService {
         }
       });
 
-      throw new ImageCompositionError(
+      throw new AppError(
         'Failed to upload composite image to storage',
+        ErrorType.FILE_UPLOAD,
+        500,
         error as Error,
         { filename, step: 'upload' }
       );

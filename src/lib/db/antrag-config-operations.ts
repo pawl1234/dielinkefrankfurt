@@ -16,7 +16,7 @@ function validateEmail(email: string): boolean {
 /**
  * Validate comma-separated email list
  */
-export function validateEmailList(emails: string): string | null {
+function validateEmailList(emails: string): string | null {
   if (!emails || emails.trim().length === 0) {
     return 'Mindestens eine E-Mail-Adresse ist erforderlich';
   }

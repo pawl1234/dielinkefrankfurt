@@ -23,12 +23,8 @@ export default [
       '**/dist/**',
       '**/.turbo/**',
       '**/coverage/**',
-      'src/tests/**/*',
       '**/*.config.js',
       '**/*.config.mjs',
-      'jest.setup.js',
-      'jest.setup.api.js',
-      'jest.config.api.js',
     ],
   },
 
@@ -84,17 +80,6 @@ export default [
       // General code quality
       'prefer-const': 'warn',
       'no-var': 'error',
-    },
-  },
-
-  // Test files can be more lenient
-  {
-    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      'unused-imports/no-unused-imports': 'off',
-      'unused-imports/no-unused-vars': 'off',
-      'no-console': 'off',
     },
   },
 ];

@@ -1,261 +1,169 @@
-# Appointment Submission Form - Die Linke Frankfurt
+# Newsletter Management System - Die Linke Frankfurt
 
-This is a Next.js application for appointment submission for Die Linke Frankfurt's newsletter contributors.
+A comprehensive newsletter management system for **Die Linke Frankfurt** Kreisverband (KV), designed to streamline the weekly newsletter workflow by enabling anonymous submissions and administrative review of appointments, group activities, and status reports.
 
-## Features
+## What is this?
 
-- Rich text editor with formatting options (bold, italic, bullet points, hyperlinks)
-- File upload for cover pictures (JPEG, PNG, PDF) with size and format validation
-- Date and time picker for start and end times
-- Address input fields
-- Requester information fields
-- Recurring appointment description
-- CAPTCHA protection after multiple submissions
-- Database storage of appointments with SQLite (or other database in production)
-- Admin dashboard for appointment management
-- Processing and archiving of appointment requests
-- RSS feed for approved appointments
+This application solves a common problem for local party organizations: collecting, reviewing, and distributing information for weekly newsletters. Instead of manually collecting content via email or phone, this system provides:
+
+1. **Public Submission Forms** - Anonymous contributors can submit:
+   - Appointments/Events (Termine) - Political events, meetings, demonstrations
+   - Group Proposals (Gruppen) - New working groups or initiatives wanting to be listed
+   - Status Reports (Statusberichte) - Activity updates from existing groups
+   - Board Requests (Anträge) - Formal requests to the Kreisvorstand
+
+2. **Admin Dashboard** - Administrators can:
+   - Review, edit, accept, or reject all submissions
+   - Compose weekly newsletters with approved content
+   - Send newsletters to subscriber lists
+   - Track newsletter analytics (opens, clicks)
+   - Manage groups and their responsible persons
+   - Archive old content
+
+3. **Automated Workflow** - The system handles:
+   - Content validation and sanitization
+   - Image processing and storage
+   - Email delivery with batch processing
+   - Privacy-friendly analytics tracking
+   - Content archiving
+
+## Who is this for?
+
+This system is designed for the newsletter coordinators of **Die Linke Frankfurt Kreisverband** and potentially other local party organizations (KVs) who need to:
+- Collect content from multiple contributors
+- Review and edit submissions before publishing
+- Send regular newsletters to members
+- Track engagement with newsletter content
 
 ## Technologies Used
 
-- Next.js 15 with TypeScript
-- Material UI (MUI) for UI components and theming
-- React Hook Form for form handling
-- TipTap for rich text editing
-- Uppy for file uploads
-- Prisma ORM for database access
-- SQLite for local development database
-- NextAuth.js for authentication
+- **Frontend**: Next.js 15 with App Router, React 18, TypeScript
+- **UI Components**: Material UI (MUI) v7
+- **Form Handling**: React Hook Form with validation on the front end
+- **Backend Validation**: zod Schema for input validation on the backend
+- **Rich Text Editing**: TipTap editor
+- **Database**: PostgreSQL via Prisma ORM
+- **File Storage**: Vercel Blob Storage
+- **Authentication**: NextAuth.js
+- **Email**: Nodemailer with batch sending
+- **AI Integration**: Anthropic Claude for newsletter introduction generation
 
-## Getting Started
+## Quick Start for Developers
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Generate Prisma client:
-   ```bash
-   npx prisma generate
-   ```
+### Prerequisites
 
-#### Local Development with PostgreSQL
+- Node.js 18+ and npm
+- Docker (for PostgreSQL and Blob Storage)
+- Git
 
-If you want to use PostgreSQL locally (recommended for testing production-like setup):
+### 1. Clone and Install
 
-1. Install PostgreSQL on your machine or use Docker:
-   ```bash
-   npm run db:start
-   ```
+```bash
+git clone <repository-url>
+cd dielinkefrankfurt
+npm install
+```
 
-2. Update your `.env.local` file with the PostgreSQL connection string:
-   ```
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dielinkefrankfurt"
-   ```
+### 2. Set Up Local Services
 
-3. Run migrations:
-   ```bash
-   npm run db:push
-   ```
+Start PostgreSQL database:
+```bash
+docker run -d \
+  --name postgres \
+  -e POSTGRES_USER=devuser \
+  -e POSTGRES_PASSWORD=devpassword \
+  -e POSTGRES_DB=mydatabase \
+  -p 5432:5432 \
+  postgres:15
+```
 
-4. You can now start your app with:
-   ```bash
-   npm run dev
-   ```
+Start Vercel Blob Server (local file storage):
+```bash
+docker run -d \
+  --name vercel-blob-server \
+  -p 9966:9966 \
+  -e VERCEL_BLOB_RW_TOKEN=vercel_blob_rw_somefakeid_nonce \
+  vercel/blob-server:latest
+```
 
-### Development Mode
+### 3. Configure Environment Variables
 
-You can run the application in development mode:
+Create `.env.local` file in the project root:
+
+```bash
+# Database
+DATABASE_URL="postgresql://devuser:devpassword@localhost:5432/mydatabase"
+
+# Authentication
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET="your-random-secret-here"  # Generate with: openssl rand -base64 32
+
+# Admin credentials (default login)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=password123
+
+# File Storage (Vercel Blob)
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_somefakeid_nonce
+VERCEL_BLOB_API_URL=http://localhost:9966
+
+# Email (MailDev for local testing)
+EMAIL_SERVER_HOST=localhost
+EMAIL_SERVER_PORT=1025
+EMAIL_SERVER_USER=""
+EMAIL_SERVER_PASSWORD=""
+EMAIL_FROM="newsletter@die-linke-frankfurt.de"
+TEST_EMAIL_RECIPIENT="your-test-email@example.com"
+
+# Optional: AI Integration for newsletter intro generation
+# ANTHROPIC_API_KEY="your-anthropic-api-key"
+```
+
+### 4. Initialize Database
+
+Push the database schema:
+```bash
+npm run db:push
+```
+
+### 5. Start Development Server
 
 ```bash
 npm run dev
 ```
 
-1. Open [http://localhost:3000](http://localhost:3000) in your browser to see the appointment form
-2. Access the admin dashboard at [http://localhost:3000/admin](http://localhost:3000/admin) (default credentials: username `admin`, password `password123`)
+The application will be available at http://localhost:3000
 
-### Building Without a Database
+### 6. Optional: Email Testing
 
-If you just want to build or run the application locally without setting up a database, you can do so by running:
-
-```bash
-npm run build
-```
-
-The build script will automatically skip the database operations if no DATABASE_URL is found in the environment.
-
-### Development Features
-
-In development mode:
-- SQLite database is used for easy local development
-- File uploads are stored in the public/uploads directory
-
-## Environment Variables
-
-### Authentication
-- `VERCEL_PROJECT_PRODUCTION_URL`: Full URL of your application (e.g., https://your-domain.com)
-- `NEXTAUTH_SECRET`: Secret key for session encryption (generate with `openssl rand -base64 32`)
-- `ADMIN_USERNAME`: Admin login username (default: admin)
-- `ADMIN_PASSWORD`: Admin login password (default: password123)
-
-### Database Configuration
-- `DATABASE_URL`: Connection string for your database
-
-## Preparing for Production
-
-When you're ready to deploy the application to production, you'll need to:
-
-1. Set up authentication for the admin dashboard:
-   ```
-   VERCEL_PROJECT_PRODUCTION_URL=https://your-domain.com
-   NEXTAUTH_SECRET=your-secure-random-secret-key
-   ADMIN_USERNAME=your-admin-username
-   ADMIN_PASSWORD=your-secure-admin-password
-   ```
-
-2. Configure a production database (PostgreSQL recommended):
-   ```
-   # Change the database provider in prisma/schema.prisma
-   datasource db {
-     provider = "postgresql"  # Change to postgresql, mysql, or other supported database
-     url      = env("DATABASE_URL")
-   }
-
-   # Add the DATABASE_URL to your environment variables
-   DATABASE_URL="postgresql://username:password@your-database-host:5432/database-name"
-   ```
-
-3. Apply database migrations to your production database:
-   ```bash
-   npx prisma migrate deploy
-   ```
-
-5. Build the application for production:
-   ```bash
-   npm run build
-   ```
-
-6. Start the production server:
-   ```bash
-   npm run start
-   ```
-
-### Production Database Considerations
-
-For production deployment, we use a PostgreSQL database for better performance and reliability:
-
-1. Create a PostgreSQL database on your hosting provider or use a managed service like:
-   - Neon (currently used)
-   - Supabase
-   - Railway
-   - Heroku Postgres
-   - AWS RDS
-   - DigitalOcean Managed Databases
-
-2. Update your schema.prisma provider:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-
-3. Set your DATABASE_URL environment variable to your PostgreSQL connection string.
-
-4. Run `npx prisma migrate deploy` to apply migrations to your production database.
-
-5. If you need to make schema changes, develop them locally first with `npx prisma migrate dev`, then apply them to production with `npx prisma migrate deploy`.
-
-### Database Migrations and Vercel Deployment
-
-This project includes a custom deployment script (`prisma/vercel-build.js`) that:
-
-1. Validates the database connection
-2. Ensures schema is properly configured
-3. Creates a baseline migration if needed (for existing databases)
-4. Safely deploys schema changes without data loss
-
-#### Understanding the Database Preservation System
-
-The application uses a custom baselining approach to preserve production data between deployments:
-
-1. When deployed to Vercel, it checks if the database has a Prisma migrations table
-2. If not, it creates one and records existing tables as a baseline
-3. Future schema changes are applied on top of this baseline
-
-This system ensures:
-- Production data is preserved between deployments
-- Schema changes are safely applied
-- No data loss occurs during migrations
-
-#### Manually Baselining an Existing Database
-
-If you need to manually baseline an existing database:
+To test email sending locally, install and run MailDev:
 
 ```bash
-# Create a baseline migration
-npx prisma migrate diff \
-  --from-empty \
-  --to-schema-datamodel prisma/schema.prisma \
-  --script > prisma/migrations/$(date +%Y%m%d%H%M%S)_baseline/migration.sql
-
-# Apply the migration
-npx prisma migrate deploy
+npm run mail:start
 ```
 
-## RSS Feed
+Then open http://localhost:1080 to view sent emails in the MailDev web interface.
 
-The application provides an RSS feed of approved appointments that can be used to display events on other websites:
+## Available Scripts
 
-- **Feed URL**: `/api/rss/appointments`
-- **Format**: RSS 2.0 (XML, browser-friendly)
-- **Content**: Approved appointments only
-- **Fields included**:
-  - Title (from appointment title)
-  - Description (from appointment teaser)
-  - Link (to appointment detail page)
-  - Publication date (from appointment startDateTime)
-  - Category (from appointment city, if available)
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Check code quality
+- `npm run typecheck` - Check TypeScript types
+- `npm run check` - Run both lint and typecheck
+- `npm run db:push` - Push schema changes to database
+- `npm run db:studio` - Open Prisma Studio (database GUI)
+- `npm run db:start` - Start PostgreSQL container
+- `npm run db:stop` - Stop PostgreSQL container
+- `npm run blob:start` - Start Blob storage container
+- `npm run blob:stop` - Stop Blob storage container
+- `npm run mail:start` - Start MailDev for email testing
 
-### Using the RSS Feed
+## Admin Access
 
-To integrate the appointments on another website:
+Default login credentials (configure in `.env.local`):
+- **URL**: http://localhost:3000/admin/login
+- **Username**: admin (from ADMIN_USERNAME)
+- **Password**: password123 (from ADMIN_PASSWORD)
 
-1. Use the RSS feed URL: `https://your-domain.com/api/rss/appointments`
-2. Import using any standard RSS reader or feed parsing library
-3. The feed is cached for 1 hour to improve performance
-
-### Example RSS Item
-
-```xml
-<item>
-  <title>Appointment Title</title>
-  <description>A short teaser text for the appointment</description>
-  <link>https://your-domain.com/termine/123</link>
-  <guid isPermaLink="true">https://your-domain.com/termine/123</guid>
-  <pubDate>Mon, 30 Oct 2023 10:00:00 GMT</pubDate>
-  <category>Frankfurt am Main</category>
-</item>
-```
-
-## Project Structure
-
-- `/src/app`: Next.js app router files
-- `/src/components`: React components
-- `/src/app/api`: API routes for form submission and RSS feed
-- `/src/lib/validation`: Centralized validation and error handling system
-- `/public`: Static assets
-- `/docs/development`: Development documentation and guides
-
-## Developer Documentation
-
-For detailed development information, see the documentation in `/docs/development/`:
-
-- **[Error Handling & Validation System](docs/development/2025-09-23_error-handling-validation-system.md)** - Comprehensive guide to the centralized validation and error handling system
-- **[Development Guide](docs/development/README.md)** - General development setup and guidelines
-- **[Vercel Blob Storage](docs/development/vercel-blob-storage.md)** - File upload and storage configuration
-- **[Vercel Deployment](docs/development/vercel-deployment.md)** - Production deployment guide
-
-## License
-
-ISC
+⚠️ **Important**: Change these credentials before deploying to production!

@@ -222,7 +222,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     // If status was changed, send appropriate notification emails
     if (validatedData.status && validatedData.status !== existingGroup.status) {
       try {
-        const { sendGroupAcceptanceEmail, sendGroupArchivingEmail } = await import('@/lib/group-handlers');
+        const { sendGroupAcceptanceEmail, sendGroupArchivingEmail } = await import('@/lib/email-senders');
 
         let emailResult;
         if (validatedData.status === 'ACTIVE') {

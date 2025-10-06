@@ -4,7 +4,7 @@ import type { EmailAttachment } from './email';
 /**
  * Configuration for attachment handling
  */
-export const ATTACHMENT_CONFIG = {
+const ATTACHMENT_CONFIG = {
   // Maximum total size for all attachments (10MB)
   MAX_TOTAL_SIZE: 10 * 1024 * 1024,
   // Maximum individual file size (5MB)
@@ -18,7 +18,7 @@ export const ATTACHMENT_CONFIG = {
 /**
  * Result type for attachment preparation
  */
-export interface AttachmentResult {
+interface AttachmentResult {
   attachments: EmailAttachment[];
   totalSize: number;
   skippedFiles: Array<{
@@ -34,7 +34,7 @@ export interface AttachmentResult {
  * @param url The blob storage URL
  * @returns The extracted filename
  */
-export function extractFilenameFromUrl(url: string): string {
+function extractFilenameFromUrl(url: string): string {
   try {
     // Parse the URL to get the pathname
     const urlObj = new URL(url);
@@ -64,7 +64,7 @@ export function extractFilenameFromUrl(url: string): string {
  * @param filename The filename to analyze
  * @returns The MIME type
  */
-export function getContentTypeFromFilename(filename: string): string {
+function getContentTypeFromFilename(filename: string): string {
   const extension = filename.toLowerCase().split('.').pop();
   
   const mimeTypes: Record<string, string> = {
@@ -93,7 +93,7 @@ export function getContentTypeFromFilename(filename: string): string {
  * @param url The blob storage URL
  * @returns Promise resolving to file buffer
  */
-export async function fetchFileFromBlobStorage(url: string): Promise<Buffer> {
+async function fetchFileFromBlobStorage(url: string): Promise<Buffer> {
   try {
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -236,40 +236,4 @@ export async function prepareEmailAttachments(fileUrls: string[]): Promise<Attac
   }
   
   return result;
-}
-
-/**
- * Validate blob storage URL format
- * @param url The URL to validate
- * @returns True if URL appears to be a valid blob storage URL
- */
-export function isValidBlobStorageUrl(url: string): boolean {
-  try {
-    const urlObj = new URL(url);
-    
-    // Allow localhost for development
-    if (urlObj.hostname === 'localhost') {
-      return true;
-    }
-    
-    // Check for Vercel blob storage
-    return urlObj.hostname.includes('blob.vercel-storage.com');
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Sanitize filename for email attachment
- * @param filename The original filename
- * @returns Sanitized filename safe for email
- */
-export function sanitizeFilename(filename: string): string {
-  // Remove or replace potentially problematic characters
-  return filename
-    .replace(/[<>:"/\\|?*]/g, '_') // Replace forbidden characters with underscore
-    .replace(/\s+/g, '_') // Replace spaces with underscore
-    .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-    .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-    .substring(0, 100); // Limit length
 }

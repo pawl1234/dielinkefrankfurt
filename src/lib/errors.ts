@@ -215,25 +215,6 @@ export function apiErrorResponse(
 }
 
 /**
- * Client-side error handler that provides localized error messages
- */
-export function getClientErrorMessage(error: unknown, defaultMessage: string = 'Ein unerwarteter Fehler ist aufgetreten'): string {
-  if (typeof error === 'string') {
-    return error;
-  }
-  
-  if (error instanceof Error) {
-    return error.message || defaultMessage;
-  }
-  
-  if (error && typeof error === 'object' && 'message' in error) {
-    return (error as { message: string }).message || defaultMessage;
-  }
-  
-  return defaultMessage;
-}
-
-/**
  * Helper to format and standardize database errors
  */
 export function handleDatabaseError(error: unknown, operation: string): AppError {
@@ -273,30 +254,6 @@ export function handleFileUploadError(error: unknown, context?: ErrorContext): A
     errorObj, 
     context
   );
-}
-
-/**
- * Translation map for common error messages to German (for user-facing errors)
- */
-export const errorTranslations: Record<string, string> = {
-  'Authentication failed': 'Authentifizierung fehlgeschlagen',
-  'Not authorized': 'Nicht autorisiert',
-  'Resource not found': 'Ressource nicht gefunden',
-  'Validation failed': 'Validierung fehlgeschlagen',
-  'An unexpected error occurred': 'Ein unerwarteter Fehler ist aufgetreten',
-  'Database error': 'Datenbankfehler',
-  'File upload failed': 'Datei-Upload fehlgeschlagen',
-  'File size exceeds limit': 'Dateigröße überschreitet das Limit',
-  'Unsupported file type': 'Nicht unterstützter Dateityp',
-  'Newsletter not found': 'Newsletter nicht gefunden',
-  'Newsletter validation failed': 'Newsletter-Validierung fehlgeschlagen',
-};
-
-/**
- * Get a localized error message
- */
-export function getLocalizedErrorMessage(message: string): string {
-  return errorTranslations[message] || message;
 }
 
 /**
