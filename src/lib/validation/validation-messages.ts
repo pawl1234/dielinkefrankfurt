@@ -31,6 +31,8 @@ export const fieldLabels: Record<string, string> = {
   'postalCode': 'Postleitzahl',
   'recurringText': 'Wiederholungsbeschreibung',
   'coverImage': 'Cover-Bild',
+  'coverImages': 'Cover-Bilder',
+  'croppedCoverImage': 'Zugeschnittenes Cover-Bild',
 
   // Status report form fields
   'groupId': 'Gruppe',
@@ -204,6 +206,13 @@ export const validationMessages = {
   },
 
   // File validation
+  /**
+   * Combined file size exceeds limit
+   */
+  combinedCoverImageSizeExceeds: (currentMB: string, maxMB: number): string => {
+    return `Die kombinierten Cover-Bilder (${currentMB}MB) überschreiten das Upload-Limit von ${maxMB}MB. Bitte verwenden Sie kleinere Bilder.`;
+  },
+
   /**
    * File size exceeds limit
    */

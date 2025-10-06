@@ -12,7 +12,7 @@ interface CustomValidationEntry {
   isValid: boolean;
   message?: string;
 }
-import FileUpload from '@/components/upload/FileUpload';
+import FileUpload from '../shared/FileUpload';
 import {
   Box,
   Typography,

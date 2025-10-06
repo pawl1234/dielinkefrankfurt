@@ -37,7 +37,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import { Group, StatusReportStatus } from '@prisma/client';
 import RichTextEditor from '@/components/editor/RichTextEditor';
-import FileUpload from '@/components/upload/FileUpload';
+import FileUpload from '@/components/forms/shared/FileUpload';
 
 export default function EditStatusReport({ params }: { params: { id: string } }) {
   const { status: sessionStatus } = useSession();

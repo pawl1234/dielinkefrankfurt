@@ -2,7 +2,7 @@
 
 import { Controller, Control, FieldValues, Path } from 'react-hook-form';
 import { Box, Typography } from '@mui/material';
-import FileUpload from '@/components/upload/FileUpload';
+import FileUpload from '../../shared/FileUpload';
 import FormSection from '../../shared/FormSection';
 import { FILE_TYPES } from '@/lib/validation/file-schemas';
 import { STATUS_REPORT_LIMITS } from '@/lib/validation/status-report';

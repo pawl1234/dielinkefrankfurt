@@ -4,7 +4,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import '@testing-library/jest-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from '../../theme/theme';
-import FileUpload from '../../components/upload/FileUpload';
+import FileUpload from '../../components/forms/shared/FileUpload';
 
 const renderWithTheme = (component: React.ReactElement) => {
   return render(
