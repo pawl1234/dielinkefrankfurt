@@ -23,28 +23,6 @@
 - **Use clear, consistent imports** (prefer relative imports within packages).
 - **Use Next.js environment variables** (.env.local, .env) and process.env for configuration.
 
-### 🧪 Testing & Reliability
-- **Always create unit tests for new features** (functions, classes, routes, etc).
-- **After updating any logic**, check whether existing unit tests need to be updated. If so, do it.
-- **Tests should live in a `/src/tests` folder** mirroring the main app structure.
-  - Include at least:
-    - 1 test for expected use
-    - 1 edge case
-    - 1 failure case
-- **Mocking Rules**:
-   - Never mock modules in /src/lib/ unless they directly interact with external services
-   - Do not mock pure utility functions, error handlers, or data transformers
-   - Do not mock modules just because they import other modules - mock the root dependency instead
-   - External services: Database (Prisma), Email providers, File storage (Vercel Blob)
-   - Browser/Node incompatibilities: next/server, next/navigation, browser APIs
-   - Network requests: APIs, webhooks, third-party services
-   - Mock at the boundary: Mock external dependencies, not your own code
-   - Keep mocks minimal: Only mock the specific methods you need, not entire modules
-   - Use real implementations: For /src/lib/ modules, use the actual code in tests
-   - Mock once, centrally: If NextResponse needs mocking, do it in jest.setup.js, not everywhere
-   - Never mock anything outside the folder /src/tests everything test related should stay in /src/tests
-
-
 ### ✅ Task Completion
 - **Mark completed tasks in `TASK.md`** immediately after finishing them.
 - Add new sub-tasks or TODOs discovered during development to `TASK.md` under a “Discovered During Work” section.
@@ -75,7 +53,7 @@
 ### 🧠 AI Behavior Rules
 - **Never assume missing context. Ask questions if uncertain.**
 - **Never hallucinate libraries or functions** – before introducing new libraries ALWAS ask for permission.
-- **Always confirm file paths and module names** exist before referencing them in code or tests.
+- **Always confirm file paths and module names** exist before referencing them in code.
 - **Never delete or overwrite existing code** unless explicitly instructed to or if part of a task from `TASK.md`.
 
 
@@ -88,7 +66,7 @@
 - **MUI v7 Grid usage**: Material UI v7 uses a new Grid system this code is wrong: `<Grid item xs={{12}}>` use the new correct way instead: `<Grid size={{ xs: 12, md: 6 }}>`.
 - **Date handling**: When working with date fields, be aware that the Prisma client uses JavaScript `Date` objects for datetime fields, but our interface definitions sometimes expect `string`. In components, use `Date | string` as the type for date fields.
 - **Form validation**: Forms should only show validation errors after submission. Use a `formSubmitted` state variable to conditionally display error messages. For component reuse, validation controls can accept a `showValidationErrors` prop.
-- **TypeScript**: NEVER use the `any` type. Always use specific types from `src/types/` (api-types.ts, component-types.ts, form-types.ts) or create proper interfaces. For Prisma models, use proper field types matching schema.prisma. For test mocks, create objects with all required fields instead of type assertions. While development make sure type safety is always ensured.
+- **TypeScript**: NEVER use the `any` type. Always use specific types from `src/types/` (api-types.ts, component-types.ts, form-types.ts) or create proper interfaces. For Prisma models, use proper field types matching schema.prisma. While development make sure type safety is always ensured.
 
 ## Error Handling & Validation System
 
@@ -260,21 +238,6 @@ if (error.message.includes('required')) {
 ```typescript
 // DON'T DO THIS
 throw { validationErrors: errors, isValidationError: true };
-```
-
-### Testing Validation
-
-When testing validators, use real implementations (don't mock them):
-```typescript
-// ✅ CORRECT
-import { validateMyData } from '@/lib/validation/my-validator';
-
-describe('My Validator', () => {
-  it('should return German error messages', async () => {
-    const result = await validateMyData({});
-    expect(result.errors?.name).toBe('Name ist erforderlich');
-  });
-});
 ```
 
 ### Documentation
