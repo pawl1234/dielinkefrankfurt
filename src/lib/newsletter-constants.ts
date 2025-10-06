@@ -75,11 +75,6 @@ export const STATUS_REPORT_LIMIT_FIELDS = {
 export type NewsletterLimitField = keyof typeof NEWSLETTER_LIMIT_FIELDS;
 
 /**
- * Type for status report limit field keys
- */
-export type StatusReportLimitField = keyof typeof STATUS_REPORT_LIMIT_FIELDS;
-
-/**
  * Newsletter date range constants
  */
 export const NEWSLETTER_DATE_RANGES = {

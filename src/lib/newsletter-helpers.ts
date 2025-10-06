@@ -136,21 +136,6 @@ export const getStatusReportUrl = (
 };
 
 /**
- * Clean and validate text content for email
- * Removes dangerous HTML and ensures safe content for React Email
- */
-export const sanitizeTextForEmail = (text: string): string => {
-  if (!text) return '';
-  
-  // Basic HTML tag removal for safety
-  // React Email components will handle proper rendering
-  return text
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .trim();
-};
-
-/**
  * Extract plain text from HTML content
  * Useful for creating email-safe content from rich text
  */
@@ -200,20 +185,6 @@ export const generatePreviewText = (htmlContent: string, maxLength: number = 90)
   
   // If no good word boundary, truncate at character limit
   return cleanText.substring(0, maxLength - 3).trim() + '...';
-};
-
-/**
- * Validate and format email address for display
- * Ensures email addresses are properly formatted
- */
-export const formatEmailAddress = (email: string, name?: string): string => {
-  if (!email) return '';
-  
-  if (name && name.trim()) {
-    return `${name.trim()} <${email.trim()}>`;
-  }
-  
-  return email.trim();
 };
 
 /**

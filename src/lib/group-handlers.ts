@@ -1027,7 +1027,3 @@ export async function getRecentStatusReportsForNewsletter(): Promise<(StatusRepo
     throw error;
   }
 }
-
-// Re-export email notification functions
-export { sendGroupAcceptanceEmail, sendGroupArchivingEmail };
-

@@ -22,7 +22,27 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import { newsletterTextToHTML } from '@/lib/tiptap-text-converter';
+
+/**
+ * Convert plain text to HTML paragraphs for rich text editor
+ * Handles double newlines as paragraph breaks, single newlines as <br>
+ */
+function convertTextToHTML(text: string): string {
+  if (!text || !text.trim()) return '<p></p>';
+
+  // Create a div for HTML escaping
+  const div = document.createElement('div');
+
+  return text
+    .split('\n\n')
+    .filter(para => para.trim())
+    .map(para => {
+      // Escape HTML and convert single newlines to <br>
+      div.textContent = para;
+      return `<p>${div.innerHTML.replace(/\n/g, '<br>')}</p>`;
+    })
+    .join('') || '<p></p>';
+}
 
 function NewsletterEditContent() {
   const router = useRouter();
@@ -138,7 +158,7 @@ function NewsletterEditContent() {
 
   const handleAIAccept = (generatedText: string) => {
     // Convert the AI-generated text to HTML to preserve formatting
-    const htmlContent = newsletterTextToHTML(generatedText);
+    const htmlContent = convertTextToHTML(generatedText);
     setIntroductionText(htmlContent);
     setIsIntroHTML(true); // Flag that this content should be treated as HTML
     setShowAIModal(false);
