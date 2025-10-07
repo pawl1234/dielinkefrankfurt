@@ -35,8 +35,8 @@ npm run typecheck       # TypeScript type checking
    - Send newsletters with batch processing
 
 3. **Newsletter System**
-   - Template generation: `src/lib/newsletter-template.ts`
-   - Batch sending: `src/lib/newsletter-sending.ts`
+   - Template generation: `src/lib/newsletter/template-generator.ts`
+   - Batch sending: `src/lib/newsletter/sending-coordinator.ts`
    - Privacy-friendly analytics: fingerprint-based tracking (no email storage)
    - Archive/view previous newsletters
 
@@ -56,7 +56,7 @@ npm run typecheck       # TypeScript type checking
 - NextAuth.js v4 with credentials provider
 - Fallback env-based admin (ADMIN_USERNAME/ADMIN_PASSWORD) for initial setup
 - Database users stored in `User` model with bcrypt hashing
-- Protected API routes use `src/lib/api-auth.ts` helpers
+- Protected API routes use `src/lib/auth/` helpers
 
 **Newsletter Workflow**
 1. Admin creates draft in `/admin/newsletter/edit`
@@ -97,15 +97,23 @@ src/
 │   ├── forms/                    # Reusable form components
 │   ├── newsletter/               # Newsletter preview components
 │   └── editor/                   # TipTap rich text editor
-├── lib/
-│   ├── db/                       # Database operations
+├── lib/                          # Domain-based architecture
+│   ├── newsletter/               # Newsletter domain (settings, drafts, sending, analytics)
+│   ├── email/                    # Email infrastructure (SMTP, rendering, attachments)
+│   ├── appointments/             # Appointments domain (CRUD, file handling)
+│   ├── groups/                   # Groups & status reports domain
+│   ├── antraege/                 # Board requests domain
+│   ├── ai/                       # AI infrastructure (Claude integration, prompts)
+│   ├── analytics/                # Analytics infrastructure (fingerprinting, cleanup)
+│   ├── auth/                     # Authentication (NextAuth, session, API protection)
+│   ├── db/                       # Database operations (Prisma queries for all entities)
 │   ├── blob-storage/             # Vercel Blob utilities
 │   ├── form-submission/          # Form submission utilities
 │   ├── validation/               # Zod schemas
-│   ├── newsletter-*.ts           # Newsletter logic (template, sending, helpers)
-│   ├── ai-service.ts             # Anthropic Claude integration
-│   ├── auth-options.ts           # NextAuth configuration
-│   └── fingerprinting.ts         # Privacy-friendly analytics
+│   ├── hooks/                    # React hooks
+│   ├── logger.ts                 # Structured logging
+│   ├── errors.ts                 # Custom error types
+│   └── [utility files]           # date-utils, file-utils, base-url, image-compression
 ├── emails/                       # React Email templates
 │   └── notifications/            # Notification emails
 ├── theme/                        # Material UI theme
@@ -115,8 +123,10 @@ src/
 ### Important Conventions
 
 **Path Aliases**
-- Use `@/` for imports: `import { prisma } from '@/lib/db/prisma'`
+- Use `@/` for imports: `import { getNewsletterSettings } from '@/lib/newsletter'`
 - Configured in `tsconfig.json`: `"@/*": ["./src/*"]`
+- Server code: Use barrel exports `@/lib/newsletter`, `@/lib/email`
+- Client components: Import specific files `@/lib/newsletter/constants` (avoid bundling server code)
 
 **Database Conventions**
 - Models use lowercase table names: `@@map("appointment")`
@@ -179,10 +189,10 @@ src/
 
 ### Modifying Newsletter Template
 
-- Main template logic: `src/lib/newsletter-template.ts`
+- Main template logic: `src/lib/newsletter/template-generator.ts`
 - React Email template: `src/emails/newsletter.tsx`
 - Preview changes: `npm run email` or `/admin/email-preview`
-- Sending logic: `src/lib/newsletter-sending.ts`
+- Sending logic: `src/lib/newsletter/sending-coordinator.ts`
 
 ### Working with Database
 
