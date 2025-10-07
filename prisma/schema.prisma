@@ -28,7 +28,7 @@ model Appointment {
   // Location information
   street         String?
   city           String?
-  state          String?
+  locationDetails String?   @map("location_details")
   postalCode     String?
 
   // Requester information

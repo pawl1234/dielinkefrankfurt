@@ -52,7 +52,7 @@ export default function AppointmentForm() {
       endDateTime: null,
       street: '',
       city: '',
-      state: '',
+      locationDetails: '',
       postalCode: '',
       firstName: '',
       lastName: '',

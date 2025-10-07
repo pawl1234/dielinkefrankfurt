@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       endDateTime: endDateTimeStr ? new Date(endDateTimeStr) : null,
       street: formData.get('street') as string || undefined,
       city: formData.get('city') as string || undefined,
-      state: formData.get('state') as string || undefined,
+      locationDetails: formData.get('locationDetails') as string || undefined,
       postalCode: formData.get('postalCode') as string || undefined,
       firstName: formData.get('firstName') as string || undefined,
       lastName: formData.get('lastName') as string || undefined,

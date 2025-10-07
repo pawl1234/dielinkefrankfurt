@@ -60,7 +60,7 @@ export const adminAppointmentUpdateSchema = createAdminUpdateSchema({
   endDateTime: createOptionalDateTimeSchema().nullable(),
   street: createOptionalTextSchema(200, 'Straße'),
   city: createOptionalTextSchema(100, 'Ort'),
-  state: createOptionalTextSchema(100, 'Bundesland'),
+  locationDetails: createOptionalTextSchema(100, 'Zusatzinformationen'),
   postalCode: createOptionalTextSchema(20, 'Postleitzahl'),
   firstName: createOptionalTextSchema(50, 'Vorname'),
   lastName: createOptionalTextSchema(50, 'Nachname'),

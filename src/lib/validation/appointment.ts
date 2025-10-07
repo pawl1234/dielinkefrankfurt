@@ -48,7 +48,7 @@ const getAppointmentSubmitDataSchema = () => z.object({
   endDateTime: createOptionalDateTimeSchema(),
   street: createOptionalTextSchema(200, 'Straße'),
   city: createOptionalTextSchema(100, 'Ort'),
-  state: createOptionalTextSchema(100, 'Bundesland'),
+  locationDetails: createOptionalTextSchema(100, 'Zusatzinformationen'),
   postalCode: createOptionalTextSchema(10, 'Postleitzahl'),
   firstName: createPersonNameSchema(2, 50, 'firstName'),
   lastName: createPersonNameSchema(2, 50, 'lastName').optional(),

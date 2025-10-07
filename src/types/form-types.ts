@@ -113,7 +113,7 @@ export interface EditAppointmentFormProps {
     endDateTime: string | null;
     street: string | null;
     city: string | null;
-    state: string | null;
+    locationDetails: string | null;
     postalCode: string | null;
     firstName: string | null;
     lastName: string | null;
