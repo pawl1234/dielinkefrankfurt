@@ -159,7 +159,7 @@ export async function getPublicAppointments(request: NextRequest) {
       endDateTime: true,
       street: true,
       city: true,
-      state: true,
+      locationDetails: true,
       postalCode: true,
       featured: true
     };

@@ -47,7 +47,7 @@ interface Appointment {
   endDateTime: string | null;
   street: string | null;
   city: string | null;
-  state: string | null;
+  locationDetails: string | null;
   postalCode: string | null;
   firstName: string | null;
   lastName: string | null;
@@ -570,7 +570,7 @@ export default function AdminAppointmentsPage() {
                                   </Box>
                                 )}
                                 
-                                {(appointment.street || appointment.city || appointment.state || appointment.postalCode) && (
+                                {(appointment.street || appointment.city || appointment.locationDetails || appointment.postalCode) && (
                                   <Box sx={{ mb: 2 }}>
                                     <Typography variant="subtitle1" gutterBottom>
                                       Ort:
@@ -580,7 +580,7 @@ export default function AdminAppointmentsPage() {
                                       {appointment.street && <br />}
                                       {appointment.postalCode && appointment.city && `${appointment.postalCode} ${appointment.city}`}
                                       {(appointment.postalCode || appointment.city) && <br />}
-                                      {appointment.state && `${appointment.state}`}
+                                      {appointment.locationDetails && `${appointment.locationDetails}`}
                                     </Typography>
                                   </Box>
                                 )}

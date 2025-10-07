@@ -193,8 +193,9 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                       <Typography variant="body1">
                         {appointment.street && `${appointment.street}`}
                         {appointment.street && <br />}
-                        {appointment.postalCode && appointment.city && 
-                          `${appointment.postalCode} ${appointment.city}`}
+                        {appointment.postalCode && appointment.city && `${appointment.postalCode} ${appointment.city}`}
+                        {(appointment.postalCode || appointment.city) && <br />}
+                        {appointment.locationDetails && `${appointment.locationDetails}`}
                       </Typography>
                     </Box>
                   )}

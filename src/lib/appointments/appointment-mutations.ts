@@ -32,7 +32,7 @@ export interface AppointmentUpdateData {
   endDateTime?: string | Date | null; // Pre-validated: valid ISO datetime or null (when provided)
   street?: string | null;    // Pre-validated: max 100 chars (when provided)
   city?: string | null;      // Pre-validated: max 100 chars (when provided)
-  state?: string | null;     // Pre-validated: max 100 chars (when provided)
+  locationDetails?: string | null;     // Pre-validated: max 100 chars (when provided)
   postalCode?: string | null; // Pre-validated: valid postal code format (when provided)
   firstName?: string | null;  // Pre-validated: 2-50 chars (when provided)
   lastName?: string | null;   // Pre-validated: 2-50 chars (when provided)
@@ -50,7 +50,7 @@ export interface AppointmentCreateData {
   endDateTime?: string | null; // Pre-validated: valid ISO datetime or null (when provided)
   street?: string;    // Pre-validated: max 100 chars (when provided)
   city?: string;      // Pre-validated: max 100 chars (when provided)
-  state?: string;     // Pre-validated: max 100 chars (when provided)
+  locationDetails?: string;     // Pre-validated: max 100 chars (when provided)
   postalCode?: string; // Pre-validated: valid postal code format (when provided)
   firstName?: string; // Pre-validated: 2-50 chars (when provided)
   lastName?: string;  // Pre-validated: 2-50 chars (when provided)
@@ -158,7 +158,7 @@ export async function createAppointmentWithFiles(
       endDateTime: validatedData.endDateTime ? new Date(validatedData.endDateTime) : null,
       street: validatedData.street || '',
       city: validatedData.city || '',
-      state: validatedData.state || '',
+      locationDetails: validatedData.locationDetails || '',
       postalCode: validatedData.postalCode || '',
       firstName: validatedData.firstName || '',
       lastName: validatedData.lastName || '',
@@ -259,7 +259,7 @@ export async function updateAppointment(request: NextRequest) {
       endDateTime,
       street,
       city,
-      state,
+      locationDetails,
       postalCode,
       firstName,
       lastName,
@@ -311,7 +311,7 @@ export async function updateAppointment(request: NextRequest) {
     if (endDateTime !== undefined) updateData.endDateTime = endDateTime ? new Date(endDateTime) : null;
     if (street !== undefined) updateData.street = street;
     if (city !== undefined) updateData.city = city;
-    if (state !== undefined) updateData.state = state;
+    if (locationDetails !== undefined) updateData.locationDetails = locationDetails;
     if (postalCode !== undefined) updateData.postalCode = postalCode;
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;

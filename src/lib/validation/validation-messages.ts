@@ -27,7 +27,7 @@ export const fieldLabels: Record<string, string> = {
   'endDateTime': 'Enddatum und -zeit',
   'street': 'Straße',
   'city': 'Ort',
-  'state': 'Bundesland',
+  'locationDetails': 'Zusatzinformationen',
   'postalCode': 'Postleitzahl',
   'recurringText': 'Wiederholungsbeschreibung',
   'coverImage': 'Cover-Bild',

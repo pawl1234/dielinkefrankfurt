@@ -42,7 +42,7 @@ export default function EditAppointmentForm({
       endDateTime: appointment.endDateTime ? new Date(appointment.endDateTime) : null,
       street: appointment.street || '',
       city: appointment.city || '',
-      state: appointment.state || '',
+      locationDetails: appointment.locationDetails || '',
       postalCode: appointment.postalCode || '',
       firstName: appointment.firstName || '',
       lastName: appointment.lastName || '',

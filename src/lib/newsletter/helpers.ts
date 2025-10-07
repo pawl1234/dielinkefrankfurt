@@ -193,9 +193,9 @@ export const generatePreviewText = (htmlContent: string, maxLength: number = 90)
  */
 export const hasPhysicalLocation = (appointment: Appointment): boolean => {
   return Boolean(
-    appointment.street || 
-    appointment.city || 
-    appointment.state || 
+    appointment.street ||
+    appointment.city ||
+    appointment.locationDetails ||
     appointment.postalCode
   );
 };
@@ -209,10 +209,10 @@ export const getAppointmentLocation = (appointment: Appointment): string => {
     const parts = [
       appointment.street,
       appointment.city,
-      appointment.state,
+      appointment.locationDetails,
       appointment.postalCode
     ].filter(Boolean);
-    
+
     return parts.join(', ');
   }
   

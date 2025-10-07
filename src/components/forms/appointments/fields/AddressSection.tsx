@@ -16,7 +16,8 @@ export function AddressSection<TFormValues extends FieldValues>({
   const helpText = `Bitte geben Sie den Ort an, an dem die Veranstaltung stattfinden soll:
         Die Straße und Hausnummer ermöglichen die genaue Lokalisierung.
         Die Stadt ist wichtig für die regionale Einordnung.
-        Das Bundesland und die Postleitzahl helfen bei der administrativen Zuordnung.
+        Geben Sie zusätzliche Ortsangaben an, z.B. Raumnummer oder Gebäudename.
+        Die Postleitzahl hilft bei der administrativen Zuordnung.
         Sollten Sie noch keinen genauen Ort haben, können Sie die ungefähre Gegend angeben oder das Feld frei lassen, wenn der Termin online stattfindet.`;
 
   return (
@@ -72,14 +73,14 @@ export function AddressSection<TFormValues extends FieldValues>({
         />
         <Controller
           control={control}
-          name={"state" as Path<TFormValues>}
+          name={"locationDetails" as Path<TFormValues>}
           render={({ field: { onChange, onBlur, value, name: fieldName }, fieldState: { error } }) => (
             <TextField
               onChange={onChange}
               onBlur={onBlur}
               value={value || ''}
               name={fieldName}
-              label="Bundesland"
+              label="Zusatzinformationen"
               fullWidth
               error={!!error && formState.isSubmitted}
               helperText={formState.isSubmitted && error ? error.message : undefined}
