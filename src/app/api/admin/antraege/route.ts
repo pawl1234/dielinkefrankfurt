@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import {
   getAntraege,
   updateAntrag,
   deleteAntrag
-} from '@/lib/antrag-handlers';
+} from '@/lib/antraege';
 
 /**
  * GET /api/admin/antraege

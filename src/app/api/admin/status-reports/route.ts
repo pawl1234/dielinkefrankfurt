@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import {
   getStatusReports,
   updateStatusReport,
   deleteStatusReport,
   StatusReportUpdateData
-} from '@/lib/group-handlers';
+} from '@/lib/groups';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 
 /**

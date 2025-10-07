@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import { updateGroupStatus, getGroupById } from '@/lib/group-handlers';
+import { withAdminAuth } from '@/lib/auth';
+import { updateGroupStatus, getGroupById } from '@/lib/groups';
 import { Group, GroupStatus, ResponsiblePerson } from '@prisma/client';
 
 

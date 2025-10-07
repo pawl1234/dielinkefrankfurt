@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAntrag } from '@/lib/db/antrag-operations';
-import { deleteAntragFiles } from '@/lib/antrag-file-utils';
+import { deleteAntragFiles } from '@/lib/antraege';
 import { uploadFiles } from '@/lib/blob-storage';
 import { FILE_TYPES, FILE_SIZE_LIMITS } from '@/lib/validation/file-schemas';
 import { FileUploadError } from '@/lib/errors';
@@ -11,7 +11,7 @@ import {
 } from '@/lib/validation/antrag';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { getRecipientEmails } from '@/lib/db/antrag-config-operations';
-import { sendAntragSubmissionEmail } from '@/lib/email-senders';
+import { sendAntragSubmissionEmail } from '@/lib/email';
 
 /**
  * Response type for Antrag submission

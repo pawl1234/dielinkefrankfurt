@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import { renderNotificationEmail } from '@/lib/email-render';
+import { withAdminAuth } from '@/lib/auth';
+import { renderNotificationEmail } from '@/lib/email';
 import { getBaseUrl } from '@/lib/base-url';
-// import prisma from '@/lib/prisma'; // Not currently used in preview
+// import prisma from '@/lib/db/prisma'; // Not currently used in preview
 
 interface Props {
   params: Promise<{

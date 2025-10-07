@@ -20,7 +20,7 @@ import { FeaturedEvent } from './components/FeaturedEvent';
 import { UpcomingEvent } from './components/UpcomingEvent';
 import { StatusReports } from './components/StatusReports';
 import { EmailWrapper } from './components/EmailWrapper';
-import { generatePreviewText } from '../lib/newsletter-helpers';
+import { generatePreviewText } from '@/lib/newsletter';
 import { heading, text } from './lib/styling';
 
 /**

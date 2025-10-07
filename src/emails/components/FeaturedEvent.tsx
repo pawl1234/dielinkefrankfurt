@@ -1,7 +1,7 @@
 import { Img, Text, Heading, Section, Row, Column } from '@react-email/components';
 import { Appointment } from '@prisma/client';
 import { Button } from './Button';
-import { getCoverImageUrl, formatAppointmentDateRange, truncateText } from '../../lib/newsletter-helpers';
+import { getCoverImageUrl, formatAppointmentDateRange, truncateText } from '@/lib/newsletter';
 import { subHeading, metaData, text } from '../lib/styling';
 
 interface FeaturedEventProps {

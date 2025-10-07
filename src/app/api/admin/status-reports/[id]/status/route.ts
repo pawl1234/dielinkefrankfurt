@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import { updateStatusReportStatus } from '@/lib/group-handlers';
+import { withAdminAuth } from '@/lib/auth';
+import { updateStatusReportStatus } from '@/lib/groups';
 import { StatusReportStatus } from '@prisma/client';
 
 /**

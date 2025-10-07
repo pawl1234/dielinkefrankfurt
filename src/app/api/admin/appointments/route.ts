@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import {
   getAppointments,
   updateAppointment,
   deleteAppointment
-} from '@/lib/appointment-handlers';
+} from '@/lib/appointments';
 
 /**
  * GET /api/admin/appointments

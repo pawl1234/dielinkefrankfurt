@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getPublicAppointments } from '@/lib/appointment-handlers';
+import { getPublicAppointments } from '@/lib/appointments';
 
 /**
  * GET /api/appointments

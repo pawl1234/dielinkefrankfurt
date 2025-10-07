@@ -1,7 +1,7 @@
 import { Text, Heading, Section, Row, Column } from '@react-email/components';
 import { Appointment } from '@prisma/client';
 import { Button } from './Button';
-import { formatAppointmentDateRange, truncateText } from '../../lib/newsletter-helpers';
+import { formatAppointmentDateRange, truncateText } from '@/lib/newsletter';
 import { subHeading, metaData, text } from '../lib/styling';
 
 interface UpcomingEventProps {

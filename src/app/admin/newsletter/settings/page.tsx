@@ -30,9 +30,9 @@ import SaveIcon from '@mui/icons-material/Save';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneIcon from '@mui/icons-material/Tune';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import { NEWSLETTER_LIMITS, STATUS_REPORT_LIMITS } from '@/lib/newsletter-constants';
-import { DEFAULT_AI_SYSTEM_PROMPT, DEFAULT_AI_VORSTANDSPROTOKOLL_PROMPT, DEFAULT_TOPIC_EXTRACTION_PROMPT } from '@/lib/ai-prompts';
-import { AI_MODELS, DEFAULT_AI_MODEL } from '@/lib/ai-models';
+import { NEWSLETTER_LIMITS, STATUS_REPORT_LIMITS } from '@/lib/newsletter/constants';
+import { DEFAULT_AI_SYSTEM_PROMPT, DEFAULT_AI_VORSTANDSPROTOKOLL_PROMPT, DEFAULT_TOPIC_EXTRACTION_PROMPT } from '@/lib/ai/prompts';
+import { AI_MODELS, DEFAULT_AI_MODEL } from '@/lib/ai/models';
 
 export default function NewsletterSettingsPage() {
   const router = useRouter();

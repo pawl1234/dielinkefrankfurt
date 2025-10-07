@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext, AIRefinementRequest, AIGenerationResponse } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { aiService } from '@/lib/ai-service';
+import { aiService } from '@/lib/ai';
 
 /**
  * POST /api/admin/newsletter/ai/refine

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/prisma';
-import { processSendingChunk } from '@/lib/newsletter-sending';
-import { getNewsletterSettings } from '@/lib/newsletter-service';
+import prisma from '@/lib/db/prisma';
+import { processSendingChunk } from '@/lib/newsletter';
+import { getNewsletterSettings } from '@/lib/newsletter';
 import { sendEmail } from '@/lib/email';
 
 /**

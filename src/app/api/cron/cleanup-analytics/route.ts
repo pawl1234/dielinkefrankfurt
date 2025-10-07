@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runAnalyticsCleanup } from '@/lib/analytics-cleanup';
+import { runAnalyticsCleanup } from '@/lib/analytics';
 import { logger } from '@/lib/logger';
 
 /**

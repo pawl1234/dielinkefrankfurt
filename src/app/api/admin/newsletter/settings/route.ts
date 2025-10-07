@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext, CompositeGenerationRequest } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/api-auth';
+import { withAdminAuth } from '@/lib/auth';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { 
   getNewsletterSettings, 
   updateNewsletterSettings,
   clearNewsletterSettingsCache
-} from '@/lib/newsletter-service';
-import { HeaderCompositionService } from '@/lib/image-composition';
+} from '@/lib/newsletter';
+import { HeaderCompositionService } from '@/lib/email';
 
 /**
  * GET /api/admin/newsletter/settings

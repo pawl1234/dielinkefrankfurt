@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/api-auth';
-import { processRecipientList } from '@/lib/newsletter-sending';
+import { withAdminAuth } from '@/lib/auth';
+import { processRecipientList } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/prisma';
-import { getNewsletterSettings } from '@/lib/newsletter-service';
-import { cleanEmail } from '@/lib/email-hashing';
-import { createNewsletterAnalytics } from '@/lib/newsletter-analytics';
-import { addTrackingToNewsletter } from '@/lib/newsletter-tracking';
+import prisma from '@/lib/db/prisma';
+import { getNewsletterSettings } from '@/lib/newsletter';
+import { cleanEmail } from '@/lib/email';
+import { createNewsletterAnalytics } from '@/lib/newsletter';
+import { addTrackingToNewsletter } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
 
 /**
