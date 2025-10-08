@@ -319,13 +319,6 @@ export default function AdminAppointmentsPage() {
             icon={<EventIcon />}
           />
           
-          {/* Status Tabs */}
-          <AdminStatusTabs
-            value={adminState.tabValue}
-            onChange={(_, newValue) => adminState.setTabValue(newValue)}
-            tabs={views.map(view => getTabLabel(view))}
-          />
-
           {/* Search Bar with Addresses Button */}
           <SearchFilterBar
             searchTerm={searchTerm}
@@ -340,6 +333,13 @@ export default function AdminAppointmentsPage() {
               Adressen
             </Button>
           </SearchFilterBar>
+
+          {/* Status Tabs */}
+          <AdminStatusTabs
+            value={adminState.tabValue}
+            onChange={(_, newValue) => adminState.setTabValue(newValue)}
+            tabs={views.map(view => getTabLabel(view))}
+          />
 
           {adminState.loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>

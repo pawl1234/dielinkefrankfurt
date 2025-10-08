@@ -239,7 +239,12 @@ export default function AddressManagementPage() {
   }
 
   return (
-    <MainLayout>
+    <MainLayout
+      breadcrumbs={[
+        { label: 'Start', href: '/' },
+        { label: 'Termine', href: '/admin/appointments', active: true },
+        { label: 'Adressen', href: '/admin/appointments', active: true },
+      ]}>
       <Container maxWidth="lg">
         <AdminNavigation />
         <AdminPageHeader
