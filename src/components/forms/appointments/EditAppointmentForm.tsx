@@ -104,7 +104,11 @@ export default function EditAppointmentForm({
         formState={form.formState}
         initialRecurringText={appointment.recurringText}
       />
-      <AddressSection control={form.control} formState={form.formState} />
+      <AddressSection
+        control={form.control}
+        formState={form.formState}
+        setValue={form.setValue}
+      />
     </FormBase>
   );
 }

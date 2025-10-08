@@ -27,6 +27,7 @@ export async function getAppointments(request: NextRequest) {
     const view = url.searchParams.get('view') || 'all';
     const status = url.searchParams.get('status');
     const id = url.searchParams.get('id');
+    const search = url.searchParams.get('search');
 
     // Pagination parameters
     const page = parseInt(url.searchParams.get('page') || '1', 10);
@@ -75,6 +76,31 @@ export async function getAppointments(request: NextRequest) {
         delete filter.OR;
       }
       filter.status = status;
+    }
+
+    // Add search filter if search term provided
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      // If there's already an OR clause (e.g., from archive view), wrap it with AND
+      if (filter.OR) {
+        const existingOr = filter.OR;
+        filter.AND = [
+          { OR: existingOr },
+          {
+            OR: [
+              { title: { contains: searchTerm, mode: 'insensitive' } },
+              { mainText: { contains: searchTerm, mode: 'insensitive' } }
+            ]
+          }
+        ];
+        delete filter.OR;
+      } else {
+        // No existing OR, just add search OR directly
+        filter.OR = [
+          { title: { contains: searchTerm, mode: 'insensitive' } },
+          { mainText: { contains: searchTerm, mode: 'insensitive' } }
+        ];
+      }
     }
 
     // Build order by clause

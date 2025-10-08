@@ -9,6 +9,7 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminStatusTabs from '@/components/admin/tables/AdminStatusTabs';
 import AdminPagination from '@/components/admin/tables/AdminPagination';
 import AdminNotification from '@/components/admin/AdminNotification';
+import SearchFilterBar from '@/components/admin/tables/SearchFilterBar';
 import {
   Box,
   Typography,
@@ -78,6 +79,9 @@ export default function AdminAppointmentsPage() {
   // Edit state management
   const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
   const [expandedAccordionId, setExpandedAccordionId] = useState<number | null>(null);
+
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
   
   useEffect(() => {
     // Redirect if not authenticated
@@ -90,7 +94,8 @@ export default function AdminAppointmentsPage() {
     try {
       console.log('🔄 fetchAppointments called for view:', view, 'page:', adminState.page, 'timestamp:', adminState.timestamp);
       adminState.setLoading(true);
-      const response = await fetch(`/api/admin/appointments?view=${view}&page=${adminState.page}&pageSize=${adminState.pageSize}&t=${adminState.timestamp}`);
+      const searchParam = searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '';
+      const response = await fetch(`/api/admin/appointments?view=${view}&page=${adminState.page}&pageSize=${adminState.pageSize}${searchParam}&t=${adminState.timestamp}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch appointments');
@@ -123,8 +128,8 @@ export default function AdminAppointmentsPage() {
     }
   // We intentionally use individual adminState properties instead of the entire adminState object
   // to prevent infinite re-renders. The adminState object changes on every render.
-  // eslint-disable-next-line react-hooks/exhaustive-deps    
-  }, [adminState.page, adminState.pageSize, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminState.page, adminState.pageSize, adminState.timestamp, searchTerm, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
 
   // Add logging to track when fetchAppointments is recreated
   console.log('🔧 fetchAppointments recreated with dependencies:', {
@@ -251,6 +256,29 @@ export default function AdminAppointmentsPage() {
     }
   };
 
+  /**
+   * Handle search input change.
+   */
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  /**
+   * Clear search input and reset results.
+   */
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    adminState.refreshTimestamp();
+  };
+
+  /**
+   * Handle search form submission.
+   */
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    adminState.refreshTimestamp();
+  };
+
   // Get empty state message based on current view
   const getEmptyStateMessage = (view: ViewType) => {
     switch (view) {
@@ -291,8 +319,23 @@ export default function AdminAppointmentsPage() {
             icon={<EventIcon />}
           />
           
+          {/* Search Bar with Addresses Button */}
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+            onClearSearch={handleClearSearch}
+            onSearch={handleSearch}
+          >
+            <Button
+              variant="outlined"
+              onClick={() => router.push('/admin/appointments/addresses')}
+            >
+              Adressen
+            </Button>
+          </SearchFilterBar>
+
           {/* Status Tabs */}
-          <AdminStatusTabs 
+          <AdminStatusTabs
             value={adminState.tabValue}
             onChange={(_, newValue) => adminState.setTabValue(newValue)}
             tabs={views.map(view => getTabLabel(view))}
