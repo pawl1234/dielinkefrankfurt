@@ -32,6 +32,44 @@ const groupStatusSchema = z.enum(['NEW', 'ACTIVE', 'ARCHIVED'], {
 });
 
 /**
+ * Regular meeting schema (optional text field)
+ */
+const regularMeetingSchema = z
+  .string()
+  .max(500, 'Regelmäßiges Treffen darf maximal 500 Zeichen lang sein')
+  .trim()
+  .optional();
+
+/**
+ * Meeting location schemas (optional fields)
+ */
+const meetingStreetSchema = z
+  .string()
+  .max(200, 'Straße darf maximal 200 Zeichen lang sein')
+  .trim()
+  .optional();
+
+const meetingCitySchema = z
+  .string()
+  .max(100, 'Stadt darf maximal 100 Zeichen lang sein')
+  .trim()
+  .optional();
+
+const meetingPostalCodeSchema = z
+  .string()
+  .max(5, 'Postleitzahl darf maximal 5 Zeichen lang sein')
+  .regex(/^\d{5}$/, 'Postleitzahl muss 5 Ziffern enthalten')
+  .trim()
+  .optional()
+  .or(z.literal(''));
+
+const meetingLocationDetailsSchema = z
+  .string()
+  .max(1000, 'Ortsdetails dürfen maximal 1000 Zeichen lang sein')
+  .trim()
+  .optional();
+
+/**
  * Complete group creation schema (for API validation)
  * Internal only - use validateGroupWithZod() for validation
  */
@@ -39,7 +77,12 @@ const groupCreateDataSchema = z.object({
   name: createNameSchema(3, 100, 'name'),
   description: createDescriptionSchema(50, 5000, 'description'),
   logoUrl: createFileUrlSchema('logoUrl').optional(),
-  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons')
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
+  regularMeeting: regularMeetingSchema,
+  meetingStreet: meetingStreetSchema,
+  meetingCity: meetingCitySchema,
+  meetingPostalCode: meetingPostalCodeSchema,
+  meetingLocationDetails: meetingLocationDetailsSchema
 });
 
 /**
@@ -58,7 +101,12 @@ export const groupRequestFormSchema = z.object({
   name: createNameSchema(3, 100, 'name'),
   description: createDescriptionSchema(50, 5000, 'description'),
   responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
-  logo: logoFileSchema
+  logo: logoFileSchema,
+  regularMeeting: regularMeetingSchema,
+  meetingStreet: meetingStreetSchema,
+  meetingCity: meetingCitySchema,
+  meetingPostalCode: meetingPostalCodeSchema,
+  meetingLocationDetails: meetingLocationDetailsSchema
 });
 
 /**
@@ -70,8 +118,13 @@ const groupUpdateDataSchema = z.object({
   slug: slugSchema.optional(),
   description: createDescriptionSchema(50, 5000, 'description').optional(),
   status: groupStatusSchema.optional(),
-  logoUrl: createFileUrlSchema('logoUrl').optional(),
-  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons').optional()
+  logoUrl: createFileUrlSchema('logoUrl').nullish(),
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons').optional(),
+  regularMeeting: regularMeetingSchema,
+  meetingStreet: meetingStreetSchema,
+  meetingCity: meetingCitySchema,
+  meetingPostalCode: meetingPostalCodeSchema,
+  meetingLocationDetails: meetingLocationDetailsSchema
 }).partial();
 
 /**
@@ -83,7 +136,12 @@ export const groupEditFormSchema = z.object({
   description: createDescriptionSchema(50, 5000, 'description'),
   status: groupStatusSchema,
   responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
-  logo: logoFileSchema.nullable()
+  logo: logoFileSchema.nullable(),
+  regularMeeting: regularMeetingSchema,
+  meetingStreet: meetingStreetSchema,
+  meetingCity: meetingCitySchema,
+  meetingPostalCode: meetingPostalCodeSchema,
+  meetingLocationDetails: meetingLocationDetailsSchema
 });
 
 /**

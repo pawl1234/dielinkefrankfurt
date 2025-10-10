@@ -70,3 +70,11 @@ export interface InfoBoxProps {
 export interface NotificationHeaderProps {
   logo: string;
 }
+
+// Group contact-specific email props
+export interface GroupContactEmailProps extends NotificationEmailProps {
+  group: GroupWithResponsiblePersons;
+  requesterName: string;
+  requesterEmail: string;
+  message: string;
+}

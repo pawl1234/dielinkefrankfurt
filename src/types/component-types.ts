@@ -73,3 +73,20 @@ export interface PublicAppointment {
   postalCode: string | null;
   featured: boolean;
 }
+
+/**
+ * Public group with regular meeting information
+ * Extends basic Group type with meeting-specific fields for display
+ */
+export interface PublicGroupWithMeeting {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl: string | null;
+  regularMeeting: string | null;
+  meetingStreet: string | null;
+  meetingCity: string | null;
+  meetingPostalCode: string | null;
+  meetingLocationDetails: string | null;
+}

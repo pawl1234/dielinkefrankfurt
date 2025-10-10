@@ -476,5 +476,76 @@ export async function sendAntragSubmissionEmail(
   }
 }
 
+/**
+ * Send group contact request email to responsible persons
+ * @param group Group with responsible persons
+ * @param requesterName Name of the person contacting the group
+ * @param requesterEmail Email address for replies
+ * @param message Message text from the requester
+ * @param officeEmail Optional office email to CC
+ * @returns Result with success status and optional error
+ */
+export async function sendGroupContactEmail(
+  group: GroupWithResponsiblePersons,
+  requesterName: string,
+  requesterEmail: string,
+  message: string,
+  officeEmail?: string | null
+): Promise<{ success: boolean; error?: Error | string }> {
+  try {
+    // Fetch newsletter settings for logo
+    const settings = await getNewsletterSettings();
+
+    // Prepare email props
+    const emailProps: import('../../types/email-types').GroupContactEmailProps = {
+      group,
+      requesterName,
+      requesterEmail,
+      message,
+      headerLogo: settings.headerLogo,
+      baseUrl: getBaseUrl(),
+      recipientEmail: group.responsiblePersons.map(p => p.email).join(','),
+      recipientName: group.responsiblePersons.map(p => `${p.firstName} ${p.lastName}`).join(', '),
+      contactEmail: process.env.CONTACT_EMAIL || 'info@die-linke-frankfurt.de'
+    };
+
+    // Render with React Email
+    const html = await renderNotificationEmail('GroupContactRequest', emailProps);
+
+    // Prepare recipients (combine responsible persons and office email)
+    const responsibleEmails = group.responsiblePersons.map(p => p.email);
+    const allRecipients = officeEmail
+      ? [...responsibleEmails, officeEmail].join(',')
+      : responsibleEmails.join(',');
+
+    // Send email
+    await sendEmail({
+      to: allRecipients,
+      replyTo: requesterEmail,
+      subject: `Kontaktanfrage für Gruppe: ${group.name}`,
+      html
+    });
+
+    logger.info('Group contact request email sent successfully', {
+      context: {
+        groupId: group.id,
+        groupSlug: group.slug,
+        recipientCount: group.responsiblePersons.length,
+        officeEmailUsed: !!officeEmail
+      }
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error('Error sending group contact request email', {
+      context: {
+        groupId: group.id,
+        groupSlug: group.slug,
+        error
+      }
+    });
+    return { success: false, error: error instanceof Error ? error : String(error) };
+  }
+}
+
 // Re-export types for backward compatibility
 export type { GroupWithResponsiblePersons, StatusReportWithGroup } from '../../types/email-types';

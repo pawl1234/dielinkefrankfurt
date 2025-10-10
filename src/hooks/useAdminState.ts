@@ -37,58 +37,39 @@ export const useAdminState = <T>() => {
     }
   });
 
-  console.log('🔧 useAdminState hook re-rendered, current state:', {
-    page: state.page,
-    pageSize: state.pageSize,
-    tabValue: state.tabValue,
-    searchTerm: state.searchTerm,
-    timestamp: state.timestamp,
-    loading: state.loading,
-    itemsCount: state.items.length
-  });
-
   const setItems = useCallback((items: T[]) => {
-    console.log('🔄 setItems called with', items.length, 'items');
     setState(prev => ({ ...prev, items }));
   }, []);
   
   const setLoading = useCallback((loading: boolean) => {
-    console.log('🔄 setLoading called with', loading);
     setState(prev => ({ ...prev, loading }));
   }, []);
   
   const setError = useCallback((error: string | null) => {
-    console.log('🔄 setError called with', error);
     setState(prev => ({ ...prev, error }));
   }, []);
   
   const setPage = useCallback((page: number) => {
-    console.log('🔄 setPage called with', page);
     setState(prev => ({ ...prev, page }));
   }, []);
   
   const setPageSize = useCallback((pageSize: number) => {
-    console.log('🔄 setPageSize called with', pageSize);
     setState(prev => ({ ...prev, pageSize, page: 1 }));
   }, []);
   
   const setTabValue = useCallback((tabValue: number) => {
-    console.log('🔄 setTabValue called with', tabValue);
     setState(prev => ({ ...prev, tabValue, page: 1 }));
   }, []);
   
   const setSearchTerm = useCallback((searchTerm: string) => {
-    console.log('🔄 setSearchTerm called with', searchTerm);
     setState(prev => ({ ...prev, searchTerm }));
   }, []);
   
   const refreshTimestamp = useCallback(() => {
-    console.log('🔄 refreshTimestamp called');
     setState(prev => ({ ...prev, timestamp: Date.now() }));
   }, []);
   
   const setPaginationData = useCallback((data: { totalItems?: number, totalPages?: number }) => {
-    console.log('🔄 setPaginationData called with', data);
     setState(prev => ({
       ...prev,
       totalItems: data.totalItems || prev.totalItems,

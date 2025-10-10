@@ -16,6 +16,7 @@ import { useAdminState } from '@/hooks/useAdminState';
 
 // Import the EditGroupForm and its types
 import EditGroupForm, { InitialGroupData, EditGroupFormInput } from '@/components/forms/groups/EditGroupForm'; // Adjust path
+import GroupSettingsDialog from '@/components/admin/groups/GroupSettingsDialog';
 
 import {
   Box, Typography, Paper, IconButton, Container, Button, CircularProgress, Grid, Chip,
@@ -31,6 +32,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 import { Group, GroupStatus, ResponsiblePerson } from '@prisma/client';
 import { format } from 'date-fns';
@@ -67,6 +69,8 @@ export default function AdminGroupsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [groupToDeleteId, setGroupToDeleteId] = useState<string | null>(null);
 
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+
   type ViewType = GroupStatus | 'ALL';
   const views: ViewType[] = [GroupStatus.NEW, GroupStatus.ACTIVE, GroupStatus.ARCHIVED, 'ALL'];
   const currentView = views[adminState.tabValue];
@@ -81,7 +85,6 @@ export default function AdminGroupsPage() {
 
   const fetchGroups = useCallback(async () => {
     try {
-      console.log('👥 fetchGroups called for currentView:', currentView, 'page:', adminState.page, 'timestamp:', adminState.timestamp);
       adminState.setLoading(true);
       const statusFilter = currentView !== 'ALL' ? `&status=${currentView}` : '';
       const searchFilter = adminState.searchTerm ? `&search=${encodeURIComponent(adminState.searchTerm)}` : '';
@@ -117,15 +120,6 @@ export default function AdminGroupsPage() {
   }, [currentView, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
 
   useEffect(() => { 
-    console.log('👥 Groups useEffect triggered:', {
-      authStatus,
-      tabValue: adminState.tabValue,
-      page: adminState.page,
-      pageSize: adminState.pageSize,
-      searchTerm: adminState.searchTerm,
-      timestamp: adminState.timestamp,
-      currentView
-    });
     if (authStatus === 'authenticated') fetchGroups(); 
   }, [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, fetchGroups, currentView]);
 
@@ -166,33 +160,32 @@ export default function AdminGroupsPage() {
     newLogoFile: File | Blob | null
   ) => {
     const apiFormData = new FormData();
+
+    // Always append all fields - let Zod validation handle what's valid
     apiFormData.append('name', formData.name);
     apiFormData.append('description', formData.description);
     apiFormData.append('status', formData.status);
 
-    if (newLogoFile) apiFormData.append('logo', newLogoFile);
+    // Meeting fields - always send, even if empty
+    apiFormData.append('regularMeeting', formData.regularMeeting || '');
+    apiFormData.append('meetingStreet', formData.meetingStreet || '');
+    apiFormData.append('meetingCity', formData.meetingCity || '');
+    apiFormData.append('meetingPostalCode', formData.meetingPostalCode || '');
+    apiFormData.append('meetingLocationDetails', formData.meetingLocationDetails || '');
 
-    const groupBeingEdited = adminState.items.find(g => g.id === groupId);
-    if (!newLogoFile && groupBeingEdited?.logoUrl) {
-      apiFormData.append('removeLogo', 'true');
+    if (newLogoFile) {
+      apiFormData.append('logo', newLogoFile);
     }
 
-    // Append responsible persons
-    // Your backend API PUT /api/admin/groups/[id] expects 'responsiblePersonsCount'
-    // and then indexed fields like 'responsiblePerson[0].firstName'.
-    if (formData.responsiblePersons && formData.responsiblePersons.length > 0) {
-      apiFormData.append('responsiblePersonsCount', formData.responsiblePersons.length.toString());
-      formData.responsiblePersons.forEach((person: { firstName: string; lastName: string; email: string }, index: number) => {
-        apiFormData.append(`responsiblePerson[${index}].firstName`, person.firstName);
-        apiFormData.append(`responsiblePerson[${index}].lastName`, person.lastName);
-        apiFormData.append(`responsiblePerson[${index}].email`, person.email);
-        // No ID needed here for responsible persons because your backend `updateGroup`
-        // deletes all existing RPs and recreates them from this list.
-      });
-    } else {
-      // If the array is empty, tell the backend to remove all RPs
-      apiFormData.append('responsiblePersonsCount', '0');
-    }
+    // Responsible persons - always send count and data
+    const responsiblePersons = formData.responsiblePersons || [];
+    apiFormData.append('responsiblePersonsCount', responsiblePersons.length.toString());
+
+    responsiblePersons.forEach((person: { firstName: string; lastName: string; email: string }, index: number) => {
+      apiFormData.append(`responsiblePerson[${index}].firstName`, person.firstName);
+      apiFormData.append(`responsiblePerson[${index}].lastName`, person.lastName);
+      apiFormData.append(`responsiblePerson[${index}].email`, person.email);
+    });
 
     try {
       const response = await fetch(`/api/admin/groups/${groupId}`, {
@@ -277,6 +270,15 @@ export default function AdminGroupsPage() {
           <AdminPageHeader title="Gruppen verwalten" icon={<GroupsIcon />} />
           <SearchFilterBar searchTerm={adminState.searchTerm} onSearchChange={(e) => adminState.setSearchTerm(e.target.value)} onClearSearch={() => adminState.setSearchTerm('')} onSearch={handleSearch}>
             <Box sx={{ flexGrow: 1 }} />
+            <IconButton
+              color="primary"
+              size="medium"
+              onClick={() => setSettingsDialogOpen(true)}
+              title="Gruppeneinstellungen"
+              sx={{ mr: 1 }}
+            >
+              <SettingsIcon />
+            </IconButton>
             <Button disabled={true} variant="contained" startIcon={<GroupsIcon />} onClick={handleOpenCreateGroupDialog}>Neue Gruppe</Button>
           </SearchFilterBar>
           <AdminStatusTabs 
@@ -476,6 +478,13 @@ export default function AdminGroupsPage() {
         </DialogActions>
       </Dialog>
       <ConfirmDialog open={deleteDialogOpen} title="Gruppe löschen" message="Diese Gruppe wirklich löschen? Alle zugehörigen Daten (Statusberichte, etc.) gehen dabei verloren." confirmText="Löschen" cancelText="Abbrechen" confirmColor="error" confirmIcon={<DeleteIcon />} onConfirm={handleDeleteGroup} onCancel={() => setDeleteDialogOpen(false)} />
+      <GroupSettingsDialog
+        open={settingsDialogOpen}
+        onClose={() => setSettingsDialogOpen(false)}
+        onSave={() => {
+          adminState.showNotification('Gruppeneinstellungen erfolgreich gespeichert.', 'success');
+        }}
+      />
     </MainLayout>
   );
 }

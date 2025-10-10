@@ -146,17 +146,25 @@ enum StatusReportStatus {
 
 // Group model for managing groups/organizations
 model Group {
-  id                  String               @id @default(cuid())
-  name                String               @db.VarChar(100)
-  slug                String               @unique
-  description         String               @db.Text
-  logoUrl             String?
-  metadata            String?              // JSON string for additional metadata (logo original URLs, etc.)
-  status              GroupStatus          @default(NEW)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  statusReports       StatusReport[]
-  responsiblePersons  ResponsiblePerson[]
+  id                      String               @id @default(cuid())
+  name                    String               @db.VarChar(100)
+  slug                    String               @unique
+  description             String               @db.Text
+  logoUrl                 String?
+  metadata                String?              // JSON string for additional metadata (logo original URLs, etc.)
+  status                  GroupStatus          @default(NEW)
+
+  // Regular meeting fields
+  regularMeeting          String?              @db.Text
+  meetingStreet           String?
+  meetingCity             String?
+  meetingPostalCode       String?              @db.VarChar(5)
+  meetingLocationDetails  String?              @db.Text
+
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  statusReports           StatusReport[]
+  responsiblePersons      ResponsiblePerson[]
 
   @@index([status])
   @@index([name])
@@ -390,4 +398,14 @@ model Address {
 
   @@index([name])
   @@map("address")
+}
+
+// GroupSettings model for global group-related configuration (singleton pattern)
+model GroupSettings {
+  id                 Int      @id @default(autoincrement())
+  officeContactEmail String?  @db.VarChar(200)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("group_settings")
 }

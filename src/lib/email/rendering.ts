@@ -45,7 +45,7 @@ export async function renderNewsletter(params: EmailTemplateParams): Promise<str
  * Uses type-safe overloads for different template types.
  */
 export async function renderNotificationEmail(
-  templateName: 'AntragSubmission' | 'GroupAcceptance' | 'GroupRejection' | 'GroupArchiving' |
+  templateName: 'AntragSubmission' | 'GroupAcceptance' | 'GroupRejection' | 'GroupArchiving' | 'GroupContactRequest' |
                'StatusReportAcceptance' | 'StatusReportRejection' | 'StatusReportArchiving' |
                'AntragAcceptance' | 'AntragRejection',
   props: Record<string, unknown>
@@ -66,6 +66,9 @@ export async function renderNotificationEmail(
         break;
       case 'GroupArchiving':
         TemplateComponent = (await import('../../emails/notifications/group-archiving')).default;
+        break;
+      case 'GroupContactRequest':
+        TemplateComponent = (await import('../../emails/notifications/group-contact-request')).default;
         break;
       case 'StatusReportAcceptance':
         TemplateComponent = (await import('../../emails/notifications/status-report-acceptance')).default;
@@ -100,7 +103,7 @@ export async function renderNotificationEmail(
  * Useful for creating text versions of email templates
  */
 export async function renderToPlainText(
-  templateName: 'Newsletter' | 'AntragSubmission' | 'GroupAcceptance' | 'GroupRejection' | 'GroupArchiving' |
+  templateName: 'Newsletter' | 'AntragSubmission' | 'GroupAcceptance' | 'GroupRejection' | 'GroupArchiving' | 'GroupContactRequest' |
                'StatusReportAcceptance' | 'StatusReportRejection' | 'StatusReportArchiving' |
                'AntragAcceptance' | 'AntragRejection',
   props: Record<string, unknown>
@@ -124,6 +127,9 @@ export async function renderToPlainText(
         break;
       case 'GroupArchiving':
         TemplateComponent = (await import('../../emails/notifications/group-archiving')).default;
+        break;
+      case 'GroupContactRequest':
+        TemplateComponent = (await import('../../emails/notifications/group-contact-request')).default;
         break;
       case 'StatusReportAcceptance':
         TemplateComponent = (await import('../../emails/notifications/status-report-acceptance')).default;
