@@ -280,3 +280,28 @@ export interface GroupsListResponse {
   // Error info (present when success: false)
   error?: string;
 }
+
+/**
+ * Group settings data
+ */
+export interface GroupSettingsData {
+  id: number;
+  officeContactEmail: string | null;
+}
+
+/**
+ * Group contact request - sent via email only, not persisted
+ */
+export interface GroupContactRequest {
+  requesterName: string;
+  requesterEmail: string;
+  message: string;
+}
+
+/**
+ * Group contact API response
+ */
+export interface GroupContactResponse {
+  success: boolean;
+  error?: string;
+}

@@ -8,7 +8,8 @@ import { createGroupFormData, submitForm } from '@/lib/form-submission';
 import {
   GroupInfoSection,
   GroupLogoSection,
-  ResponsiblePersonsSection
+  ResponsiblePersonsSection,
+  GroupMeetingSection
 } from './fields';
 
 export default function GroupRequestForm() {
@@ -24,7 +25,12 @@ export default function GroupRequestForm() {
       name: '',
       description: '',
       responsiblePersons: [{ firstName: '', lastName: '', email: '' }],
-      logo: undefined
+      logo: undefined,
+      regularMeeting: '',
+      meetingStreet: '',
+      meetingCity: '',
+      meetingPostalCode: '',
+      meetingLocationDetails: ''
     },
     onSubmit: handleFormSubmit,
     onError: (error: Error) => {
@@ -42,6 +48,7 @@ export default function GroupRequestForm() {
     >
       <GroupInfoSection control={form.control} formState={form.formState} />
       <GroupLogoSection control={form.control} />
+      <GroupMeetingSection control={form.control} formState={form.formState} />
       <ResponsiblePersonsSection control={form.control} formState={form.formState} />
     </FormBase>
   );

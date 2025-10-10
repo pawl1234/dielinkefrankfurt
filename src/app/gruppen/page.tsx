@@ -1,74 +1,112 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  Typography,
   Container,
+  Typography,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
   Box,
-  Paper,
-  Card,
-  CardContent,
-  Grid,
-  CardMedia,
+  Button,
+  Alert,
   CircularProgress,
-  CardActions,
-  Button
+  Avatar,
+  Paper,
+  Grid
 } from '@mui/material';
+import {
+  ExpandMore as ExpandMoreIcon,
+  Group as GroupIcon,
+  LocationOn as LocationIcon
+} from '@mui/icons-material';
 import Link from 'next/link';
-import { Group } from '@prisma/client';
-import GroupIcon from '@mui/icons-material/Group';
+import { MainLayout } from '@/components/layout/MainLayout';
+import GroupContactModal from '@/components/forms/GroupContactModal';
+import type { PublicGroupWithMeeting } from '@/types/component-types';
+import HomePageHeader from '@/components/layout/HomePageHeader';
 
-interface GroupsResponse {
-  success: boolean;
-  groups: Group[];
-  error?: string;
-}
-
-export default function GroupsPage() {
-  const [groups, setGroups] = useState<Group[]>([]);
+/**
+ * Public groups overview page with accordion-style navigation.
+ * Displays all active groups with meeting information and contact functionality.
+ */
+export default function GroupsOverviewPage() {
+  const [groups, setGroups] = useState<PublicGroupWithMeeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<PublicGroupWithMeeting | null>(null);
 
+  /**
+   * Fetch groups on component mount
+   */
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        setLoading(true);
-        const response = await fetch('/api/groups');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch groups');
+        const response = await fetch('/api/groups/overview');
+        const data = await response.json();
+
+        if (data.success) {
+          // Sort groups alphabetically
+          const sortedGroups = data.groups.sort((a: PublicGroupWithMeeting, b: PublicGroupWithMeeting) =>
+            a.name.localeCompare(b.name, 'de')
+          );
+          setGroups(sortedGroups);
+        } else {
+          setError(data.error || 'Fehler beim Laden der Arbeitsgruppen');
         }
-        
-        const data: GroupsResponse = await response.json();
-        
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch groups');
-        }
-        
-        setGroups(data.groups);
-      } catch (err) {
-        console.error('Error fetching groups:', err);
-        setError('Failed to load groups. Please try again.');
+      } catch (_err) {
+        setError('Fehler beim Laden der Arbeitsgruppen');
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchGroups();
   }, []);
 
-  // Function to get excerpt from HTML description
-  const getExcerpt = (html: string, maxLength: number = 150) => {
-    // Remove HTML tags and extract text
-    const text = html.replace(/<[^>]*>/g, '');
-    
-    if (text.length <= maxLength) return text;
-    
-    // Find the last space before maxLength
-    const lastSpace = text.lastIndexOf(' ', maxLength);
-    return text.substring(0, lastSpace > 0 ? lastSpace : maxLength) + '...';
+  /**
+   * Handle contact button click
+   */
+  const handleContactClick = (group: PublicGroupWithMeeting) => {
+    setSelectedGroup(group);
+    setContactModalOpen(true);
   };
+
+  /**
+   * Handle modal close
+   */
+  const handleModalClose = () => {
+    setContactModalOpen(false);
+    setSelectedGroup(null);
+  };
+
+  if (loading) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Lade Arbeitsgruppen...</Typography>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Container>
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Alert severity="info">
+          Derzeit sind keine aktiven Arbeitsgruppen verfügbar.
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
     <MainLayout
@@ -77,130 +115,111 @@ export default function GroupsPage() {
         { label: 'Arbeitsgruppen', href: '/gruppen', active: true }
       ]}
     >
-      <Container maxWidth="lg">
-        {/* Title section container */}
-        <Box sx={{ mb: 4 }}>
-          {/* Red primary title bar */}
-          <Box
-            sx={{
-              display: 'inline-block',
-              bgcolor: 'primary.main',
-              color: 'common.white',
-              p: { xs: 1.5, md: 2 },
-              borderRadius: 0
-            }}
-          >
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 'fontWeightBold' }}>
-              Arbeitsgruppen
-            </Typography>
-          </Box>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <HomePageHeader 
+        mainTitle=" Unsere Arbeitsgemeinschaften " 
+        subtitle="Politisch. Aktiv. Vor Ort."
+        introText="In den folgenden Abschnitten präsentieren wir Ihnen unsere engagierten Arbeitsgemeinschaften, die ein Kernelement unserer politischen Tätigkeiten darstellen. Sie sind verantwortlich für die Organisation politischer Arbeit und bieten Bildungs- und Hilfsangebote an. Darüber hinaus spielen sie eine zentrale Rolle bei der Vernetzung von Personen und tragen aktiv zur politischen Weiterentwicklung unserer Partei bei. Einige Mitglieder der Arbeitsgemeinschaften sind in verschiedenen Verwaltungs- und Entscheidungsgremien tätig und repräsentieren damit die Partei auf verschiedenen Ebenen."
+      /> 
 
-          {/* Secondary subtitle bar - indented from primary title */}
-          <Box
-            sx={{
-              display: 'inline-block',
-              bgcolor: 'secondary.main',
-              color: 'common.white',
-              p: { xs: 1.5, md: 1.5 },
-              ml: { xs: 3, md: 4 },
-              borderRadius: 0
-            }}
+      {groups.map((group) => (
+        <Accordion key={group.id} sx={{ mb: 2 }}>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls={`group-${group.slug}-content`}
+            id={`group-${group.slug}-header`}
           >
-            <Typography variant="body1" sx={{ fontWeight: 'fontWeightMedium' }}>
-              Entdecke die Arbeitsgruppen der LINKEN Frankfurt
-            </Typography>
-          </Box>
-        </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {group.logoUrl ? (
+                <Avatar
+                  src={group.logoUrl}
+                  alt={group.name}
+                  sx={{ width: 40, height: 40 }}
+                />
+              ) : (
+                <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
+                  <GroupIcon />
+                </Avatar>
+              )}
+              <Typography variant="h6">{group.name}</Typography>
+            </Box>
+          </AccordionSummary>
 
-        {/* Content */}
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="error" paragraph>
-              {error}
-            </Typography>
-          </Paper>
-        ) : groups.length === 0 ? (
-          <Paper sx={{ p: 5, textAlign: 'center' }}>
-            <Typography variant="h6" color="text.secondary" paragraph>
-              Aktuell sind keine Arbeitsgruppen vorhanden.
-            </Typography>
-          </Paper>
-        ) : (
-          <>
-            <Typography variant="h5" component="h2" sx={{ fontWeight: 'fontWeightBold', mb: 3 }}>
-              Alle Arbeitsgruppen
-            </Typography>
-            
+          <AccordionDetails>
             <Grid container spacing={3}>
-              {groups.map((group) => (
-                <Grid key={group.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                  <Card sx={{ 
-                    height: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-5px)',
-                      boxShadow: 4,
-                    }
-                  }}>
-                    {group.logoUrl ? (
-                      <CardMedia
-                        component="img"
-                        height="140"
-                        image={group.logoUrl}
-                        alt={`Logo von ${group.name}`}
-                        sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 1 }}
-                      />
-                    ) : (
-                      <Box sx={{ 
-                        height: 140, 
-                        bgcolor: 'grey.100', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center' 
-                      }}>
-                        <GroupIcon sx={{ fontSize: 60, color: 'primary.main' }} />
+              <Grid size={{ xs: 12, md: group.regularMeeting ? 8 : 12 }}>
+                <Box
+                  dangerouslySetInnerHTML={{ __html: group.description }}
+                />
+              </Grid>
+
+              {group.regularMeeting && (
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <Paper sx={{ p: 2, height: '100%' }} elevation={2}>
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                      Regelmäßiges Treffen
+                    </Typography>
+                    <Typography variant="body2" paragraph>
+                      {group.regularMeeting}
+                    </Typography>
+
+                    {(group.meetingStreet || group.meetingCity) && (
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <LocationIcon fontSize="small" color="action" />
+                        <Box>
+                          <Typography variant="body2">
+                            {group.meetingStreet && <>{group.meetingStreet}<br /></>}
+                            {group.meetingPostalCode && group.meetingCity && (
+                              <>{group.meetingPostalCode} {group.meetingCity}</>
+                            )}
+                            {!group.meetingPostalCode && group.meetingCity && (
+                              <>{group.meetingCity}</>
+                            )}
+                          </Typography>
+                          {group.meetingLocationDetails && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                              {group.meetingLocationDetails}
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
                     )}
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        {group.name}
-                      </Typography>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: 'text.secondary',
-                          overflow: 'hidden',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 4,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        {getExcerpt(group.description)}
-                      </Typography>
-                    </CardContent>
-                    <CardActions sx={{ p: 2, pt: 0 }}>
-                      <Button
-                        href={`/gruppen/${group.slug}`}
-                        variant="contained"
-                        LinkComponent={Link}
-                        fullWidth
-                      >
-                        Details
-                      </Button>
-                    </CardActions>
-                  </Card>
+                  </Paper>
                 </Grid>
-              ))}
+              )}
+
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Button
+                    component={Link}
+                    href={`/gruppen/${group.slug}`}
+                    variant="outlined"
+                  >
+                    Details anzeigen
+                  </Button>
+                  <Button
+                    onClick={() => handleContactClick(group)}
+                    variant="contained"
+                  >
+                    Kontakt
+                  </Button>
+                </Box>
+              </Grid>
             </Grid>
-          </>
-        )}
-      </Container>
+          </AccordionDetails>
+        </Accordion>
+      ))}
+
+      {/* Contact Modal */}
+      {selectedGroup && (
+        <GroupContactModal
+          open={contactModalOpen}
+          onClose={handleModalClose}
+          groupSlug={selectedGroup.slug}
+          groupName={selectedGroup.name}
+        />
+      )}
+    </Container>
     </MainLayout>
   );
 }

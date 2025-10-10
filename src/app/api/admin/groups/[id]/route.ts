@@ -136,23 +136,18 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
 
-      const parsedData: Partial<GroupUpdateData> = {};
-
-      if (formData.has('name')) {
-        parsedData.name = formData.get('name') as string;
-      }
-
-      if (formData.has('description')) {
-        parsedData.description = formData.get('description') as string;
-      }
-
-      if (formData.has('status')) {
-        parsedData.status = formData.get('status') as GroupStatus;
-      }
-
-      if (formData.has('responsiblePersonsCount')) {
-        parsedData.responsiblePersons = parseResponsiblePersons(formData);
-      }
+      // Always parse all fields - let Zod validation determine what's valid
+      const parsedData: Partial<GroupUpdateData> = {
+        name: formData.get('name') as string,
+        description: formData.get('description') as string,
+        status: formData.get('status') as GroupStatus,
+        regularMeeting: formData.get('regularMeeting') as string || undefined,
+        meetingStreet: formData.get('meetingStreet') as string || undefined,
+        meetingCity: formData.get('meetingCity') as string || undefined,
+        meetingPostalCode: formData.get('meetingPostalCode') as string || undefined,
+        meetingLocationDetails: formData.get('meetingLocationDetails') as string || undefined,
+        responsiblePersons: parseResponsiblePersons(formData)
+      };
 
       updateData = {
         id,

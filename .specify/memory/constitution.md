@@ -1,22 +1,20 @@
 <!--
 SYNC IMPACT REPORT
-Version: 1.0.0 → 1.1.0 (MINOR: Added domain-based architecture principle)
+Version: 1.1.0 → 1.2.0 (MINOR: Added centralized type definitions principle)
 Modified Principles:
-  - V. Path Aliases and Conventions → Expanded with domain-based architecture rules
-  - IX. File Size Limit → Added reference to domain organization
+  - I. Type Safety First → Expanded with requirement to check existing types before creating new ones
 Added Sections:
-  - XI. Domain-Based Architecture (new principle)
-  - Domain Organization Standards (new quality standard section)
-  - Barrel Export Guidelines (new quality standard section)
+  - XII. Centralized Type Definitions (new principle)
+  - Type Organization Standards (new quality standard section)
 Removed Sections: None
 Templates Requiring Updates:
-  ✅ plan-template.md - Already references domain structure in Phase 1
-  ✅ spec-template.md - Already aligned with modular design
-  ✅ tasks-template.md - Already includes domain organization tasks
-  ⚠ CLAUDE.md - Should reference new domain structure (manual update recommended)
+  ✅ plan-template.md - Constitution Check table updated to include new principle
+  ✅ spec-template.md - Already aligned with type reuse requirements
+  ✅ tasks-template.md - Updated to include type checking tasks
+  ⚠ CLAUDE.md - Should reference centralized type definitions (manual update recommended)
 Follow-up TODOs:
-  - Update CLAUDE.md to document new domain-based src/lib structure
-  - Consider adding domain architecture diagram to documentation
+  - Update CLAUDE.md to document centralized type definitions in src/types/
+  - Consider auditing existing codebase for duplicate interface definitions
 -->
 
 # Die Linke Frankfurt Newsletter System Constitution
@@ -24,9 +22,9 @@ Follow-up TODOs:
 ## Core Principles
 
 ### I. Type Safety First
-TypeScript strict mode MUST be enforced at all times. The `any` type is PROHIBITED. All function parameters, return values, and variables MUST have explicit types. Use existing types from `src/types/` (api-types.ts, component-types.ts, form-types.ts) or create proper interfaces. For Prisma models, use field types matching schema.prisma exactly.
+TypeScript strict mode MUST be enforced at all times. The `any` type is PROHIBITED. All function parameters, return values, and variables MUST have explicit types. Use existing types from `src/types/` (api-types.ts, component-types.ts, form-types.ts, email-types.ts, newsletter-types.ts, user.ts, etc.) or create proper interfaces. For Prisma models, use field types matching schema.prisma exactly. Before creating new types or interfaces, MUST check `src/types/` for existing definitions that can be reused.
 
-**Rationale**: Type safety prevents runtime errors, improves code maintainability, and provides better IDE support. The project's complex data flow between forms, API routes, and database requires strict typing to prevent data inconsistencies.
+**Rationale**: Type safety prevents runtime errors, improves code maintainability, and provides better IDE support. The project's complex data flow between forms, API routes, and database requires strict typing to prevent data inconsistencies. Checking for existing types before creating new ones prevents duplication and ensures consistency.
 
 ### II. No Software Tests
 This project does NOT use automated software tests. Do not create test files, test utilities, testing infrastructure, or suggest adding tests when implementing features. All validation is performed manually by humans.
@@ -98,6 +96,27 @@ Code in `src/lib/` MUST be organized by domain with clear separation of concerns
 
 **Rationale**: Domain-based organization improves code navigability, reduces cognitive load, and enforces clear boundaries between business logic and data access. Separating infrastructure from domains prevents tight coupling. The 500-line file limit combined with domain organization ensures the codebase remains maintainable as it grows.
 
+### XII. Centralized Type Definitions
+All TypeScript interfaces, types, and type definitions MUST be defined centrally in `src/types/`. Before creating any new interface or type, MUST check existing type files (`api-types.ts`, `component-types.ts`, `form-types.ts`, `email-types.ts`, `newsletter-types.ts`, `user.ts`, etc.) for reusable definitions. Duplicate interface definitions across multiple files are PROHIBITED.
+
+**Type Organization**:
+- `api-types.ts` - API request/response types, server-side data structures
+- `component-types.ts` - React component props, UI-related types
+- `form-types.ts` - Form data types, validation types
+- `email-types.ts` - Email-related types
+- `newsletter-types.ts` - Newsletter-specific types
+- `user.ts` - User and authentication types
+- Domain-specific type files only when types are exclusively used within that domain
+
+**Rules**:
+1. MUST search `src/types/` before defining new interfaces
+2. MUST reuse existing types through imports: `import type { SomeType } from '@/types/api-types'`
+3. If similar types exist, extend or compose them rather than duplicate
+4. Only create domain-specific types when they are never used outside that domain
+5. When refactoring, consolidate duplicate types into central definitions
+
+**Rationale**: Centralized type definitions prevent maintenance burden from duplicate definitions, reduce inconsistency risks, and improve type compatibility across the codebase. Having a single source of truth for types makes refactoring safer and enables better tooling support. Duplicate definitions can silently diverge over time, causing subtle bugs.
+
 ## Development Workflow
 
 ### Command Usage
@@ -118,6 +137,54 @@ NEVER run `npm run build` or `npm run db:push` solely to validate changes. Datab
 **Rationale**: The validation workflow is streamlined to catch type errors and linting issues quickly without full builds. Production builds and database migrations are managed separately as part of deployment.
 
 ## Quality Standards
+
+### Type Organization Standards
+**Central Type Files** (`src/types/`):
+- `api-types.ts` - API contracts, request/response types, server data structures
+- `component-types.ts` - Component props, UI state types, rendering types
+- `form-types.ts` - Form data types, form validation types, submission types
+- `email-types.ts` - Email templates, SMTP configuration, sending types
+- `newsletter-types.ts` - Newsletter content, analytics, distribution types
+- `user.ts` - User models, authentication, session types
+- Additional domain files as needed (one per major domain)
+
+**Type Discovery Process** (MANDATORY before creating types):
+1. Search `src/types/` directory for existing definitions
+2. Check for exact matches (same field names and types)
+3. Check for similar types that can be extended or composed
+4. Check for partial matches that can be unified
+5. Only create new types after confirming none exist
+
+**Type Reuse Patterns**:
+```typescript
+// ✅ GOOD: Import and reuse existing type
+import type { PublicAddress } from '@/types/component-types';
+
+// ✅ GOOD: Extend existing type
+import type { BaseEntity } from '@/types/api-types';
+export interface Appointment extends BaseEntity {
+  title: string;
+}
+
+// ✅ GOOD: Compose types
+import type { User, Address } from '@/types';
+export interface UserProfile {
+  user: User;
+  address: Address;
+}
+
+// ❌ BAD: Duplicate definition
+interface PublicAddress {  // Already exists in component-types.ts
+  street: string;
+  city: string;
+}
+```
+
+**When Domain-Specific Types Are Acceptable**:
+- Type is used exclusively within one domain (never imported by other domains)
+- Type represents internal implementation detail, not a shared concept
+- Type is tightly coupled to domain-specific logic
+- Example: Internal state machines, private helper types within a domain
 
 ### Domain Organization Standards
 **Business Domain Structure** (appointments, groups, antraege, newsletter):
@@ -232,4 +299,4 @@ All code changes MUST comply with these principles. When principles conflict wit
 ### Constitution Authority
 This constitution supersedes conflicting guidance. When in doubt, consult this document. Template updates MUST align with constitutional principles.
 
-**Version**: 1.1.0 | **Ratified**: 2025-10-06 | **Last Amended**: 2025-10-07
+**Version**: 1.2.0 | **Ratified**: 2025-10-06 | **Last Amended**: 2025-10-09

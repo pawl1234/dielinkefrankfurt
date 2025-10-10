@@ -66,7 +66,7 @@ const HomePageHeader: React.FC<PageHeaderProps> = ({ mainTitle, subtitle, introT
           sx={{ 
             mb: 4, 
             px: { xs: 0, md: 0 },
-            maxWidth: { xs: '100%', md: '800px' }
+            maxWidth: '100%'
           }}
         >
           {typeof introText === 'string' ? (

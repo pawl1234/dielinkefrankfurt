@@ -48,37 +48,44 @@
 - [ ] T002 Initialize [language] project with [framework] dependencies
 - [ ] T003 [P] Configure linting and formatting tools
 
-## Phase 3.2: Database & Models
-- [ ] T004 [P] Update Prisma schema in prisma/schema.prisma for [Entity]
-- [ ] T005 [P] Create Zod validation schemas in src/lib/validation/[entity].ts
-- [ ] T006 [P] Create database operations in src/lib/db/[entity]-operations.ts
-- [ ] T007 Run `npm run db:push` to apply schema changes
+## Phase 3.2: Types & Validation
+- [ ] T004 Check src/types/ for existing type definitions that can be reused
+- [ ] T005 [P] Create/update type definitions in src/types/[appropriate-file].ts
+- [ ] T006 [P] Create Zod validation schemas in src/lib/validation/[entity].ts
 
-## Phase 3.3: API Routes & Handlers
-- [ ] T008 [P] Create API handler in src/lib/[entity]-handlers.ts
-- [ ] T009 [P] Create API route GET /api/[entity] in src/app/api/[entity]/route.ts
-- [ ] T010 [P] Create API route POST /api/[entity] in src/app/api/[entity]/route.ts
-- [ ] T011 Add error handling and logging using logger from @/lib/logger.ts
-- [ ] T012 Add German error messages for validation failures
+## Phase 3.3: Database & Models
+- [ ] T007 [P] Update Prisma schema in prisma/schema.prisma for [Entity]
+- [ ] T008 [P] Create database operations in src/lib/db/[entity]-operations.ts
+- [ ] T009 Run `npm run db:push` to apply schema changes
 
-## Phase 3.4: UI Components & Forms
-- [ ] T013 [P] Create form component in src/components/forms/[Entity]Form.tsx
-- [ ] T014 [P] Create page in src/app/[route]/page.tsx
-- [ ] T015 Integrate submitForm utility from @/lib/form-submission/submit-form.ts
-- [ ] T016 Add German labels and placeholders
+## Phase 3.4: API Routes & Handlers
+- [ ] T010 [P] Create API handler in src/lib/[entity]-handlers.ts
+- [ ] T011 [P] Create API route GET /api/[entity] in src/app/api/[entity]/route.ts
+- [ ] T012 [P] Create API route POST /api/[entity] in src/app/api/[entity]/route.ts
+- [ ] T013 Add error handling and logging using logger from @/lib/logger.ts
+- [ ] T014 Add German error messages for validation failures
 
-## Phase 3.5: Validation & Documentation
-- [ ] T017 Run `npm run check` to validate types and linting
-- [ ] T018 Add JSDoc comments to all functions
-- [ ] T019 Verify file sizes (<500 lines)
-- [ ] T020 Create manual testing checklist in quickstart.md
-- [ ] T021 Verify all principles from constitution
+## Phase 3.5: UI Components & Forms
+- [ ] T015 [P] Create form component in src/components/forms/[Entity]Form.tsx
+- [ ] T016 [P] Create page in src/app/[route]/page.tsx
+- [ ] T017 Integrate submitForm utility from @/lib/form-submission/submit-form.ts
+- [ ] T018 Add German labels and placeholders
+
+## Phase 3.6: Validation & Documentation
+- [ ] T019 Run `npm run check` to validate types and linting
+- [ ] T020 Add JSDoc comments to all functions
+- [ ] T021 Verify file sizes (<500 lines)
+- [ ] T022 Verify no duplicate type definitions exist
+- [ ] T023 Create manual testing checklist in quickstart.md
+- [ ] T024 Verify all principles from constitution
 
 ## Dependencies
-- Database schema (T004) before operations (T006)
-- Database operations (T006) before handlers (T008)
-- API routes (T009-T010) before UI integration (T015)
-- Implementation before validation (T017-T021)
+- Type checking (T004) before type creation (T005)
+- Types (T005) before validation schemas (T006)
+- Database schema (T007) before operations (T008)
+- Database operations (T008) before handlers (T010)
+- API routes (T011-T012) before UI integration (T017)
+- Implementation before validation (T019-T024)
 
 ## Parallel Example
 ```
@@ -102,8 +109,11 @@ Task: "Create database operations in src/lib/db/user-operations.ts"
 1. **From Contracts**:
    - Each endpoint → API route implementation task
    - Each request/response → validation schema task [P]
+   - MUST include type checking task before type creation
 
 2. **From Data Model**:
+   - Each entity → type checking task (search src/types/)
+   - Each entity → type definition task in src/types/ [P]
    - Each entity → Prisma schema update task
    - Each entity → database operations task [P]
    - Each entity → Zod validation task [P]
@@ -113,17 +123,19 @@ Task: "Create database operations in src/lib/db/user-operations.ts"
    - Quickstart scenarios → manual validation checklist
 
 4. **Ordering**:
-   - Setup → Database/Models → API Routes → UI → Validation
+   - Setup → Type Checking → Types → Validation → Database/Models → API Routes → UI → Final Validation
    - Dependencies block parallel execution
    - Group related changes to respect 500-line file limit
 
 ## Validation Checklist
 *GATE: Checked by main() before returning*
 
+- [ ] Type checking task included before type creation
+- [ ] All new types defined in src/types/ centrally
 - [ ] All contracts have corresponding API routes
 - [ ] All entities have Prisma schema, validation, and operations tasks
 - [ ] Database changes before API implementation
 - [ ] Parallel tasks truly independent (different files)
 - [ ] Each task specifies exact file path
 - [ ] No task modifies same file as another [P] task
-- [ ] Constitution principles respected (no tests, <500 lines, etc.)
+- [ ] Constitution principles respected (no tests, <500 lines, centralized types, etc.)

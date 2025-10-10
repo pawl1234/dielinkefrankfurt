@@ -33,6 +33,7 @@ import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import GroupsIcon from '@mui/icons-material/Groups';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 // import MuiSetup from './MuiSetup'; // REMOVE THIS LINE
@@ -74,6 +75,13 @@ const mainNavigation: MenuItem[] = [
     href: '/',
     icon: <HomeIcon />
   },
+  {
+    type: 'link',
+    key: 'groups',
+    label: 'Arbeitsgruppen',
+    href: '/gruppen',
+    icon: <GroupsIcon />
+  },  
   {
     type: 'link',
     key: 'new-appointment',

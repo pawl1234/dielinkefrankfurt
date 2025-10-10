@@ -227,6 +227,11 @@ export function useZodForm<TFormValues extends FieldValues>({
   const handleSubmit = async (data: TFormValues) => {
     console.log('[useZodForm] handleSubmit called - validation passed, starting submission');
 
+    // Dev-only: Log validated form data before submission
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [Zod Debug - Client] Form data after validation:', JSON.stringify(data, null, 2));
+    }
+
     setIsSubmitting(true);
     setSubmissionError(null);
     setSubmissionSuccess(false);

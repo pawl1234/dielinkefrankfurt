@@ -144,7 +144,12 @@ export async function findPublicGroups(params: {
       createdAt: true,
       status: true,
       metadata: true,
-      updatedAt: true
+      updatedAt: true,
+      regularMeeting: true,
+      meetingStreet: true,
+      meetingCity: true,
+      meetingPostalCode: true,
+      meetingLocationDetails: true
     },
     skip: params.skip,
     take: params.take
@@ -244,5 +249,49 @@ export async function findGroupWithStatusReports(id: string): Promise<(Group & {
 export async function deleteGroup(id: string): Promise<void> {
   await prisma.group.delete({
     where: { id }
+  });
+}
+
+/**
+ * Finds public (ACTIVE) groups with meeting information for overview page.
+ *
+ * @returns Promise resolving to groups array with meeting details
+ */
+export async function findPublicGroupsWithMeeting() {
+  return await prisma.group.findMany({
+    where: { status: 'ACTIVE' },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      logoUrl: true,
+      regularMeeting: true,
+      meetingStreet: true,
+      meetingCity: true,
+      meetingPostalCode: true,
+      meetingLocationDetails: true
+    }
+  });
+}
+
+/**
+ * Finds a group by slug with responsible persons for contact form.
+ *
+ * @param slug Group slug
+ * @returns Promise resolving to group with responsible persons or null
+ */
+export async function findGroupBySlugForContact(
+  slug: string
+): Promise<(Group & { responsiblePersons: ResponsiblePerson[] }) | null> {
+  return await prisma.group.findUnique({
+    where: {
+      slug,
+      status: 'ACTIVE'
+    },
+    include: {
+      responsiblePersons: true
+    }
   });
 }

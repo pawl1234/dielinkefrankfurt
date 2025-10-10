@@ -12,7 +12,8 @@ import {
   CircularProgress,
   Alert,
   Chip,
-  Avatar
+  Avatar,
+  Grid
 } from '@mui/material';
 import Link from 'next/link';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -20,6 +21,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EventIcon from '@mui/icons-material/Event';
 import AttachmentIcon from '@mui/icons-material/Attachment';
+import LocationIcon from '@mui/icons-material/LocationOn';
 import { Group, StatusReport } from '@prisma/client';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -150,63 +152,78 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
           </Paper>
         ) : group ? (
           <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 2 }}>
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: { xs: 'column', md: 'row' },
-              alignItems: { xs: 'center', md: 'flex-start' },
-              gap: 3,
-              mb: 4
-            }}>
-              {/* Group Logo */}
-              <Box sx={{ 
-                width: { xs: '100%', md: '220px' },
-                minWidth: { md: '180px' },
-                maxWidth: { md: '220px' },
-                height: 'auto', // Allow height to be determined by content
-                aspectRatio: '1/1', // Maintain 5:4 ratio
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                bgcolor: 'grey.100',
-                borderRadius: 1,
-                mb: { xs: 2, md: 0 },
-                overflow: 'hidden',
-                flexShrink: 0
-              }}>
+            <Grid container spacing={4} sx={{ mb: 4 }}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 {group.logoUrl ? (
                   <Box
                     component="img"
                     src={group.logoUrl}
                     alt={`Logo von ${group.name}`}
                     sx={{
-                      width: '90%', // Slightly smaller than container
-                      height: '90%', // Slightly smaller than container
+                      width: '100%',
+                      height: 'auto',
                       objectFit: 'contain',
-                      p: 0 // Remove padding
+                      maxHeight: 250
                     }}
                   />
                 ) : (
-                  <GroupIcon sx={{ fontSize: 80, color: 'primary.main' }} />
+                  <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: 200
+                  }}>
+                    <GroupIcon sx={{ fontSize: 80, color: 'primary.main' }} />
+                  </Box>
                 )}
-              </Box>
-              {/* Group Info */}
-              <Box sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, justifyContent: 'space-between' }}>
-                  <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', mr: 2 }}>
-                    {group.name}
-                  </Typography>
+              </Grid>
 
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                    Aktiv seit {format(new Date(group.createdAt), 'MMMM yyyy', { locale: de })}
-                  </Typography>
-                </Box>
+              <Grid size={{ xs: 12, md: group.regularMeeting ? 6 : 9 }}>
+                <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', mb: 2 }}>
+                  {group.name}
+                </Typography>
                 <Typography
                   variant="body1"
-                  sx={{ mb: 3, lineHeight: 1.7, color: 'text.secondary' }}
+                  sx={{ lineHeight: 1.7, color: 'text.secondary' }}
                   dangerouslySetInnerHTML={{ __html: group.description }}
                 />
-              </Box>
-            </Box>
+              </Grid>
+
+              {group.regularMeeting && (
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <Paper sx={{ p: 2.5, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200' }} elevation={0}>
+                    <Typography variant="subtitle1" fontWeight="600" gutterBottom>
+                      Regelmäßiges Treffen
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1.5 }}>
+                      {group.regularMeeting}
+                    </Typography>
+
+                    {(group.meetingStreet || group.meetingCity) && (
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <LocationIcon fontSize="small" sx={{ color: 'text.secondary', mt: 0.25 }} />
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            {group.meetingStreet && <>{group.meetingStreet}<br /></>}
+                            {group.meetingPostalCode && group.meetingCity && (
+                              <>{group.meetingPostalCode} {group.meetingCity}</>
+                            )}
+                            {!group.meetingPostalCode && group.meetingCity && (
+                              <>{group.meetingCity}</>
+                            )}
+                          </Typography>
+                          {group.meetingLocationDetails && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                              {group.meetingLocationDetails}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+              )}
+            </Grid>
 
             {/* Status Reports Section */}
             <Box sx={{ mb: 4 }}>

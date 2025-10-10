@@ -21,12 +21,17 @@ export interface ResponsiblePersonCreateData {
 }
 
 export interface GroupUpdateData {
-  id: string;         // Pre-validated: valid UUID format, required
-  name?: string;      // Pre-validated: 3-100 chars (when provided)
-  description?: string; // Pre-validated: 50-5000 chars (when provided)
-  logoUrl?: string | null; // Pre-validated: valid URL format (when provided), null to remove
-  status?: GroupStatus; // Pre-validated: valid enum value (when provided)
-  responsiblePersons?: ResponsiblePersonCreateData[]; // Pre-validated: 1-5 persons, all fields validated (when provided)
+  id: string;
+  name?: string;
+  description?: string;
+  logoUrl?: string | null;
+  status?: GroupStatus;
+  responsiblePersons?: ResponsiblePersonCreateData[];
+  regularMeeting?: string;
+  meetingStreet?: string;
+  meetingCity?: string;
+  meetingPostalCode?: string;
+  meetingLocationDetails?: string;
 }
 
 /**
@@ -328,7 +333,12 @@ export async function updateGroup(data: GroupUpdateData): Promise<Group> {
 
     if (data.status) updateData.status = data.status;
 
-    // If name is changing, generate a new slug
+    if (data.regularMeeting !== undefined) updateData.regularMeeting = data.regularMeeting;
+    if (data.meetingStreet !== undefined) updateData.meetingStreet = data.meetingStreet;
+    if (data.meetingCity !== undefined) updateData.meetingCity = data.meetingCity;
+    if (data.meetingPostalCode !== undefined) updateData.meetingPostalCode = data.meetingPostalCode;
+    if (data.meetingLocationDetails !== undefined) updateData.meetingLocationDetails = data.meetingLocationDetails;
+
     if (data.name && data.name !== currentGroup.name) {
       updateData.slug = createGroupSlug(data.name);
     }

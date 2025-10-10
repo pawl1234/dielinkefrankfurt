@@ -9,7 +9,8 @@ import {
   GroupInfoSection,
   GroupLogoSection,
   ResponsiblePersonsSection,
-  GroupStatusSection
+  GroupStatusSection,
+  GroupMeetingSection
 } from './fields';
 
 export interface InitialGroupData {
@@ -21,6 +22,11 @@ export interface InitialGroupData {
   metadata?: string | null;
   status: GroupStatus;
   responsiblePersons: PrismaResponsiblePerson[];
+  regularMeeting?: string | null;
+  meetingStreet?: string | null;
+  meetingCity?: string | null;
+  meetingPostalCode?: string | null;
+  meetingLocationDetails?: string | null;
 }
 
 // Export for backward compatibility with admin pages
@@ -52,7 +58,12 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
         lastName: rp.lastName,
         email: rp.email
       })) || [{ firstName: '', lastName: '', email: '' }],
-      logo: null
+      logo: null,
+      regularMeeting: group.regularMeeting || '',
+      meetingStreet: group.meetingStreet || '',
+      meetingCity: group.meetingCity || '',
+      meetingPostalCode: group.meetingPostalCode || '',
+      meetingLocationDetails: group.meetingLocationDetails || ''
     },
     onSubmit: handleFormSubmit,
     onError: (error: Error) => {
@@ -70,9 +81,15 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
         lastName: rp.lastName,
         email: rp.email
       })) || [{ firstName: '', lastName: '', email: '' }],
-      logo: null
+      logo: null,
+      regularMeeting: group.regularMeeting || '',
+      meetingStreet: group.meetingStreet || '',
+      meetingCity: group.meetingCity || '',
+      meetingPostalCode: group.meetingPostalCode || '',
+      meetingLocationDetails: group.meetingLocationDetails || ''
     });
-  }, [group.id, group.name, group.description, group.status, group.responsiblePersons, form]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group.id, group.name, group.description, group.status, group.responsiblePersons, group.regularMeeting, group.meetingStreet, group.meetingCity, group.meetingPostalCode, group.meetingLocationDetails]);
 
   return (
     <FormBase
@@ -88,6 +105,7 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
         control={form.control}
         initialLogoUrl={group.logoUrl}
       />
+      <GroupMeetingSection control={form.control} formState={form.formState} />
       <ResponsiblePersonsSection control={form.control} formState={form.formState} />
       <GroupStatusSection control={form.control} formState={form.formState} />
     </FormBase>
