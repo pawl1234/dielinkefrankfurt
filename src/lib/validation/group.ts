@@ -70,6 +70,45 @@ const meetingLocationDetailsSchema = z
   .optional();
 
 /**
+ * Pattern configuration schema for recurring meetings
+ */
+const patternConfigSchema = z.object({
+  type: z.enum(['monthly-1st', 'monthly-2nd', 'monthly-3rd', 'monthly-4th', 'monthly-last', 'weekly', 'biweekly'], {
+    message: 'Ungültiger Mustertyp'
+  }),
+  weekday: z.enum(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'], {
+    message: 'Ungültiger Wochentag'
+  })
+});
+
+/**
+ * Meeting time schema (HH:mm format)
+ */
+const meetingTimeSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/, 'Ungültiges Zeitformat. Verwenden Sie HH:mm (z.B. 19:00)')
+  .optional();
+
+/**
+ * Recurring meeting data schema with validation rules
+ */
+export const recurringMeetingDataSchema = z.object({
+  patterns: z.array(patternConfigSchema).optional(),
+  time: meetingTimeSchema,
+  hasNoMeeting: z.boolean().optional()
+}).refine(
+  (data) => {
+    if (data.hasNoMeeting) {
+      return !data.patterns || data.patterns.length === 0;
+    }
+    return data.patterns && data.patterns.length > 0 && !!data.time;
+  },
+  {
+    message: "Wählen Sie entweder 'Kein regelmäßiges Treffen' oder mindestens ein Muster mit Uhrzeit"
+  }
+);
+
+/**
  * Complete group creation schema (for API validation)
  * Internal only - use validateGroupWithZod() for validation
  */
@@ -79,6 +118,7 @@ const groupCreateDataSchema = z.object({
   logoUrl: createFileUrlSchema('logoUrl').optional(),
   responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
   regularMeeting: regularMeetingSchema,
+  recurringMeeting: recurringMeetingDataSchema.optional(),
   meetingStreet: meetingStreetSchema,
   meetingCity: meetingCitySchema,
   meetingPostalCode: meetingPostalCodeSchema,
@@ -103,6 +143,7 @@ export const groupRequestFormSchema = z.object({
   responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
   logo: logoFileSchema,
   regularMeeting: regularMeetingSchema,
+  recurringMeeting: recurringMeetingDataSchema.optional(),
   meetingStreet: meetingStreetSchema,
   meetingCity: meetingCitySchema,
   meetingPostalCode: meetingPostalCodeSchema,
@@ -121,6 +162,7 @@ const groupUpdateDataSchema = z.object({
   logoUrl: createFileUrlSchema('logoUrl').nullish(),
   responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons').optional(),
   regularMeeting: regularMeetingSchema,
+  recurringMeeting: recurringMeetingDataSchema.optional(),
   meetingStreet: meetingStreetSchema,
   meetingCity: meetingCitySchema,
   meetingPostalCode: meetingPostalCodeSchema,
@@ -138,6 +180,7 @@ export const groupEditFormSchema = z.object({
   responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
   logo: logoFileSchema.nullable(),
   regularMeeting: regularMeetingSchema,
+  recurringMeeting: recurringMeetingDataSchema.optional(),
   meetingStreet: meetingStreetSchema,
   meetingCity: meetingCitySchema,
   meetingPostalCode: meetingPostalCodeSchema,

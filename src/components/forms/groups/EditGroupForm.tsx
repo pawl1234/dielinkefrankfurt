@@ -5,6 +5,7 @@ import FormBase from '../shared/FormBase';
 import { useZodForm } from '@/hooks/useZodForm';
 import { groupEditFormSchema, GroupEditFormData } from '@/lib/validation/group';
 import { GroupStatus, ResponsiblePerson as PrismaResponsiblePerson } from '@prisma/client';
+import { rrulesToPatterns } from '@/lib/groups/recurring-patterns';
 import {
   GroupInfoSection,
   GroupLogoSection,
@@ -22,7 +23,8 @@ export interface InitialGroupData {
   metadata?: string | null;
   status: GroupStatus;
   responsiblePersons: PrismaResponsiblePerson[];
-  regularMeeting?: string | null;
+  recurringPatterns?: string | null;
+  meetingTime?: string | null;
   meetingStreet?: string | null;
   meetingCity?: string | null;
   meetingPostalCode?: string | null;
@@ -47,6 +49,29 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
     await onSubmit(formFields as GroupEditFormData, logo || null);
   }, [onSubmit]);
 
+  // Convert rrule strings back to PatternConfig for editing
+  const convertRecurringPatternsToFormData = () => {
+    if (!group.recurringPatterns) {
+      return { patterns: [], time: undefined, hasNoMeeting: false };
+    }
+
+    try {
+      const rruleStrings: string[] = JSON.parse(group.recurringPatterns);
+      if (rruleStrings.length === 0) {
+        return { patterns: [], time: undefined, hasNoMeeting: true };
+      }
+
+      const patterns = rrulesToPatterns(rruleStrings);
+      return {
+        patterns,
+        time: group.meetingTime || undefined,
+        hasNoMeeting: false
+      };
+    } catch (_error) {
+      return { patterns: [], time: undefined, hasNoMeeting: false };
+    }
+  };
+
   const form = useZodForm<GroupEditFormData>({
     schema: groupEditFormSchema,
     defaultValues: {
@@ -59,7 +84,7 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
         email: rp.email
       })) || [{ firstName: '', lastName: '', email: '' }],
       logo: null,
-      regularMeeting: group.regularMeeting || '',
+      recurringMeeting: convertRecurringPatternsToFormData(),
       meetingStreet: group.meetingStreet || '',
       meetingCity: group.meetingCity || '',
       meetingPostalCode: group.meetingPostalCode || '',
@@ -82,14 +107,14 @@ export default function EditGroupForm({ group, onSubmit, onCancel }: EditGroupFo
         email: rp.email
       })) || [{ firstName: '', lastName: '', email: '' }],
       logo: null,
-      regularMeeting: group.regularMeeting || '',
+      recurringMeeting: convertRecurringPatternsToFormData(),
       meetingStreet: group.meetingStreet || '',
       meetingCity: group.meetingCity || '',
       meetingPostalCode: group.meetingPostalCode || '',
       meetingLocationDetails: group.meetingLocationDetails || ''
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group.id, group.name, group.description, group.status, group.responsiblePersons, group.regularMeeting, group.meetingStreet, group.meetingCity, group.meetingPostalCode, group.meetingLocationDetails]);
+  }, [group.id, group.name, group.description, group.status, group.responsiblePersons, group.recurringPatterns, group.meetingTime, group.meetingStreet, group.meetingCity, group.meetingPostalCode, group.meetingLocationDetails]);
 
   return (
     <FormBase

@@ -154,8 +154,9 @@ model Group {
   metadata                String?              // JSON string for additional metadata (logo original URLs, etc.)
   status                  GroupStatus          @default(NEW)
 
-  // Regular meeting fields
-  regularMeeting          String?              @db.Text
+  // Recurring meeting fields
+  recurringPatterns       String?              @db.Text  // JSON array of rrule strings
+  meetingTime             String?              @db.VarChar(5)  // HH:mm format
   meetingStreet           String?
   meetingCity             String?
   meetingPostalCode       String?              @db.VarChar(5)

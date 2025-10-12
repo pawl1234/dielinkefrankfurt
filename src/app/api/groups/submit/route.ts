@@ -5,6 +5,8 @@ import { FILE_TYPES } from '@/lib/validation/file-schemas';
 import { logger } from '@/lib/logger';
 import { apiErrorResponse, validationErrorResponse } from '@/lib/errors';
 import { validateGroupWithZod } from '@/lib/validation/group';
+import { patternsToRRules } from '@/lib/groups/recurring-patterns';
+import { PatternConfig } from '@/types/form-types';
 
 export interface GroupSubmitResponse {
   success: boolean;
@@ -23,6 +25,7 @@ export interface GroupSubmitResponse {
 
 /**
  * Parse responsible persons from FormData
+ *
  * @param formData - FormData object containing responsible persons
  * @returns Array of responsible persons
  */
@@ -44,6 +47,49 @@ function parseResponsiblePersons(formData: FormData) {
 }
 
 /**
+ * Parse recurring meeting data from FormData
+ *
+ * @param formData - FormData object containing recurring meeting data
+ * @returns Recurring meeting data with rrule strings and time
+ */
+function parseRecurringMeeting(formData: FormData): {
+  recurringPatterns: string | null;
+  meetingTime: string | null;
+} {
+  const recurringMeetingData = formData.get('recurringMeeting') as string | null;
+
+  if (!recurringMeetingData) {
+    return { recurringPatterns: null, meetingTime: null };
+  }
+
+  try {
+    const parsed = JSON.parse(recurringMeetingData);
+
+    // Handle "no meeting" case
+    if (parsed.hasNoMeeting === true) {
+      return { recurringPatterns: '[]', meetingTime: null };
+    }
+
+    // Handle patterns
+    if (parsed.patterns && Array.isArray(parsed.patterns) && parsed.patterns.length > 0) {
+      const rruleStrings = patternsToRRules(parsed.patterns as PatternConfig[]);
+      return {
+        recurringPatterns: JSON.stringify(rruleStrings),
+        meetingTime: parsed.time || null
+      };
+    }
+
+    return { recurringPatterns: null, meetingTime: null };
+  } catch (error) {
+    logger.error('Failed to parse recurringMeeting data', {
+      module: 'api/groups/submit',
+      context: { error }
+    });
+    return { recurringPatterns: null, meetingTime: null };
+  }
+}
+
+/**
  * POST /api/groups/submit
  */
 export async function POST(request: NextRequest) {
@@ -51,6 +97,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData();
+
+    const recurringMeeting = parseRecurringMeeting(formData);
 
     const groupData = {
       name: formData.get('name') as string,
@@ -83,7 +131,13 @@ export async function POST(request: NextRequest) {
 
     const validatedData = {
       ...validationResult.data!,
-      logoUrl: logoUrl || undefined
+      logoUrl: logoUrl || undefined,
+      recurringPatterns: recurringMeeting.recurringPatterns,
+      meetingTime: recurringMeeting.meetingTime,
+      meetingStreet: formData.get('meetingStreet') as string | null,
+      meetingCity: formData.get('meetingCity') as string | null,
+      meetingPostalCode: formData.get('meetingPostalCode') as string | null,
+      meetingLocationDetails: formData.get('meetingLocationDetails') as string | null
     };
 
     const newGroup = await createGroup(validatedData);

@@ -13,6 +13,12 @@ export async function createGroupWithPersons(data: {
   description: string;
   logoUrl: string | null;
   status: GroupStatus;
+  recurringPatterns?: string | null;
+  meetingTime?: string | null;
+  meetingStreet?: string | null;
+  meetingCity?: string | null;
+  meetingPostalCode?: string | null;
+  meetingLocationDetails?: string | null;
   responsiblePersons: Array<{
     firstName: string;
     lastName: string;
@@ -27,6 +33,12 @@ export async function createGroupWithPersons(data: {
         description: data.description,
         logoUrl: data.logoUrl,
         status: data.status,
+        recurringPatterns: data.recurringPatterns,
+        meetingTime: data.meetingTime,
+        meetingStreet: data.meetingStreet,
+        meetingCity: data.meetingCity,
+        meetingPostalCode: data.meetingPostalCode,
+        meetingLocationDetails: data.meetingLocationDetails,
       }
     });
 
@@ -145,7 +157,8 @@ export async function findPublicGroups(params: {
       status: true,
       metadata: true,
       updatedAt: true,
-      regularMeeting: true,
+      recurringPatterns: true,
+      meetingTime: true,
       meetingStreet: true,
       meetingCity: true,
       meetingPostalCode: true,
@@ -267,7 +280,36 @@ export async function findPublicGroupsWithMeeting() {
       slug: true,
       description: true,
       logoUrl: true,
-      regularMeeting: true,
+      recurringPatterns: true,
+      meetingTime: true,
+      meetingStreet: true,
+      meetingCity: true,
+      meetingPostalCode: true,
+      meetingLocationDetails: true
+    }
+  });
+}
+
+/**
+ * Finds groups with upcoming meetings (active groups with recurring patterns).
+ *
+ * @returns Promise resolving to groups array with meeting details
+ */
+export async function getGroupsWithUpcomingMeetings() {
+  return await prisma.group.findMany({
+    where: {
+      status: 'ACTIVE',
+      recurringPatterns: {
+        not: null
+      }
+    },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      recurringPatterns: true,
+      meetingTime: true,
       meetingStreet: true,
       meetingCity: true,
       meetingPostalCode: true,

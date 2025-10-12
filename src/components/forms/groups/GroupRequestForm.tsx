@@ -26,7 +26,11 @@ export default function GroupRequestForm() {
       description: '',
       responsiblePersons: [{ firstName: '', lastName: '', email: '' }],
       logo: undefined,
-      regularMeeting: '',
+      recurringMeeting: {
+        patterns: [],
+        time: undefined,
+        hasNoMeeting: false
+      },
       meetingStreet: '',
       meetingCity: '',
       meetingPostalCode: '',

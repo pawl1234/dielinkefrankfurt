@@ -25,6 +25,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import GroupContactModal from '@/components/forms/GroupContactModal';
 import type { PublicGroupWithMeeting } from '@/types/component-types';
 import HomePageHeader from '@/components/layout/HomePageHeader';
+import { rruleJsonToText } from '@/lib/groups/recurring-patterns';
 
 /**
  * Public groups overview page with accordion-style navigation.
@@ -147,20 +148,20 @@ export default function GroupsOverviewPage() {
 
           <AccordionDetails>
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: group.regularMeeting ? 8 : 12 }}>
+              <Grid size={{ xs: 12, md: rruleJsonToText(group.recurringPatterns, group.meetingTime) ? 8 : 12 }}>
                 <Box
                   dangerouslySetInnerHTML={{ __html: group.description }}
                 />
               </Grid>
 
-              {group.regularMeeting && (
+              {rruleJsonToText(group.recurringPatterns, group.meetingTime) && (
                 <Grid size={{ xs: 12, md: 3 }}>
                   <Paper sx={{ p: 2, height: '100%' }} elevation={2}>
                     <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                       Regelmäßiges Treffen
                     </Typography>
                     <Typography variant="body2" paragraph>
-                      {group.regularMeeting}
+                      {rruleJsonToText(group.recurringPatterns, group.meetingTime)}
                     </Typography>
 
                     {(group.meetingStreet || group.meetingCity) && (
