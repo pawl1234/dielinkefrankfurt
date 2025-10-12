@@ -33,7 +33,8 @@ export interface GroupUpdateData {
   logoUrl?: string | null;
   status?: GroupStatus;
   responsiblePersons?: ResponsiblePersonCreateData[];
-  regularMeeting?: string;
+  recurringPatterns?: string | null;
+  meetingTime?: string | null;
   meetingStreet?: string;
   meetingCity?: string;
   meetingPostalCode?: string;
@@ -345,7 +346,8 @@ export async function updateGroup(data: GroupUpdateData): Promise<Group> {
 
     if (data.status) updateData.status = data.status;
 
-    if (data.regularMeeting !== undefined) updateData.regularMeeting = data.regularMeeting;
+    if (data.recurringPatterns !== undefined) updateData.recurringPatterns = data.recurringPatterns;
+    if (data.meetingTime !== undefined) updateData.meetingTime = data.meetingTime;
     if (data.meetingStreet !== undefined) updateData.meetingStreet = data.meetingStreet;
     if (data.meetingCity !== undefined) updateData.meetingCity = data.meetingCity;
     if (data.meetingPostalCode !== undefined) updateData.meetingPostalCode = data.meetingPostalCode;
