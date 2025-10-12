@@ -168,6 +168,12 @@ export default function AdminGroupsPage() {
 
     // Meeting fields - always send, even if empty
     apiFormData.append('regularMeeting', formData.regularMeeting || '');
+
+    // Recurring meeting patterns - send as JSON string
+    if (formData.recurringMeeting) {
+      apiFormData.append('recurringMeeting', JSON.stringify(formData.recurringMeeting));
+    }
+
     apiFormData.append('meetingStreet', formData.meetingStreet || '');
     apiFormData.append('meetingCity', formData.meetingCity || '');
     apiFormData.append('meetingPostalCode', formData.meetingPostalCode || '');
@@ -305,6 +311,12 @@ export default function AdminGroupsPage() {
                   id: group.id, name: group.name, slug: group.slug, description: group.description || '',
                   logoUrl: group.logoUrl, metadata: group.metadata, status: group.status,
                   responsiblePersons: group.responsiblePersons || [], // Ensure it's an array
+                  recurringPatterns: group.recurringPatterns,
+                  meetingTime: group.meetingTime,
+                  meetingStreet: group.meetingStreet,
+                  meetingCity: group.meetingCity,
+                  meetingPostalCode: group.meetingPostalCode,
+                  meetingLocationDetails: group.meetingLocationDetails
                 } : null;
 
                 return (
