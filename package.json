@@ -71,7 +71,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.37.0",
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/rrule": "^2.2.9",
     "@types/sanitize-html": "^2.16.0",
     "date-fns": "^4.1.0",
