@@ -88,7 +88,7 @@ docker run -d \
 
 ### 3. Configure Environment Variables
 
-Create `.env.local` file in the project root:
+Create `.env` file in the project root:
 
 ```bash
 # Database
