@@ -18,6 +18,7 @@ export const fieldLabels: Record<string, string> = {
   'firstName': 'Vorname',
   'lastName': 'Nachname',
   'email': 'E-Mail-Adresse',
+  'recurringMeeting': 'Regelmäßiges Treffen',
 
   // Appointment form fields
   'title': 'Titel',

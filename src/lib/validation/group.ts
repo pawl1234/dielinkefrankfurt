@@ -104,7 +104,7 @@ export const recurringMeetingDataSchema = z.object({
     return data.patterns && data.patterns.length > 0 && !!data.time;
   },
   {
-    message: "Wählen Sie entweder 'Kein regelmäßiges Treffen' oder mindestens ein Muster mit Uhrzeit"
+    message: "Wählen Sie entweder 'Kein regelmäßiges Treffen' oder mindestens ein Muster mit Uhrzeit für Ihr Treffen."
   }
 );
 
