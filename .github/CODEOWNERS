@@ -1,0 +1,14 @@
+# CODEOWNERS file
+# This file defines who is automatically requested for code review on pull requests.
+#
+# Format: <file-pattern> <owner-username>
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repository
+# This will automatically request @pawl1234 as reviewer for all pull requests
+* @pawl1234
+
+# You can also specify specific paths if needed in the future:
+# /src/components/ @pawl1234
+# /src/lib/ @pawl1234
+# *.md @pawl1234

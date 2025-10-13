@@ -1,0 +1,65 @@
+# Dependabot configuration for automated dependency updates
+# Learn more: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # npm dependencies (package.json)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+
+    # Automatically assign yourself as reviewer
+    reviewers:
+      - "pawl1234"
+
+    # Limit number of open pull requests to avoid spam
+    # Set to 5 to allow critical security updates while limiting noise
+    open-pull-requests-limit: 5
+
+    # Group dependency updates to reduce PR count
+    groups:
+      # Group all non-security updates together
+      development-dependencies:
+        dependency-type: "development"
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+
+    # Prefix commit messages and PR titles
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+
+    # Add labels to PRs for easy filtering
+    labels:
+      - "dependencies"
+      - "automated"
+
+    # Only update vulnerable dependencies automatically
+    # This focuses on security while allowing manual updates for features
+    # Note: This is a recommended approach but may not catch all security issues
+    # For maximum security, enable "Dependabot security updates" in repo settings
+    versioning-strategy: increase-if-necessary
+
+# Additional configuration notes:
+#
+# For CRITICAL BUGS ONLY (recommended approach):
+# 1. This config creates weekly PRs for dependency updates (grouped)
+# 2. Go to: Settings → Code security → Dependabot
+# 3. Enable "Dependabot security updates" - this creates IMMEDIATE PRs for CVEs
+# 4. Security updates bypass the open-pull-requests-limit
+# 5. This way you get:
+#    - Immediate PRs for security vulnerabilities (critical bugs)
+#    - Weekly grouped PRs for regular updates (you can ignore/close these)
+#
+# Alternatively, to ONLY get security PRs:
+# - Set open-pull-requests-limit: 0 (blocks version update PRs)
+# - Enable Dependabot security updates in repo settings
+# - You'll ONLY get PRs for security vulnerabilities
