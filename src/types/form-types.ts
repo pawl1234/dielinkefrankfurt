@@ -142,3 +142,52 @@ export interface CustomValidationEntry {
   isValid: boolean;
   message?: string;
 }
+
+/**
+ * Pattern type for recurring meetings
+ */
+export type PatternType =
+  | 'monthly-1st'
+  | 'monthly-2nd'
+  | 'monthly-3rd'
+  | 'monthly-4th'
+  | 'monthly-last'
+  | 'weekly'
+  | 'biweekly';
+
+/**
+ * Weekday identifier using iCalendar standard codes
+ */
+export type Weekday = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
+
+/**
+ * Configuration for a single recurring meeting pattern
+ */
+export interface PatternConfig {
+  type: PatternType;
+  weekday: Weekday;
+}
+
+/**
+ * Recurring meeting data submitted from forms
+ */
+export interface RecurringMeetingData {
+  patterns?: PatternConfig[];
+  time?: string;
+  hasNoMeeting?: boolean;
+}
+
+/**
+ * Calculated meeting occurrence for display
+ */
+export interface CalculatedMeeting {
+  groupId: string;
+  groupName: string;
+  groupSlug: string;
+  date: Date;
+  time: string;
+  street?: string;
+  city?: string;
+  postalCode?: string;
+  locationDetails?: string;
+}

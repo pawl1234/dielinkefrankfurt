@@ -12,6 +12,12 @@ export interface GroupCreateData {
   description: string; // Pre-validated: 50-5000 chars, required
   logoUrl?: string;    // Pre-validated: valid URL format (optional)
   responsiblePersons: ResponsiblePersonCreateData[]; // Pre-validated: 1-5 persons, all fields validated
+  recurringPatterns?: string | null;  // JSON array of rrule strings
+  meetingTime?: string | null;        // HH:mm format
+  meetingStreet?: string | null;
+  meetingCity?: string | null;
+  meetingPostalCode?: string | null;
+  meetingLocationDetails?: string | null;
 }
 
 export interface ResponsiblePersonCreateData {
@@ -27,7 +33,8 @@ export interface GroupUpdateData {
   logoUrl?: string | null;
   status?: GroupStatus;
   responsiblePersons?: ResponsiblePersonCreateData[];
-  regularMeeting?: string;
+  recurringPatterns?: string | null;
+  meetingTime?: string | null;
   meetingStreet?: string;
   meetingCity?: string;
   meetingPostalCode?: string;
@@ -92,6 +99,12 @@ export async function createGroup(data: GroupCreateData): Promise<Group> {
       description: data.description,
       logoUrl: data.logoUrl || null,
       status: 'NEW' as GroupStatus,
+      recurringPatterns: data.recurringPatterns || null,
+      meetingTime: data.meetingTime || null,
+      meetingStreet: data.meetingStreet || null,
+      meetingCity: data.meetingCity || null,
+      meetingPostalCode: data.meetingPostalCode || null,
+      meetingLocationDetails: data.meetingLocationDetails || null,
       responsiblePersons: data.responsiblePersons.map(person => ({
         firstName: person.firstName.trim(),
         lastName: person.lastName.trim(),
@@ -333,7 +346,8 @@ export async function updateGroup(data: GroupUpdateData): Promise<Group> {
 
     if (data.status) updateData.status = data.status;
 
-    if (data.regularMeeting !== undefined) updateData.regularMeeting = data.regularMeeting;
+    if (data.recurringPatterns !== undefined) updateData.recurringPatterns = data.recurringPatterns;
+    if (data.meetingTime !== undefined) updateData.meetingTime = data.meetingTime;
     if (data.meetingStreet !== undefined) updateData.meetingStreet = data.meetingStreet;
     if (data.meetingCity !== undefined) updateData.meetingCity = data.meetingCity;
     if (data.meetingPostalCode !== undefined) updateData.meetingPostalCode = data.meetingPostalCode;

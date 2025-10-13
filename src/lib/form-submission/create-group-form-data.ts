@@ -23,6 +23,8 @@ export function createGroupFormData<T extends Record<string, unknown>>(
           formData.append(`responsiblePerson[${index}].email`, person.email);
         }
       });
+    } else if (key === 'recurringMeeting' && typeof value === 'object') {
+      formData.append('recurringMeeting', JSON.stringify(value));
     } else if (key === 'logo') {
       return;
     } else if (value instanceof Date) {

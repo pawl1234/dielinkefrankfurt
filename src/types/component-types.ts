@@ -75,7 +75,7 @@ export interface PublicAppointment {
 }
 
 /**
- * Public group with regular meeting information
+ * Public group with recurring meeting information
  * Extends basic Group type with meeting-specific fields for display
  */
 export interface PublicGroupWithMeeting {
@@ -84,7 +84,8 @@ export interface PublicGroupWithMeeting {
   slug: string;
   description: string;
   logoUrl: string | null;
-  regularMeeting: string | null;
+  recurringPatterns: string | null;
+  meetingTime: string | null;
   meetingStreet: string | null;
   meetingCity: string | null;
   meetingPostalCode: string | null;

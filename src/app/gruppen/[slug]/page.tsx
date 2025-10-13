@@ -28,6 +28,7 @@ import { de } from 'date-fns/locale';
 import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { useImageLightbox } from '@/hooks/useImageLightbox';
+import { rruleJsonToText } from '@/lib/groups/recurring-patterns';
 
 interface GroupWithReports extends Group {
   statusReports: StatusReport[];
@@ -178,7 +179,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
                 )}
               </Grid>
 
-              <Grid size={{ xs: 12, md: group.regularMeeting ? 6 : 9 }}>
+              <Grid size={{ xs: 12, md: rruleJsonToText(group.recurringPatterns, group.meetingTime) ? 6 : 9 }}>
                 <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', mb: 2 }}>
                   {group.name}
                 </Typography>
@@ -189,14 +190,14 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
                 />
               </Grid>
 
-              {group.regularMeeting && (
+              {rruleJsonToText(group.recurringPatterns, group.meetingTime) && (
                 <Grid size={{ xs: 12, md: 3 }}>
                   <Paper sx={{ p: 2.5, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200' }} elevation={0}>
                     <Typography variant="subtitle1" fontWeight="600" gutterBottom>
                       Regelmäßiges Treffen
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1.5 }}>
-                      {group.regularMeeting}
+                      {rruleJsonToText(group.recurringPatterns, group.meetingTime)}
                     </Typography>
 
                     {(group.meetingStreet || group.meetingCity) && (
