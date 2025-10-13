@@ -9,8 +9,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Checkbox,
-  FormControlLabel,
   FormControl,
   InputLabel,
   Select,
@@ -32,27 +30,21 @@ import { PATTERN_TYPE_OPTIONS, WEEKDAY_OPTIONS } from '@/lib/groups/recurring-pa
 export interface RecurringMeetingPatternSelectorProps {
   value?: RecurringMeetingData;
   onChange: (data: RecurringMeetingData) => void;
-  onMeetingEnabledChange?: (enabled: boolean) => void;
   error?: string;
   labels?: {
-    meetingLabel?: string;
     addPatternButton?: string;
-    timeLabel?: string;
     patternTypeLabel?: string;
     weekdayLabel?: string;
     removePatternButton?: string;
   };
   disabled?: boolean;
-  showTitle?: boolean;
 }
 
 /**
  * Default labels in German
  */
 const DEFAULT_LABELS = {
-  meetingLabel: 'Regelmäßiges Treffen',
-  addPatternButton: 'Weiteres Muster hinzufügen',
-  timeLabel: 'Uhrzeit',
+  addPatternButton: 'Treffen hinzufügen',
   patternTypeLabel: 'Muster',
   weekdayLabel: 'Wochentag',
   removePatternButton: 'Entfernen'
@@ -64,58 +56,18 @@ const DEFAULT_LABELS = {
 export function RecurringMeetingPatternSelector({
   value,
   onChange,
-  onMeetingEnabledChange,
   error,
   labels: customLabels,
-  disabled = false,
-  showTitle = false
+  disabled = false
 }: RecurringMeetingPatternSelectorProps): React.ReactElement {
   const labels = { ...DEFAULT_LABELS, ...customLabels };
 
-  // Invert logic: hasMeeting instead of hasNoMeeting
-  const [hasMeeting, setHasMeeting] = useState(
-    value?.hasNoMeeting === false
-  );
   const [patterns, setPatterns] = useState<PatternConfig[]>(value?.patterns ?? []);
-  const [time, setTime] = useState(value?.time ?? '');
 
   // Update local state when value prop changes
   useEffect(() => {
-    setHasMeeting(value?.hasNoMeeting === false);
     setPatterns(value?.patterns ?? []);
-    setTime(value?.time ?? '');
   }, [value]);
-
-  /**
-   * Handle checkbox change for "has meeting"
-   */
-  const handleMeetingChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const checked = event.target.checked;
-    setHasMeeting(checked);
-
-    if (checked) {
-      // Enable meeting mode - start with empty patterns
-      onChange({
-        patterns: [],
-        time: undefined,
-        hasNoMeeting: false
-      });
-    } else {
-      // Disable meeting mode - clear everything
-      setPatterns([]);
-      setTime('');
-      onChange({
-        patterns: [],
-        time: undefined,
-        hasNoMeeting: true
-      });
-    }
-
-    // Notify parent component about meeting enabled state change
-    if (onMeetingEnabledChange) {
-      onMeetingEnabledChange(checked);
-    }
-  };
 
   /**
    * Add new pattern
@@ -128,8 +80,8 @@ export function RecurringMeetingPatternSelector({
     const updatedPatterns = [...patterns, newPattern];
     setPatterns(updatedPatterns);
     onChange({
+      ...(value || {}),
       patterns: updatedPatterns,
-      time: time || undefined,
       hasNoMeeting: false
     });
   };
@@ -141,8 +93,8 @@ export function RecurringMeetingPatternSelector({
     const updatedPatterns = patterns.filter((_, i) => i !== index);
     setPatterns(updatedPatterns);
     onChange({
+      ...(value || {}),
       patterns: updatedPatterns,
-      time: time || undefined,
       hasNoMeeting: false
     });
   };
@@ -155,8 +107,8 @@ export function RecurringMeetingPatternSelector({
     updatedPatterns[index] = { ...updatedPatterns[index], type: newType };
     setPatterns(updatedPatterns);
     onChange({
+      ...(value || {}),
       patterns: updatedPatterns,
-      time: time || undefined,
       hasNoMeeting: false
     });
   };
@@ -169,41 +121,22 @@ export function RecurringMeetingPatternSelector({
     updatedPatterns[index] = { ...updatedPatterns[index], weekday: newWeekday };
     setPatterns(updatedPatterns);
     onChange({
+      ...(value || {}),
       patterns: updatedPatterns,
-      time: time || undefined,
       hasNoMeeting: false
     });
   };
 
 
   return (
-    <Box sx={{ my: showTitle ? 3 : 0 }}>
-      {showTitle && (
-        <Typography variant="h6" gutterBottom>
-          Regelmäßige Treffen
+    <Box>
+      {patterns.length === 0 && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Fügen Sie mindestens ein Muster hinzu
         </Typography>
       )}
 
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={hasMeeting}
-            onChange={handleMeetingChange}
-            disabled={disabled}
-          />
-        }
-        label={labels.meetingLabel}
-      />
-
-      {hasMeeting && (
-        <Box sx={{ mt: 2 }}>
-          {patterns.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Fügen Sie mindestens ein Muster hinzu
-            </Typography>
-          )}
-
-          <Stack spacing={2}>
+      <Stack spacing={2}>
             {patterns.map((pattern, index) => (
               <Paper key={index} sx={{ p: 2 }} variant="outlined">
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -260,19 +193,17 @@ export function RecurringMeetingPatternSelector({
                 </Stack>
               </Paper>
             ))}
-          </Stack>
+      </Stack>
 
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={handleAddPattern}
-            disabled={disabled}
-            sx={{ mt: 2 }}
-          >
-            {labels.addPatternButton}
-          </Button>
-        </Box>
-      )}
+      <Button
+        variant="outlined"
+        startIcon={<AddIcon />}
+        onClick={handleAddPattern}
+        disabled={disabled}
+        sx={{ mt: 2 }}
+      >
+        {labels.addPatternButton}
+      </Button>
 
       {error && (
         <FormHelperText error sx={{ mt: 1 }}>

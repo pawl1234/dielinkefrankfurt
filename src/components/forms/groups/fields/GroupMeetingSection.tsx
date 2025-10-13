@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Control, Controller, FormState, FieldValues, Path, useWatch } from 'react-hook-form';
-import { TextField, Box, FormControl, Typography, Skeleton } from '@mui/material';
+import { TextField, Box, FormControl, Typography, Skeleton, Checkbox, FormControlLabel } from '@mui/material';
 import FormSection from '../../shared/FormSection';
 import { RecurringMeetingPatternSelector } from '@/components/forms/RecurringMeetingPatternSelector';
 import { TimePicker as MUITimePicker } from '@mui/x-date-pickers/TimePicker';
@@ -25,7 +25,6 @@ export default function GroupMeetingSection<TFormValues extends FieldValues>({
   formState
 }: GroupMeetingSectionProps<TFormValues>) {
   const { errors } = formState;
-  const [meetingEnabled, setMeetingEnabled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   // Watch the recurringMeeting field to determine initial state
@@ -40,13 +39,10 @@ export default function GroupMeetingSection<TFormValues extends FieldValues>({
     dayjs.locale('de');
   }, []);
 
-  // Initialize meetingEnabled based on form data
-  useEffect(() => {
-    if (recurringMeeting && typeof recurringMeeting === 'object') {
-      const meeting = recurringMeeting as { hasNoMeeting?: boolean };
-      setMeetingEnabled(!meeting.hasNoMeeting);
-    }
-  }, [recurringMeeting]);
+  // Determine if meeting is enabled based on hasNoMeeting flag
+  const meetingEnabled = recurringMeeting && typeof recurringMeeting === 'object'
+    ? !(recurringMeeting as { hasNoMeeting?: boolean }).hasNoMeeting
+    : false;
 
   // Helper to safely access error messages from generic form errors
   const getError = (fieldName: string) => {
@@ -68,21 +64,60 @@ export default function GroupMeetingSection<TFormValues extends FieldValues>({
         <Controller
           name={'recurringMeeting' as Path<TFormValues>}
           control={control}
-          render={({ field }) => (
-            <RecurringMeetingPatternSelector
-              value={field.value}
-              onChange={field.onChange}
-              onMeetingEnabledChange={setMeetingEnabled}
-              error={getError('recurringMeeting')}
-            />
-          )}
+          render={({ field }) => {
+            const currentValue = field.value || { patterns: [], time: undefined, hasNoMeeting: true };
+
+            return (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!currentValue.hasNoMeeting}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      if (checked) {
+                        // Enable meeting mode - start with empty patterns
+                        field.onChange({
+                          patterns: [],
+                          time: undefined,
+                          hasNoMeeting: false
+                        });
+                      } else {
+                        // Disable meeting mode - clear everything
+                        field.onChange({
+                          patterns: [],
+                          time: undefined,
+                          hasNoMeeting: true
+                        });
+                      }
+                    }}
+                  />
+                }
+                label="Regelmäßiges Treffen"
+              />
+            );
+          }}
         />
 
         {meetingEnabled && (
           <>
+            <Typography variant="subtitle2" component="label" sx={{ mt: 1, mb: -1 }}>
+              Wiederkehrende Treffen
+            </Typography>
+            <Controller
+              name={'recurringMeeting' as Path<TFormValues>}
+              control={control}
+              render={({ field }) => (
+                <RecurringMeetingPatternSelector
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={getError('recurringMeeting')}
+                />
+              )}
+            />
+
             {!isMounted ? (
               <Box sx={{ mb: 2, maxWidth: 300 }}>
-                <Typography variant="subtitle2" component="label" sx={{ mb: 1, display: 'block', fontWeight: 500 }}>
+                <Typography variant="subtitle2" component="label">
                   Uhrzeit
                 </Typography>
                 <Skeleton variant="rectangular" height={56} animation="wave" />
@@ -103,7 +138,7 @@ export default function GroupMeetingSection<TFormValues extends FieldValues>({
                           component="label"
                           htmlFor="meeting-time"
                           id="meeting-time-label"
-                          sx={{ mb: 1, display: 'block', fontWeight: 500 }}
+                          sx={{ mb: 2, mt: 2 }}
                         >
                           Uhrzeit
                         </Typography>
@@ -136,7 +171,9 @@ export default function GroupMeetingSection<TFormValues extends FieldValues>({
                 }}
               />
             )}
-
+            <Typography variant="subtitle2" component="label">
+              Adresse
+            </Typography>
             <Controller
               name={'meetingStreet' as Path<TFormValues>}
               control={control}
