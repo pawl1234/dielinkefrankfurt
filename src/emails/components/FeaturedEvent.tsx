@@ -3,6 +3,7 @@ import { Appointment } from '@prisma/client';
 import { Button } from './Button';
 import { getCoverImageUrl, formatAppointmentDateRange, truncateText } from '@/lib/newsletter';
 import { subHeading, metaData, text } from '../lib/styling';
+import { sanitizeForRender } from '@/lib/sanitization/sanitize';
 
 interface FeaturedEventProps {
   appointment: Appointment;
@@ -40,9 +41,9 @@ export function FeaturedEvent({ appointment, baseUrl }: FeaturedEventProps) {
             {dateRange}
           </Text>
           
-          <Text 
+          <Text
             style={text}
-            dangerouslySetInnerHTML={{ __html: truncatedText }}
+            dangerouslySetInnerHTML={{ __html: sanitizeForRender(truncatedText) }}
           />
           
           <Button href={detailUrl}>Mehr Infos</Button>

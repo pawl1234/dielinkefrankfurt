@@ -3,6 +3,7 @@ import { GroupWithReports } from '../../types/newsletter-types';
 import { Button } from './Button';
 import { formatDate, truncateText } from '@/lib/newsletter';
 import { subHeading, metaData, text } from '../lib/styling';
+import { stripHtmlTags } from '@/lib/sanitization/sanitize';
 
 interface StatusReportsProps {
   groups: GroupWithReports[];
@@ -82,7 +83,7 @@ export function StatusReports({ groups, baseUrl }: StatusReportsProps) {
                       </Text>
                       
                       <Text style={text}>
-                        {truncatedContent.replace(/<[^>]*>/g, '')}
+                        {stripHtmlTags(truncatedContent)}
                       </Text>
 
                     </Column>

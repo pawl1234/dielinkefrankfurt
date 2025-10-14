@@ -28,6 +28,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { EmailSendResult, ChunkResult } from '@/types/api-types';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 function NewsletterViewContent() {
   const router = useRouter();
@@ -266,8 +267,8 @@ function NewsletterViewContent() {
             </Typography>
             
             {newsletter.content ? (
-              <Box 
-                sx={{ 
+              <Box
+                sx={{
                   border: '1px solid #e0e0e0',
                   borderRadius: 1,
                   p: 2,
@@ -276,7 +277,7 @@ function NewsletterViewContent() {
                   overflow: 'auto'
                 }}
               >
-                <div dangerouslySetInnerHTML={{ __html: newsletter.content }} />
+                <SafeHtml html={newsletter.content} />
               </Box>
             ) : (
               <Alert severity="info">

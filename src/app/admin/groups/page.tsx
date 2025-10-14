@@ -37,6 +37,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import { Group, GroupStatus, ResponsiblePerson } from '@prisma/client';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { stripHtmlTags } from '@/lib/sanitization/sanitize';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 interface AdminGroup extends Group {
   responsiblePersons: ResponsiblePerson[];
@@ -341,7 +343,7 @@ export default function AdminGroupsPage() {
                             <Box sx={{ overflow: 'hidden' }}>
                               <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} noWrap>{group.name}</Typography>
                               <Typography variant="body2" color="text.secondary" noWrap>
-                                {group.description ? group.description.replace(/<[^>]+>/g, '').substring(0, 80) + (group.description.length > 80 ? '...' : '') : 'Keine Beschreibung'}
+                                {group.description ? stripHtmlTags(group.description).substring(0, 80) + (group.description.length > 80 ? '...' : '') : 'Keine Beschreibung'}
                               </Typography>
                             </Box>
                           </Box>
@@ -393,7 +395,7 @@ export default function AdminGroupsPage() {
                           <Grid container spacing={3}>
                             <Grid size={{ xs: 12, md: 8 }}>
                               <Typography variant="h6" gutterBottom>Beschreibung</Typography>
-                              <Typography component="div" variant="body1" dangerouslySetInnerHTML={{ __html: group.description || "<em>Keine Beschreibung vorhanden.</em>" }} />
+                              <SafeHtml html={group.description || "<em>Keine Beschreibung vorhanden.</em>"} />
                               
                               {group.responsiblePersons && group.responsiblePersons.length > 0 && (
                                 <Box sx={{mt: 3}}>

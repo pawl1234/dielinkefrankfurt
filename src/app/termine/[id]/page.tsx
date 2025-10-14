@@ -22,6 +22,7 @@ import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { Appointment } from '@/types/component-types';
 import { useImageLightbox } from '@/hooks/useImageLightbox';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 
 export default function AppointmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -149,11 +150,7 @@ export default function AppointmentDetailPage({ params }: { params: Promise<{ id
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium' }}>
                   Beschreibung
                 </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{ mb: 3, lineHeight: 1.7 }}
-                  dangerouslySetInnerHTML={{ __html: appointment.mainText }}
-                />
+                <SafeHtml html={appointment.mainText} sx={{ mb: 3, lineHeight: 1.7 }} />
 
                 {appointment.recurringText && (
                   <Box sx={{ mt: 3 }}>

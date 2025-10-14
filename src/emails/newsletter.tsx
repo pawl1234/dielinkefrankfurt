@@ -22,6 +22,7 @@ import { StatusReports } from './components/StatusReports';
 import { EmailWrapper } from './components/EmailWrapper';
 import { generatePreviewText } from '@/lib/newsletter';
 import { heading, text } from './lib/styling';
+import { sanitizeForRender } from '@/lib/sanitization/sanitize';
 
 /**
  * Main newsletter template using React Email components for better email client compatibility.
@@ -63,9 +64,9 @@ export default function Newsletter(props: NewsletterEmailProps) {
           <Heading as="h2" style={heading}>
             Einleitung
           </Heading>
-          <Text 
+          <Text
             style={text}
-            dangerouslySetInnerHTML={{ __html: introductionText }}
+            dangerouslySetInnerHTML={{ __html: sanitizeForRender(introductionText) }}
           />
         </Section>
 

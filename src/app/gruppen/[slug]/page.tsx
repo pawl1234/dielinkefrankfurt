@@ -29,6 +29,7 @@ import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail'
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { useImageLightbox } from '@/hooks/useImageLightbox';
 import { rruleJsonToText } from '@/lib/groups/recurring-patterns';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 interface GroupWithReports extends Group {
   statusReports: StatusReport[];
@@ -183,10 +184,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
                 <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', mb: 2 }}>
                   {group.name}
                 </Typography>
-                <Typography
-                  variant="body1"
+                <SafeHtml
+                  html={group.description}
                   sx={{ lineHeight: 1.7, color: 'text.secondary' }}
-                  dangerouslySetInnerHTML={{ __html: group.description }}
                 />
               </Grid>
 
@@ -296,11 +296,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ slug: st
                           '& a': { color: 'primary.main' }
                         }}
                       >
-                        <Typography 
-                          component="div"
-                          variant="body1"
+                        <SafeHtml
+                          html={report.content}
                           sx={{ lineHeight: 1.6 }}
-                          dangerouslySetInnerHTML={{ __html: report.content }}
                         />
                       </Box>
                       

@@ -26,6 +26,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AddIcon from '@mui/icons-material/Add';
 import GroupsSection from '@/components/layout/GroupsSection';
 import { PublicAppointment } from '@/types/component-types';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 
 export default function HomePageContent() {
@@ -125,18 +126,17 @@ export default function HomePageContent() {
                       <Chip icon={<EventIcon />} label={format(new Date(appointment.startDateTime), 'HH:mm', { locale: de })} size="small" color="primary" variant="outlined" sx={{mr:0.5, mb:0.5}}/>
                       {appointment.city && (<Chip icon={<LocationOnIcon />} label={appointment.city} size="small" color="primary" variant="outlined" sx={{mr:0.5, mb:0.5}}/>)}
                     </Box>
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
-                        mb: 2, 
-                        display: '-webkit-box', 
-                        WebkitLineClamp: 5, 
-                        WebkitBoxOrient: 'vertical', 
-                        overflow: 'hidden', 
-                        color: 'text.secondary', 
-                        flexGrow: 1 
+                    <SafeHtml
+                      html={appointment.mainText}
+                      sx={{
+                        mb: 2,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 5,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        color: 'text.secondary',
+                        flexGrow: 1
                       }}
-                      dangerouslySetInnerHTML={{ __html: appointment.mainText }}
                     />
                   </CardContent>
                   <CardActions sx={{ p: 2, pt: 0 }}>

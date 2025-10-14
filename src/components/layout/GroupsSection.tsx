@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Grid, 
-  Card, 
-  CardContent, 
-  CardActions, 
-  Button, 
-  Avatar, 
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Avatar,
   Skeleton,
   Chip,
   Paper,
@@ -20,6 +20,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { stripHtmlTags } from '@/lib/sanitization/sanitize';
 
 interface Group {
   id: string;
@@ -88,10 +89,8 @@ const GroupsSection: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Helper function to truncate text
   const truncateText = (text: string, maxLength: number = 200) => {
-    // Remove HTML tags for cleaner display
-    const plainText = text.replace(/<[^>]+>/g, '');
+    const plainText = stripHtmlTags(text);
     if (plainText.length <= maxLength) return plainText;
     return plainText.substring(0, maxLength) + '...';
   };
