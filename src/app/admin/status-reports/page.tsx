@@ -33,6 +33,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { FileThumbnailGrid, parseFileUrls } from '@/components/ui/FileThumbnail';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 // This is the main StatusReport type for this page, aligned with Prisma
 interface StatusReport {
@@ -446,8 +447,10 @@ export default function AdminStatusReportsPage() {
                           <Grid container spacing={3}>
                             <Grid size={{ xs: 12, md: 8 }}>
                               <Typography variant="h6" gutterBottom>Details zur Meldung</Typography>
-                              <Typography variant="body1" sx={{ mb: 1 }}
-                                dangerouslySetInnerHTML={{ __html: report.content || "<p><em>Keine Beschreibung vorhanden.</em></p>" }} />
+                              <SafeHtml
+                                html={report.content || "<p><em>Keine Beschreibung vorhanden.</em></p>"}
+                                sx={{ mb: 1 }}
+                              />
                             </Grid>
                             <Grid size={{ xs: 12, md: 4 }}>
                                <Typography variant="h6" gutterBottom>Informationen</Typography>

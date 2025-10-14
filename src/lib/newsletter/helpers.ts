@@ -6,6 +6,7 @@
 import { Appointment } from '@prisma/client';
 import { de } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
+import { htmlToPlainText } from '@/lib/sanitization/sanitize';
 
 /**
  * Set fixed timezone for consistent date formatting
@@ -136,33 +137,18 @@ export const getStatusReportUrl = (
 };
 
 /**
- * Extract plain text from HTML content
- * Useful for creating email-safe content from rich text
- */
-export const extractPlainText = (htmlContent: string): string => {
-  if (!htmlContent) return '';
-  
-  return htmlContent
-    .replace(/<br\s*\/?>/gi, '\n') // Convert <br> to newlines
-    .replace(/<\/p>/gi, '\n\n') // Convert closing </p> to double newlines
-    .replace(/<[^>]*>/g, '') // Remove all HTML tags
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim();
-};
-
-/**
  * Generate preview text for React Email Preview component
  * Converts HTML to plain text and truncates to optimal length
- * 
+ *
  * @param htmlContent - HTML content to convert to preview text
  * @param maxLength - Maximum length for preview text (default: 90 characters)
  * @returns Plain text suitable for email preview
  */
 export const generatePreviewText = (htmlContent: string, maxLength: number = 90): string => {
   if (!htmlContent) return '';
-  
-  // Convert HTML to plain text
-  const plainText = extractPlainText(htmlContent);
+
+  // Convert HTML to plain text using secure sanitization
+  const plainText = htmlToPlainText(htmlContent);
   
   // Remove newlines and normalize whitespace for preview
   const cleanText = plainText

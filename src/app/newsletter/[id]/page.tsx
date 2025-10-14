@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getSentNewsletter } from '@/lib/newsletter';
 import { Box, Container, Typography, Link } from '@mui/material';
 import Image from 'next/image';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 interface NewsletterPageParams {
   params: Promise<{
@@ -137,13 +138,12 @@ export default async function NewsletterPage({ params }: NewsletterPageParams) {
         
         {/* Newsletter content */}
         <Container maxWidth="md" sx={{ my: 4 }}>
-          {/* Render the HTML content using dangerouslySetInnerHTML */}
-          <Box 
-            sx={{ 
+          <SafeHtml
+            html={content}
+            sx={{
               '& img': { maxWidth: '100%', height: 'auto' },
               '& a': { color: '#FF0000' }
             }}
-            dangerouslySetInnerHTML={{ __html: content || '' }} 
           />
         </Container>
         

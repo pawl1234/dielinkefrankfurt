@@ -33,6 +33,7 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import { StatusReport, Group } from '@prisma/client';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 export default function StatusReportDetail({ params }: { params: Promise<{ id: string }> }) {
   const { status: sessionStatus } = useSession();
@@ -277,11 +278,11 @@ export default function StatusReportDetail({ params }: { params: Promise<{ id: s
                 Report Content
               </Typography>
               
-              <Paper 
-                variant="outlined" 
+              <Paper
+                variant="outlined"
                 sx={{ p: 2, mb: 3, bgcolor: 'background.paper' }}
               >
-                <div dangerouslySetInnerHTML={{ __html: statusReport.content }} />
+                <SafeHtml html={statusReport.content} />
               </Paper>
               
               {/* File attachments */}

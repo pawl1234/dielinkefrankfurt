@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 import { validationMessages } from './validation-messages';
-import sanitizeHtml from 'sanitize-html';
+import { sanitizeRichText } from '@/lib/sanitization/sanitize';
 
 /**
  * Standard title limits
@@ -216,36 +216,13 @@ export const booleanSchema = z.boolean();
 /**
  * Factory: Rich text schema with HTML sanitization
  *
+ * Uses centralized sanitization utilities from @/lib/sanitization/sanitize
+ * for consistent XSS protection across the application.
+ *
  * @param minLength - Minimum character length
  * @param maxLength - Maximum character length
  * @param fieldName - Field name for error messages
  */
-const sanitizeConfig = {
-  allowedTags: ["b", "strong", "i", "em", "ul", "ol", "li", "a", "p", "br"],
-  allowedAttributes: {
-    'a': ['href', 'target', 'rel']
-  }
-};
-
-/**
- * Removes invisible Unicode characters that can cause validation issues
- * - Zero-width spaces, soft hyphens, directional marks, etc.
- *
- * @param text - Text to normalize
- * @returns Normalized text without invisible characters
- */
-const removeInvisibleCharacters = (text: string): string => {
-  return text
-    // Normalize Unicode to composed form (NFC)
-    .normalize('NFC')
-    // Remove zero-width spaces and other invisible characters
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    // Remove soft hyphens
-    .replace(/\u00AD/g, '')
-    // Remove directional marks
-    .replace(/[\u200E\u200F\u202A-\u202E]/g, '');
-};
-
 export const createRichTextSchema = (
   minLength: number,
   maxLength: number,
@@ -253,13 +230,8 @@ export const createRichTextSchema = (
 ) => z.string()
   .min(1, validationMessages.required(fieldName))
   .trim()
-  // Transform: sanitize HTML and remove invisible characters
-  .transform((val) => {
-    // First remove invisible Unicode characters
-    const normalized = removeInvisibleCharacters(val);
-    // Then sanitize HTML to prevent XSS attacks
-    return sanitizeHtml(normalized, sanitizeConfig);
-  })
+  // Transform: sanitize HTML using centralized utilities
+  .transform((val) => sanitizeRichText(val))
   // Validate length after sanitization
   .pipe(
     z.string()

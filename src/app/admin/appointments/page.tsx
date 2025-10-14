@@ -38,6 +38,7 @@ import { useAdminState } from '@/hooks/useAdminState';
 import { FileThumbnailGrid, parseFileUrls, parseCoverImages } from '@/components/ui/FileThumbnail';
 import { AppointmentSubmitData } from '@/lib/validation/appointment';
 import { createAppointmentFormData } from '@/lib/form-submission';
+import SafeHtml from '@/components/ui/SafeHtml';
 
 // Define the Appointment type based on our Prisma schema
 interface Appointment {
@@ -556,8 +557,8 @@ export default function AdminAppointmentsPage() {
                                 <Typography variant="h6" gutterBottom>
                                   Veranstaltungsdetails
                                 </Typography>
-                                
-                                <Typography variant="body1" sx={{ mb: 1 }} dangerouslySetInnerHTML={{ __html: appointment.mainText }} />
+
+                                <SafeHtml html={appointment.mainText} sx={{ mb: 1 }} />
                                 
                                 {appointment.recurringText && (
                                   <Box sx={{ mt: 2 }}>
