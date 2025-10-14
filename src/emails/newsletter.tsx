@@ -33,7 +33,7 @@ import { heading, text } from './lib/styling';
  * - Integrated helper functions for date formatting and text processing
  * - Responsive design following email best practices
  */
-export default function Newsletter(props: NewsletterEmailProps): JSX.Element {
+export default function Newsletter(props: NewsletterEmailProps) {
   const {
     newsletterSettings,
     subject,
