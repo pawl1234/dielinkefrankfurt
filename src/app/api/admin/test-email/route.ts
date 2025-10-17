@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import nodemailer from 'nodemailer';
 
@@ -110,4 +109,4 @@ async function handleTestEmail(request: NextRequest): Promise<NextResponse> {
 /**
  * POST handler for test email
  */
-export const POST = withAdminAuth(handleTestEmail);
+export const POST = handleTestEmail;

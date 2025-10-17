@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -48,7 +47,7 @@ async function handleGetNewsletter(
  * GET handler for single newsletter
  * Requires admin authentication
  */
-export const GET = withAdminAuth(handleGetNewsletter);
+export const GET = handleGetNewsletter;
 
 /**
  * Handler for deleting a newsletter
@@ -96,4 +95,4 @@ async function handleDeleteNewsletter(
  * DELETE handler for newsletter
  * Requires admin authentication
  */
-export const DELETE = withAdminAuth(handleDeleteNewsletter);
+export const DELETE = handleDeleteNewsletter;

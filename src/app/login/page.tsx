@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  TextField, 
-  Button, 
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
   Container,
   Alert
 } from '@mui/material';
@@ -20,13 +20,26 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { status } = useSession();  
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+
+  const callbackUrl = searchParams.get('callbackUrl') || null;
+  const errorParam = searchParams.get('error');
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.push('/admin');
+    // Show error message if session was invalidated
+    if (errorParam === 'SessionInvalidated') {
+      setError('Ihre Sitzung wurde ungültig. Bitte melden Sie sich erneut an.');
     }
-  }, [status, router]);
+  }, [errorParam]);
+
+  useEffect(() => {
+    // Redirect if already authenticated
+    if (status === 'authenticated' && session?.user) {
+      const redirectUrl = callbackUrl || (session.user.role === 'admin' ? '/admin' : '/portal');
+      router.push(redirectUrl);
+    }
+  }, [status, session, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,12 +50,16 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         username,
         password,
+        callbackUrl: callbackUrl || undefined,
         redirect: false,
       });
 
       if (result?.error) {
         setError('Ungültige Anmeldedaten. Bitte versuchen Sie es erneut.');
         setLoading(false);
+      } else if (result?.ok) {
+        // Let useEffect handle the redirect based on session
+        // The session will be updated after signIn succeeds
       }
     } catch {
       setError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
@@ -54,25 +71,25 @@ export default function LoginPage() {
     <MuiSetup>
       <Container maxWidth="sm" sx={{ mt: 8 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
-          <Box component="form" onSubmit={handleSubmit} sx={{ 
-            display: 'flex', 
+          <Box component="form" onSubmit={handleSubmit} sx={{
+            display: 'flex',
             flexDirection: 'column',
             gap: 3
           }}>
             <Typography variant="h5" component="h1" align="center" gutterBottom>
-              Admin-Bereich
+              Anmelden
             </Typography>
-            
+
             <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
-              Bitte melden Sie sich an, um auf die Terminanfragen zuzugreifen.
+              Bitte melden Sie sich mit Ihren Zugangsdaten an.
             </Typography>
-            
+
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
               </Alert>
             )}
-            
+
             <TextField
               label="Benutzername"
               variant="outlined"
@@ -80,8 +97,9 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              autoFocus
             />
-            
+
             <TextField
               label="Passwort"
               type="password"
@@ -91,7 +109,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            
+
             <Button
               type="submit"
               variant="contained"

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { Appointment, Prisma } from '@prisma/client';
-import { serverErrorResponse } from '@/lib/auth';
-import { handleDatabaseError } from '@/lib/errors';
+import { handleDatabaseError, AppError, ErrorType } from '@/lib/errors';
 import { type AppointmentSubmitData } from '@/lib/validation/appointment';
 import { logger } from '@/lib/logger';
 import {
@@ -96,14 +95,14 @@ export async function updateFeaturedStatus(request: NextRequest) {
         module: 'appointments/appointment-mutations',
         context: { error: dbError }
       });
-      return serverErrorResponse('Failed to update appointment in database');
+      return new AppError('Fehler beim Aktualisieren des Featured-Status in der Datenbank', ErrorType.UNKNOWN, 500).toResponse();
     }
   } catch (error) {
     logger.error('Error updating appointment featured status', {
       module: 'appointments/appointment-mutations',
       context: { error }
     });
-    return serverErrorResponse('Failed to update appointment featured status');
+    return new AppError('Fehler beim Aktualisieren des Featured-Status', ErrorType.UNKNOWN, 500).toResponse();
   }
 }
 
@@ -332,7 +331,7 @@ export async function updateAppointment(request: NextRequest) {
       module: 'appointments/appointment-mutations',
       context: { error }
     });
-    return serverErrorResponse('Failed to update appointment');
+    return new AppError('Fehler beim Aktualisieren des Termins', ErrorType.UNKNOWN, 500).toResponse();
   }
 }
 
@@ -390,6 +389,6 @@ export async function deleteAppointment(request: NextRequest) {
       module: 'appointments/appointment-mutations',
       context: { error }
     });
-    return serverErrorResponse('Failed to delete appointment');
+    return new AppError('Fehler beim Löschen des Termins', ErrorType.UNKNOWN, 500).toResponse();
   }
 }

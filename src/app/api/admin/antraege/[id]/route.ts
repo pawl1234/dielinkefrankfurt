@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import {
@@ -10,12 +9,11 @@ import {
  * GET /api/admin/antraege/[id]
  * 
  * Admin endpoint for retrieving a single Antrag by ID.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET = withAdminAuth(async (
-  request: NextRequest,
+export async function GET(request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) => {
+) {
   try {
     const { id } = await params;
 
@@ -47,19 +45,18 @@ export const GET = withAdminAuth(async (
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * PUT /api/admin/antraege/[id]
  * 
  * Admin endpoint for updating an Antrag.
- * Authentication required.
+ * Authentication handled by middleware.
  * Only allows updating anträge with NEU status.
  */
-export const PUT = withAdminAuth(async (
-  request: NextRequest,
+export async function PUT(request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) => {
+) {
   try {
     const { id } = await params;
 
@@ -204,20 +201,19 @@ export const PUT = withAdminAuth(async (
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * DELETE /api/admin/antraege/[id]
  * 
  * Admin endpoint for deleting an Antrag.
- * Authentication required.
+ * Authentication handled by middleware.
  * Performs atomic operation: deletes files first, then database record.
  * If file deletion fails, the operation is aborted.
  */
-export const DELETE = withAdminAuth(async (
-  request: NextRequest,
+export async function DELETE(request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) => {
+) {
   try {
     const { id } = await params;
 
@@ -302,4 +298,4 @@ export const DELETE = withAdminAuth(async (
       { status: 500 }
     );
   }
-});
+}

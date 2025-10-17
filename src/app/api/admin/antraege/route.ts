@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import {
   getAntraege,
   updateAntrag,
@@ -17,28 +16,28 @@ import {
  * - page: page number (default: 1)
  * - pageSize: items per page (default: 10)
  * 
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   return getAntraege(request);
-});
+}
 
 /**
  * PATCH /api/admin/antraege
  * 
  * Admin endpoint for updating Anträge.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PATCH = withAdminAuth(async (request: NextRequest) => {
+export async function PATCH(request: NextRequest) {
   return updateAntrag(request);
-});
+}
 
 /**
  * DELETE /api/admin/antraege
  * 
  * Admin endpoint for deleting Anträge.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const DELETE = withAdminAuth(async (request: NextRequest) => {
+export async function DELETE(request: NextRequest) {
   return deleteAntrag(request);
-});
+}

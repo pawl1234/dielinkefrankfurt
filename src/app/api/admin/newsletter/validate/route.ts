@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { processRecipientList } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
@@ -10,7 +8,7 @@ import { logger } from '@/lib/logger';
  * 
  * Admin endpoint for validating newsletter recipient list.
  * Processes email list and returns validation statistics.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Request body:
  * - emailText: string - Raw text containing email addresses
@@ -22,7 +20,7 @@ import { logger } from '@/lib/logger';
  * - existing: number - Count of existing email addresses
  * - invalidEmails: string[] - List of invalid email addresses
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body = await request.json();
@@ -70,4 +68,4 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
     });
     return apiErrorResponse(error, 'Failed to validate recipient list');
   }
-});
+}

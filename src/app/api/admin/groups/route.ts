@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import {
   getGroups
 } from '@/lib/groups';
@@ -19,11 +18,11 @@ export interface GroupsResponse {
 
 /**
  * GET /api/admin/groups
- * 
+ *
  * Admin endpoint for retrieving groups with optional filtering.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const status = url.searchParams.get('status') || 'ALL';
@@ -69,4 +68,4 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     
     return NextResponse.json(response, { status: 500 });
   }
-});
+}

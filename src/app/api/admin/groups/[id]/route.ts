@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { getGroupById, updateGroup, deleteGroup, GroupUpdateData } from '@/lib/groups';
 import { Group, ResponsiblePerson, StatusReport, GroupStatus } from '@prisma/client';
 import { GroupWithResponsiblePersons } from '@/types/email-types';
@@ -102,11 +101,11 @@ export interface GroupUpdateResponse {
 
 /**
  * GET /api/admin/groups/[id]
- * 
+ *
  * Admin endpoint for retrieving a specific group by ID.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const params = await context.params;
     const { id } = params;
@@ -143,16 +142,16 @@ export const GET = withAdminAuth(async (request: NextRequest, context: { params:
     
     return NextResponse.json(response, { status: 500 });
   }
-});
+}
 
 /**
  * PUT /api/admin/groups/[id]
- * 
+ *
  * Admin endpoint for updating group details.
  * Handles file uploads for group logo.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PUT = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   let logoUrl: string | null = null;
 
   try {
@@ -318,17 +317,17 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
 
     return apiErrorResponse(error, 'Fehler beim Aktualisieren der Gruppe');
   }
-});
+}
 
 /**
  * DELETE /api/admin/groups/[id]
- * 
+ *
  * Admin endpoint for deleting a group.
  * Deletes the group and all related data, including responsible persons and status reports.
  * Also deletes any associated files from blob storage.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const DELETE = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const params = await context.params;
     const { id } = params;
@@ -361,4 +360,4 @@ export const DELETE = withAdminAuth(async (request: NextRequest, context: { para
       { status: 500 }
     );
   }
-});
+}

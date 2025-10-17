@@ -1,83 +1,158 @@
-// src/app/api/admin/users/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/lib/auth';
-import { hashPassword } from '@/lib/auth';
-import { AppError } from '@/lib/errors';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
+import { requireRole } from '@/lib/auth/roles';
+import { createUserSchema } from '@/lib/validation/user-schema';
+import { createUser } from '@/lib/db/user-operations';
+import { findUserByUsername, findUserByEmail, listUsers } from '@/lib/db/user-queries';
+import { logger } from '@/lib/logger';
+import type { CreateUserRequest, CreateUserResponse, ListUsersResponse } from '@/types/api-types';
 
-const prisma = new PrismaClient();
-
-// Get all users
-export const GET = withAdminAuth(async () => {
+/**
+ * POST /api/admin/users - Create new user
+ */
+export async function POST(request: Request) {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    });
-    
-    return NextResponse.json(users);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    return AppError.database('Failed to fetch users').toResponse();
+    const session = await getServerSession(authOptions);
 
-  }
-});
-
-// Create new user
-export const POST = withAdminAuth(async (request: NextRequest) => {
-  try {
-    const body = await request.json();
-    const { username, email, password, firstName, lastName, role } = body;
-    
-    console.log(`Creating user with username: ${username}`);
-    
-    if (!username || !email || !password) {
-      console.log('User creation failed: Missing required fields');
-      return AppError.validation('Username, email and password are required').toResponse();
+    // Require admin role
+    if (!session || !requireRole(session, ['admin'])) {
+      logger.warn('Unauthorized user management attempt', {
+        module: 'api-admin-users',
+        context: { operation: 'create', userId: session?.user?.id }
+      });
+      return NextResponse.json(
+        { success: false, error: 'Keine Berechtigung. Nur Administratoren können Benutzer erstellen.' },
+        { status: 403 }
+      );
     }
-    
-    // Log hash generation
-    console.log('Generating password hash...');
-    const passwordHash = await hashPassword(password);
-    console.log('Password hash generated successfully');
-    
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        email,
-        passwordHash,
-        firstName,
-        lastName,
-        role: role || 'admin',
-        isActive: true
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true
-      }
+
+    // Parse and validate request body
+    const body: CreateUserRequest = await request.json();
+    const validationResult = createUserSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      logger.warn('User creation validation failed', {
+        module: 'api-admin-users',
+        context: { errors: validationResult.error.issues }
+      });
+      return NextResponse.json(
+        { success: false, error: `Validierungsfehler: ${validationResult.error.issues[0].message}` },
+        { status: 400 }
+      );
+    }
+
+    const data = validationResult.data;
+
+    // Check for duplicate username or email
+    const existingUsername = await findUserByUsername(data.username);
+    if (existingUsername) {
+      return NextResponse.json(
+        { success: false, error: 'Benutzername oder E-Mail bereits vorhanden' },
+        { status: 409 }
+      );
+    }
+
+    const existingEmail = await findUserByEmail(data.email);
+    if (existingEmail) {
+      return NextResponse.json(
+        { success: false, error: 'Benutzername oder E-Mail bereits vorhanden' },
+        { status: 409 }
+      );
+    }
+
+    // Create user
+    const user = await createUser({
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      role: data.role,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      isActive: data.isActive ?? true,
     });
-    
-    console.log(`User created successfully: ${username}, ID: ${newUser.id}`);
-    
-    return NextResponse.json(newUser, { status: 201 });
+
+    logger.info('User created successfully', {
+      module: 'api-admin-users',
+      context: { userId: user.id, username: user.username, role: user.role, createdBy: session.user.id }
+    });
+
+    const response: CreateUserResponse = {
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role as 'admin' | 'mitglied',
+        isActive: user.isActive,
+      },
+    };
+
+    return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    console.error('Error creating user:', error);
-    return AppError.database('Failed to create user').toResponse();
+    logger.error('User creation failed', {
+      module: 'api-admin-users',
+      context: { error },
+      tags: ['critical']
+    });
+    return NextResponse.json(
+      { success: false, error: 'Serverfehler beim Erstellen des Benutzers' },
+      { status: 500 }
+    );
   }
-});
+}
+
+/**
+ * GET /api/admin/users - List all users
+ */
+export async function GET(_request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    // Require admin role
+    if (!session || !requireRole(session, ['admin'])) {
+      logger.warn('Unauthorized user list access attempt', {
+        module: 'api-admin-users',
+        context: { operation: 'list', userId: session?.user?.id }
+      });
+      return NextResponse.json(
+        { success: false, error: 'Keine Berechtigung. Nur Administratoren können Benutzer auflisten.' },
+        { status: 403 }
+      );
+    }
+
+    // Get all users
+    const users = await listUsers();
+
+    logger.info('User list retrieved', {
+      module: 'api-admin-users',
+      context: { count: users.length, requestedBy: session.user.id }
+    });
+
+    const response: ListUsersResponse = {
+      success: true,
+      users: users.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role as 'admin' | 'mitglied',
+        isActive: user.isActive,
+        createdAt: user.createdAt.toISOString(),
+      })),
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    logger.error('Failed to retrieve user list', {
+      module: 'api-admin-users',
+      context: { error },
+      tags: ['critical']
+    });
+    return NextResponse.json(
+      { success: false, error: 'Serverfehler beim Abrufen der Benutzerliste' },
+      { status: 500 }
+    );
+  }
+}

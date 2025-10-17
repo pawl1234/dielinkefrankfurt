@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -99,4 +98,4 @@ async function handleGetAnalyticsDashboard(): Promise<NextResponse> {
   }
 }
 
-export const GET = withAdminAuth(handleGetAnalyticsDashboard);
+export const GET = handleGetAnalyticsDashboard;

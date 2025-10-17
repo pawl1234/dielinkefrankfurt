@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import {
   getStatusReports,
   updateStatusReport,
@@ -12,9 +11,9 @@ import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
  * GET /api/admin/status-reports
  * 
  * Admin endpoint for retrieving status reports with optional filtering.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const status = (url.searchParams.get('status') || 'ALL') as 'ALL' | 'NEW' | 'ACTIVE' | 'ARCHIVED';
@@ -57,15 +56,15 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * PUT /api/admin/status-reports
  * 
  * Admin endpoint for updating status report details.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PUT = withAdminAuth(async (request: NextRequest) => {
+export async function PUT(request: NextRequest) {
   try {
     const data = await request.json();
     
@@ -86,16 +85,16 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * PATCH /api/admin/status-reports
  * 
  * Admin endpoint for updating status reports with file uploads.
- * Authentication required.
+ * Authentication handled by middleware.
  * Handles multipart/form-data requests.
  */
-export const PATCH = withAdminAuth(async (request: NextRequest) => {
+export async function PATCH(request: NextRequest) {
   try {
     // Parse form data
     const formData = await request.formData();
@@ -190,15 +189,15 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * DELETE /api/admin/status-reports
  * 
  * Admin endpoint for deleting status reports.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const DELETE = withAdminAuth(async (request: NextRequest) => {
+export async function DELETE(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
@@ -219,4 +218,4 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
       { status: 500 }
     );
   }
-});
+}

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -202,7 +201,7 @@ async function handleRecovery(request: NextRequest): Promise<NextResponse> {
  * POST handler for newsletter recovery
  * Requires admin authentication
  */
-export const POST = withAdminAuth(handleRecovery);
+export const POST = handleRecovery;
 
 /**
  * GET handler to check recovery options for a newsletter
@@ -281,4 +280,4 @@ async function handleGetRecoveryOptions(request: NextRequest): Promise<NextRespo
   }
 }
 
-export const GET = withAdminAuth(handleGetRecoveryOptions);
+export const GET = handleGetRecoveryOptions;

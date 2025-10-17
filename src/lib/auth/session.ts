@@ -1,21 +1,25 @@
 // src/lib/auth/session.ts
-import * as bcrypt from 'bcrypt';
-import { findUserByUsername } from '@/lib/db/user-operations';
+import { findUserByUsername } from '@/lib/db/user-queries';
 import { logger } from '@/lib/logger';
+import { UserRole } from '@/types/user';
+import { comparePassword } from './password';
 
-// Hash a password
-export async function hashPassword(password: string): Promise<string> {
-  const saltRounds = 10;
-  return await bcrypt.hash(password, saltRounds);
-}
-
-// Compare a password with a hash
-export async function comparePassword(password: string, hash: string): Promise<boolean> {
-  return await bcrypt.compare(password, hash);
-}
-
-// Find user by credentials (for NextAuth)
-export async function findUserByCredentials(username: string, password: string) {
+/**
+ * Find user by credentials (for NextAuth)
+ *
+ * @param username - Username
+ * @param password - Plain text password
+ * @returns User object or null
+ */
+export async function findUserByCredentials(username: string, password: string): Promise<{
+  id: string;
+  username: string;
+  email?: string;
+  name: string;
+  role: UserRole;
+  isActive?: boolean;
+  isEnvironmentUser?: boolean;
+} | null> {
   logger.info(`Authentication attempt for username: ${username}`, { module: 'auth' });
 
   // Check if this is the env-based admin
@@ -28,7 +32,7 @@ export async function findUserByCredentials(username: string, password: string) 
       id: 'env-admin',
       username: envAdminUsername,
       name: 'System Admin',
-      role: 'admin',
+      role: 'admin' as UserRole,
       isEnvironmentUser: true
     };
   }
@@ -54,12 +58,13 @@ export async function findUserByCredentials(username: string, password: string) 
   }
 
   logger.info(`Successful login for user ${username}`, { module: 'auth' });
+
   return {
     id: user.id,
     username: user.username,
     email: user.email,
     name: user.firstName ? `${user.firstName} ${user.lastName}` : user.username,
-    role: user.role,
+    role: user.role as UserRole,
     isActive: user.isActive
   };
 }

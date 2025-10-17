@@ -1,14 +1,11 @@
 // src/app/api/admin/change-password/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/lib/auth';
 import { hashPassword, comparePassword } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 import { getToken } from 'next-auth/jwt';
+import prisma from '@/lib/db/prisma';
 
-const prisma = new PrismaClient();
-
-export const POST = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     const body = await request.json();
@@ -53,4 +50,4 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   } catch {
     return AppError.database('Failed to change password').toResponse();    
   }
-});
+}

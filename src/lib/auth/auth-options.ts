@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { findUserByCredentials } from './session';
 import { logger } from '@/lib/logger';
+import { UserRole } from '@/types/user';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -34,9 +35,10 @@ export const authOptions: NextAuthOptions = {
     // Copy your existing callbacks here
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role;
+        token.id = user.id;
         token.username = user.username;
-        token.isEnvironmentUser = user.isEnvironmentUser || false;
+        token.role = user.role as UserRole;
+        token.isEnvironmentUser = (user as { isEnvironmentUser?: boolean }).isEnvironmentUser || false;
       }
       return token;
     },
@@ -50,7 +52,7 @@ export const authOptions: NextAuthOptions = {
         return session;
     }
   },
-  pages: { signIn: '/admin/login' },
+  pages: { signIn: '/login' },
   debug: process.env.NODE_ENV === 'development',
   session: { strategy: 'jwt' }
 };

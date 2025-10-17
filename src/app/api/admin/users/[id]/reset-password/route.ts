@@ -1,36 +1,85 @@
-// src/app/api/admin/users/[id]/reset-password/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/lib/auth';
-import { hashPassword } from '@/lib/auth';
-import { AppError } from '@/lib/errors';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
+import { requireRole } from '@/lib/auth/roles';
+import { resetPasswordSchema } from '@/lib/validation/user-schema';
+import { updateUser } from '@/lib/db/user-operations';
+import { findUserById } from '@/lib/db/user-queries';
+import { logger } from '@/lib/logger';
 
-const prisma = new PrismaClient();
-
-export const POST = withAdminAuth(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+/**
+ * PATCH /api/admin/users/[id]/reset-password - Reset user password
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id } = await params;
+    const session = await getServerSession(authOptions);
+
+    // Require admin role
+    if (!session || !requireRole(session, ['admin'])) {
+      logger.warn('Unauthorized password reset attempt', {
+        module: 'api-admin-users',
+        context: { operation: 'reset-password', userId: session?.user?.id, targetUserId: params.id }
+      });
+      return NextResponse.json(
+        { success: false, error: 'Keine Berechtigung' },
+        { status: 403 }
+      );
+    }
+
+    // Parse and validate request body
     const body = await request.json();
-    const { newPassword } = body;
-    
-    if (!newPassword || newPassword.length < 6) {
-      return AppError.validation('Password must be at least 6 characters').toResponse();
+    const validationResult = resetPasswordSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      logger.warn('Password reset validation failed', {
+        module: 'api-admin-users',
+        context: { errors: validationResult.error.issues, targetUserId: params.id }
+      });
+      return NextResponse.json(
+        { success: false, error: 'Neues Passwort erforderlich (mindestens 8 Zeichen)' },
+        { status: 400 }
+      );
     }
-    
-    const existingUser = await prisma.user.findUnique({ where: { id } });
+
+    const { newPassword } = validationResult.data;
+
+    // Check if user exists
+    const existingUser = await findUserById(params.id);
     if (!existingUser) {
-      return AppError.notFound('User not found').toResponse();
+      return NextResponse.json(
+        { success: false, error: 'Benutzer nicht gefunden' },
+        { status: 404 }
+      );
     }
-    
-    const passwordHash = await hashPassword(newPassword);
-    
-    await prisma.user.update({
-      where: { id },
-      data: { passwordHash }
+
+    // Update password
+    await updateUser(params.id, { password: newPassword });
+
+    logger.info('Password reset successfully', {
+      module: 'api-admin-users',
+      context: {
+        userId: params.id,
+        username: existingUser.username,
+        resetBy: session.user.id
+      }
     });
-    
-    return new NextResponse(null, { status: 204 });
-  } catch {
-    return AppError.database('Failed to reset password').toResponse();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Passwort erfolgreich zurückgesetzt',
+    });
+  } catch (error) {
+    logger.error('Password reset failed', {
+      module: 'api-admin-users',
+      context: { error, targetUserId: params.id },
+      tags: ['critical']
+    });
+    return NextResponse.json(
+      { success: false, error: 'Serverfehler beim Zurücksetzen des Passworts' },
+      { status: 500 }
+    );
   }
-});
+}

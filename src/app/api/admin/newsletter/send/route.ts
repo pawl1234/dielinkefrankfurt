@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { processRecipientList } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
@@ -191,7 +190,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
  * POST handler for sending newsletters
  * Requires admin authentication
  */
-export const POST = withAdminAuth(handleSendNewsletter);
+export const POST = handleSendNewsletter;
 
 /**
  * GET handler is not supported for this endpoint

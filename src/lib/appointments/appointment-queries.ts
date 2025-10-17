@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { Appointment, Prisma } from '@prisma/client';
-import { serverErrorResponse } from '@/lib/auth';
+import { AppError, ErrorType } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import {
   findAppointmentById,
@@ -125,7 +125,7 @@ export async function getAppointments(request: NextRequest) {
       module: 'appointments/appointment-queries',
       context: { error }
     });
-    return serverErrorResponse('Failed to fetch appointments');
+    return new AppError('Fehler beim Abrufen der Termine', ErrorType.UNKNOWN, 500).toResponse();
   }
 }
 
@@ -209,7 +209,7 @@ export async function getPublicAppointments(request: NextRequest) {
       module: 'appointments/appointment-queries',
       context: { error }
     });
-    return serverErrorResponse('Failed to fetch appointments');
+    return new AppError('Fehler beim Abrufen der Termine', ErrorType.UNKNOWN, 500).toResponse();
   }
 }
 
@@ -265,7 +265,7 @@ export async function getNewsletterAppointments(request: NextRequest) {
       module: 'appointments/appointment-queries',
       context: { error }
     });
-    return serverErrorResponse('Failed to fetch appointments');
+    return new AppError('Fehler beim Abrufen der Termine', ErrorType.UNKNOWN, 500).toResponse();
   }
 }
 

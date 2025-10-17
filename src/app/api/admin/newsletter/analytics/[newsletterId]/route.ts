@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -143,4 +142,4 @@ async function handleGetNewsletterAnalytics(
   }
 }
 
-export const GET = withAdminAuth(handleGetNewsletterAnalytics);
+export const GET = handleGetNewsletterAnalytics;

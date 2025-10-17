@@ -1,29 +1,6 @@
 import prisma from './prisma';
 import type { User } from '@prisma/client';
-
-/**
- * Find a user by username
- *
- * @param username - The username to search for
- * @returns Promise resolving to User or null if not found
- */
-export async function findUserByUsername(username: string): Promise<User | null> {
-  return prisma.user.findUnique({
-    where: { username },
-  });
-}
-
-/**
- * Find a user by ID
- *
- * @param id - The user ID to search for
- * @returns Promise resolving to User or null if not found
- */
-export async function findUserById(id: string): Promise<User | null> {
-  return prisma.user.findUnique({
-    where: { id },
-  });
-}
+import { hashPassword } from '@/lib/auth/password';
 
 /**
  * Create a new user
@@ -33,17 +10,21 @@ export async function findUserById(id: string): Promise<User | null> {
  */
 export async function createUser(data: {
   username: string;
-  passwordHash: string;
+  password?: string;
+  passwordHash?: string;
   email: string;
   firstName?: string;
   lastName?: string;
   role?: string;
   isActive?: boolean;
 }): Promise<User> {
+  // Hash password if provided as plain text
+  const passwordHash = data.passwordHash || (data.password ? await hashPassword(data.password) : '');
+
   return prisma.user.create({
     data: {
       username: data.username,
-      passwordHash: data.passwordHash,
+      passwordHash,
       email: data.email,
       firstName: data.firstName || null,
       lastName: data.lastName || null,
@@ -64,6 +45,7 @@ export async function updateUser(
   id: string,
   data: Partial<{
     username: string;
+    password: string;
     passwordHash: string;
     email: string;
     firstName: string;
@@ -72,9 +54,25 @@ export async function updateUser(
     isActive: boolean;
   }>
 ): Promise<User> {
+  // Hash password if provided as plain text
+  const updateData: Partial<{
+    username: string;
+    passwordHash: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    isActive: boolean;
+  }> = { ...data };
+
+  if (data.password) {
+    updateData.passwordHash = await hashPassword(data.password);
+    delete (updateData as { password?: string }).password;
+  }
+
   return prisma.user.update({
     where: { id },
-    data,
+    data: updateData,
   });
 }
 
@@ -87,16 +85,5 @@ export async function updateUser(
 export async function deleteUser(id: string): Promise<User> {
   return prisma.user.delete({
     where: { id },
-  });
-}
-
-/**
- * List all users
- *
- * @returns Promise resolving to array of Users
- */
-export async function listUsers(): Promise<User[]> {
-  return prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
   });
 }

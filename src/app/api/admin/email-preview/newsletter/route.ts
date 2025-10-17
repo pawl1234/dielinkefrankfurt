@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { generateNewsletterHtml } from '@/lib/newsletter';
 import { getNewsletterSettings } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
@@ -11,7 +10,7 @@ import prisma from '@/lib/db/prisma';
  * Generates a preview of the newsletter email using sample data.
  * Requires admin authentication.
  */
-export const GET = withAdminAuth(async () => {
+export async function GET() {
   try {
 
     // For preview, we'll use sample data or recent data from the database
@@ -94,4 +93,4 @@ export const GET = withAdminAuth(async () => {
       { status: 500 }
     );
   }
-});
+}

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext, AIRefinementRequest, AIGenerationResponse } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
+import { AIRefinementRequest, AIGenerationResponse } from '@/types/api-types';
 import { logger } from '@/lib/logger';
 import { aiService } from '@/lib/ai';
 
@@ -8,9 +7,9 @@ import { aiService } from '@/lib/ai';
  * POST /api/admin/newsletter/ai/refine
  * 
  * Admin endpoint for refining generated newsletter intro text using AI.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const data: AIRefinementRequest = await request.json();
     
@@ -121,4 +120,4 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
       { status: statusCode }
     );
   }
-});
+}

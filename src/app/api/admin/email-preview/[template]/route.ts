@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { renderNotificationEmail } from '@/lib/email';
 import { getBaseUrl } from '@/lib/base-url';
 // import prisma from '@/lib/db/prisma'; // Not currently used in preview
@@ -16,7 +15,7 @@ interface Props {
  * Generates a preview of notification email templates using sample data.
  * Requires admin authentication.
  */
-export const GET = withAdminAuth(async (request: NextRequest, { params }: Props) => {
+export async function GET(request: NextRequest, { params }: Props) {
   try {
 
     const { template } = await params;
@@ -246,4 +245,4 @@ export const GET = withAdminAuth(async (request: NextRequest, { params }: Props)
       { status: 500 }
     );
   }
-});
+}

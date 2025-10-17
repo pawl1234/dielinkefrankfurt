@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -141,7 +140,7 @@ async function startRetryProcess(newsletterId: string, chunkResults: unknown[], 
  * Admin endpoint for processing a chunk of emails in a newsletter send operation.
  * Uses the consolidated processSendingChunk method for actual sending.
  * Tracks progress and handles retry initialization.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Request body:
  * - newsletterId: string - Newsletter to send
@@ -152,7 +151,7 @@ async function startRetryProcess(newsletterId: string, chunkResults: unknown[], 
  * - totalChunks: number - Total number of chunks
  * - settings?: object - Optional email settings overrides
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const body: ChunkRequest = await request.json();
     const { newsletterId, html, subject, emails, chunkIndex, totalChunks, settings } = body;
@@ -371,7 +370,7 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
     
     return NextResponse.json(response, { status: 500 });
   }
-});
+}
 
 /**
  * GET handler is not supported for this endpoint

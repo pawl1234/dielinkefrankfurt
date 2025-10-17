@@ -305,3 +305,97 @@ export interface GroupContactResponse {
   success: boolean;
   error?: string;
 }
+
+/**
+ * User management API types
+ */
+import { UserRole } from './user';
+
+/**
+ * Create user request
+ */
+export interface CreateUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  firstName?: string;
+  lastName?: string;
+  isActive?: boolean;
+}
+
+/**
+ * Create user response
+ */
+export interface CreateUserResponse {
+  success: boolean;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    role: UserRole;
+    isActive: boolean;
+  };
+  error?: string;
+}
+
+/**
+ * Update user request
+ */
+export interface UpdateUserRequest {
+  username?: string;
+  email?: string;
+  password?: string;
+  role?: UserRole;
+  firstName?: string;
+  lastName?: string;
+  isActive?: boolean;
+}
+
+/**
+ * Update user response
+ */
+export interface UpdateUserResponse {
+  success: boolean;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    role: UserRole;
+    isActive: boolean;
+  };
+  error?: string;
+}
+
+/**
+ * Delete user request
+ */
+export interface DeleteUserRequest {
+  id: string;
+}
+
+/**
+ * Delete user response
+ */
+export interface DeleteUserResponse {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * List users response
+ */
+export interface ListUsersResponse {
+  success: boolean;
+  users?: Array<{
+    id: string;
+    username: string;
+    email: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    role: UserRole;
+    isActive: boolean;
+    createdAt: string;
+  }>;
+  error?: string;
+}

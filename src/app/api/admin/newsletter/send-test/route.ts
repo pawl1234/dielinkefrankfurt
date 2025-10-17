@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { sendNewsletterTestEmail, fixUrlsInNewsletterHtml } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
@@ -11,7 +9,7 @@ import prisma from '@/lib/db/prisma';
  * 
  * Admin endpoint for sending a test newsletter email.
  * Sends test email to configured test recipients.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Request body:
  * - html: string (optional) - HTML content to send
@@ -23,7 +21,7 @@ import prisma from '@/lib/db/prisma';
  * - messageId: string - Email provider message ID
  * - recipientCount: number - Number of recipients
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const { html, newsletterId } = await request.json();
     
@@ -130,4 +128,4 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
     });
     return apiErrorResponse(error, 'Failed to send test email');
   }
-});
+}
