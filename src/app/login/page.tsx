@@ -12,7 +12,6 @@ import {
   Alert
 } from '@mui/material';
 import MuiSetup from '@/components/ui/MuiSetup';
-import { canAccessAdmin, canAccessPortal } from '@/lib/auth/roles';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -35,18 +34,8 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Ungültige Anmeldedaten. Bitte versuchen Sie es erneut.');
         setLoading(false);
-      } else if (result?.ok) {
-        const sessionRes = await fetch('/api/auth/session');
-        const session = await sessionRes.json();
-        const userRole = session?.user?.role;
-
-        if (userRole && canAccessAdmin(userRole)) {
-          window.location.href = '/admin';
-        } else if (userRole && canAccessPortal(userRole)) {
-          window.location.href = '/portal';
-        } else {
-          window.location.href = '/';
-        }
+      } else if (result?.ok && result?.url) {
+        window.location.href = result.url;
       }
     } catch {
       setError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
