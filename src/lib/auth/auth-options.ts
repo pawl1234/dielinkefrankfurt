@@ -32,7 +32,11 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    // Copy your existing callbacks here
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      if (url.startsWith(baseUrl)) return url;
+      return baseUrl;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

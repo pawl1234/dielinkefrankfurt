@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { signIn, useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import {
   Box,
   Paper,
@@ -13,33 +12,13 @@ import {
   Alert
 } from '@mui/material';
 import MuiSetup from '@/components/ui/MuiSetup';
+import { canAccessAdmin, canAccessPortal } from '@/lib/auth/roles';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
-
-  const callbackUrl = searchParams.get('callbackUrl') || null;
-  const errorParam = searchParams.get('error');
-
-  useEffect(() => {
-    // Show error message if session was invalidated
-    if (errorParam === 'SessionInvalidated') {
-      setError('Ihre Sitzung wurde ungültig. Bitte melden Sie sich erneut an.');
-    }
-  }, [errorParam]);
-
-  useEffect(() => {
-    // Redirect if already authenticated
-    if (status === 'authenticated' && session?.user) {
-      const redirectUrl = callbackUrl || (session.user.role === 'admin' ? '/admin' : '/portal');
-      router.push(redirectUrl);
-    }
-  }, [status, session, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +29,6 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         username,
         password,
-        callbackUrl: callbackUrl || undefined,
         redirect: false,
       });
 
@@ -58,8 +36,17 @@ export default function LoginPage() {
         setError('Ungültige Anmeldedaten. Bitte versuchen Sie es erneut.');
         setLoading(false);
       } else if (result?.ok) {
-        // Let useEffect handle the redirect based on session
-        // The session will be updated after signIn succeeds
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        const userRole = session?.user?.role;
+
+        if (userRole && canAccessAdmin(userRole)) {
+          window.location.href = '/admin';
+        } else if (userRole && canAccessPortal(userRole)) {
+          window.location.href = '/portal';
+        } else {
+          window.location.href = '/';
+        }
       }
     } catch {
       setError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
