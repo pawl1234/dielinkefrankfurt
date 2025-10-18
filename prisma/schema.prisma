@@ -205,25 +205,22 @@ model StatusReport {
   @@map("status_report") // Lowercase table name for PostgreSQL convention
 }
 
-// Add to prisma/schema.prisma
 model User {
-  id                   String      @id @default(cuid())
-  username             String      @unique
-  email                String      @unique
-  passwordHash         String
-  firstName            String?
-  lastName             String?
-  isActive             Boolean     @default(true)
-  role                 String      @default("admin")  // For future role expansion
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
-  passwordResetToken   String?
-  passwordResetExpires DateTime?
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  isActive     Boolean  @default(true)
+  role         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([email])
   @@index([username])
   @@index([isActive])
-  @@map("users") // PostgreSQL convention
+  @@map("users")
 }
 
 // HashedRecipient model for newsletter subscribers

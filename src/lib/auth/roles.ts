@@ -17,16 +17,6 @@ export function requireRole(
 }
 
 /**
- * Check if user has admin role
- *
- * @param userRole - User's role
- * @returns true if user is admin
- */
-export function isAdmin(userRole: UserRole): boolean {
-  return userRole === 'admin';
-}
-
-/**
  * Check if user can access member portal
  *
  * @param userRole - User's role
@@ -43,5 +33,5 @@ export function canAccessPortal(userRole: UserRole): boolean {
  * @returns true if user can access admin
  */
 export function canAccessAdmin(userRole: UserRole): boolean {
-  return isAdmin(userRole);
+  return userRole === 'admin';
 }

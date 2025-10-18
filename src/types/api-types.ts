@@ -399,3 +399,20 @@ export interface ListUsersResponse {
   }>;
   error?: string;
 }
+
+/**
+ * Change password request
+ */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Change password response
+ */
+export interface ChangePasswordResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}

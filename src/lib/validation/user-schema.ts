@@ -40,15 +40,16 @@ export const updateUserSchema = z.object({
 );
 
 /**
- * Delete user validation schema
- */
-export const deleteUserSchema = z.object({
-  id: z.string().cuid()
-});
-
-/**
  * Reset password validation schema
  */
 export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8).max(100)
+});
+
+/**
+ * Change password validation schema (for authenticated users changing their own password)
+ */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Aktuelles Passwort erforderlich'),
+  newPassword: z.string().min(8, 'Neues Passwort muss mindestens 8 Zeichen lang sein').max(100)
 });
