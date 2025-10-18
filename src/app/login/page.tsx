@@ -1,104 +1,94 @@
 'use client';
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect, Suspense } from 'react';
+import { getCsrfToken } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import {
   Box,
   Paper,
   Typography,
   TextField,
   Button,
-  Container,
-  Alert
+  Container
 } from '@mui/material';
 import MuiSetup from '@/components/ui/MuiSetup';
 
-export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+function LoginForm() {
+  const [csrfToken, setCsrfToken] = useState('');
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/admin';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const result = await signIn('credentials', {
-        username,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError('Ungültige Anmeldedaten. Bitte versuchen Sie es erneut.');
-        setLoading(false);
-      } else if (result?.ok && result?.url) {
-        window.location.href = result.url;
-      }
-    } catch {
-      setError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    getCsrfToken().then(token => setCsrfToken(token || ''));
+  }, []);
 
   return (
-    <MuiSetup>
-      <Container maxWidth="sm" sx={{ mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Box component="form" onSubmit={handleSubmit} sx={{
+    <Container maxWidth="sm" sx={{ mt: 8 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Box
+          component="form"
+          method="post"
+          action="/api/auth/callback/credentials"
+          sx={{
             display: 'flex',
             flexDirection: 'column',
             gap: 3
-          }}>
-            <Typography variant="h5" component="h1" align="center" gutterBottom>
-              Anmelden
-            </Typography>
+          }}
+        >
+          <input name="csrfToken" type="hidden" value={csrfToken} />
+          <input name="callbackUrl" type="hidden" value={callbackUrl} />
 
-            <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
-              Bitte melden Sie sich mit Ihren Zugangsdaten an.
-            </Typography>
+          <Typography variant="h5" component="h1" align="center" gutterBottom>
+            Anmelden
+          </Typography>
 
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
+          <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
+            Bitte melden Sie sich mit Ihren Zugangsdaten an.
+          </Typography>
 
-            <TextField
-              label="Benutzername"
-              variant="outlined"
-              fullWidth
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoFocus
-            />
+          <TextField
+            name="username"
+            label="Benutzername"
+            variant="outlined"
+            fullWidth
+            required
+            autoFocus
+          />
 
-            <TextField
-              label="Passwort"
-              type="password"
-              variant="outlined"
-              fullWidth
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+          <TextField
+            name="password"
+            label="Passwort"
+            type="password"
+            variant="outlined"
+            fullWidth
+            required
+          />
 
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              size="large"
-              fullWidth
-              disabled={loading}
-            >
-              {loading ? 'Wird angemeldet...' : 'Anmelden'}
-            </Button>
-          </Box>
-        </Paper>
-      </Container>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            size="large"
+            fullWidth
+          >
+            Anmelden
+          </Button>
+        </Box>
+      </Paper>
+    </Container>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <MuiSetup>
+      <Suspense fallback={
+        <Container maxWidth="sm" sx={{ mt: 8, display: 'flex', justifyContent: 'center' }}>
+          Loading...
+        </Container>
+      }>
+        <LoginForm />
+      </Suspense>
     </MuiSetup>
   );
 }
