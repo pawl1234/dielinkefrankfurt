@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import {
   Container,
   Paper,
@@ -36,21 +34,11 @@ import { StatusReport, Group } from '@prisma/client';
 import SafeHtml from '@/components/ui/SafeHtml';
 
 export default function StatusReportDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { status: sessionStatus } = useSession();
-  const router = useRouter();
-
   // State for status report data
   const [statusReport, setStatusReport] = useState<StatusReport & { group: Group } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [fileUrls, setFileUrls] = useState<string[]>([]);
-
-  // Check authentication status
-  useEffect(() => {
-    if (sessionStatus === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [sessionStatus, router]);
 
   // Extract params
   const [paramsId, setParamsId] = useState<string | null>(null);
@@ -95,10 +83,10 @@ export default function StatusReportDetail({ params }: { params: Promise<{ id: s
 
   // Fetch status report when page loads
   useEffect(() => {
-    if (sessionStatus === 'authenticated' && paramsId) {
+    if (paramsId) {
       fetchStatusReport();
     }
-  }, [paramsId, sessionStatus, fetchStatusReport]);
+  }, [paramsId, fetchStatusReport]);
 
   // Format date for display
   const formatDate = (dateString: Date) => {
@@ -119,19 +107,6 @@ export default function StatusReportDetail({ params }: { params: Promise<{ id: s
     const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension);
     return { filename, extension, isImage };
   };
-
-  // If not authenticated, show loading state
-  if (sessionStatus !== 'authenticated') {
-    return (
-      <MainLayout>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </MainLayout>
-    );
-  }
 
   return (
     <MainLayout title={statusReport?.title || 'Status Report Details'} breadcrumbs={[

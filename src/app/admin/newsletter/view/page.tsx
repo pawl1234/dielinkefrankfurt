@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
@@ -33,7 +32,6 @@ import SafeHtml from '@/components/ui/SafeHtml';
 function NewsletterViewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status } = useSession();
   
   const newsletterId = searchParams?.get('id');
   
@@ -51,12 +49,6 @@ function NewsletterViewContent() {
     settings?: Record<string, unknown>;
   } | null>(null);
   const [showFailedDialog, setShowFailedDialog] = useState(false);
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
 
   const fetchNewsletter = useCallback(async () => {
     if (!newsletterId) {
@@ -81,10 +73,10 @@ function NewsletterViewContent() {
   }, [newsletterId]);
 
   useEffect(() => {
-    if (status === 'authenticated' && newsletterId) {
+    if (newsletterId) {
       fetchNewsletter();
     }
-  }, [status, newsletterId, fetchNewsletter]);
+  }, [newsletterId, fetchNewsletter]);
 
   const handleBack = () => {
     router.push('/admin');
@@ -118,16 +110,12 @@ function NewsletterViewContent() {
   const failedRecipients = getFailedRecipients();
   const hasFailedRecipients = failedRecipients.length > 0;
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Box>
     );
-  }
-
-  if (status === 'unauthenticated') {
-    return null;
   }
 
   if (error) {

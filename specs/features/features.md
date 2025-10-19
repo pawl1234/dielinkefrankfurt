@@ -1,7 +1,7 @@
 # Feature Backlog
 
-**Last Updated**: 2025-10-18
-**Total Features**: 2
+**Last Updated**: 2025-10-19
+**Total Features**: 3
 
 > This is a lightweight backlog for collecting feature ideas. Each entry provides a high-level overview for team discussion, not implementation details.
 
@@ -13,6 +13,7 @@
 |---|----------|-------|------|----------|------|--------|
 | F-001 | Medium | Appointment Registration System | L | Frontend, Backend, Data | New Feature | 💡 Idea |
 | F-002 | Medium | Data Access Layer (DAL) with Authentication | XL | Security, Architectural | Refactor | 💡 Idea |
+| F-003 | Medium | Reduce Package Sizes by 50% | L | Performance | Improvement | 💡 Idea |
 
 ### Status Legend
 - 💡 **Idea**: Captured, not yet planned
@@ -77,6 +78,37 @@ Implement a comprehensive Data Access Layer (DAL) pattern following Next.js best
 - `src/app/api/` - All API route handlers
 - `src/lib/auth/` - May need additional helper functions
 - Authentication flow and session handling patterns
+
+---
+
+### F-003: Reduce Package Sizes by 50%
+**Size**: L | **Category**: Performance | **Type**: Improvement | **Priority**: Medium
+
+**Description**:
+Optimize the application's bundle sizes to improve page load times and overall performance. Currently, some JavaScript packages exceed 500kB, which significantly impacts user experience, especially on slower network connections. The goal is to reduce these large packages by at least 50% through bundle analysis, code splitting, dynamic imports, tree-shaking optimization, and potentially replacing heavy dependencies with lighter alternatives.
+
+**Benefits**:
+- Faster initial page loads and improved Time to Interactive (TTI)
+- Better performance on mobile devices and slower connections
+- Reduced bandwidth costs for users
+- Improved Core Web Vitals scores and SEO rankings
+- Better overall user experience
+
+**Context/Notes**:
+- Need to perform bundle analysis to identify the largest dependencies
+- Consider implementing route-based code splitting for admin vs. public pages
+- Evaluate heavy dependencies (Material UI, TipTap, date libraries) for optimization opportunities
+- Implement dynamic imports for components that aren't needed on initial page load
+- Optimize image loading and implement lazy loading where applicable
+- Review and configure webpack/Next.js build settings for optimal tree-shaking
+- May require refactoring some components to enable better code splitting
+- Must ensure no functionality breaks during optimization - thorough testing required
+
+**Affected Areas**:
+- Next.js configuration and build settings
+- Component structure and import patterns across all pages
+- Third-party dependencies and their usage
+- Image and asset loading strategies
 
 ---
 

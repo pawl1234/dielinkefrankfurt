@@ -107,7 +107,7 @@ const mainNavigation: MenuItem[] = [
     type: 'link',
     key: 'admin-dashboard',
     label: 'Administration',
-    href: '/admin/login?callbackUrl=https%3A%2F%2Fportal.die-linke-frankfurt.de%2Fadmin',
+    href: '/admin',
     icon: <AdminPanelSettingsIcon />
   }
 ];

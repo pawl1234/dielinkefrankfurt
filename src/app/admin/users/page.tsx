@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
-import { useSession } from 'next-auth/react';
 import { Controller } from 'react-hook-form';
 import {
   Box, Container, CircularProgress, Paper, Button,
@@ -30,7 +29,6 @@ type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export default function UsersPage() {
-  const { status } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -126,10 +124,8 @@ export default function UsersPage() {
   });
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetchUsers();
-    }
-  }, [status]);
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -194,7 +190,7 @@ export default function UsersPage() {
     setOpenEditDialog(true);
   };
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   }
 

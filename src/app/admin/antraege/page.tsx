@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useState, Suspense } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
@@ -44,10 +43,8 @@ interface Antrag {
 }
 
 function AdminAntraegePageContent() {
-  const { status } = useSession();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Use our custom hook for admin state management
   const adminState = useAdminState<Antrag>();
   
@@ -57,14 +54,6 @@ function AdminAntraegePageContent() {
   
   // State for configuration dialog
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
-  
-  
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
 
   // Update URL with current filters
   const updateUrlParams = useCallback((search: string, status: string) => {
@@ -127,11 +116,8 @@ function AdminAntraegePageContent() {
   }, [adminState.page, adminState.pageSize, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
   
   useEffect(() => {
-    // Fetch anträge when authenticated
-    if (status === 'authenticated') {
-      fetchAntraege(searchFilter, statusFilter);
-    }
-  }, [status, adminState.page, adminState.pageSize, adminState.timestamp, fetchAntraege, searchFilter, statusFilter]);
+    fetchAntraege(searchFilter, statusFilter);
+  }, [adminState.page, adminState.pageSize, adminState.timestamp, fetchAntraege, searchFilter, statusFilter]);
 
 
   // Method for archiving
@@ -201,17 +187,9 @@ function AdminAntraegePageContent() {
     if (hasFilters) {
       return 'Keine Anträge gefunden, die Ihren Filterkriterien entsprechen.';
     }
-    
+
     return 'Keine Anträge vorhanden.';
   };
-
-  if (status === 'loading' || status === 'unauthenticated') {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <MainLayout
