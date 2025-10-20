@@ -3,6 +3,7 @@ import { sendNewsletterTestEmail, fixUrlsInNewsletterHtml } from '@/lib/newslett
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
+import { sendTestEmailSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * POST /api/admin/newsletter/send-test
@@ -23,8 +24,28 @@ import prisma from '@/lib/db/prisma';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { html, newsletterId } = await request.json();
-    
+    const body = await request.json();
+
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(sendTestEmailSchema, body);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for send test email', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/send-test',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors },
+        { status: 400 }
+      );
+    }
+
+    const { html, newsletterId } = validation.data!;
+
     let newsletterHtml = html;
     let testRecipients: string | undefined;
     

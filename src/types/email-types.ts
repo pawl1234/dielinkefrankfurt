@@ -78,3 +78,68 @@ export interface GroupContactEmailProps extends NotificationEmailProps {
   requesterEmail: string;
   message: string;
 }
+
+/**
+ * SMTP Transporter configuration settings
+ * Used by all email sending operations
+ */
+export interface EmailTransportSettings {
+  connectionTimeout?: number;
+  greetingTimeout?: number;
+  socketTimeout?: number;
+  maxConnections?: number;
+  maxMessages?: number;
+  maxRetries?: number;
+  emailTimeout?: number;
+  maxBackoffDelay?: number;
+}
+
+/**
+ * Email attachment structure
+ */
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
+/**
+ * Standard mail options for SMTP transport
+ */
+export interface MailOptions {
+  from: string;
+  to: string;
+  bcc?: string;
+  subject: string;
+  html: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+  attachments?: EmailAttachment[];
+}
+
+/**
+ * Email send result metadata
+ */
+export interface EmailInfo {
+  messageId: string;
+}
+
+/**
+ * SMTP Transporter interface
+ * Matches nodemailer transporter API surface
+ */
+export interface SMTPTransporter {
+  sendMail: (mailOptions: MailOptions) => Promise<EmailInfo>;
+  verify: () => Promise<boolean | void>;
+  close: () => void;
+}
+
+/**
+ * Email send operation result
+ */
+export interface EmailSendResult {
+  success: boolean;
+  messageId?: string;
+  error?: Error | unknown;
+  isConnectionError?: boolean;
+}

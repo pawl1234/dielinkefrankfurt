@@ -1,9 +1,11 @@
 import { Appointment, Group, StatusReport } from '@prisma/client';
+import type { EmailTransportSettings } from './email-types';
 
 /**
  * Newsletter settings configuration for display and sending
  */
-export interface NewsletterSettings {
+export interface NewsletterSettings extends EmailTransportSettings {
+  [key: string]: unknown;
   headerLogo: string;
   headerBanner: string;
   footerText: string;
@@ -25,18 +27,8 @@ export interface NewsletterSettings {
   // Newsletter sending performance settings
   chunkSize?: number;
   chunkDelay?: number;
-  emailTimeout?: number;
-
-  // SMTP connection settings
-  connectionTimeout?: number;
-  greetingTimeout?: number;
-  socketTimeout?: number;
-  maxConnections?: number;
-  maxMessages?: number;
 
   // Retry logic settings
-  maxRetries?: number;
-  maxBackoffDelay?: number;
   retryChunkSizes?: string;
 
   // Header Composition Settings
@@ -98,4 +90,38 @@ export interface NewsletterAnalyticsParams {
   analyticsToken?: string;
   /** Newsletter ID for analytics association */
   newsletterId?: string;
+}
+
+/**
+ * Input data for creating a new newsletter item
+ * Required: subject, introductionText
+ * Optional: content, status (defaults to 'draft'), sentAt, recipientCount, settings
+ */
+export interface CreateNewsletterItemData {
+  subject: string;
+  introductionText: string;
+  content?: string | null;
+  status?: string;
+  sentAt?: Date | null;
+  recipientCount?: number | null;
+  settings?: string | null;
+}
+
+/**
+ * Type guard to extract email transport settings from newsletter settings
+ * Safe type narrowing without casts
+ */
+export function extractEmailSettings(
+  settings: NewsletterSettings
+): EmailTransportSettings {
+  return {
+    connectionTimeout: settings.connectionTimeout,
+    greetingTimeout: settings.greetingTimeout,
+    socketTimeout: settings.socketTimeout,
+    maxConnections: settings.maxConnections,
+    maxMessages: settings.maxMessages,
+    maxRetries: settings.maxRetries,
+    emailTimeout: settings.emailTimeout,
+    maxBackoffDelay: settings.maxBackoffDelay,
+  };
 }

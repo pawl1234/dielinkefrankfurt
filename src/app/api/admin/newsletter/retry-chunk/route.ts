@@ -6,6 +6,7 @@ import prisma from '@/lib/db/prisma';
 import { processSendingChunk } from '@/lib/newsletter';
 import { getNewsletterSettings } from '@/lib/newsletter';
 import { sendEmail } from '@/lib/email';
+import { retryChunkSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * Interface for retry processing request
@@ -289,7 +290,26 @@ async function sendPermanentFailureNotification(
 export async function POST(request: NextRequest) {
   try {
     const body: RetryRequest = await request.json();
-    const { newsletterId, html, subject, settings, chunkEmails, chunkIndex } = body;
+
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(retryChunkSchema, body);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for retry chunk', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/retry-chunk',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors },
+        { status: 400 }
+      );
+    }
+
+    const { newsletterId, html, subject, settings, chunkEmails, chunkIndex } = validation.data!;
 
     logger.debug('Processing retry chunk', {
       module: 'api',
@@ -305,21 +325,6 @@ export async function POST(request: NextRequest) {
         chunkIndex
       }
     });
-
-    // Validate required fields
-    if (!newsletterId || !html || !subject) {
-      logger.warn('Retry chunk validation failed - missing required fields', {
-        module: 'api',
-        context: {
-          endpoint: '/api/admin/newsletter/retry-chunk',
-          method: 'POST',
-          hasNewsletterId: !!newsletterId,
-          hasHtml: !!html,
-          hasSubject: !!subject
-        }
-      });
-      return AppError.validation('Missing required fields').toResponse();
-    }
 
     // Get newsletter
     const newsletter = await prisma.newsletterItem.findUnique({

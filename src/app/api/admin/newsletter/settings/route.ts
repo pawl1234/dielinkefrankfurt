@@ -4,10 +4,11 @@ import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import {
   getNewsletterSettings,
-  updateNewsletterSettings,
-  clearNewsletterSettingsCache
+  updateNewsletterSettings
 } from '@/lib/newsletter';
 import { HeaderCompositionService } from '@/lib/email';
+import { updateNewsletterSettingsSchema, zodToValidationResult } from '@/lib/validation';
+import { NewsletterSettings } from '@/types/newsletter-types';
 
 /**
  * GET /api/admin/newsletter/settings
@@ -63,67 +64,69 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json();
-    
+
     logger.debug('Updating newsletter settings', {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/settings',
         method: 'PUT',
         fieldsToUpdate: Object.keys(data)
       }
     });
 
-    // Validate that we have data to update
-    if (!data || Object.keys(data).length === 0) {
-      logger.warn('Empty update request for newsletter settings', {
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(updateNewsletterSettingsSchema, data);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for newsletter settings update', {
         module: 'api',
-        context: { 
+        context: {
           endpoint: '/api/admin/newsletter/settings',
-          method: 'PUT'
+          method: 'PUT',
+          errors: validation.errors
         }
       });
-      
+
       return NextResponse.json(
-        { error: 'No data provided for update' },
+        { error: 'Validierungsfehler', errors: validation.errors },
         { status: 400 }
       );
     }
 
+    // Use validated data
+    const validatedData = validation.data!;
+
     // Generate composite header image if both banner and logo are provided
-    if (data.headerBanner && data.headerLogo) {
+    if (validatedData.headerBanner && validatedData.headerLogo) {
       logger.debug('Attempting to generate composite header image', {
         module: 'api',
         context: {
           endpoint: '/api/admin/newsletter/settings',
-          bannerUrl: data.headerBanner,
-          logoUrl: data.headerLogo,
-          hasCompositionSettings: !!(data.compositeWidth || data.compositeHeight)
+          bannerUrl: validatedData.headerBanner,
+          logoUrl: validatedData.headerLogo,
+          hasCompositionSettings: !!(validatedData.compositeWidth || validatedData.compositeHeight)
         }
       });
 
       const compositionService = new HeaderCompositionService();
-      
+
       const compositeOptions: CompositeGenerationRequest = {
-        bannerUrl: data.headerBanner,
-        logoUrl: data.headerLogo,
-        compositeWidth: data.compositeWidth || 600,
-        compositeHeight: data.compositeHeight || 200,
-        logoTopOffset: data.logoTopOffset || 20,
-        logoLeftOffset: data.logoLeftOffset || 20,
-        logoHeight: data.logoHeight || 60,
+        bannerUrl: validatedData.headerBanner!,
+        logoUrl: validatedData.headerLogo!,
+        compositeWidth: validatedData.compositeWidth || 600,
+        compositeHeight: validatedData.compositeHeight || 200,
+        logoTopOffset: validatedData.logoTopOffset || 20,
+        logoLeftOffset: validatedData.logoLeftOffset || 20,
+        logoHeight: validatedData.logoHeight || 60,
       };
       
       try {
         const compositeUrl = await compositionService.generateCompositeHeader(compositeOptions);
         const cacheKey = await compositionService.getPublicCacheKey(compositeOptions);
-        
+
         // Add the generated composite data to the settings
-        data.compositeImageUrl = compositeUrl;
-        data.compositeImageHash = cacheKey;
-        
-        // Immediately clear cache to ensure fresh settings are loaded
-        clearNewsletterSettingsCache();
-        
+        validatedData.compositeImageUrl = compositeUrl;
+        validatedData.compositeImageHash = cacheKey;
+
         logger.info('Successfully generated composite header image', {
           module: 'api',
           context: {
@@ -145,11 +148,11 @@ export async function PUT(request: NextRequest) {
             fallbackApplied: true
           }
         });
-        
+
         // Clear any existing composite data since generation failed
-        data.compositeImageUrl = null;
-        data.compositeImageHash = null;
-        
+        validatedData.compositeImageUrl = null;
+        validatedData.compositeImageHash = null;
+
         logger.warn('Composite generation failed, using CSS overlay fallback', {
           module: 'api',
           context: {
@@ -158,33 +161,30 @@ export async function PUT(request: NextRequest) {
           }
         });
       }
-    } else if (data.headerBanner || data.headerLogo) {
+    } else if (validatedData.headerBanner || validatedData.headerLogo) {
       // If only one image is provided, clear composite data
       logger.debug('Clearing composite data due to incomplete image set', {
         module: 'api',
         context: {
           endpoint: '/api/admin/newsletter/settings',
-          hasBanner: !!data.headerBanner,
-          hasLogo: !!data.headerLogo
+          hasBanner: !!validatedData.headerBanner,
+          hasLogo: !!validatedData.headerLogo
         }
       });
-      
-      data.compositeImageUrl = null;
-      data.compositeImageHash = null;
+
+      validatedData.compositeImageUrl = null;
+      validatedData.compositeImageHash = null;
     }
 
-    const updatedSettings = await updateNewsletterSettings(data);
-    
-    // Clear cache to ensure fresh settings are loaded next time
-    clearNewsletterSettingsCache();
-    
+    const updatedSettings = await updateNewsletterSettings(validatedData as Partial<NewsletterSettings>);
+
     logger.info('Newsletter settings updated successfully', {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/settings',
         method: 'PUT',
         settingsId: updatedSettings.id,
-        updatedFields: Object.keys(data),
+        updatedFields: Object.keys(validatedData),
         hasCompositeImage: !!updatedSettings.compositeImageUrl
       }
     });

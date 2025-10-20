@@ -6,60 +6,30 @@
 // Settings management
 export * from './settings-service';
 
-// Preview and content generation
-export * from './preview-service';
+// Consolidated sending service (replaces: sending-coordinator, email-processor-service,
+// email-sender-service, transporter-manager, chunk-aggregator-service, send-session-service)
+export * from './newsletter-sending-service';
 
-// Draft management - draft-specific operations
-export {
-  saveDraftNewsletter,
-  updateDraftNewsletter,
-  listDraftNewsletters,
-  deleteDraftNewsletter
-} from './draft-service';
-export type { PaginatedResult } from './draft-service';
+// Consolidated content service (replaces: preview-service, template-generator)
+export * from './newsletter-content-service';
 
-// General newsletter CRUD operations
+// Newsletter archiving
 export {
-  getNewsletter,
-  getNewsletterById,
-  listNewsletters,
-  createNewsletter,
-  updateNewsletter,
-  deleteNewsletter
-} from './newsletter-crud-service';
-
-// Newsletter archiving - avoid re-exporting deleteNewsletter
-export {
-  archiveNewsletter,
-  getSentNewsletter,
-  listSentNewsletters,
-  updateNewsletterStatus,
-  getNewsletterStats
+  getSentNewsletter
 } from './archive-service';
 export type {
-  ArchiveNewsletterParams,
-  ListNewslettersParams,
   SentNewsletterWithMeta
 } from './archive-service';
-
-// Email sending coordination
-export * from './sending-coordinator';
 
 // Analytics and tracking
 export * from './analytics-service';
 export * from './tracking-service';
-
-// Template generation
-export * from './template-generator';
 
 // Test email sending
 export * from './test-email-service';
 
 // Admin notifications
 export * from './admin-notification-service';
-
-// Validation utilities
-export * from './validation';
 
 // Helper utilities
 export * from './helpers';

@@ -1,15 +1,30 @@
+/**
+ * Newsletter Content Service
+ *
+ * Consolidated service handling all newsletter content generation:
+ * - Fetching appointments and status reports with configurable limits
+ * - Newsletter HTML generation using React Email
+ * - Analytics integration for tracking
+ * - URL fixing and validation
+ *
+ * This replaces: preview-service, template-generator
+ */
+
 import prisma from '@/lib/db/prisma';
 import { Appointment, Group, StatusReport } from '@prisma/client';
 import { subWeeks } from 'date-fns';
 import { getBaseUrl } from '@/lib/base-url';
 import { logger } from '@/lib/logger';
-import { NEWSLETTER_LIMITS, NEWSLETTER_DATE_RANGES } from './constants';
-import { NewsletterSettings } from '@/types/newsletter-types';
-import { generateNewsletterHtml } from './template-generator';
+import { NEWSLETTER_LIMITS, NEWSLETTER_DATE_RANGES, STATUS_REPORT_LIMITS } from './constants';
+import type { NewsletterSettings, EmailTemplateParams, NewsletterAnalyticsParams } from '@/types/newsletter-types';
 import { getNewsletterSettings } from './settings-service';
 
+// ============================================================================
+// PUBLIC API - Content Fetching
+// ============================================================================
+
 /**
- * Fetches appointments for the newsletter with configurable limits
+ * Fetch appointments for the newsletter with configurable limits
  * Returns only accepted appointments with future dates
  *
  * @param settings - Optional newsletter settings to override default limits
@@ -58,7 +73,7 @@ export async function fetchNewsletterAppointments(settings?: NewsletterSettings)
     });
 
     logger.debug('Newsletter appointments fetched', {
-      module: 'newsletter-preview-service',
+      module: 'newsletter-content-service',
       context: {
         featuredCount: featuredAppointments.length,
         upcomingCount: upcomingAppointments.length,
@@ -70,7 +85,7 @@ export async function fetchNewsletterAppointments(settings?: NewsletterSettings)
     return { featuredAppointments, upcomingAppointments };
   } catch (error) {
     logger.error(error as Error, {
-      module: 'newsletter-preview-service',
+      module: 'newsletter-content-service',
       context: { operation: 'fetchNewsletterAppointments' }
     });
     throw error;
@@ -78,7 +93,7 @@ export async function fetchNewsletterAppointments(settings?: NewsletterSettings)
 }
 
 /**
- * Fetches status reports from the last 2 weeks for the newsletter with configurable limits
+ * Fetch status reports from the last 2 weeks for the newsletter with configurable limits
  * Returns status reports with their associated groups
  *
  * @param settings - Optional newsletter settings to override default limits
@@ -86,8 +101,8 @@ export async function fetchNewsletterAppointments(settings?: NewsletterSettings)
  */
 export async function fetchNewsletterStatusReports(settings?: NewsletterSettings): Promise<{
   statusReportsByGroup: {
-    group: Group,
-    reports: StatusReport[]
+    group: Group;
+    reports: StatusReport[];
   }[];
 }> {
   try {
@@ -143,7 +158,7 @@ export async function fetchNewsletterStatusReports(settings?: NewsletterSettings
       }));
 
     logger.debug('Newsletter status reports fetched', {
-      module: 'newsletter-preview-service',
+      module: 'newsletter-content-service',
       context: {
         groupsCount: statusReportsByGroup.length,
         maxGroups,
@@ -155,15 +170,49 @@ export async function fetchNewsletterStatusReports(settings?: NewsletterSettings
     return { statusReportsByGroup };
   } catch (error) {
     logger.error(error as Error, {
-      module: 'newsletter-preview-service',
+      module: 'newsletter-content-service',
       context: { operation: 'fetchNewsletterStatusReports' }
     });
     throw error;
   }
 }
 
+// ============================================================================
+// PUBLIC API - Newsletter Generation
+// ============================================================================
+
 /**
- * Generates newsletter HTML based on settings, appointments, and status reports
+ * Generate complete newsletter HTML using React Email
+ * Optionally integrates analytics tracking when analytics parameters are provided
+ *
+ * @param params - Email template parameters (settings, content, appointments, etc.)
+ * @param analyticsParams - Optional analytics parameters for tracking
+ * @returns Promise resolving to newsletter HTML
+ */
+export async function generateNewsletterHtml(
+  params: EmailTemplateParams,
+  analyticsParams?: NewsletterAnalyticsParams
+): Promise<string> {
+  try {
+    // Use the React Email render utility with proper type conversion
+    const { renderNewsletter } = await import('@/lib/email');
+    let html = await renderNewsletter(params);
+
+    // Apply analytics tracking if analytics token is provided
+    if (analyticsParams?.analyticsToken) {
+      const { addTrackingToNewsletter } = await import('./tracking-service');
+      html = addTrackingToNewsletter(html, analyticsParams.analyticsToken, params.baseUrl);
+    }
+
+    return html;
+  } catch (error) {
+    throw new Error(`Newsletter generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Generate newsletter HTML based on settings, appointments, and status reports
+ * Main orchestration function that fetches data and generates complete newsletter
  *
  * @param introductionText - Introduction text for the newsletter
  * @returns Promise resolving to newsletter HTML
@@ -182,7 +231,7 @@ export async function generateNewsletter(introductionText: string): Promise<stri
     const baseUrl = getBaseUrl();
 
     logger.info('Generating newsletter', {
-      module: 'newsletter-preview-service',
+      module: 'newsletter-content-service',
       context: {
         featuredCount: featuredAppointments.length,
         upcomingCount: upcomingAppointments.length,
@@ -202,7 +251,7 @@ export async function generateNewsletter(introductionText: string): Promise<stri
     });
   } catch (error) {
     logger.error(error as Error, {
-      module: 'newsletter-preview-service',
+      module: 'newsletter-content-service',
       context: { operation: 'generateNewsletter' }
     });
     throw error;
@@ -231,7 +280,7 @@ export function fixUrlsInNewsletterHtml(html: string): string {
   const matchCount = (html.match(urlPattern) || []).length;
   if (matchCount > 0) {
     logger.info('Fixed URLs in newsletter HTML', {
-      module: 'newsletter-preview-service',
+      module: 'newsletter-content-service',
       context: {
         fixedCount: matchCount,
         baseUrl
@@ -240,4 +289,59 @@ export function fixUrlsInNewsletterHtml(html: string): string {
   }
 
   return fixedHtml;
+}
+
+// ============================================================================
+// DEFAULT SETTINGS
+// ============================================================================
+
+/**
+ * Get default newsletter settings
+ * Provides fallback values for all newsletter configuration options
+ *
+ * @returns Default newsletter settings object
+ */
+export function getDefaultNewsletterSettings(): NewsletterSettings {
+  return {
+    headerLogo: '/images/logo.png',
+    headerBanner: '/images/header-bg.jpg',
+    footerText: 'Die Linke Frankfurt am Main',
+    unsubscribeLink: '#',
+    testEmailRecipients: 'buero@linke-frankfurt.de',
+
+    // Default email sending configuration
+    batchSize: 100,
+    batchDelay: 1000,
+    fromEmail: 'newsletter@linke-frankfurt.de',
+    fromName: 'Die Linke Frankfurt',
+    replyToEmail: 'buero@linke-frankfurt.de',
+    subjectTemplate: 'Die Linke Frankfurt - Newsletter {date}',
+
+    // Newsletter sending performance settings (BCC-only mode)
+    chunkSize: 50,           // Number of BCC recipients per email
+    chunkDelay: 200,         // Milliseconds between chunks (reduced for faster processing)
+    emailTimeout: 30000,     // Email sending timeout in milliseconds (reduced for faster failures)
+
+    // SMTP connection settings (optimized for single-connection usage)
+    connectionTimeout: 20000, // SMTP connection timeout in milliseconds (faster connection)
+    greetingTimeout: 20000,   // SMTP greeting timeout in milliseconds (faster greeting)
+    socketTimeout: 30000,     // SMTP socket timeout in milliseconds (faster socket timeout)
+    maxConnections: 1,        // Single connection per transporter (no pooling)
+    maxMessages: 1,          // Single message per connection (clean lifecycle)
+
+    // Retry logic settings (current optimized values)
+    maxRetries: 3,            // Maximum verification retries
+    maxBackoffDelay: 10000,   // Maximum backoff delay in milliseconds
+    retryChunkSizes: '10,5,1', // Comma-separated retry chunk sizes
+
+    // Newsletter content limits
+    maxFeaturedAppointments: NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS.DEFAULT,
+    maxUpcomingAppointments: NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS.DEFAULT,
+    maxStatusReportsPerGroup: NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP.DEFAULT,
+    maxGroupsWithReports: NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS.DEFAULT,
+
+    // Status report limits
+    statusReportTitleLimit: STATUS_REPORT_LIMITS.TITLE.DEFAULT,
+    statusReportContentLimit: STATUS_REPORT_LIMITS.CONTENT.DEFAULT
+  };
 }

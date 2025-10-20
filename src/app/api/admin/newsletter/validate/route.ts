@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processRecipientList } from '@/lib/newsletter';
-import { AppError, apiErrorResponse } from '@/lib/errors';
+import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
+import { validateRecipientsSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * POST /api/admin/newsletter/validate
@@ -24,13 +25,26 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body = await request.json();
-    const { emailText } = body;
 
-    // Validate required fields
-    if (!emailText) {
-      logger.warn('Newsletter recipient validation attempted without email text');
-      return AppError.validation('Email recipient list is required').toResponse();
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(validateRecipientsSchema, body);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for recipient validation', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/validate',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors },
+        { status: 400 }
+      );
     }
+
+    const { emailText } = validation.data!;
 
     // Process recipient list
     logger.info('Processing newsletter recipient validation', {

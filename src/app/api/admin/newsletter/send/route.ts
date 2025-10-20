@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processRecipientList } from '@/lib/newsletter';
+import { processRecipientList, parseAndCleanEmailList } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
-import { getNewsletterSettings } from '@/lib/newsletter';
-import { cleanEmail } from '@/lib/email';
-import { createNewsletterAnalytics } from '@/lib/newsletter';
-import { addTrackingToNewsletter } from '@/lib/newsletter';
+import { getNewsletterSettings, createNewsletterAnalytics, addTrackingToNewsletter } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
+import { sendNewsletterSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * Process and send a newsletter to recipients
@@ -16,20 +14,25 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
   try {
     // Parse request body
     const body = await request.json();
-    const { newsletterId, html, subject, emailText, settings } = body;
 
-    // Validate required fields
-    if (!newsletterId) {
-      return AppError.validation('Newsletter ID is required').toResponse();
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(sendNewsletterSchema, body);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for newsletter sending', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/send',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors },
+        { status: 400 }
+      );
     }
 
-    if (!html) {
-      return AppError.validation('Newsletter HTML content is required').toResponse();
-    }
-
-    if (!emailText) {
-      return AppError.validation('Email recipient list is required').toResponse();
-    }
+    const { newsletterId, html, subject, emailText, settings } = validation.data!;
 
     // Check if newsletter exists and is in draft status
     const newsletter = await prisma.newsletterItem.findUnique({
@@ -67,28 +70,7 @@ async function handleSendNewsletter(request: NextRequest): Promise<NextResponse>
     });
 
     // Parse the original email list to get the plain emails, with Excel-safe cleaning
-    const plainEmails = emailText
-      .split('\n')
-      .map((email: string) => {
-        const originalEmail = email;
-        const cleanedEmail = cleanEmail(email);
-        
-        // Log if cleaning changed the email (indicates invisible characters from Excel)
-        if (originalEmail !== cleanedEmail && cleanedEmail.length > 0) {
-          logger.info(`Cleaned email during parsing`, {
-            context: {
-              original: JSON.stringify(originalEmail),
-              cleaned: cleanedEmail,
-              originalLength: originalEmail.length,
-              cleanedLength: cleanedEmail.length
-            }
-          });
-        }
-        
-        return cleanedEmail;
-      })
-      .filter((email: string) => email.length > 0)
-      .filter((email: string) => !validationResult.invalidEmails.includes(email));
+    const plainEmails = parseAndCleanEmailList(emailText, validationResult.invalidEmails);
 
     // Prepare recipient IDs from validation results
     const recipientIds = validationResult.hashedEmails.map(recipient => recipient.id);

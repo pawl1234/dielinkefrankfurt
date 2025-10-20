@@ -1,44 +1,20 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../logger';
+import type {
+  SMTPTransporter,
+  EmailTransportSettings,
+  EmailAttachment,
+  EmailInfo,
+  EmailSendResult
+} from '@/types/email-types';
 
-// TypeScript interfaces for better type safety
-interface EmailSettings {
-  connectionTimeout?: number;
-  greetingTimeout?: number;
-  socketTimeout?: number;
-  maxConnections?: number;
-  maxMessages?: number;
-  maxRetries?: number;
-  emailTimeout?: number;
-  maxBackoffDelay?: number;
-}
-
-export interface EmailAttachment {
-  filename: string;
-  content: Buffer;
-  contentType?: string;
-}
-
-interface MailOptions {
-  from: string;
-  to: string;
-  bcc?: string;
-  subject: string;
-  html: string;
-  replyTo?: string;
-  headers?: Record<string, string>;
-  attachments?: EmailAttachment[];
-}
-
-interface TransporterType {
-  sendMail: (mailOptions: MailOptions) => Promise<EmailInfo>;
-  verify: () => Promise<void>;
-  close: () => void;
-}
-
-interface EmailInfo {
-  messageId: string;
-}
+// Re-export for convenience
+export type {
+  SMTPTransporter,
+  EmailTransportSettings,
+  EmailAttachment,
+  EmailSendResult
+};
 
 interface EmailError extends Error {
   code?: string;
@@ -48,7 +24,9 @@ interface EmailError extends Error {
 }
 
 // Create a reusable transporter object using SMTP transport
-export const createTransporter = (settings?: EmailSettings): TransporterType => {
+export function createTransporter(
+  settings?: EmailTransportSettings
+): SMTPTransporter {
   const config = {
     host: process.env.EMAIL_SERVER_HOST,
     port: Number(process.env.EMAIL_SERVER_PORT) || 1025, // Default to MailDev
@@ -88,34 +66,38 @@ export const createTransporter = (settings?: EmailSettings): TransporterType => 
   });
 
   const transporter = nodemailer.createTransport(config);
-  return transporter as unknown as TransporterType;
-};
+  return transporter as SMTPTransporter;
+}
 
 // Create a fresh transporter for each batch (better for serverless)
-const getTransporter = (settings?: EmailSettings): TransporterType => {
+const getTransporter = (settings?: EmailTransportSettings): SMTPTransporter => {
   return createTransporter(settings);
 };
 
 // Send email with HTML content using provided transporter
-export const sendEmailWithTransporter = async (transporter: TransporterType, {
-  to,
-  subject,
-  html,
-  from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
-  replyTo,
-  bcc,
-  attachments,
-  settings,
-}: {
-  to: string;
-  subject: string;
-  html: string;
-  from?: string;
-  replyTo?: string;
-  bcc?: string;
-  attachments?: EmailAttachment[];
-  settings?: EmailSettings;
-}) => {
+export async function sendEmailWithTransporter(
+  transporter: SMTPTransporter,
+  options: {
+    to: string;
+    subject: string;
+    html: string;
+    from?: string;
+    replyTo?: string;
+    bcc?: string;
+    attachments?: EmailAttachment[];
+    settings?: EmailTransportSettings;
+  }
+): Promise<EmailSendResult> {
+  const {
+    to,
+    subject,
+    html,
+    from = process.env.EMAIL_FROM || 'newsletter@die-linke-frankfurt.de',
+    replyTo,
+    bcc,
+    attachments,
+    settings,
+  } = options;
   const startTime = Date.now();
   const maxRetries = settings?.maxRetries || 3;
 
@@ -232,7 +214,7 @@ export const sendEmail = async ({
   from?: string;
   replyTo?: string;
   attachments?: EmailAttachment[];
-  settings?: EmailSettings;
+  settings?: EmailTransportSettings;
 }) => {
   const startTime = Date.now();
 
