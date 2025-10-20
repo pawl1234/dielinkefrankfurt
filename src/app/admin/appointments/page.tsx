@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useCallback, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
@@ -64,7 +63,6 @@ interface Appointment {
 }
 
 export default function AdminAppointmentsPage() {
-  const { status } = useSession();
   const router = useRouter();
 
   // Use our custom hook for admin state management
@@ -83,13 +81,6 @@ export default function AdminAppointmentsPage() {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
-  
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
 
   const fetchAppointments = useCallback(async (view: ViewType) => {
     try {
@@ -151,11 +142,8 @@ export default function AdminAppointmentsPage() {
       pageSize: adminState.pageSize,
       timestamp: adminState.timestamp
     });
-    // Fetch appointments when authenticated
-    if (status === 'authenticated') {
-      fetchAppointments(views[adminState.tabValue]);
-    }
-  }, [status, adminState.tabValue, adminState.page, adminState.pageSize, adminState.timestamp, fetchAppointments, views]);
+    fetchAppointments(views[adminState.tabValue]);
+  }, [adminState.tabValue, adminState.page, adminState.pageSize, adminState.timestamp, fetchAppointments, views]);
 
   const handleAppointmentUpdate = async (id: number, data: { processed?: boolean, status?: 'pending' | 'accepted' | 'rejected' }) => {
     try {
@@ -293,14 +281,6 @@ export default function AdminAppointmentsPage() {
         return 'Keine Termine gefunden.';
     }
   };
-
-  if (status === 'loading' || status === 'unauthenticated') {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <MainLayout

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
@@ -47,7 +46,6 @@ function convertTextToHTML(text: string): string {
 function NewsletterEditContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status } = useSession();
   
   const newsletterId = searchParams?.get('id');
   const isNewsletter = !newsletterId; // If no ID, it's a new newsletter
@@ -61,12 +59,6 @@ function NewsletterEditContent() {
   const [introductionText, setIntroductionText] = useState('');
   const [showAIModal, setShowAIModal] = useState(false);
   const [isIntroHTML, setIsIntroHTML] = useState(false);
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -104,18 +96,15 @@ function NewsletterEditContent() {
     }
   }, [newsletterId]);
 
-  // Load newsletter settings first
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetchSettings();
-    }
-  }, [status, fetchSettings]);
-  
+    fetchSettings();
+  }, [fetchSettings]);
+
   useEffect(() => {
-    if (status === 'authenticated' && newsletterId) {
+    if (newsletterId) {
       fetchNewsletter();
     }
-  }, [status, newsletterId, fetchNewsletter]);
+  }, [newsletterId, fetchNewsletter]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -164,16 +153,12 @@ function NewsletterEditContent() {
     setShowAIModal(false);
   };
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Box>
     );
-  }
-
-  if (status === 'unauthenticated') {
-    return null;
   }
 
   return (

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -40,7 +39,6 @@ import RichTextEditor from '@/components/editor/RichTextEditor';
 import FileUpload from '@/components/forms/shared/FileUpload';
 
 export default function EditStatusReport({ params }: { params: { id: string } }) {
-  const { status: sessionStatus } = useSession();
   const router = useRouter();
   const id = params.id;
 
@@ -62,13 +60,6 @@ export default function EditStatusReport({ params }: { params: { id: string } })
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
-
-  // Check authentication status
-  useEffect(() => {
-    if (sessionStatus === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [sessionStatus, router]);
 
   // Function to fetch status report details
   const fetchStatusReport = useCallback(async () => {
@@ -130,11 +121,11 @@ export default function EditStatusReport({ params }: { params: { id: string } })
 
   // Fetch status report data and groups when component mounts
   useEffect(() => {
-    if (sessionStatus === 'authenticated' && params.id) {
+    if (params.id) {
       fetchStatusReport();
       fetchGroups();
     }
-  }, [params.id, sessionStatus, fetchStatusReport, fetchGroups]);
+  }, [params.id, fetchStatusReport, fetchGroups]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -255,19 +246,6 @@ export default function EditStatusReport({ params }: { params: { id: string } })
       setDeleteDialogOpen(false);
     }
   };
-
-  // If not authenticated, show loading state
-  if (sessionStatus !== 'authenticated') {
-    return (
-      <MainLayout>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </MainLayout>
-    );
-  }
 
   return (
     <MainLayout title="Edit Status Report" breadcrumbs={[

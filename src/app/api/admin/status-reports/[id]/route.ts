@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { getStatusReportById, updateStatusReport, deleteStatusReport, StatusReportUpdateData } from '@/lib/groups';
 import { uploadFiles, deleteFiles } from '@/lib/blob-storage';
 import { FileUploadError } from '@/lib/errors';
@@ -18,9 +17,9 @@ export interface StatusReportResponse {
  * GET /api/admin/status-reports/[id]
  * 
  * Admin endpoint for retrieving a specific status report by ID.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const params = await context.params;
     const { id } = params;
@@ -49,16 +48,16 @@ export const GET = withAdminAuth(async (request: NextRequest, context: { params:
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * PUT /api/admin/status-reports/[id]
  * 
  * Admin endpoint for updating a status report.
  * Handles file uploads for status report attachments.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PUT = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const params = await context.params;
     const { id } = params;
@@ -202,16 +201,16 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
       { status: 500 }
     );
   }
-});
+}
 
 /**
  * DELETE /api/admin/status-reports/[id]
  * 
  * Admin endpoint for deleting a status report.
  * Also deletes any associated files from blob storage.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const DELETE = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const params = await context.params;
     const { id } = params;
@@ -244,4 +243,4 @@ export const DELETE = withAdminAuth(async (request: NextRequest, context: { para
       { status: 500 }
     );
   }
-});
+}

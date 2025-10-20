@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext, AIGenerationWithTopicsRequest, AIGenerationResponse } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
+import { AIGenerationWithTopicsRequest, AIGenerationResponse } from '@/types/api-types';
 import { logger } from '@/lib/logger';
 import { aiService } from '@/lib/ai';
 import prisma from '@/lib/db/prisma';
 
 /**
  * POST /api/admin/newsletter/ai/generate
- * 
+ *
  * Admin endpoint for generating newsletter intro text using AI.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const data: AIGenerationWithTopicsRequest = await request.json();
     
@@ -128,4 +127,4 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
       { status: statusCode }
     );
   }
-});
+}

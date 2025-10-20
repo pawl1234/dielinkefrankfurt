@@ -25,6 +25,7 @@ export default [
       '**/coverage/**',
       '**/*.config.js',
       '**/*.config.mjs',
+      'next-env.d.ts',
     ],
   },
 

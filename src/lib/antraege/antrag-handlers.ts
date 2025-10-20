@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import type { Antrag, Prisma } from '@prisma/client';
-import { serverErrorResponse } from '@/lib/auth';
 import { deleteFiles } from '@/lib/blob-storage';
 import {
   validationErrorResponse,
-  handleDatabaseError
+  handleDatabaseError,
+  AppError,
+  ErrorType
 } from '@/lib/errors';
 import type { AntragPurposes } from '@/lib/validation/antrag';
 import { logger } from '@/lib/logger';
@@ -155,7 +156,7 @@ export async function getAntraege(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     logger.error('Error fetching anträge', { context: { error }, module: 'antraege' });
-    return serverErrorResponse('Failed to fetch anträge');
+    return new AppError('Serverfehler beim Abrufen der Anträge', ErrorType.UNKNOWN, 500).toResponse();
   }
 }
 

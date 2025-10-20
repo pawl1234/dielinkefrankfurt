@@ -2,8 +2,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
@@ -46,8 +44,6 @@ interface AdminGroup extends Group {
 }
 
 export default function AdminGroupsPage() {
-  const { status: authStatus } = useSession();
-  const router = useRouter();
   const adminState = useAdminState<AdminGroup>();
 
   const [expandedAccordionId, setExpandedAccordionId] = useState<string | null>(null);
@@ -82,8 +78,6 @@ export default function AdminGroupsPage() {
     { value: GroupStatus.ACTIVE, label: 'Aktiv', color: 'success' },
     { value: GroupStatus.ARCHIVED, label: 'Archiviert', color: 'default' },
   ] as const;
-
-  useEffect(() => { if (authStatus === 'unauthenticated') router.push('/admin/login'); }, [authStatus, router]);
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -121,9 +115,9 @@ export default function AdminGroupsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
 
-  useEffect(() => { 
-    if (authStatus === 'authenticated') fetchGroups(); 
-  }, [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, fetchGroups, currentView]);
+  useEffect(() => {
+    fetchGroups();
+  }, [adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, fetchGroups, currentView]);
 
   const handleOpenCreateGroupDialog = () => {
     setNewGroupSimpleData({ name: '', slug: '', description: '', status: GroupStatus.NEW });
@@ -267,8 +261,6 @@ export default function AdminGroupsPage() {
     const pluralizedStatus = statusLabel.endsWith('e') ? statusLabel + 'n' : statusLabel + (statusLabel.endsWith('s') ? '' : 'e');
     return `Keine ${pluralizedStatus} Gruppen gefunden.`;
   };
-
-  if (authStatus === 'loading' || authStatus === 'unauthenticated') return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
 
   return (
     <MainLayout breadcrumbs={[ { label: 'Start', href: '/' }, { label: 'Administration', href: '/admin'}, { label: 'Gruppen', href: '/admin/groups', active: true } ]}>

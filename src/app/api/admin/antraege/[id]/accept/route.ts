@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
 import { sendAntragAcceptanceEmail } from '@/lib/email';
 import { logger } from '@/lib/logger';
@@ -113,4 +112,4 @@ async function acceptAntrag(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-export const POST = withAdminAuth(acceptAntrag);
+export const POST = acceptAntrag;

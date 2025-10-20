@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { apiErrorResponse, handleDatabaseError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -13,12 +11,12 @@ import { getBaseUrl } from '@/lib/base-url';
  * 
  * Admin endpoint for generating newsletter HTML preview.
  * Returns generated HTML without creating a newsletter record.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Query parameters:
  * - introductionText: string (optional) - Introduction HTML content
  */
-export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   try {
     // Get query parameters
     const url = new URL(request.url);
@@ -64,7 +62,7 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
 
     return apiErrorResponse(error, 'Failed to generate newsletter preview');
   }
-});
+}
 
 /**
  * POST /api/admin/newsletter/generate
@@ -72,13 +70,13 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
  * Admin endpoint for generating a new newsletter with appointments and status reports.
  * Creates a draft newsletter with generated HTML content.
  * Returns the created newsletter object including its ID.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Request body:
  * - subject: string (required) - Newsletter subject line
  * - introductionText: string (optional) - Introduction HTML content
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { subject, introductionText = '' } = body;
@@ -232,4 +230,4 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
 
     return apiErrorResponse(error, 'Failed to generate newsletter');
   }
-});
+}

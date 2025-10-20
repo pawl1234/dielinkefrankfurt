@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -205,7 +204,7 @@ async function handleGetNewsletterStatus(
  * GET handler for newsletter status
  * Requires admin authentication
  */
-export const GET = withAdminAuth(handleGetNewsletterStatus);
+export const GET = handleGetNewsletterStatus;
 
 /**
  * POST handler is not supported for this endpoint

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { updateGroupStatus, getGroupById } from '@/lib/groups';
 import { Group, GroupStatus, ResponsiblePerson } from '@prisma/client';
 
@@ -17,11 +16,11 @@ export interface GroupStatusUpdateResponse {
 
 /**
  * PUT /api/admin/groups/[id]/status
- * 
+ *
  * Admin endpoint for updating a group's status.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PUT = withAdminAuth(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const params = await context.params;
     const { id } = params;
@@ -74,4 +73,4 @@ export const PUT = withAdminAuth(async (request: NextRequest, context: { params:
     
     return NextResponse.json(response, { status: 500 });
   }
-});
+}

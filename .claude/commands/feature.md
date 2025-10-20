@@ -121,3 +121,6 @@ I need some clarification on your feature idea:
 [Specific question about scope/purpose]
 [Question about affected area]
 [Question about constraints/requirements]
+
+## Last Step
+Make sure you edited the `specs/features/features.md` double check your changes. 

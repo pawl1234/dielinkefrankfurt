@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext, CompositeGenerationRequest } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
+import { CompositeGenerationRequest } from '@/types/api-types';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import { 
-  getNewsletterSettings, 
+import {
+  getNewsletterSettings,
   updateNewsletterSettings,
   clearNewsletterSettingsCache
 } from '@/lib/newsletter';
@@ -12,26 +11,26 @@ import { HeaderCompositionService } from '@/lib/email';
 
 /**
  * GET /api/admin/newsletter/settings
- * 
+ *
  * Admin endpoint for retrieving newsletter settings.
  * Returns settings object from database or defaults.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async () => {
+export async function GET() {
   try {
     logger.debug('Fetching newsletter settings', {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/settings',
         method: 'GET'
       }
     });
 
     const settings = await getNewsletterSettings();
-    
+
     logger.info('Newsletter settings retrieved successfully', {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/settings',
         method: 'GET',
         hasSettings: !!settings,
@@ -43,25 +42,25 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async () => {
   } catch (error) {
     logger.error(error as Error, {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/settings',
         method: 'GET',
         operation: 'getNewsletterSettings'
       }
     });
-    
+
     return apiErrorResponse(error, 'Failed to fetch newsletter settings');
   }
-});
+}
 
 /**
  * PUT /api/admin/newsletter/settings
  * 
  * Admin endpoint for updating newsletter settings.
  * Expects JSON object with newsletter settings.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PUT: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function PUT(request: NextRequest) {
   try {
     const data = await request.json();
     
@@ -203,16 +202,16 @@ export const PUT: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
     
     return apiErrorResponse(error, 'Failed to update newsletter settings');
   }
-});
+}
 
 /**
  * POST /api/admin/newsletter/settings
  * 
  * Deprecated: Use PUT instead.
  * Maintained for backwards compatibility with frontend.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   logger.warn('Deprecated POST endpoint used for newsletter settings', {
     module: 'api',
     context: { 
@@ -224,4 +223,4 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
   
   // Delegate to PUT handler for backwards compatibility
   return PUT(request);
-});
+}

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -19,7 +17,7 @@ interface PaginatedResponse<T> {
  * 
  * Admin endpoint for retrieving appointments formatted for newsletter.
  * Returns accepted appointments with future dates, paginated.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Query parameters:
  * - page: number (optional, default: 1) - Page number
@@ -32,7 +30,7 @@ interface PaginatedResponse<T> {
  * - pageSize: number - Items per page
  * - totalPages: number - Total number of pages
  */
-export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     
@@ -61,20 +59,20 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
     };
     
     logger.info('Fetching newsletter appointments', {
-      context: { 
+      context: {
         operation: 'get_newsletter_appointments',
         page,
         pageSize
       }
     });
-    
+
     // Get total count for pagination
     const totalItems = await prisma.appointment.count({
       where: filter
     });
-    
+
     const totalPages = Math.ceil(totalItems / pageSize);
-    
+
     // Get all future accepted appointments
     const appointments = await prisma.appointment.findMany({
       where: filter,
@@ -90,7 +88,7 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
         featured: true
       }
     });
-    
+
     logger.info('Newsletter appointments fetched successfully', {
       context: {
         operation: 'get_newsletter_appointments',
@@ -125,13 +123,13 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
     });
     return apiErrorResponse(error, 'Failed to fetch appointments');
   }
-});
+}
 
 /**
  * PATCH /api/admin/newsletter/appointments
  * 
  * Admin endpoint for toggling featured status of appointments.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Request body:
  * - id: number - Appointment ID
@@ -140,7 +138,7 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
  * Response:
  * - Updated appointment object
  */
-export const PATCH: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function PATCH(request: NextRequest) {
   try {
     const data = await request.json();
     const { id, featured } = data;
@@ -164,12 +162,12 @@ export const PATCH: ApiHandler<SimpleRouteContext> = withAdminAuth(async (reques
         featured
       }
     });
-    
+
     const updatedAppointment = await prisma.appointment.update({
       where: { id: Number(id) },
       data: { featured }
     });
-    
+
     logger.info('Appointment featured status updated successfully', {
       context: {
         operation: 'update_featured_status',
@@ -186,12 +184,12 @@ export const PATCH: ApiHandler<SimpleRouteContext> = withAdminAuth(async (reques
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     });
-    
+
     // Handle database errors specifically
     if (error instanceof Error && error.message.includes('Record to update not found')) {
       return AppError.notFound('Appointment not found').toResponse();
     }
-    
+
     return apiErrorResponse(error, 'Failed to update featured status');
   }
-});
+}

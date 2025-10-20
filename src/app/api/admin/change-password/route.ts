@@ -1,56 +1,116 @@
 // src/app/api/admin/change-password/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { withAdminAuth } from '@/lib/auth';
-import { hashPassword, comparePassword } from '@/lib/auth';
-import { AppError } from '@/lib/errors';
-import { getToken } from 'next-auth/jwt';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
+import { changePasswordSchema } from '@/lib/validation/user-schema';
+import { updateUser } from '@/lib/db/user-operations';
+import { findUserByUsername } from '@/lib/db/user-queries';
+import { comparePassword } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import type { ChangePasswordRequest, ChangePasswordResponse } from '@/types/api-types';
 
-const prisma = new PrismaClient();
-
-export const POST = withAdminAuth(async (request: NextRequest) => {
+/**
+ * POST /api/admin/change-password - Change authenticated user's password
+ */
+export async function POST(request: Request) {
   try {
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    const body = await request.json();
-    const { currentPassword, newPassword } = body;
-    
-    if (!token) {
-      return AppError.authentication('Invalid or missing authentication token').toResponse();
+    const session = await getServerSession(authOptions);
+
+    // Require authentication
+    if (!session?.user) {
+      logger.warn('Unauthorized password change attempt - no session', {
+        module: 'api-admin-change-password',
+        context: { operation: 'change-password' }
+      });
+      return NextResponse.json(
+        { success: false, error: 'Keine Berechtigung. Authentifizierung erforderlich.' },
+        { status: 401 }
+      );
     }
-    
-    if (!currentPassword || !newPassword || newPassword.length < 6) {
-      return AppError.validation('Invalid password data').toResponse();
-    }
-        
+
     // Environment users can't change password
-    if (token.isEnvironmentUser) {
-      return AppError.authorization('Cannot change user of root admin').toResponse();
+    if (session.user.isEnvironmentUser) {
+      logger.warn('Environment user attempted password change', {
+        module: 'api-admin-change-password',
+        context: { username: session.user.username }
+      });
+      return NextResponse.json(
+        { success: false, error: 'Das Passwort des System-Administrators kann nicht geändert werden.' },
+        { status: 403 }
+      );
     }
-    
+
+    // Parse and validate request body
+    const body: ChangePasswordRequest = await request.json();
+    const validationResult = changePasswordSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      logger.warn('Password change validation failed', {
+        module: 'api-admin-change-password',
+        context: {
+          userId: session.user.id,
+          errors: validationResult.error.issues
+        }
+      });
+      return NextResponse.json(
+        { success: false, error: `Validierungsfehler: ${validationResult.error.issues[0].message}` },
+        { status: 400 }
+      );
+    }
+
+    const { currentPassword, newPassword } = validationResult.data;
+
     // Find user
-    const user = await prisma.user.findUnique({ 
-      where: { username: token.username }
-    });
+    const user = await findUserByUsername(session.user.username);
 
     if (!user) {
-      return AppError.notFound('User not found').toResponse();
+      logger.error('User not found during password change', {
+        module: 'api-admin-change-password',
+        context: { username: session.user.username, userId: session.user.id },
+        tags: ['critical']
+      });
+      return NextResponse.json(
+        { success: false, error: 'Benutzer nicht gefunden.' },
+        { status: 404 }
+      );
     }
 
     // Verify current password
     const isPasswordValid = await comparePassword(currentPassword, user.passwordHash);
     if (!isPasswordValid) {
-      return AppError.validation('Current password is incorrect').toResponse();
+      logger.warn('Password change failed - incorrect current password', {
+        module: 'api-admin-change-password',
+        context: { userId: user.id, username: user.username }
+      });
+      return NextResponse.json(
+        { success: false, error: 'Aktuelles Passwort ist nicht korrekt.' },
+        { status: 400 }
+      );
     }
-    
-    // Update password
-    const newPasswordHash = await hashPassword(newPassword);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash: newPasswordHash }
+
+    // Update password using user-operations
+    await updateUser(user.id, { password: newPassword });
+
+    logger.info('Password changed successfully', {
+      module: 'api-admin-change-password',
+      context: { userId: user.id, username: user.username }
     });
-    
-    return new NextResponse(null, { status: 204 });
-  } catch {
-    return AppError.database('Failed to change password').toResponse();    
+
+    const response: ChangePasswordResponse = {
+      success: true,
+      message: 'Passwort erfolgreich geändert'
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    logger.error('Password change failed', {
+      module: 'api-admin-change-password',
+      context: { error },
+      tags: ['critical']
+    });
+    return NextResponse.json(
+      { success: false, error: 'Serverfehler beim Ändern des Passworts' },
+      { status: 500 }
+    );
   }
-});
+}

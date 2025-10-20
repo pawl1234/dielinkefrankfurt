@@ -77,13 +77,16 @@ docker run -d \
   postgres:15
 ```
 
+
 Start Vercel Blob Server (local file storage):
+- User this project https://github.com/634750802/vercel-blob-server to build a docker container.
+- Then run: 
 ```bash
 docker run -d \
   --name vercel-blob-server \
   -p 9966:9966 \
   -e VERCEL_BLOB_RW_TOKEN=vercel_blob_rw_somefakeid_nonce \
-  vercel/blob-server:latest
+  vercel-blob-server
 ```
 
 ### 3. Configure Environment Variables
@@ -162,7 +165,7 @@ Then open http://localhost:1080 to view sent emails in the MailDev web interface
 ## Admin Access
 
 Default login credentials (configure in `.env.local`):
-- **URL**: http://localhost:3000/admin/login
+- **URL**: http://localhost:3000/admin
 - **Username**: admin (from ADMIN_USERNAME)
 - **Password**: password123 (from ADMIN_PASSWORD)
 

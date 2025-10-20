@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import {
   getAppointments,
   updateAppointment,
@@ -10,29 +9,29 @@ import {
  * GET /api/admin/appointments
  * 
  * Admin endpoint for retrieving appointments with optional filtering.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   return getAppointments(request);
-});
+}
 
 /**
  * PATCH /api/admin/appointments
  * 
  * Admin endpoint for updating appointments.
  * Handles both JSON and multipart/form-data requests.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PATCH = withAdminAuth(async (request: NextRequest) => {
+export async function PATCH(request: NextRequest) {
   return updateAppointment(request);
-});
+}
 
 /**
  * DELETE /api/admin/appointments
  * 
  * Admin endpoint for deleting appointments.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const DELETE = withAdminAuth(async (request: NextRequest) => {
+export async function DELETE(request: NextRequest) {
   return deleteAppointment(request);
-});
+}

@@ -105,14 +105,6 @@ export default function EmailPreviewPage() {
     );
   }
 
-  if (status === 'unauthenticated') {
-    return (
-      <Alert severity="error">
-        You need to be logged in as an admin to access this page.
-      </Alert>
-    );
-  }
-
   return (
     <MainLayout
       breadcrumbs={[

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
@@ -12,7 +11,6 @@ import {
   Box,
   Container,
   Typography,
-  CircularProgress,
   Button,
   Dialog,
   DialogTitle,
@@ -37,8 +35,7 @@ interface NewsletterItem {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { status } = useSession();
-  
+
   // State for dialogs and forms
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [resendDialogOpen, setResendDialogOpen] = useState(false);
@@ -50,13 +47,11 @@ export default function AdminPage() {
   // Create ref for NewsletterArchives to trigger refresh
   const archivesRef = useRef<NewsletterArchivesRef>(null);
 
-  // Handle newsletter sending completion
   const handleNewsletterSent = () => {
     console.log('Newsletter sent, refreshing archives...');
     archivesRef.current?.refresh();
   };
 
-  // Handle dialog close (also refresh to show updated status)
   const handleCloseDialog = () => {
     setSendDialogOpen(false);
     setSelectedNewsletter(null);
@@ -64,7 +59,6 @@ export default function AdminPage() {
     archivesRef.current?.refresh();
   };
 
-  // Handle resend dialog close
   const handleCloseResendDialog = () => {
     setResendDialogOpen(false);
     setSelectedNewsletter(null);
@@ -72,31 +66,8 @@ export default function AdminPage() {
     archivesRef.current?.refresh();
   };
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
-
-  if (status === 'loading') {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress /> 
-      </Box>
-    );
-  }
-
-  if (status === 'unauthenticated') {
-    return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-            <Typography>Redirecting to login...</Typography>
-        </Box>
-    ); 
-  }
-
-  if (status === 'authenticated') {
-    return (
-      <MainLayout
+  return (
+    <MainLayout
         breadcrumbs={[
           { label: 'Start', href: '/' },
           { label: 'Administration', href: '/admin', active: true },
@@ -319,7 +290,4 @@ export default function AdminPage() {
         </Dialog>
       </MainLayout>
     );
-  }
-
-  return null; 
 }

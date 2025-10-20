@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -28,7 +26,7 @@ interface GroupWithReports {
  * Admin endpoint for getting status reports for the newsletter.
  * Returns status reports from the last 2 weeks, grouped by organization.
  * Groups are sorted alphabetically.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Query parameters:
  * - weeks: number (optional, default: 2) - Number of weeks back to fetch reports
@@ -36,7 +34,7 @@ interface GroupWithReports {
  * Response:
  * - statusReportsByGroup: GroupWithReports[] - Array of groups with their recent reports
  */
-export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const weeksParam = url.searchParams.get('weeks');
@@ -122,4 +120,4 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
     });
     return apiErrorResponse(error, 'Failed to fetch status reports');
   }
-});
+}

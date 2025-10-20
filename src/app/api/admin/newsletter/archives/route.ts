@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/auth';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import prisma from '@/lib/db/prisma';
 import { Prisma } from '@prisma/client';
@@ -80,4 +79,4 @@ async function handleGetNewsletterArchives(request: NextRequest): Promise<NextRe
  * GET handler for newsletter archives
  * Requires admin authentication
  */
-export const GET = withAdminAuth(handleGetNewsletterArchives);
+export const GET = handleGetNewsletterArchives;

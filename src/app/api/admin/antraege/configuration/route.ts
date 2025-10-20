@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -55,12 +53,12 @@ function validateEmails(emailString: string): { isValid: boolean; errors: string
 
 /**
  * GET /api/admin/antraege/configuration
- * 
+ *
  * Admin endpoint for retrieving Antrag email configuration.
  * Returns configuration object from database or creates default if none exists.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async () => {
+export async function GET() {
   try {
     logger.debug('Fetching Antrag configuration', {
       module: 'api',
@@ -113,16 +111,16 @@ export const GET: ApiHandler<SimpleRouteContext> = withAdminAuth(async () => {
     
     return apiErrorResponse(error, 'Failed to fetch Antrag configuration');
   }
-});
+}
 
 /**
  * PUT /api/admin/antraege/configuration
  * 
  * Admin endpoint for updating Antrag email configuration.
  * Expects JSON object with recipientEmails field.
- * Authentication required.
+ * Authentication handled by middleware.
  */
-export const PUT: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function PUT(request: NextRequest) {
   try {
     const data = await request.json();
     
@@ -209,4 +207,4 @@ export const PUT: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request:
     
     return apiErrorResponse(error, 'Failed to update Antrag configuration');
   }
-});
+}

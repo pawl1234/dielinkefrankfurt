@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
@@ -36,7 +35,6 @@ import { AI_MODELS, DEFAULT_AI_MODEL } from '@/lib/ai/models';
 
 export default function NewsletterSettingsPage() {
   const router = useRouter();
-  const { status } = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -90,16 +88,8 @@ export default function NewsletterSettingsPage() {
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
-
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchSettings();
-    }
-  }, [status]);
+    fetchSettings();
+  }, []);
 
   const fetchSettings = async () => {
     try {
@@ -142,16 +132,12 @@ export default function NewsletterSettingsPage() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Box>
     );
-  }
-
-  if (status === 'unauthenticated') {
-    return null;
   }
 
   return (

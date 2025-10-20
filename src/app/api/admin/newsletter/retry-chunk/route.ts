@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiHandler, SimpleRouteContext } from '@/types/api-types';
-import { withAdminAuth } from '@/lib/auth';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import prisma from '@/lib/db/prisma';
@@ -277,7 +276,7 @@ async function sendPermanentFailureNotification(
  * Admin endpoint for retrying failed email sends with smaller chunk sizes.
  * Supports both full retry processing and frontend-driven chunk processing.
  * Uses the consolidated processSendingChunk method for actual sending.
- * Authentication required.
+ * Authentication handled by middleware.
  * 
  * Request body:
  * - newsletterId: string - Newsletter to retry
@@ -287,7 +286,7 @@ async function sendPermanentFailureNotification(
  * - chunkEmails?: string[] - Specific emails to process (frontend-driven mode)
  * - chunkIndex?: number - Current chunk index for progress tracking
  */
-export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const body: RetryRequest = await request.json();
     const { newsletterId, html, subject, settings, chunkEmails, chunkIndex } = body;
@@ -716,7 +715,7 @@ export const POST: ApiHandler<SimpleRouteContext> = withAdminAuth(async (request
     
     return NextResponse.json(response, { status: 500 });
   }
-});
+}
 
 /**
  * Finalize retry process when all stages are completed

@@ -2,8 +2,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
@@ -59,8 +57,6 @@ enum StatusReportStatus {
 
 
 export default function AdminStatusReportsPage() {
-  const { status: authStatus } = useSession();
-  const router = useRouter();
   const adminState = useAdminState<StatusReport>();
 
   const [expandedAccordionId, setExpandedAccordionId] = useState<string | null>(null);
@@ -85,8 +81,6 @@ export default function AdminStatusReportsPage() {
     { value: StatusReportStatus.ARCHIVED, label: 'Archiviert', color: 'default' },
     { value: StatusReportStatus.REJECTED, label: 'Abgelehnt', color: 'error' },
   ] as const;
-
-  useEffect(() => { if (authStatus === 'unauthenticated') router.push('/admin/login'); }, [authStatus, router]);
 
   const fetchStatusReports = useCallback(async () => { 
     try {
@@ -117,9 +111,9 @@ export default function AdminStatusReportsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps    
   }, [currentView, orderBy, orderDirection, adminState.page, adminState.pageSize, adminState.searchTerm, adminState.timestamp, adminState.setLoading, adminState.setItems, adminState.setPaginationData, adminState.setError]);
 
-  useEffect(() => { 
-    if (authStatus === 'authenticated') fetchStatusReports(); 
-  }, [authStatus, adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, orderBy, orderDirection, adminState.timestamp, fetchStatusReports]);
+  useEffect(() => {
+    fetchStatusReports();
+  }, [adminState.tabValue, adminState.page, adminState.pageSize, adminState.searchTerm, orderBy, orderDirection, adminState.timestamp, fetchStatusReports]);
 
   const handleOpenCreateReportDialog = () => { 
     setNewReportData({ title: '', content: '', status: StatusReportStatus.NEW, groupId: '', reporterFirstName: '', reporterLastName: '', fileUrls: null }); 
@@ -271,11 +265,8 @@ export default function AdminStatusReportsPage() {
     if (report.reporterFirstName && report.reporterLastName) return `${report.reporterFirstName} ${report.reporterLastName}`;
     if (report.reporterFirstName) return report.reporterFirstName; 
     if (report.reporterLastName) return report.reporterLastName; 
-    return 'N/A'; 
+    return 'N/A';
   };
-
-
-  if (authStatus === 'loading' || authStatus === 'unauthenticated') return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
 
   return (
     <MainLayout

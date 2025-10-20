@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import AdminNavigation from '@/components/admin/AdminNavigation';
-import { useSession } from 'next-auth/react';
+import { Controller } from 'react-hook-form';
 import {
   Box, Container, CircularProgress, Paper, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -19,193 +19,170 @@ import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import { User } from '@/types/user';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { useZodForm } from '@/hooks/useZodForm';
+import { createUserSchema, updateUserSchema, resetPasswordSchema } from '@/lib/validation/user-schema';
+import { z } from 'zod';
+
+// Type definitions for forms
+type CreateUserFormData = z.infer<typeof createUserSchema>;
+type UpdateUserFormData = z.infer<typeof updateUserSchema>;
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export default function UsersPage() {
-  const { status } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  
+
   // Dialog states
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openResetDialog, setOpenResetDialog] = useState(false);
-  
-  // Form states
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    firstName: '',
-    lastName: '',
-    role: 'admin',
-  });
-  const [resetPassword, setResetPassword] = useState('');
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchUsers();
-    }
-  }, [status]);
-  
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('/api/admin/users');
-      if (!res.ok) throw new Error('Failed to fetch users');
-      const data = await res.json();
-      setUsers(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleCreateUser = async () => {
-    if (!validateForm()) return;
-    
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to create user');
-      }
-      
-      setOpenCreateDialog(false);
-      resetForm();
-      fetchUsers();
-    } catch (err: unknown) {
-      setFormErrors({ general: err instanceof Error ? err.message : 'An error occurred' });
-    }
-  };
-  
-  const handleEditUser = async () => {
-    if (!validateForm(true) || !selectedUser) return;
-    
-    try {
-       
-      const { password: _, ...dataToSend } = formData;
-      
-      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend)
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to update user');
-      }
-      
-      setOpenEditDialog(false);
-      fetchUsers();
-    } catch (err: unknown) {
-      setFormErrors({ general: err instanceof Error ? err.message : 'An error occurred' });
-    }
-  };
-  
-  const handleDeleteUser = async () => {
-    if (!selectedUser) return;
-    
-    try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: 'DELETE'
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to delete user');
-      }
-      
-      setOpenDeleteDialog(false);
-      fetchUsers();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    }
-  };
-  
-  const handleResetPassword = async () => {
-    if (!selectedUser || !resetPassword || resetPassword.length < 6) {
-      setFormErrors({ resetPassword: 'Password must be at least 6 characters' });
-      return;
-    }
-    
-    try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword: resetPassword })
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to reset password');
-      }
-      
-      setOpenResetDialog(false);
-      setResetPassword('');
-    } catch (err: unknown) {
-      setFormErrors({ resetPassword: err instanceof Error ? err.message : 'An error occurred' });
-    }
-  };
-  
-  const handleToggleActive = async (user: User) => {
-    try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...user, isActive: !user.isActive })
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message);
-      }
-      
-      fetchUsers();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    }
-  };
-  
-  const validateForm = (isEdit = false) => {
-    const errors: Record<string, string> = {};
-    
-    if (!formData.username && !isEdit) errors.username = 'Username is required';
-    if (!formData.email) errors.email = 'Email is required';
-    if (!formData.password && !isEdit) errors.password = 'Password is required';
-    if (formData.password && formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  
-  const resetForm = () => {
-    setFormData({
+
+  // Create user form
+  const createForm = useZodForm<CreateUserFormData>({
+    schema: createUserSchema,
+    defaultValues: {
       username: '',
       email: '',
       password: '',
       firstName: '',
       lastName: '',
       role: 'admin',
-    });
-    setFormErrors({});
+      isActive: true
+    },
+    onSubmit: async (data) => {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Fehler beim Erstellen des Benutzers');
+      }
+
+      setOpenCreateDialog(false);
+      createForm.reset();
+      fetchUsers();
+    }
+  });
+
+  // Edit user form
+  const editForm = useZodForm<UpdateUserFormData>({
+    schema: updateUserSchema,
+    defaultValues: {
+      email: '',
+      firstName: '',
+      lastName: '',
+      role: 'admin'
+    },
+    onSubmit: async (data) => {
+      if (!selectedUser) return;
+
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Fehler beim Aktualisieren des Benutzers');
+      }
+
+      setOpenEditDialog(false);
+      fetchUsers();
+    }
+  });
+
+  // Reset password form
+  const resetPasswordForm = useZodForm<ResetPasswordFormData>({
+    schema: resetPasswordSchema,
+    defaultValues: {
+      newPassword: ''
+    },
+    onSubmit: async (data) => {
+      if (!selectedUser) return;
+
+      const res = await fetch(`/api/admin/users/${selectedUser.id}/reset-password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Fehler beim Zurücksetzen des Passworts');
+      }
+
+      setOpenResetDialog(false);
+      resetPasswordForm.reset();
+    }
+  });
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error('Fehler beim Laden der Benutzer');
+      const data = await res.json();
+      setUsers(data.users || data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+    } finally {
+      setLoading(false);
+    }
   };
-  
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Fehler beim Löschen des Benutzers');
+      }
+
+      setOpenDeleteDialog(false);
+      fetchUsers();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+    }
+  };
+
+  const handleToggleActive = async (user: User) => {
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !user.isActive })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message);
+      }
+
+      fetchUsers();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+    }
+  };
+
   const openEditUserDialog = (user: User) => {
     setSelectedUser(user);
-    setFormData({
-      username: user.username,
+    editForm.reset({
       email: user.email,
-      password: '',  // Don't set password on edit
       firstName: user.firstName || '',
       lastName: user.lastName || '',
       role: user.role,
@@ -213,7 +190,7 @@ export default function UsersPage() {
     setOpenEditDialog(true);
   };
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   }
 
@@ -222,7 +199,7 @@ export default function UsersPage() {
       breadcrumbs={[
         { label: 'Start', href: '/' },
         { label: 'Administration', href: '/admin' },
-        { label: 'User Management', href: '/admin/users', active: true },
+        { label: 'Benutzerverwaltung', href: '/admin/users', active: true },
       ]}
     >
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -235,26 +212,26 @@ export default function UsersPage() {
               color="primary"
               startIcon={<AddIcon />}
               onClick={() => {
-                resetForm();
+                createForm.reset();
                 setOpenCreateDialog(true);
               }}
             >
-              Create User
+              Benutzer erstellen
             </Button>
           </Box>
-          
+
           {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
         <Paper sx={{ p: 3, mb: 4 }}>
           <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Username</TableCell>
-                  <TableCell>Email</TableCell>
+                  <TableCell>Benutzername</TableCell>
+                  <TableCell>E-Mail</TableCell>
                   <TableCell>Name</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Active</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell>Rolle</TableCell>
+                  <TableCell>Aktiv</TableCell>
+                  <TableCell>Aktionen</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -263,8 +240,8 @@ export default function UsersPage() {
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      {user.firstName && user.lastName 
-                        ? `${user.firstName} ${user.lastName}` 
+                      {user.firstName && user.lastName
+                        ? `${user.firstName} ${user.lastName}`
                         : '-'
                       }
                     </TableCell>
@@ -276,23 +253,22 @@ export default function UsersPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Tooltip title="Edit">
+                      <Tooltip title="Bearbeiten">
                         <IconButton onClick={() => openEditUserDialog(user)}>
                           <EditIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Reset Password">
+                      <Tooltip title="Passwort zurücksetzen">
                         <IconButton onClick={() => {
                           setSelectedUser(user);
-                          setResetPassword('');
-                          setFormErrors({});
+                          resetPasswordForm.reset({ newPassword: '' });
                           setOpenResetDialog(true);
                         }}>
                           <LockResetIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton 
+                      <Tooltip title="Löschen">
+                        <IconButton
                           color="error"
                           onClick={() => {
                             setSelectedUser(user);
@@ -308,7 +284,7 @@ export default function UsersPage() {
                 {users.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} align="center">
-                      No users found
+                      Keine Benutzer gefunden
                     </TableCell>
                   </TableRow>
                 )}
@@ -320,164 +296,253 @@ export default function UsersPage() {
 
       {/* Create User Dialog */}
       <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create User</DialogTitle>
+        <DialogTitle>Benutzer erstellen</DialogTitle>
         <DialogContent>
-          {formErrors.general && <Alert severity="error" sx={{ mb: 2 }}>{formErrors.general}</Alert>}
-          <TextField
-            label="Username"
-            fullWidth
-            margin="dense"
-            value={formData.username}
-            onChange={(e) => setFormData({...formData, username: e.target.value})}
-            error={!!formErrors.username}
-            helperText={formErrors.username}
-            required
-          />
-          <TextField
-            label="Email"
-            type="email"
-            fullWidth
-            margin="dense"
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            error={!!formErrors.email}
-            helperText={formErrors.email}
-            required
-          />
-          <TextField
-            label="Password"
-            type="password"
-            fullWidth
-            margin="dense"
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            error={!!formErrors.password}
-            helperText={formErrors.password}
-            required
-          />
-          <TextField
-            label="First Name"
-            fullWidth
-            margin="dense"
-            value={formData.firstName}
-            onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-          />
-          <TextField
-            label="Last Name"
-            fullWidth
-            margin="dense"
-            value={formData.lastName}
-            onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Role</InputLabel>
-            <Select
-              value={formData.role}
-              label="Role"
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
-            >
-              <MenuItem value="admin">Admin</MenuItem>
-              {/* Add more roles in the future */}
-            </Select>
-          </FormControl>
+          {createForm.submissionError && <Alert severity="error" sx={{ mb: 2 }}>{createForm.submissionError}</Alert>}
+          <form onSubmit={createForm.handleSubmit(createForm.onSubmit)}>
+            <Controller
+              control={createForm.control}
+              name="username"
+              render={({ field, fieldState: { error } }) => (
+                <TextField
+                  {...field}
+                  label="Benutzername"
+                  fullWidth
+                  margin="dense"
+                  error={!!error && createForm.formState.isSubmitted}
+                  helperText={error && createForm.formState.isSubmitted ? error.message : ''}
+                  required
+                />
+              )}
+            />
+            <Controller
+              control={createForm.control}
+              name="email"
+              render={({ field, fieldState: { error } }) => (
+                <TextField
+                  {...field}
+                  label="E-Mail"
+                  type="email"
+                  fullWidth
+                  margin="dense"
+                  error={!!error && createForm.formState.isSubmitted}
+                  helperText={error && createForm.formState.isSubmitted ? error.message : ''}
+                  required
+                />
+              )}
+            />
+            <Controller
+              control={createForm.control}
+              name="password"
+              render={({ field, fieldState: { error } }) => (
+                <TextField
+                  {...field}
+                  label="Passwort"
+                  type="password"
+                  fullWidth
+                  margin="dense"
+                  error={!!error && createForm.formState.isSubmitted}
+                  helperText={
+                    error && createForm.formState.isSubmitted
+                      ? error.message
+                      : 'Mindestens 8 Zeichen erforderlich'
+                  }
+                  required
+                />
+              )}
+            />
+            <Controller
+              control={createForm.control}
+              name="firstName"
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Vorname"
+                  fullWidth
+                  margin="dense"
+                />
+              )}
+            />
+            <Controller
+              control={createForm.control}
+              name="lastName"
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Nachname"
+                  fullWidth
+                  margin="dense"
+                />
+              )}
+            />
+            <Controller
+              control={createForm.control}
+              name="role"
+              render={({ field }) => (
+                <FormControl fullWidth margin="dense">
+                  <InputLabel>Rolle</InputLabel>
+                  <Select {...field} label="Rolle">
+                    <MenuItem value="admin">Administrator</MenuItem>
+                    <MenuItem value="mitglied">Mitglied</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+            />
+          </form>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
-          <Button onClick={handleCreateUser} variant="contained" color="primary">Create</Button>
+          <Button onClick={() => setOpenCreateDialog(false)}>Abbrechen</Button>
+          <Button
+            onClick={createForm.handleSubmit(createForm.onSubmit)}
+            variant="contained"
+            color="primary"
+            disabled={createForm.isSubmitting}
+          >
+            Erstellen
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit User Dialog */}
       <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit User</DialogTitle>
+        <DialogTitle>Benutzer bearbeiten</DialogTitle>
         <DialogContent>
-          {formErrors.general && <Alert severity="error" sx={{ mb: 2 }}>{formErrors.general}</Alert>}
-          <TextField
-            label="Username"
-            fullWidth
-            margin="dense"
-            value={formData.username}
-            disabled // Username cannot be changed
-          />
-          <TextField
-            label="Email"
-            type="email"
-            fullWidth
-            margin="dense"
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            error={!!formErrors.email}
-            helperText={formErrors.email}
-            required
-          />
-          <TextField
-            label="First Name"
-            fullWidth
-            margin="dense"
-            value={formData.firstName}
-            onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-          />
-          <TextField
-            label="Last Name"
-            fullWidth
-            margin="dense"
-            value={formData.lastName}
-            onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Role</InputLabel>
-            <Select
-              value={formData.role}
-              label="Role"
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
-            >
-              <MenuItem value="admin">Admin</MenuItem>
-              {/* Add more roles in the future */}
-            </Select>
-          </FormControl>
+          {editForm.submissionError && <Alert severity="error" sx={{ mb: 2 }}>{editForm.submissionError}</Alert>}
+          <form onSubmit={editForm.handleSubmit(editForm.onSubmit)}>
+            <TextField
+              label="Benutzername"
+              fullWidth
+              margin="dense"
+              value={selectedUser?.username || ''}
+              disabled
+              helperText="Benutzername kann nicht geändert werden"
+            />
+            <Controller
+              control={editForm.control}
+              name="email"
+              render={({ field, fieldState: { error } }) => (
+                <TextField
+                  {...field}
+                  label="E-Mail"
+                  type="email"
+                  fullWidth
+                  margin="dense"
+                  error={!!error && editForm.formState.isSubmitted}
+                  helperText={error && editForm.formState.isSubmitted ? error.message : ''}
+                />
+              )}
+            />
+            <Controller
+              control={editForm.control}
+              name="firstName"
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Vorname"
+                  fullWidth
+                  margin="dense"
+                />
+              )}
+            />
+            <Controller
+              control={editForm.control}
+              name="lastName"
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Nachname"
+                  fullWidth
+                  margin="dense"
+                />
+              )}
+            />
+            <Controller
+              control={editForm.control}
+              name="role"
+              render={({ field }) => (
+                <FormControl fullWidth margin="dense">
+                  <InputLabel>Rolle</InputLabel>
+                  <Select {...field} label="Rolle">
+                    <MenuItem value="admin">Administrator</MenuItem>
+                    <MenuItem value="mitglied">Mitglied</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+            />
+          </form>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
-          <Button onClick={handleEditUser} variant="contained" color="primary">Save</Button>
+          <Button onClick={() => setOpenEditDialog(false)}>Abbrechen</Button>
+          <Button
+            onClick={editForm.handleSubmit(editForm.onSubmit)}
+            variant="contained"
+            color="primary"
+            disabled={editForm.isSubmitting}
+          >
+            Speichern
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Reset Password Dialog */}
       <Dialog open={openResetDialog} onClose={() => setOpenResetDialog(false)}>
-        <DialogTitle>Reset Password</DialogTitle>
+        <DialogTitle>Passwort zurücksetzen</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Set new password for user: {selectedUser?.username}
+            Neues Passwort für Benutzer festlegen: {selectedUser?.username}
           </DialogContentText>
-          <TextField
-            label="New Password"
-            type="password"
-            fullWidth
-            margin="dense"
-            value={resetPassword}
-            onChange={(e) => setResetPassword(e.target.value)}
-            error={!!formErrors.resetPassword}
-            helperText={formErrors.resetPassword}
-            required
-          />
+          {resetPasswordForm.submissionError && (
+            <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+              {resetPasswordForm.submissionError}
+            </Alert>
+          )}
+          <form onSubmit={resetPasswordForm.handleSubmit(resetPasswordForm.onSubmit)}>
+            <Controller
+              control={resetPasswordForm.control}
+              name="newPassword"
+              render={({ field, fieldState: { error } }) => (
+                <TextField
+                  {...field}
+                  label="Neues Passwort"
+                  type="password"
+                  fullWidth
+                  margin="dense"
+                  error={!!error && resetPasswordForm.formState.isSubmitted}
+                  helperText={
+                    error && resetPasswordForm.formState.isSubmitted
+                      ? error.message
+                      : 'Mindestens 8 Zeichen erforderlich'
+                  }
+                  required
+                />
+              )}
+            />
+          </form>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenResetDialog(false)}>Cancel</Button>
-          <Button onClick={handleResetPassword} variant="contained" color="primary">Reset</Button>
+          <Button onClick={() => setOpenResetDialog(false)}>Abbrechen</Button>
+          <Button
+            onClick={resetPasswordForm.handleSubmit(resetPasswordForm.onSubmit)}
+            variant="contained"
+            color="primary"
+            disabled={resetPasswordForm.isSubmitting}
+          >
+            Zurücksetzen
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete User Dialog */}
       <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-        <DialogTitle>Delete User</DialogTitle>
+        <DialogTitle>Benutzer löschen</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete user &quot;{selectedUser?.username}&quot;? This action cannot be undone.
+            Sind Sie sicher, dass Sie den Benutzer &quot;{selectedUser?.username}&quot; löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-          <Button onClick={handleDeleteUser} color="error" variant="contained">Delete</Button>
+          <Button onClick={() => setOpenDeleteDialog(false)}>Abbrechen</Button>
+          <Button onClick={handleDeleteUser} color="error" variant="contained">Löschen</Button>
         </DialogActions>
       </Dialog>
     </MainLayout>
