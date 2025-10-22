@@ -13,26 +13,17 @@ export * from './newsletter-sending-service';
 // Consolidated content service (replaces: preview-service, template-generator)
 export * from './newsletter-content-service';
 
-// Newsletter archiving
-export {
-  getSentNewsletter
-} from './archive-service';
-export type {
-  SentNewsletterWithMeta
-} from './archive-service';
-
 // Analytics and tracking
 export * from './analytics-service';
-export * from './tracking-service';
 
 // Test email sending
 export * from './test-email-service';
-
-// Admin notifications
-export * from './admin-notification-service';
 
 // Helper utilities
 export * from './helpers';
 
 // Constants
 export * from './constants';
+
+// Recipient validation and hashing
+export * from './recipient-validation-service';

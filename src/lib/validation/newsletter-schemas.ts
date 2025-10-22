@@ -43,6 +43,14 @@ const introductionTextSchema = z
   .default('');
 
 /**
+ * Reusable validated emails schema
+ * Used consistently across /send, /send-chunk, and /retry-chunk APIs
+ */
+const validatedEmailsSchema = z
+  .array(createEmailSchema(254, 'email'))
+  .min(1, 'Mindestens eine E-Mail-Adresse erforderlich');
+
+/**
  * Newsletter content limit schemas
  */
 
@@ -215,25 +223,25 @@ export const generateNewsletterQuerySchema = z.object({
 
 /**
  * Send Newsletter Schema
- * Used for sending newsletter to recipients
+ * Updated to accept validatedEmails instead of emailText
  */
 export const sendNewsletterSchema = z.object({
   newsletterId: newsletterIdSchema,
   html: htmlContentSchema,
   subject: subjectSchema,
-  emailText: emailListSchema,
+  validatedEmails: validatedEmailsSchema,
   settings: z.record(z.string(), z.unknown()).optional()
 });
 
 /**
  * Send Chunk Schema
- * Used for sending a specific chunk of emails
+ * Updated to use consistent validatedEmails naming
  */
 export const sendChunkSchema = z.object({
   newsletterId: newsletterIdSchema,
   html: htmlContentSchema,
   subject: subjectSchema,
-  emails: z.array(createEmailSchema(100, 'email')).min(1, 'Mindestens eine E-Mail-Adresse erforderlich'),
+  validatedEmails: validatedEmailsSchema,
   chunkIndex: z.number().int().min(0),
   totalChunks: z.number().int().min(1),
   settings: z.record(z.string(), z.unknown()).optional()
@@ -241,15 +249,15 @@ export const sendChunkSchema = z.object({
 
 /**
  * Retry Chunk Schema
- * Used for retrying failed email chunks
+ * Updated to use consistent validatedEmails naming
  */
 export const retryChunkSchema = z.object({
   newsletterId: newsletterIdSchema,
   html: htmlContentSchema,
   subject: subjectSchema,
-  settings: z.record(z.string(), z.unknown()).optional(),
-  chunkEmails: z.array(createEmailSchema(100, 'email')).min(1, 'Mindestens eine E-Mail-Adresse erforderlich'),
-  chunkIndex: z.number().int().min(0)
+  validatedEmails: validatedEmailsSchema,
+  chunkIndex: z.number().int().min(0),
+  settings: z.record(z.string(), z.unknown()).optional()
 });
 
 /**

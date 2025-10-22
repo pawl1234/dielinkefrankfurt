@@ -11,12 +11,22 @@ import type {
   Newsletter,
   NewsletterItem,
   NewsletterAnalytics,
+  HashedRecipient,
+  Appointment,
+  Group,
+  StatusReport,
   NewsletterFingerprint,
   NewsletterLinkClick,
   NewsletterLinkClickFingerprint,
-  HashedRecipient
+  Prisma
 } from '@prisma/client';
-import type { CreateNewsletterItemData } from '@/types/newsletter-types';
+import type {
+  CreateNewsletterItemData,
+  NewsletterQueryFilters,
+  PaginationOptions,
+  PaginatedNewsletterResult,
+  GetNewsletterItemsOptions
+} from '@/types/newsletter-types';
 
 // ============================================================================
 // Newsletter Settings Operations
@@ -77,23 +87,6 @@ export async function getNewsletterById(id: string): Promise<NewsletterItem | nu
 }
 
 /**
- * Get newsletter item with analytics
- *
- * @param id - Newsletter ID
- * @returns Newsletter item with analytics or null if not found
- */
-export async function getNewsletterWithAnalytics(id: string): Promise<NewsletterItemWithAnalytics | null> {
-  return prisma.newsletterItem.findUnique({
-    where: { id },
-    include: { analytics: true }
-  });
-}
-
-type NewsletterItemWithAnalytics = NewsletterItem & {
-  analytics: NewsletterAnalytics | null;
-};
-
-/**
  * Create a new newsletter item
  *
  * @param data - Newsletter item data (only subject and introductionText are required)
@@ -126,26 +119,6 @@ export async function updateNewsletterItem(
 }
 
 /**
- * Update newsletter status
- *
- * @param id - Newsletter ID
- * @param status - New status value
- * @returns Updated newsletter item
- */
-export async function updateNewsletterStatus(
-  id: string,
-  status: string
-): Promise<NewsletterItem> {
-  return prisma.newsletterItem.update({
-    where: { id },
-    data: {
-      status,
-      updatedAt: new Date()
-    }
-  });
-}
-
-/**
  * Delete newsletter item
  *
  * @param id - Newsletter ID
@@ -158,16 +131,71 @@ export async function deleteNewsletterItem(id: string): Promise<NewsletterItem> 
 }
 
 /**
- * Get all newsletter items with optional status filter
+ * Get newsletter items with flexible filtering, sorting, and limiting
  *
- * @param status - Optional status filter
+ * @param options - Query options (status, sortBy, sortOrder, limit)
  * @returns Array of newsletter items
  */
-export async function getAllNewsletterItems(status?: string): Promise<NewsletterItem[]> {
+export async function getAllNewsletterItems(
+  options?: GetNewsletterItemsOptions
+): Promise<NewsletterItem[]> {
+  const {
+    status,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+    limit
+  } = options || {};
+
   return prisma.newsletterItem.findMany({
     where: status ? { status } : undefined,
-    orderBy: { createdAt: 'desc' }
+    orderBy: { [sortBy]: sortOrder },
+    take: limit
   });
+}
+
+/**
+ * Get paginated newsletters with optional filtering
+ *
+ * @param filters - Search and status filters
+ * @param pagination - Page and limit options
+ * @returns Paginated newsletter items with total count
+ */
+export async function getNewslettersWithPagination(
+  filters: NewsletterQueryFilters,
+  pagination: PaginationOptions
+): Promise<PaginatedNewsletterResult> {
+  const { search, status } = filters;
+  const { page, limit } = pagination;
+
+  // Calculate skip for pagination
+  const skip = (page - 1) * limit;
+
+  // Build where clause
+  const where: Prisma.NewsletterItemWhereInput = {};
+
+  if (search) {
+    where.OR = [
+      { subject: { contains: search, mode: 'insensitive' } },
+      { introductionText: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  if (status) {
+    where.status = status;
+  }
+
+  // Fetch newsletters and total count in parallel
+  const [items, total] = await Promise.all([
+    prisma.newsletterItem.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.newsletterItem.count({ where }),
+  ]);
+
+  return { items, total };
 }
 
 // ============================================================================
@@ -189,51 +217,44 @@ export async function getNewsletterAnalytics(
 }
 
 /**
- * Create newsletter analytics record
- *
- * @param data - Analytics data
- * @returns Created analytics record
- */
-export async function createNewsletterAnalytics(
-  data: Omit<NewsletterAnalytics, 'id' | 'createdAt' | 'pixelToken'>
-): Promise<NewsletterAnalytics> {
-  return prisma.newsletterAnalytics.create({ data });
-}
-
-/**
- * Update newsletter analytics
+ * Get newsletter analytics with related newsletter info and link clicks
  *
  * @param newsletterId - Newsletter ID
- * @param data - Partial analytics data to update
- * @returns Updated analytics record
+ * @returns Newsletter analytics with included data or null if not found
  */
-export async function updateNewsletterAnalytics(
-  newsletterId: string,
-  data: Partial<NewsletterAnalytics>
-): Promise<NewsletterAnalytics> {
-  return prisma.newsletterAnalytics.update({
+export async function getNewsletterAnalyticsWithDetails(newsletterId: string) {
+  return prisma.newsletterAnalytics.findUnique({
     where: { newsletterId },
-    data
+    include: {
+      newsletter: {
+        select: {
+          id: true,
+          subject: true,
+          sentAt: true,
+        },
+      },
+      linkClicks: {
+        orderBy: { clickCount: 'desc' },
+      },
+    },
   });
 }
 
 /**
- * Increment analytics counters
+ * Create newsletter analytics record
  *
  * @param newsletterId - Newsletter ID
- * @param field - Field to increment ('totalOpens', 'uniqueOpens', etc.)
- * @param amount - Amount to increment by (default: 1)
- * @returns Updated analytics record
+ * @param totalRecipients - Total number of recipients
+ * @returns Created analytics record
  */
-export async function incrementAnalyticsCounter(
+export async function createNewsletterAnalytics(
   newsletterId: string,
-  field: keyof Pick<NewsletterAnalytics, 'totalOpens' | 'uniqueOpens'>,
-  amount: number = 1
+  totalRecipients: number
 ): Promise<NewsletterAnalytics> {
-  return prisma.newsletterAnalytics.update({
-    where: { newsletterId },
+  return prisma.newsletterAnalytics.create({
     data: {
-      [field]: { increment: amount }
+      newsletterId,
+      totalRecipients
     }
   });
 }
@@ -252,304 +273,180 @@ export async function getAnalyticsByPixelToken(
   });
 }
 
-// ============================================================================
-// Newsletter Fingerprint Operations (Tracking)
-// ============================================================================
-
 /**
- * Get newsletter fingerprints for a specific newsletter
+ * Increment unique opens count for analytics
  *
  * @param analyticsId - Analytics record ID
- * @returns Array of fingerprint records
+ * @returns Updated analytics record
  */
-export async function getNewsletterFingerprints(
+export async function incrementAnalyticsUniqueOpens(
   analyticsId: string
-): Promise<NewsletterFingerprint[]> {
-  return prisma.newsletterFingerprint.findMany({
-    where: { analyticsId }
+): Promise<NewsletterAnalytics> {
+  return prisma.newsletterAnalytics.update({
+    where: { id: analyticsId },
+    data: { uniqueOpens: { increment: 1 } }
   });
 }
 
 /**
- * Find fingerprint by analytics ID and fingerprint hash
+ * Increment total opens count for analytics
+ *
+ * @param pixelToken - Pixel tracking token
+ * @returns Updated analytics record
+ */
+export async function incrementAnalyticsTotalOpens(
+  pixelToken: string
+): Promise<NewsletterAnalytics> {
+  return prisma.newsletterAnalytics.update({
+    where: { pixelToken },
+    data: { totalOpens: { increment: 1 } }
+  });
+}
+
+/**
+ * Delete newsletter analytics older than specified date
+ * Cascade will handle related records (fingerprints, link clicks)
+ *
+ * @param beforeDate - Delete analytics created before this date
+ * @returns Number of deleted analytics records
+ */
+export async function deleteNewsletterAnalyticsOlderThan(
+  beforeDate: Date
+): Promise<number> {
+  const result = await prisma.newsletterAnalytics.deleteMany({
+    where: {
+      createdAt: { lt: beforeDate }
+    }
+  });
+  return result.count;
+}
+
+// ============================================================================
+// Fingerprint Tracking Operations
+// ============================================================================
+
+/**
+ * Upsert newsletter fingerprint for open tracking
+ * Creates new fingerprint or increments open count for existing
  *
  * @param analyticsId - Analytics record ID
- * @param fingerprint - Fingerprint hash
- * @returns Fingerprint record or null if not found
+ * @param fingerprint - SHA256 fingerprint hash
+ * @returns Created or updated fingerprint record
  */
-export async function findFingerprintByHash(
+export async function upsertNewsletterFingerprint(
   analyticsId: string,
   fingerprint: string
-): Promise<NewsletterFingerprint | null> {
-  return prisma.newsletterFingerprint.findUnique({
+): Promise<NewsletterFingerprint> {
+  return prisma.newsletterFingerprint.upsert({
     where: {
       analyticsId_fingerprint: {
         analyticsId,
         fingerprint
       }
-    }
-  });
-}
-
-/**
- * Create newsletter fingerprint
- *
- * @param data - Fingerprint data
- * @returns Created fingerprint record
- */
-export async function createNewsletterFingerprint(
-  data: Omit<NewsletterFingerprint, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<NewsletterFingerprint> {
-  return prisma.newsletterFingerprint.create({ data });
-}
-
-/**
- * Update newsletter fingerprint
- *
- * @param id - Fingerprint ID
- * @param data - Partial fingerprint data to update
- * @returns Updated fingerprint record
- */
-export async function updateNewsletterFingerprint(
-  id: string,
-  data: Partial<NewsletterFingerprint>
-): Promise<NewsletterFingerprint> {
-  return prisma.newsletterFingerprint.update({
-    where: { id },
-    data: {
-      ...data,
-      updatedAt: new Date()
-    }
-  });
-}
-
-/**
- * Increment fingerprint open count
- *
- * @param id - Fingerprint ID
- * @returns Updated fingerprint record
- */
-export async function incrementFingerprintOpenCount(
-  id: string
-): Promise<NewsletterFingerprint> {
-  return prisma.newsletterFingerprint.update({
-    where: { id },
-    data: {
+    },
+    create: {
+      analyticsId,
+      fingerprint,
+      openCount: 1,
+      firstOpenAt: new Date(),
+      lastOpenAt: new Date()
+    },
+    update: {
       openCount: { increment: 1 },
-      lastOpenAt: new Date(),
-      updatedAt: new Date()
-    }
-  });
-}
-
-// ============================================================================
-// Newsletter Link Click Operations
-// ============================================================================
-
-/**
- * Get all link clicks for a newsletter
- *
- * @param analyticsId - Analytics record ID
- * @returns Array of link click records
- */
-export async function getNewsletterLinkClicks(
-  analyticsId: string
-): Promise<NewsletterLinkClick[]> {
-  return prisma.newsletterLinkClick.findMany({
-    where: { analyticsId },
-    orderBy: { clickCount: 'desc' }
-  });
-}
-
-/**
- * Find link click by URL
- *
- * @param analyticsId - Analytics record ID
- * @param url - Link URL
- * @returns Link click record or null if not found
- */
-export async function findLinkClickByUrl(
-  analyticsId: string,
-  url: string
-): Promise<NewsletterLinkClick | null> {
-  return prisma.newsletterLinkClick.findUnique({
-    where: {
-      analyticsId_url: {
-        analyticsId,
-        url
-      }
+      lastOpenAt: new Date()
     }
   });
 }
 
 /**
- * Create newsletter link click record
+ * Upsert link click fingerprint
+ * Creates new fingerprint or increments click count for existing
  *
- * @param data - Link click data
- * @returns Created link click record
+ * @param linkClickId - Link click record ID
+ * @param fingerprint - SHA256 fingerprint hash
+ * @returns Created or updated fingerprint record
  */
-export async function createNewsletterLinkClick(
-  data: Omit<NewsletterLinkClick, 'id'>
-): Promise<NewsletterLinkClick> {
-  return prisma.newsletterLinkClick.create({ data });
-}
-
-/**
- * Increment link click count
- *
- * @param id - Link click ID
- * @returns Updated link click record
- */
-export async function incrementLinkClickCount(
-  id: string
-): Promise<NewsletterLinkClick> {
-  return prisma.newsletterLinkClick.update({
-    where: { id },
-    data: {
-      clickCount: { increment: 1 },
-      lastClick: new Date()
-    }
-  });
-}
-
-/**
- * Increment unique click count
- *
- * @param id - Link click ID
- * @returns Updated link click record
- */
-export async function incrementUniqueClickCount(
-  id: string
-): Promise<NewsletterLinkClick> {
-  return prisma.newsletterLinkClick.update({
-    where: { id },
-    data: {
-      uniqueClicks: { increment: 1 }
-    }
-  });
-}
-
-// ============================================================================
-// Newsletter Link Click Fingerprint Operations
-// ============================================================================
-
-/**
- * Find link click fingerprint
- *
- * @param linkClickId - Link click ID
- * @param fingerprint - Fingerprint hash
- * @returns Link click fingerprint or null if not found
- */
-export async function findLinkClickFingerprint(
+export async function upsertLinkClickFingerprint(
   linkClickId: string,
   fingerprint: string
-): Promise<NewsletterLinkClickFingerprint | null> {
-  return prisma.newsletterLinkClickFingerprint.findUnique({
+): Promise<NewsletterLinkClickFingerprint> {
+  return prisma.newsletterLinkClickFingerprint.upsert({
     where: {
       linkClickId_fingerprint: {
         linkClickId,
         fingerprint
       }
-    }
-  });
-}
-
-/**
- * Create link click fingerprint
- *
- * @param data - Link click fingerprint data
- * @returns Created link click fingerprint record
- */
-export async function createLinkClickFingerprint(
-  data: Omit<NewsletterLinkClickFingerprint, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<NewsletterLinkClickFingerprint> {
-  return prisma.newsletterLinkClickFingerprint.create({ data });
-}
-
-/**
- * Increment link click fingerprint count
- *
- * @param id - Link click fingerprint ID
- * @returns Updated link click fingerprint record
- */
-export async function incrementLinkClickFingerprintCount(
-  id: string
-): Promise<NewsletterLinkClickFingerprint> {
-  return prisma.newsletterLinkClickFingerprint.update({
-    where: { id },
-    data: {
-      clickCount: { increment: 1 },
-      lastClickAt: new Date(),
-      updatedAt: new Date()
-    }
-  });
-}
-
-// ============================================================================
-// Hashed Recipient Operations
-// ============================================================================
-
-/**
- * Find hashed recipient by email hash
- *
- * @param hashedEmail - SHA256 hash of email
- * @returns Hashed recipient or null if not found
- */
-export async function findHashedRecipient(
-  hashedEmail: string
-): Promise<HashedRecipient | null> {
-  return prisma.hashedRecipient.findUnique({
-    where: { hashedEmail }
-  });
-}
-
-/**
- * Create hashed recipient
- *
- * @param hashedEmail - SHA256 hash of email
- * @returns Created hashed recipient record
- */
-export async function createHashedRecipient(
-  hashedEmail: string
-): Promise<HashedRecipient> {
-  return prisma.hashedRecipient.create({
-    data: { hashedEmail }
-  });
-}
-
-/**
- * Update last sent date for hashed recipient
- *
- * @param hashedEmail - SHA256 hash of email
- * @returns Updated hashed recipient record
- */
-export async function updateHashedRecipientLastSent(
-  hashedEmail: string
-): Promise<HashedRecipient> {
-  return prisma.hashedRecipient.update({
-    where: { hashedEmail },
-    data: { lastSent: new Date() }
-  });
-}
-
-/**
- * Upsert hashed recipient (create or update last sent)
- *
- * @param hashedEmail - SHA256 hash of email
- * @returns Upserted hashed recipient record
- */
-export async function upsertHashedRecipient(
-  hashedEmail: string
-): Promise<HashedRecipient> {
-  return prisma.hashedRecipient.upsert({
-    where: { hashedEmail },
+    },
     create: {
-      hashedEmail,
-      lastSent: new Date()
+      linkClickId,
+      fingerprint,
+      clickCount: 1,
+      firstClickAt: new Date(),
+      lastClickAt: new Date()
     },
     update: {
-      lastSent: new Date()
+      clickCount: { increment: 1 },
+      lastClickAt: new Date()
     }
+  });
+}
+
+// ============================================================================
+// Link Click Operations
+// ============================================================================
+
+/**
+ * Upsert newsletter link click record
+ * Creates new link click or increments count for existing URL
+ *
+ * @param analyticsId - Analytics record ID
+ * @param url - The clicked URL
+ * @param linkType - Type of link (appointment, statusreport, etc.)
+ * @param linkId - Optional ID of the linked item
+ * @returns Created or updated link click record
+ */
+export async function upsertNewsletterLinkClick(
+  analyticsId: string,
+  url: string,
+  linkType: string,
+  linkId?: string
+): Promise<NewsletterLinkClick> {
+  const now = new Date();
+  return prisma.newsletterLinkClick.upsert({
+    where: {
+      analyticsId_url: {
+        analyticsId,
+        url
+      }
+    },
+    create: {
+      analyticsId,
+      url,
+      linkType,
+      linkId,
+      clickCount: 1,
+      firstClick: now,
+      lastClick: now
+    },
+    update: {
+      clickCount: { increment: 1 },
+      lastClick: now
+    }
+  });
+}
+
+/**
+ * Increment unique clicks count for link click
+ *
+ * @param linkClickId - Link click record ID
+ * @returns Updated link click record
+ */
+export async function incrementLinkClickUniqueClicks(
+  linkClickId: string
+): Promise<NewsletterLinkClick> {
+  return prisma.newsletterLinkClick.update({
+    where: { id: linkClickId },
+    data: { uniqueClicks: { increment: 1 } }
   });
 }
 
@@ -558,31 +455,179 @@ export async function upsertHashedRecipient(
 // ============================================================================
 
 /**
- * Get archived newsletters (sent status)
+ * Get recent sent newsletters with analytics data
  *
- * @returns Array of sent newsletter items
+ * @param limit - Maximum number of newsletters to return (default: 10)
+ * @returns Array of sent newsletters with analytics
  */
-export async function getArchivedNewsletters(): Promise<NewsletterItem[]> {
+export async function getRecentSentNewslettersWithAnalytics(limit: number = 10) {
   return prisma.newsletterItem.findMany({
-    where: { status: 'sent' },
-    orderBy: { sentAt: 'desc' }
+    where: {
+      status: 'sent',
+      sentAt: { not: null },
+    },
+    orderBy: { sentAt: 'desc' },
+    take: limit,
+    include: {
+      analytics: {
+        select: {
+          totalRecipients: true,
+          uniqueOpens: true,
+          linkClicks: {
+            select: {
+              clickCount: true,
+            },
+          },
+        },
+      },
+    },
   });
 }
 
 /**
- * Get archived newsletter by ID with analytics
+ * Get overall analytics metrics (aggregated)
  *
- * @param id - Newsletter ID
- * @returns Newsletter item with analytics or null if not found
+ * @returns Aggregated analytics metrics (sum of unique opens, recipients, newsletter count)
  */
-export async function getArchivedNewsletterById(
-  id: string
-): Promise<NewsletterItemWithAnalytics | null> {
-  return prisma.newsletterItem.findUnique({
-    where: {
-      id,
-      status: 'sent'
+export async function getOverallAnalyticsMetrics() {
+  return prisma.newsletterAnalytics.aggregate({
+    _sum: {
+      uniqueOpens: true,
+      totalRecipients: true,
     },
-    include: { analytics: true }
+    _count: {
+      id: true,
+    },
+  });
+}
+
+/**
+ * Get total link clicks across all newsletters (aggregated)
+ *
+ * @returns Aggregated total click count
+ */
+export async function getTotalLinkClicks() {
+  return prisma.newsletterLinkClick.aggregate({
+    _sum: {
+      clickCount: true,
+    },
+  });
+}
+
+// ============================================================================
+// Hashed Recipients Operations
+// ============================================================================
+
+/**
+ * Find multiple hashed recipients by their hashed email values
+ *
+ * @param hashedEmails - Array of hashed email strings to search for
+ * @returns Array of matching hashed recipients
+ */
+export async function findHashedRecipientsByEmails(
+  hashedEmails: string[]
+): Promise<HashedRecipient[]> {
+  return prisma.hashedRecipient.findMany({
+    where: { hashedEmail: { in: hashedEmails } }
+  });
+}
+
+/**
+ * Create a new hashed recipient record
+ *
+ * @param data - Hashed email and first seen date
+ * @returns Created hashed recipient
+ */
+export async function createHashedRecipient(
+  data: { hashedEmail: string; firstSeen: Date }
+): Promise<HashedRecipient> {
+  return prisma.hashedRecipient.create({
+    data
+  });
+}
+
+// ============================================================================
+// Appointment Operations
+// ============================================================================
+
+/**
+ * Get upcoming accepted appointments filtered by featured status
+ *
+ * @param featured - Filter by featured flag (true/false)
+ * @param limit - Maximum number of appointments to return
+ * @param fromDate - Only return appointments from this date onwards (default: today)
+ * @returns Array of appointments matching criteria, ordered by startDateTime ascending
+ */
+export async function getUpcomingAppointments(
+  featured: boolean,
+  limit: number,
+  fromDate: Date = new Date()
+): Promise<Appointment[]> {
+  return prisma.appointment.findMany({
+    where: {
+      featured,
+      status: 'accepted',
+      startDateTime: {
+        gte: fromDate
+      }
+    },
+    orderBy: {
+      startDateTime: 'asc'
+    },
+    take: limit
+  });
+}
+
+// ============================================================================
+// Group Operations
+// ============================================================================
+
+/**
+ * Get active groups with their active status reports from a date range
+ * Useful for newsletter generation and group activity reports
+ *
+ * @param statusReportsFromDate - Only include status reports created on or after this date
+ * @param groupLimit - Maximum number of groups to return
+ * @param reportsPerGroupLimit - Maximum number of reports per group
+ * @returns Array of groups with their status reports, ordered by group name
+ */
+export async function getActiveGroupsWithStatusReports(
+  statusReportsFromDate: Date,
+  groupLimit: number,
+  reportsPerGroupLimit: number
+): Promise<(Group & { statusReports: StatusReport[] })[]> {
+  // Use conservative buffer to account for groups that may have no qualifying reports
+  const candidateLimit = Math.min(groupLimit * 2, 100);
+
+  return prisma.group.findMany({
+    where: {
+      status: 'ACTIVE',
+      statusReports: {
+        some: {
+          status: 'ACTIVE',
+          createdAt: {
+            gte: statusReportsFromDate
+          }
+        }
+      }
+    },
+    orderBy: {
+      name: 'asc'
+    },
+    take: candidateLimit,
+    include: {
+      statusReports: {
+        where: {
+          status: 'ACTIVE',
+          createdAt: {
+            gte: statusReportsFromDate
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: reportsPerGroupLimit
+      }
+    }
   });
 }

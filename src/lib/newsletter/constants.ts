@@ -50,31 +50,6 @@ export const STATUS_REPORT_LIMITS = {
 } as const;
 
 /**
- * Newsletter content limit field names and their corresponding validation rules
- * Used for programmatic validation to avoid repetitive code
- */
-export const NEWSLETTER_LIMIT_FIELDS = {
-  maxFeaturedAppointments: NEWSLETTER_LIMITS.FEATURED_APPOINTMENTS,
-  maxUpcomingAppointments: NEWSLETTER_LIMITS.UPCOMING_APPOINTMENTS,
-  maxStatusReportsPerGroup: NEWSLETTER_LIMITS.STATUS_REPORTS_PER_GROUP,
-  maxGroupsWithReports: NEWSLETTER_LIMITS.GROUPS_WITH_REPORTS
-} as const;
-
-/**
- * Status report limit field names and their corresponding validation rules
- * Used for programmatic validation to avoid repetitive code
- */
-export const STATUS_REPORT_LIMIT_FIELDS = {
-  statusReportTitleLimit: STATUS_REPORT_LIMITS.TITLE,
-  statusReportContentLimit: STATUS_REPORT_LIMITS.CONTENT
-} as const;
-
-/**
- * Type for newsletter limit field keys
- */
-export type NewsletterLimitField = keyof typeof NEWSLETTER_LIMIT_FIELDS;
-
-/**
  * Newsletter date range constants
  */
 export const NEWSLETTER_DATE_RANGES = {

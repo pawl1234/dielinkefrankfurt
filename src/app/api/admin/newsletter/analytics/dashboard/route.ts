@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
+import {
+  getRecentSentNewslettersWithAnalytics,
+  getOverallAnalyticsMetrics,
+  getTotalLinkClicks
+} from '@/lib/db/newsletter-operations';
 import { NewsletterAnalyticsDashboardResponse } from '@/types/newsletter-analytics';
 
 /**
@@ -12,27 +16,7 @@ import { NewsletterAnalyticsDashboardResponse } from '@/types/newsletter-analyti
 async function handleGetAnalyticsDashboard(): Promise<NextResponse> {
   try {
     // Get recent newsletters with analytics
-    const recentNewsletters = await prisma.newsletterItem.findMany({
-      where: {
-        status: 'sent',
-        sentAt: { not: null },
-      },
-      orderBy: { sentAt: 'desc' },
-      take: 10,
-      include: {
-        analytics: {
-          select: {
-            totalRecipients: true,
-            uniqueOpens: true,
-            linkClicks: {
-              select: {
-                clickCount: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const recentNewsletters = await getRecentSentNewslettersWithAnalytics(10);
 
     // Calculate metrics for recent newsletters using unique opens for clean statistics
     const recentNewslettersData = recentNewsletters.map((newsletter) => {
@@ -57,20 +41,8 @@ async function handleGetAnalyticsDashboard(): Promise<NextResponse> {
 
     // Calculate overall metrics with optimized aggregation queries
     const [overallMetrics, totalClicks] = await Promise.all([
-      prisma.newsletterAnalytics.aggregate({
-        _sum: {
-          uniqueOpens: true,
-          totalRecipients: true,
-        },
-        _count: {
-          id: true,
-        },
-      }),
-      prisma.newsletterLinkClick.aggregate({
-        _sum: {
-          clickCount: true,
-        },
-      }),
+      getOverallAnalyticsMetrics(),
+      getTotalLinkClicks(),
     ]);
 
     const totalUniqueOpens = overallMetrics._sum.uniqueOpens || 0;

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AppError, apiErrorResponse } from '@/lib/errors';
-import prisma from '@/lib/db/prisma';
-import { Prisma } from '@prisma/client';
+import { getNewslettersWithPagination } from '@/lib/db/newsletter-operations';
 
 /**
  * Handler for fetching newsletter archives (unified table)
@@ -24,32 +23,11 @@ async function handleGetNewsletterArchives(request: NextRequest): Promise<NextRe
       return AppError.validation('Limit must be between 1 and 50').toResponse();
     }
 
-    const skip = (page - 1) * limit;
-
-    // Build where clause
-    const where: Prisma.NewsletterItemWhereInput = {};
-    
-    if (search) {
-      where.OR = [
-        { subject: { contains: search, mode: 'insensitive' } },
-        { introductionText: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (status) {
-      where.status = status;
-    }
-
-    // Fetch newsletters
-    const [newsletters, total] = await Promise.all([
-      prisma.newsletterItem.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.newsletterItem.count({ where }),
-    ]);
+    // Fetch newsletters using database operation
+    const { items: newsletters, total } = await getNewslettersWithPagination(
+      { search, status },
+      { page, limit }
+    );
 
     // Format items for the frontend
     const items = newsletters.map(newsletter => ({

@@ -1,170 +1,126 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processRecipientList, parseAndCleanEmailList } from '@/lib/newsletter';
-import { AppError, apiErrorResponse } from '@/lib/errors';
+import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
+import { getNewsletterById, updateNewsletterItem, getNewsletterAnalytics } from '@/lib/db/newsletter-operations';
 import { getNewsletterSettings, createNewsletterAnalytics, addTrackingToNewsletter } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
 import { sendNewsletterSchema, zodToValidationResult } from '@/lib/validation';
+import { ValidatedEmails } from '@/types/email-types';
+import crypto from 'crypto';
 
 /**
- * Process and send a newsletter to recipients
+ * POST /api/admin/newsletter/send
+ *
+ * Prepare newsletter for chunked sending.
+ * TRUSTS validated emails from frontend - Zod verifies format only.
+ * Authentication ensures only admins can call this API.
  */
 async function handleSendNewsletter(request: NextRequest): Promise<NextResponse> {
   try {
-    // Parse request body
     const body = await request.json();
-
-    // Validate with Zod schema
     const validation = await zodToValidationResult(sendNewsletterSchema, body);
-    if (!validation.isValid) {
-      logger.warn('Validation failed for newsletter sending', {
-        module: 'api',
-        context: {
-          endpoint: '/api/admin/newsletter/send',
-          errors: validation.errors
-        }
-      });
 
+    if (!validation.isValid) {
       return NextResponse.json(
         { error: 'Validierungsfehler', errors: validation.errors },
         { status: 400 }
       );
     }
 
-    const { newsletterId, html, subject, emailText, settings } = validation.data!;
+    const { newsletterId, html, subject, validatedEmails, settings } = validation.data!;
 
-    // Check if newsletter exists and is in draft status
-    const newsletter = await prisma.newsletterItem.findUnique({
-      where: { id: newsletterId }
-    });
+    // Get newsletter
+    const newsletter = await getNewsletterById(newsletterId);
 
     if (!newsletter) {
       return AppError.validation('Newsletter not found').toResponse();
     }
 
-    if (!['draft', 'sent', 'failed', 'partially_failed'].includes(newsletter.status)) {
-      return AppError.validation('Only draft, sent, failed, or partially failed newsletters can be sent').toResponse();
-    }
-
-    // Process recipient list
-    logger.info('Processing newsletter recipient list');
-    const validationResult = await processRecipientList(emailText);
-
-    // Ensure we have valid recipients
-    if (validationResult.valid === 0) {
-      return AppError.validation('No valid email recipients found', {
-        validCount: validationResult.valid,
-        invalidCount: validationResult.invalid
-      }).toResponse();
-    }
-
-    // Log recipient statistics
-    logger.info('Newsletter recipient validation completed', {
-      context: {
-        valid: validationResult.valid,
-        invalid: validationResult.invalid,
-        new: validationResult.new,
-        existing: validationResult.existing
-      }
+    // Update newsletter status
+    await updateNewsletterItem(newsletterId, {
+      status: 'sending'
     });
 
-    // Parse the original email list to get the plain emails, with Excel-safe cleaning
-    const plainEmails = parseAndCleanEmailList(emailText, validationResult.invalidEmails);
+    // Check if analytics already exist (for resend scenarios)
+    const existingAnalytics = await getNewsletterAnalytics(newsletterId);
 
-    // Prepare recipient IDs from validation results
-    const recipientIds = validationResult.hashedEmails.map(recipient => recipient.id);
-
-    // Create analytics record for this newsletter (optional - don't fail if it doesn't work)
-    let trackedHtml = html;
-    try {
-      const analytics = await createNewsletterAnalytics(newsletterId, recipientIds.length);
-      
-      // Add tracking to the HTML content
-      const baseUrl = getBaseUrl();
-      trackedHtml = addTrackingToNewsletter(html, analytics.pixelToken, baseUrl);
-      
-      logger.info('Newsletter analytics created successfully', {
-        context: { newsletterId, analyticsId: analytics.id }
+    // Create analytics tracking only if it doesn't exist
+    // This preserves existing analytics (open/click counts) when resending
+    if (!existingAnalytics) {
+      await createNewsletterAnalytics(newsletterId, validatedEmails.length);
+      logger.info('Created new newsletter analytics', {
+        module: 'api',
+        context: {
+          newsletterId,
+          recipientCount: validatedEmails.length
+        }
       });
-    } catch (analyticsError) {
-      logger.warn('Failed to create newsletter analytics, proceeding without tracking', {
-        context: { newsletterId, error: analyticsError }
+    } else {
+      logger.info('Reusing existing newsletter analytics', {
+        module: 'api',
+        context: {
+          newsletterId,
+          existingRecipients: existingAnalytics.totalRecipients,
+          newRecipients: validatedEmails.length
+        }
       });
-      // Continue with original HTML if analytics fails
-      trackedHtml = html;
     }
-    
-    // Update newsletter to sending status
-    logger.info(`Starting newsletter sending process to ${recipientIds.length} recipients`);
-    
-    await prisma.newsletterItem.update({
-      where: { id: newsletterId },
-      data: {
-        status: 'sending',
-        content: trackedHtml,
-        recipientCount: recipientIds.length,
-        sentAt: new Date(),
-        settings: JSON.stringify({
-          recipientCount: recipientIds.length,
-          ...settings
-        })
-      }
-    });
-    
-    // Get newsletter settings to determine chunk size
-    const newsletterSettings = await getNewsletterSettings();
-    const chunkSize = newsletterSettings.chunkSize || 50; // Use configured chunk size or default to 50
-    const emailChunks: string[][] = [];
-    
-    // Divide plain emails into chunks
-    for (let i = 0; i < plainEmails.length; i += chunkSize) {
-      emailChunks.push(plainEmails.slice(i, i + chunkSize));
+
+    // Get analytics token for tracking (either new or existing)
+    const analytics = existingAnalytics || await getNewsletterAnalytics(newsletterId);
+    const analyticsToken = analytics?.pixelToken || crypto.randomBytes(16).toString('hex');
+
+    // Add tracking to HTML (in-memory only, not persisted to DB)
+    const baseUrl = getBaseUrl();
+    const trackedHtml = addTrackingToNewsletter(html, analyticsToken, baseUrl);
+
+    // Get settings and chunk size
+    const defaultSettings = await getNewsletterSettings();
+    const mergedSettings = { ...defaultSettings, ...settings };
+    const chunkSize = mergedSettings.chunkSize || 50;
+
+    // Divide validated emails into chunks
+    const chunks: ValidatedEmails[] = [];
+    for (let i = 0; i < validatedEmails.length; i += chunkSize) {
+      chunks.push(validatedEmails.slice(i, i + chunkSize));
     }
-    
-    logger.info(`Newsletter prepared for chunked processing`, {
+
+    logger.info('Newsletter prepared for sending', {
+      module: 'api',
       context: {
-        totalEmails: plainEmails.length,
-        totalChunks: emailChunks.length,
-        chunkSize,
-        newsletterId
+        newsletterId,
+        recipientCount: validatedEmails.length,
+        chunkCount: chunks.length,
+        chunkSize
       }
     });
-    
-    // Store chunk information in newsletter settings
-    await prisma.newsletterItem.update({
-      where: { id: newsletterId },
-      data: {
-        settings: JSON.stringify({
-          recipientCount: recipientIds.length,
-          totalChunks: emailChunks.length,
-          chunkSize,
-          totalSent: 0,
-          totalFailed: 0,
-          completedChunks: 0,
-          startedAt: new Date().toISOString(),
-          ...settings
-        })
-      }
-    });
-    
-    // Return chunks for frontend processing
+
+    // Return chunks to frontend
     return NextResponse.json({
       success: true,
-      message: 'Newsletter prepared for chunked sending',
-      validRecipients: validationResult.valid,
-      invalidRecipients: validationResult.invalid,
-      newsletterId: newsletterId,
-      emailChunks: emailChunks,
-      totalChunks: emailChunks.length,
-      chunkSize: chunkSize,
+      validRecipients: validatedEmails.length,
+      newsletterId,
+      emailChunks: chunks,
+      totalChunks: chunks.length,
+      chunkSize,
       html: trackedHtml,
-      subject: subject,
-      settings: settings
+      subject,
+      settings: mergedSettings
     });
+
   } catch (error) {
-    logger.error('Error sending newsletter:', { context: { error } });
-    return apiErrorResponse(error, 'Failed to process and send newsletter');
+    logger.error(error as Error, {
+      module: 'api',
+      context: {
+        endpoint: '/api/admin/newsletter/send',
+        method: 'POST'
+      }
+    });
+
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 

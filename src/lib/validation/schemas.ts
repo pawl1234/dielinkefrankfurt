@@ -9,6 +9,13 @@ import { validationMessages } from './validation-messages';
 import { sanitizeRichText } from '@/lib/sanitization/sanitize';
 
 /**
+ * Email validation regex pattern
+ * Single source of truth for email validation across the application.
+ * Used by both Zod schemas and server-side validation functions.
+ */
+export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
+
+/**
  * Standard title limits
  * Used across different entities (Antrag, StatusReport, etc.)
  */
@@ -90,6 +97,8 @@ export const createPersonNameSchema = (
 /**
  * Factory: Email schema with configurable length
  *
+ * Uses EMAIL_REGEX for validation to ensure consistency across the application.
+ *
  * @param maxLength - Maximum character length (default: 100)
  * @param fieldName - Field name for error messages (default: 'email')
  */
@@ -98,10 +107,10 @@ export const createEmailSchema = (
   fieldName: string = 'email'
 ) => z.string()
   .min(1, validationMessages.required(fieldName))
-  .email(validationMessages.email(fieldName))
   .max(maxLength, validationMessages.maxLength(fieldName, maxLength))
   .trim()
-  .toLowerCase();
+  .toLowerCase()
+  .regex(EMAIL_REGEX, validationMessages.email(fieldName));
 
 /**
  * Factory: Text content schema with configurable length

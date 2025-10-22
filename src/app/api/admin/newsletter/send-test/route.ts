@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendNewsletterTestEmail, fixUrlsInNewsletterHtml } from '@/lib/newsletter';
+import { sendNewsletterTestEmail } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
+import { getNewsletterById } from '@/lib/db/newsletter-operations';
 import { sendTestEmailSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
@@ -58,9 +58,7 @@ export async function POST(request: NextRequest) {
         }
       });
       
-      const newsletter = await prisma.newsletterItem.findUnique({
-        where: { id: newsletterId }
-      });
+      const newsletter = await getNewsletterById(newsletterId);
       
       if (!newsletter) {
         logger.warn('Newsletter not found for test email', {
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest) {
         return AppError.notFound('Newsletter not found').toResponse();
       }
       
-      newsletterHtml = fixUrlsInNewsletterHtml(newsletter.content || '');
+      newsletterHtml = newsletter.content || '';
       
       // Extract test recipients from newsletter settings if available
       if (newsletter.settings) {
@@ -90,8 +88,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (html) {
-      // Fix URLs in the provided HTML as well
-      newsletterHtml = fixUrlsInNewsletterHtml(html);
+      newsletterHtml = html;
     }
     
     if (!newsletterHtml) {

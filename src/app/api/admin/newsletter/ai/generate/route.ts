@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AIGenerationWithTopicsRequest, AIGenerationResponse } from '@/types/api-types';
 import { logger } from '@/lib/logger';
 import { aiService } from '@/lib/ai';
-import prisma from '@/lib/db/prisma';
+import { getAllNewsletterItems } from '@/lib/db/newsletter-operations';
 import { aiGenerateIntroSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
@@ -52,12 +52,13 @@ export async function POST(request: NextRequest) {
     let previousIntro = validatedData.previousIntro || '';
     if (!previousIntro) {
       try {
-        const lastNewsletter = await prisma.newsletterItem.findFirst({
-          where: { status: 'sent' },
-          orderBy: { sentAt: 'desc' },
-          select: { introductionText: true }
+        const [lastNewsletter] = await getAllNewsletterItems({
+          status: 'sent',
+          sortBy: 'sentAt',
+          sortOrder: 'desc',
+          limit: 1
         });
-        
+
         if (lastNewsletter?.introductionText) {
           previousIntro = lastNewsletter.introductionText;
           logger.debug('Found previous newsletter intro', {

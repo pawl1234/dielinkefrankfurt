@@ -1,24 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/db/prisma';
+import { AppError, apiErrorResponse } from '@/lib/errors';
 import { generateNewsletterHtml } from '@/lib/newsletter';
 import { getNewsletterSettings, fetchNewsletterAppointments, fetchNewsletterStatusReports } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
+import {
+  getNewsletterById,
+  updateNewsletterItem
+} from '@/lib/db/newsletter-operations';
+import type { IdRouteContext } from '@/types/api-types';
 
-interface Props {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-
-// PUT regenerate newsletter content with new introduction text
-export async function PUT(request: NextRequest, { params }: Props) {
+/**
+ * PUT handler for regenerating newsletter content with new introduction text
+ * Requires admin authentication
+ */
+export async function PUT(request: NextRequest, { params }: IdRouteContext) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return AppError.authentication('Nicht autorisiert').toResponse();
     }
 
     const { id } = await params;
@@ -26,30 +27,22 @@ export async function PUT(request: NextRequest, { params }: Props) {
     const { subject, introductionText } = body;
 
     if (!introductionText) {
-      return NextResponse.json(
-        { error: 'Introduction text is required' },
-        { status: 400 }
-      );
+      return AppError.validation('Einleitungstext ist erforderlich').toResponse();
     }
 
     if (!subject) {
-      return NextResponse.json(
-        { error: 'Subject is required' },
-        { status: 400 }
-      );
+      return AppError.validation('Betreff ist erforderlich').toResponse();
     }
 
     // Check if newsletter exists and is in draft status
-    const existingNewsletter = await prisma.newsletterItem.findUnique({
-      where: { id }
-    });
+    const existingNewsletter = await getNewsletterById(id);
 
     if (!existingNewsletter) {
-      return NextResponse.json({ error: 'Newsletter not found' }, { status: 404 });
+      return AppError.notFound('Newsletter nicht gefunden').toResponse();
     }
 
     if (existingNewsletter.status !== 'draft') {
-      return NextResponse.json({ error: 'Only draft newsletters can be edited' }, { status: 400 });
+      return AppError.validation('Nur Entwürfe können bearbeitet werden').toResponse();
     }
 
     // Get newsletter settings first
@@ -76,21 +69,14 @@ export async function PUT(request: NextRequest, { params }: Props) {
     });
 
     // Update newsletter with new content
-    const newsletter = await prisma.newsletterItem.update({
-      where: { id },
-      data: {
-        subject,
-        introductionText,
-        content: newsletterHtml,
-      },
+    const newsletter = await updateNewsletterItem(id, {
+      subject,
+      introductionText,
+      content: newsletterHtml,
     });
 
     return NextResponse.json(newsletter);
   } catch (error) {
-    console.error('Error regenerating newsletter:', error);
-    return NextResponse.json(
-      { error: 'Failed to regenerate newsletter' },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, 'Fehler beim Regenerieren des Newsletters');
   }
 }

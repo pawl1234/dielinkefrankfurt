@@ -138,8 +138,55 @@ export interface SMTPTransporter {
  * Email send operation result
  */
 export interface EmailSendResult {
+  email: string;
   success: boolean;
+  error?: string;
   messageId?: string;
-  error?: Error | unknown;
   isConnectionError?: boolean;
+}
+
+/**
+ * Validated, normalized email address
+ * - Cleaned of invisible characters via cleanEmail()
+ * - Validated for SMTP compatibility via validateEmail()
+ * - Lowercased and trimmed
+ * - Ready for sending
+ */
+export type ValidatedEmail = string;
+
+/**
+ * Array of validated email addresses ready for sending
+ * Used consistently across all newsletter sending APIs
+ */
+export type ValidatedEmails = ValidatedEmail[];
+
+/**
+ * Chunk processing result base
+ */
+export interface ChunkProcessingResult {
+  success: boolean;
+  chunkIndex: number;
+  sentCount: number;
+  failedCount: number;
+  results: EmailSendResult[];
+}
+
+/**
+ * Response from /send-chunk API
+ */
+export interface SendChunkResponse extends ChunkProcessingResult {
+  totalChunks: number;
+  isComplete: boolean;
+  newsletterStatus?: string;
+  error?: string;
+}
+
+/**
+ * Response from /retry-chunk API
+ */
+export interface RetryChunkResponse extends ChunkProcessingResult {
+  processedCount: number;
+  successfulEmails: string[];
+  failedEmails: string[];
+  error?: string;
 }

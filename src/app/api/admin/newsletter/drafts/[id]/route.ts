@@ -1,97 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/db/prisma';
+import { AppError, apiErrorResponse } from '@/lib/errors';
+import {
+  getNewsletterById,
+  updateNewsletterItem,
+  deleteNewsletterItem
+} from '@/lib/db/newsletter-operations';
+import type { IdRouteContext } from '@/types/api-types';
 
-interface Props {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-// GET single newsletter
-export async function GET(request: NextRequest, { params }: Props) {
+/**
+ * GET handler for fetching a single newsletter draft
+ * Requires admin authentication
+ */
+export async function GET(request: NextRequest, { params }: IdRouteContext) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return AppError.authentication('Nicht autorisiert').toResponse();
     }
 
     const { id } = await params;
-    
-    const newsletter = await prisma.newsletterItem.findUnique({
-      where: { id },
-    });
+
+    const newsletter = await getNewsletterById(id);
 
     if (!newsletter) {
-      return NextResponse.json({ error: 'Newsletter not found' }, { status: 404 });
+      return AppError.notFound('Newsletter nicht gefunden').toResponse();
     }
 
     return NextResponse.json(newsletter);
   } catch (error) {
-    console.error('Error fetching newsletter:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch newsletter' },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, 'Fehler beim Laden des Newsletters');
   }
 }
 
-// PUT update newsletter
-export async function PUT(request: NextRequest, { params }: Props) {
+/**
+ * PUT handler for updating a newsletter draft
+ * Requires admin authentication
+ */
+export async function PUT(request: NextRequest, { params }: IdRouteContext) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return AppError.authentication('Nicht autorisiert').toResponse();
     }
 
     const { id } = await params;
     const body = await request.json();
     const { subject, introductionText, content, status, recipientCount, sentAt, settings } = body;
 
-    const newsletter = await prisma.newsletterItem.update({
-      where: { id },
-      data: {
-        ...(subject !== undefined && { subject }),
-        ...(introductionText !== undefined && { introductionText }),
-        ...(content !== undefined && { content }),
-        ...(status !== undefined && { status }),
-        ...(recipientCount !== undefined && { recipientCount }),
-        ...(sentAt !== undefined && { sentAt: sentAt ? new Date(sentAt) : null }),
-        ...(settings !== undefined && { settings }),
-      },
-    });
+    // Build update data object with conditional fields
+    const updateData: Partial<{
+      subject: string;
+      introductionText: string;
+      content: string;
+      status: string;
+      recipientCount: number;
+      sentAt: Date | null;
+      settings: string;
+    }> = {
+      ...(subject !== undefined && { subject }),
+      ...(introductionText !== undefined && { introductionText }),
+      ...(content !== undefined && { content }),
+      ...(status !== undefined && { status }),
+      ...(recipientCount !== undefined && { recipientCount }),
+      ...(sentAt !== undefined && { sentAt: sentAt ? new Date(sentAt) : null }),
+      ...(settings !== undefined && { settings }),
+    };
+
+    const newsletter = await updateNewsletterItem(id, updateData);
 
     return NextResponse.json(newsletter);
   } catch (error) {
-    console.error('Error updating newsletter:', error);
-    return NextResponse.json(
-      { error: 'Failed to update newsletter' },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, 'Fehler beim Aktualisieren des Newsletters');
   }
 }
 
-// DELETE newsletter
-export async function DELETE(request: NextRequest, { params }: Props) {
+/**
+ * DELETE handler for deleting a newsletter draft
+ * Requires admin authentication
+ */
+export async function DELETE(request: NextRequest, { params }: IdRouteContext) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return AppError.authentication('Nicht autorisiert').toResponse();
     }
 
     const { id } = await params;
-    
-    await prisma.newsletterItem.delete({
-      where: { id },
-    });
+
+    await deleteNewsletterItem(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting newsletter:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete newsletter' },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, 'Fehler beim Löschen des Newsletters');
   }
 }

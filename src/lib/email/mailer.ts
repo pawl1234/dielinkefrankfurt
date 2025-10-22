@@ -128,7 +128,11 @@ export async function sendEmailWithTransporter(
 
       const info = await Promise.race([sendMailPromise, sendMailTimeout]);
 
-      return { success: true, messageId: (info as EmailInfo).messageId };
+      return {
+        email: to,
+        success: true,
+        messageId: (info as EmailInfo).messageId
+      };
     } catch (error: unknown) {
       // On error, create a basic raw email representation for debugging
       const rawEmail = `From: ${mailOptions.from}\r\nTo: ${mailOptions.to}\r\n${mailOptions.bcc ? `Bcc: ${mailOptions.bcc}\r\n` : ''}Subject: ${mailOptions.subject}\r\nReply-To: ${mailOptions.replyTo}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n[HTML content omitted for brevity]`;
@@ -173,8 +177,9 @@ export async function sendEmailWithTransporter(
         });
 
         return {
+          email: to,
           success: false,
-          error,
+          error: error instanceof Error ? error.message : String(error),
           isConnectionError: isConnectionError && attempt === maxRetries
         };
       }
@@ -195,7 +200,11 @@ export async function sendEmailWithTransporter(
   }
 
   // This should never be reached, but just in case
-  return { success: false, error: new Error('Max retries exceeded') };
+  return {
+    email: to,
+    success: false,
+    error: 'Max retries exceeded'
+  };
 };
 
 // Send email with HTML content (creates new transporter each time)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processRecipientList } from '@/lib/newsletter';
+import { validateAndHashEmails } from '@/lib/newsletter';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { validateRecipientsSchema, zodToValidationResult } from '@/lib/validation';
@@ -46,14 +46,8 @@ export async function POST(request: NextRequest) {
 
     const { emailText } = validation.data!;
 
-    // Process recipient list
-    logger.info('Processing newsletter recipient validation', {
-      context: { 
-        operation: 'validate_recipients'
-      }
-    });
-    
-    const validationResult = await processRecipientList(emailText);
+    // Validate and process emails - ONLY PLACE THIS HAPPENS
+    const validationResult = await validateAndHashEmails(emailText);
 
     logger.info('Newsletter recipient validation completed', {
       context: {
@@ -65,13 +59,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Return validation results
+    // Return validation results including clean email array
     return NextResponse.json({
       valid: validationResult.valid,
       invalid: validationResult.invalid,
       new: validationResult.new,
       existing: validationResult.existing,
-      invalidEmails: validationResult.invalidEmails
+      invalidEmails: validationResult.invalidEmails,
+      validatedEmails: validationResult.validatedEmails
     });
   } catch (error) {
     logger.error('Error validating recipient list', { 

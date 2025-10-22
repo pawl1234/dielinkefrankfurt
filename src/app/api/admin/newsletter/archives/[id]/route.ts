@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
+import {
+  getNewsletterById,
+  deleteNewsletterItem
+} from '@/lib/db/newsletter-operations';
+import type { IdRouteContext } from '@/types/api-types';
 
 /**
  * Handler for fetching a single newsletter
  */
 async function handleGetNewsletter(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: IdRouteContext
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
@@ -18,9 +22,7 @@ async function handleGetNewsletter(
     }
 
     // Fetch the newsletter from unified table
-    const newsletter = await prisma.newsletterItem.findUnique({
-      where: { id },
-    });
+    const newsletter = await getNewsletterById(id);
 
     if (!newsletter) {
       return AppError.notFound('Newsletter not found').toResponse();
@@ -54,7 +56,7 @@ export const GET = handleGetNewsletter;
  */
 async function handleDeleteNewsletter(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: IdRouteContext
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
@@ -64,18 +66,14 @@ async function handleDeleteNewsletter(
     }
 
     // Check if newsletter exists
-    const newsletter = await prisma.newsletterItem.findUnique({
-      where: { id }
-    });
+    const newsletter = await getNewsletterById(id);
 
     if (!newsletter) {
       return AppError.notFound('Newsletter not found').toResponse();
     }
 
     // Delete the newsletter
-    await prisma.newsletterItem.delete({
-      where: { id }
-    });
+    await deleteNewsletterItem(id);
 
     logger.info('Newsletter deleted successfully', {
       context: {

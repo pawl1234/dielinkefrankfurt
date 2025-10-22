@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Button, 
-  Alert, 
-  AlertTitle, 
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  AlertTitle,
   CircularProgress,
   LinearProgress,
   Stepper,
@@ -19,6 +19,12 @@ import ValidationResultsDisplay from './ValidationResultsDisplay';
 import SendConfirmationModal from './SendConfirmationModal';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import {
+  ValidateRecipientsResponse,
+  SendNewsletterResponse
+} from '@/types/api-types';
+import { ValidatedEmails } from '@/types/email-types';
+import { NewsletterSettings } from '@/types/newsletter-types';
 
 /**
  * Props for the NewsletterSendingForm component
@@ -31,19 +37,10 @@ interface NewsletterSendingFormProps {
 }
 
 /**
- * Interface for validation results
+ * Frontend-only aggregated state for newsletter sending progress
+ * Constructed from multiple API responses and frontend tracking
  */
-interface ValidationResult {
-  totalValid: number;
-  newRecipients: number;
-  existingRecipients: number;
-  invalidEmails: string[];
-}
-
-/**
- * Interface for send result
- */
-interface SendResult {
+interface NewsletterSendingStatus {
   success: boolean;
   message?: string;
   error?: string;
@@ -54,44 +51,6 @@ interface SendResult {
   completedChunks?: number;
   isComplete?: boolean;
   finalFailedEmails?: string[];
-}
-
-/**
- * Interface for prepare newsletter API response
- */
-interface PrepareNewsletterResponse {
-  success: boolean;
-  message?: string;
-  validRecipients: number;
-  invalidRecipients: number;
-  newsletterId: string;
-  emailChunks: string[][];
-  totalChunks: number;
-  chunkSize: number;
-  html: string;
-  subject: string;
-  settings?: {
-    chunkDelay?: number;
-    fromEmail?: string;
-    fromName?: string;
-    replyToEmail?: string;
-    batchSize?: number;
-    batchDelay?: number;
-    [key: string]: unknown;
-  };
-}
-
-/**
- * Interface for newsletter settings
- */
-interface NewsletterSettings {
-  fromName?: string;
-  fromEmail?: string;
-  replyToEmail?: string;
-  batchSize?: number;
-  batchDelay?: number;
-  chunkDelay?: number;
-  [key: string]: unknown;
 }
 
 /**
@@ -118,13 +77,13 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   });
   
   // Form data state
-  const [emailText, setEmailText] = useState('');
-  const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
+  const [validatedEmails, setValidatedEmails] = useState<ValidatedEmails | null>(null);
+  const [validationResults, setValidationResults] = useState<ValidateRecipientsResponse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [sendResult, setSendResult] = useState<SendResult | null>(null);
-  const [settings, setSettings] = useState<NewsletterSettings>({});
+  const [sendResult, setSendResult] = useState<NewsletterSendingStatus | null>(null);
+  const [settings, setSettings] = useState<Partial<NewsletterSettings>>({});
   
   // Request synchronization to prevent parallel operations
   const [isRetryInProgress, setIsRetryInProgress] = useState(false);
@@ -150,7 +109,6 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
    * Step 1: Handle recipient input submission
    */
   const handleRecipientSubmit = async (emailTextInput: string) => {
-    setEmailText(emailTextInput);
     setIsSubmitting(true);
     setError('');
 
@@ -169,15 +127,13 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         throw new Error(errorData.error || 'Fehler bei der Validierung der E-Mail-Adressen');
       }
 
-      const data = await response.json();
-      
-      // Format validation results
-      setValidationResults({
-        totalValid: data.valid,
-        newRecipients: data.new,
-        existingRecipients: data.existing,
-        invalidEmails: data.invalidEmails || []
-      });
+      const data: ValidateRecipientsResponse = await response.json();
+
+      // Store validated emails for sending
+      setValidatedEmails(data.validatedEmails);
+
+      // Store validation results (using backend response directly)
+      setValidationResults(data);
 
       // Move to next step
       setCurrentStep('validation');
@@ -197,7 +153,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   };
 
   const handleValidationNext = () => {
-    if (!validationResults || validationResults.totalValid === 0) {
+    if (!validationResults || validationResults.valid === 0) {
       setError('Es wurden keine gültigen E-Mail-Adressen gefunden');
       return;
     }
@@ -214,13 +170,17 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   };
 
   const handleConfirmSend = async () => {
+    if (!validatedEmails || validatedEmails.length === 0) {
+      setError('Bitte validieren Sie zuerst die E-Mail-Adressen');
+      return;
+    }
+
     setIsSubmitting(true);
     setError('');
     setIsModalOpen(false);
     setCurrentStep('sending');
 
     try {
-      // Step 1: Prepare newsletter for chunked sending
       const prepareResponse = await fetch('/api/admin/newsletter/send', {
         method: 'POST',
         headers: {
@@ -230,7 +190,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           newsletterId,
           html: newsletterHtml,
           subject,
-          emailText,
+          validatedEmails,
           settings: {
             fromEmail: settings.fromEmail,
             fromName: settings.fromName,
@@ -246,10 +206,10 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         throw new Error(errorData.error || 'Fehler beim Vorbereiten des Newsletters');
       }
 
-      const prepareData: PrepareNewsletterResponse = await prepareResponse.json();
-      
+      const prepareData: SendNewsletterResponse = await prepareResponse.json();
+
       if (!prepareData.success) {
-        throw new Error(prepareData.message || 'Fehler beim Vorbereiten des Newsletters');
+        throw new Error('Fehler beim Vorbereiten des Newsletters');
       }
 
       // Store email chunks and initialize progress
@@ -281,7 +241,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   /**
    * Process email chunks one by one
    */
-  const processEmailChunks = async (chunks: string[][], prepareData: PrepareNewsletterResponse) => {
+  const processEmailChunks = async (chunks: ValidatedEmails[], prepareData: SendNewsletterResponse) => {
     let totalSent = 0;
     let totalFailed = 0;
     let hasError = false;
@@ -299,7 +259,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
             newsletterId,
             html: prepareData.html,
             subject: prepareData.subject,
-            emails: chunks[i],
+            validatedEmails: chunks[i],
             chunkIndex: i,
             totalChunks: chunks.length,
             settings: prepareData.settings
@@ -341,9 +301,9 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
           totalFailed
         });
 
-        // Use configured delay between chunks  
+        // Use configured delay between chunks
         if (i < chunks.length - 1) {
-          const chunkDelay = prepareData.settings?.chunkDelay || 500;
+          const chunkDelay = (prepareData.settings?.chunkDelay as number | undefined) || 500;
           await new Promise(resolve => setTimeout(resolve, chunkDelay));
         }
 
@@ -406,7 +366,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
   /**
    * Process retry stages automatically
    */
-  const processRetryStages = async (prepareData: PrepareNewsletterResponse) => {
+  const processRetryStages = async (prepareData: SendNewsletterResponse) => {
     let finalFailedEmails: string[] = [];
     let hasRetryError = false;
     let totalRetrySuccesses = 0; // Track total successful emails during retry
@@ -474,7 +434,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
                 html: prepareData.html,
                 subject: prepareData.subject,
                 settings: prepareData.settings,
-                chunkEmails: chunk,
+                validatedEmails: chunk,
                 chunkIndex
               }),
             });
@@ -624,7 +584,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
    */
   const handleReset = () => {
     setCurrentStep('input');
-    setEmailText('');
+    setValidatedEmails(null);
     setValidationResults(null);
     setIsModalOpen(false);
     setError('');
@@ -926,7 +886,7 @@ export default function NewsletterSendingForm({ newsletterHtml, subject, newslet
         isOpen={isModalOpen}
         onClose={handleCancelSend}
         onConfirm={handleConfirmSend}
-        recipientCount={validationResults?.totalValid || 0}
+        recipientCount={validationResults?.valid || 0}
         isSubmitting={isSubmitting}
         subject={subject}
         settings={{

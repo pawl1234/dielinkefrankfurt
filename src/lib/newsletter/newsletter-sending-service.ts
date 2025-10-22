@@ -12,78 +12,15 @@
  * transporter-manager, chunk-aggregator-service, send-session-service
  */
 
-import { sendEmailWithTransporter, createTransporter, validateEmail, cleanEmail, validateAndHashEmails } from '@/lib/email';
+import { sendEmailWithTransporter, createTransporter } from '@/lib/email';
 import type { SMTPTransporter } from '@/lib/email';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
+import { updateNewsletterItem, getNewsletterById } from '@/lib/db/newsletter-operations';
 import type { NewsletterSettings } from '@/types/newsletter-types';
 import { extractEmailSettings } from '@/types/newsletter-types';
-import { format } from 'date-fns';
-import { ChunkResult, EmailSendResult } from '@/types/api-types';
-import type { ValidationResult } from '@/lib/email';
+import { ChunkResult, EmailSendResult, NewsletterSendingState } from '@/types/api-types';
 import { getNewsletterSettings } from './settings-service';
-
-// ============================================================================
-// PUBLIC API - Email Processing
-// ============================================================================
-
-/**
- * Process a list of recipient emails
- * Validates and hashes emails for privacy-conscious storage
- *
- * @param emailText - Newline-separated list of email addresses
- * @returns ValidationResult with statistics
- */
-export async function processRecipientList(emailText: string): Promise<ValidationResult> {
-  if (!emailText || emailText.trim().length === 0) {
-    throw new Error('Email list cannot be empty');
-  }
-
-  try {
-    return await validateAndHashEmails(emailText);
-  } catch (error) {
-    logger.error('Error processing recipient list:', { context: { error } });
-    throw new Error('Failed to process recipient list');
-  }
-}
-
-/**
- * Parse and clean email list, filtering out invalid emails
- * Handles Excel-safe cleaning for emails copied from spreadsheets
- *
- * @param emailText - Newline-separated email addresses
- * @param invalidEmails - List of emails to exclude
- * @returns Array of cleaned, valid emails
- */
-export function parseAndCleanEmailList(
-  emailText: string,
-  invalidEmails: string[]
-): string[] {
-  const plainEmails = emailText
-    .split('\n')
-    .map((email: string) => {
-      const originalEmail = email;
-      const cleanedEmail = cleanEmail(email);
-
-      // Log if cleaning changed the email (indicates invisible characters from Excel)
-      if (originalEmail !== cleanedEmail && cleanedEmail.length > 0) {
-        logger.info(`Cleaned email during parsing`, {
-          context: {
-            original: JSON.stringify(originalEmail),
-            cleaned: cleanedEmail,
-            originalLength: originalEmail.length,
-            cleanedLength: cleanedEmail.length
-          }
-        });
-      }
-
-      return cleanedEmail;
-    })
-    .filter((email: string) => email.length > 0)
-    .filter((email: string) => !invalidEmails.includes(email));
-
-  return plainEmails;
-}
+import { ValidatedEmails } from '@/types/email-types';
 
 // ============================================================================
 // PUBLIC API - Chunk Sending
@@ -91,16 +28,16 @@ export function parseAndCleanEmailList(
 
 /**
  * Send a chunk of emails for a newsletter
- * Main orchestration function - handles validation, sending, and error tracking
+ * TRUSTS email input - Zod already verified format at API boundary
  *
- * @param chunk - Array of email addresses to send to
+ * @param chunk - Array of validated email addresses (already cleaned and verified)
  * @param newsletterId - Newsletter ID for logging and tracking
  * @param settings - Newsletter settings including SMTP configuration and content
  * @param mode - Whether this is initial sending or retry mode
  * @returns ChunkResult with details of successful and failed sends
  */
 export async function processSendingChunk(
-  chunk: string[],
+  chunk: ValidatedEmails,
   newsletterId: string,
   settings: NewsletterSettings & {
     html: string;
@@ -129,30 +66,16 @@ export async function processSendingChunk(
       }
     });
 
-    // Step 1: Validate and clean emails
-    const { validEmails, invalidResults } = validateAndCleanEmails(
-      chunk,
-      newsletterId,
-      mode
-    );
-
-    results = [...invalidResults];
-
-    if (validEmails.length === 0) {
-      logger.warn('No valid emails to send after validation', {
-        module: 'newsletter-sending',
-        context: { newsletterId, mode }
-      });
-
+    if (chunk.length === 0) {
       return {
         sentCount: 0,
-        failedCount: results.length,
+        failedCount: 0,
         completedAt: new Date().toISOString(),
-        results
+        results: []
       };
     }
 
-    // Step 2: Create and verify transporter
+    // Create and verify transporter
     const verificationResult = await createAndVerifyTransporter(
       settings,
       newsletterId,
@@ -180,12 +103,12 @@ export async function processSendingChunk(
 
     const { transporter } = verificationResult;
 
-    // Step 3: Send emails using appropriate method
+    // Send emails using appropriate method
     let sendResult;
-    if (validEmails.length > 1) {
+    if (chunk.length > 1) {
       sendResult = await sendViaBCC(
         transporter,
-        validEmails,
+        chunk,
         settings,
         newsletterId,
         mode,
@@ -194,7 +117,7 @@ export async function processSendingChunk(
     } else {
       sendResult = await sendIndividually(
         transporter,
-        validEmails,
+        chunk,
         settings,
         newsletterId,
         mode
@@ -277,31 +200,31 @@ export async function updateNewsletterAfterChunk(
   chunkIndex: number,
   totalChunks: number,
   chunkResult: ChunkResult,
-  currentSettings: Record<string, unknown>
+  currentSettings: NewsletterSendingState
 ): Promise<{
   finalStatus: string;
-  finalSettings: Record<string, unknown>;
+  finalSettings: NewsletterSendingState;
   isComplete: boolean;
 }> {
   const isComplete = chunkIndex === totalChunks - 1;
 
   // Get existing chunk results
-  const chunkResults = (currentSettings.chunkResults as ChunkResult[]) || [];
+  const chunkResults = currentSettings.chunkResults || [];
   chunkResults[chunkIndex] = chunkResult;
 
   // Calculate aggregations (inline - simple reduce)
   const totalSent = chunkResults.reduce(
-    (sum: number, chunk: ChunkResult) => sum + (chunk?.sentCount || 0),
+    (sum, chunk) => sum + (chunk?.sentCount || 0),
     0
   );
   const totalFailed = chunkResults.reduce(
-    (sum: number, chunk: ChunkResult) => sum + (chunk?.failedCount || 0),
+    (sum, chunk) => sum + (chunk?.failedCount || 0),
     0
   );
   const completedChunks = chunkResults.filter(chunk => chunk !== undefined && chunk !== null).length;
 
   // Merge settings with chunk completion data
-  let finalSettings = {
+  let finalSettings: NewsletterSendingState = {
     ...currentSettings,
     chunkResults,
     totalSent,
@@ -311,7 +234,7 @@ export async function updateNewsletterAfterChunk(
   };
 
   // Determine status (inline - simple logic tree)
-  let finalStatus = currentSettings.status as string || 'sending';
+  let finalStatus = currentSettings.status || 'sending';
 
   if (isComplete) {
     if (totalFailed === 0) {
@@ -327,12 +250,10 @@ export async function updateNewsletterAfterChunk(
       await initializeRetryProcess(newsletterId, chunkResults, currentSettings);
 
       // Fetch updated settings after retry initialization
-      const updatedNewsletter = await prisma.newsletterItem.findUnique({
-        where: { id: newsletterId }
-      });
+      const updatedNewsletter = await getNewsletterById(newsletterId);
 
       if (updatedNewsletter?.settings) {
-        const retrySettings = JSON.parse(updatedNewsletter.settings);
+        const retrySettings: NewsletterSendingState = JSON.parse(updatedNewsletter.settings);
         // Merge retry settings with our chunk completion data
         finalSettings = {
           ...retrySettings,
@@ -343,9 +264,9 @@ export async function updateNewsletterAfterChunk(
           module: 'newsletter-sending',
           context: {
             newsletterId,
-            hasRetryInProgress: !!(finalSettings as Record<string, unknown>).retryInProgress,
-            hasFailedEmails: !!(finalSettings as Record<string, unknown>).failedEmails,
-            failedEmailsCount: ((finalSettings as Record<string, unknown>).failedEmails as string[])?.length || 0
+            hasRetryInProgress: !!finalSettings.retryInProgress,
+            hasFailedEmails: !!finalSettings.failedEmails,
+            failedEmailsCount: finalSettings.failedEmails?.length || 0
           }
         });
       }
@@ -353,13 +274,10 @@ export async function updateNewsletterAfterChunk(
   }
 
   // Update newsletter in database
-  await prisma.newsletterItem.update({
-    where: { id: newsletterId },
-    data: {
-      status: finalStatus,
-      settings: JSON.stringify(finalSettings),
-      sentAt: isComplete && finalStatus === 'sent' ? new Date() : undefined
-    }
+  await updateNewsletterItem(newsletterId, {
+    status: finalStatus,
+    settings: JSON.stringify(finalSettings),
+    sentAt: isComplete && finalStatus === 'sent' ? new Date() : undefined
   });
 
   logger.info(`Chunk ${chunkIndex + 1}/${totalChunks} completed`, {
@@ -382,160 +300,43 @@ export async function updateNewsletterAfterChunk(
 }
 
 // ============================================================================
-// PRIVATE HELPERS - Email Validation
-// ============================================================================
-
-/**
- * Validate and clean a batch of email addresses
- * Returns valid emails and results for invalid ones
- */
-function validateAndCleanEmails(
-  emails: string[],
-  newsletterId: string,
-  mode: 'initial' | 'retry'
-): {
-  validEmails: string[];
-  invalidResults: EmailSendResult[];
-} {
-  const results: EmailSendResult[] = [];
-
-  // Clean and validate email addresses
-  const validatedEmails = emails.map(email => {
-    const originalEmail = email;
-    const cleanedEmail = cleanEmail(email);
-
-    // Log if cleaning changed the email (privacy-conscious - no full email in logs)
-    if (originalEmail !== cleanedEmail) {
-      const domain = cleanedEmail.split('@')[1] || 'unknown';
-      logger.warn(`Cleaned email address`, {
-        module: 'newsletter-sending',
-        context: {
-          newsletterId,
-          domain,
-          originalLength: originalEmail.length,
-          cleanedLength: cleanedEmail.length,
-          mode
-        }
-      });
-    }
-
-    return cleanedEmail;
-  }).filter(email => {
-    if (!validateEmail(email)) {
-      const domain = email.split('@')[1] || 'invalid';
-      logger.warn(`Filtering out invalid email address`, {
-        module: 'newsletter-sending',
-        context: {
-          newsletterId,
-          domain,
-          mode
-        }
-      });
-
-      results.push({
-        email,
-        success: false,
-        error: 'Invalid email address'
-      });
-
-      return false;
-    }
-    return true;
-  });
-
-  if (validatedEmails.length !== emails.length) {
-    logger.warn(`Filtered out ${emails.length - validatedEmails.length} invalid email addresses`, {
-      module: 'newsletter-sending',
-      context: {
-        newsletterId,
-        originalCount: emails.length,
-        validCount: validatedEmails.length,
-        mode
-      }
-    });
-  }
-
-  return {
-    validEmails: validatedEmails,
-    invalidResults: results
-  };
-}
-
-// ============================================================================
 // PRIVATE HELPERS - Transporter Management
 // ============================================================================
 
 /**
- * Create and verify SMTP transporter with retry logic
- * Implements exponential backoff for connection retries
+ * Create and verify SMTP transporter
+ * Trusts mailer.ts built-in retry logic for verification
  */
 async function createAndVerifyTransporter(
   settings: NewsletterSettings,
   newsletterId: string,
   mode: 'initial' | 'retry',
   chunkInfo: string
-): Promise<{ transporter: SMTPTransporter; verified: boolean; retryCount: number } | null> {
+): Promise<{ transporter: SMTPTransporter; verified: boolean } | null> {
   // Extract email-specific settings
   const emailSettings = extractEmailSettings(settings);
 
-  // Create a single transporter for this entire chunk
-  const transporter = createTransporter(emailSettings);
+  try {
+    // Create a single transporter for this entire chunk
+    const transporter = createTransporter(emailSettings);
 
-  // Verify transporter once per chunk with retry logic
-  let retryCount = 0;
-  const maxRetries = settings.maxRetries || 3;
+    // Transporter.verify() already retries internally in mailer.ts
+    // If it fails after retries, it SHOULD throw
+    await transporter.verify();
 
-  while (retryCount < maxRetries) {
-    try {
-      await transporter.verify();
-      // Successful verification
-      return {
-        transporter,
-        verified: true,
-        retryCount
-      };
-    } catch (verifyError) {
-      retryCount++;
+    logger.info(`Transporter verified for ${chunkInfo}`, {
+      module: 'newsletter-sending',
+      context: { newsletterId, mode }
+    });
 
-      // Check if it's a connection error
-      const errorObj = verifyError as { response?: string; code?: string; message?: string };
-      const isConnectionError = errorObj?.response?.includes('too many connections') ||
-                               errorObj?.code === 'ECONNREFUSED' ||
-                               errorObj?.code === 'ESOCKET' ||
-                               errorObj?.code === 'EPROTOCOL';
-
-      if (isConnectionError && retryCount < maxRetries) {
-        const maxBackoffDelay = settings.maxBackoffDelay || 10000;
-        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), maxBackoffDelay);
-
-        logger.warn(`SMTP verification failed for ${chunkInfo} (attempt ${retryCount}/${maxRetries}), retrying in ${backoffDelay}ms`, {
-          module: 'newsletter-sending',
-          context: {
-            error: errorObj?.message || String(verifyError),
-            newsletterId,
-            mode
-          }
-        });
-
-        await new Promise(resolve => setTimeout(resolve, backoffDelay));
-      } else {
-        logger.error('SMTP transporter verification failed', {
-          module: 'newsletter-sending',
-          context: {
-            error: verifyError,
-            newsletterId,
-            mode,
-            chunkInfo,
-            attempts: retryCount
-          }
-        });
-
-        return null;
-      }
-    }
+    return { transporter, verified: true };
+  } catch (error) {
+    logger.error('Transporter verification failed after retries', {
+      module: 'newsletter-sending',
+      context: { error, newsletterId, mode, chunkInfo }
+    });
+    return null;
   }
-
-  return null;
 }
 
 /**
@@ -566,16 +367,8 @@ function closeTransporter(
 // ============================================================================
 
 /**
- * Format subject line with template variables
- */
-function formatSubject(template: string): string {
-  const currentDate = format(new Date(), 'dd.MM.yyyy');
-  return template.replace('{date}', currentDate);
-}
-
-/**
  * Send email to multiple recipients using BCC
- * Includes automatic retry with transporter recreation on connection errors
+ * Trusts sendEmailWithTransporter's built-in retry logic
  */
 async function sendViaBCC(
   transporter: SMTPTransporter,
@@ -586,9 +379,6 @@ async function sendViaBCC(
   chunkInfo: string
 ): Promise<{ results: EmailSendResult[]; sentCount: number; failedCount: number }> {
   const results: EmailSendResult[] = [];
-
-  // Format subject line
-  const formattedSubject = formatSubject(settings.subject);
 
   // Prepare sender information
   const fromEmail = settings.fromEmail || 'newsletter@die-linke-frankfurt.de';
@@ -612,7 +402,7 @@ async function sendViaBCC(
     const result = await sendEmailWithTransporter(transporter, {
       to: from, // Use sender address as "To"
       bcc: bccString,
-      subject: formattedSubject,
+      subject: settings.subject,
       html: settings.html,
       from,
       replyTo,
@@ -634,65 +424,25 @@ async function sendViaBCC(
         }
       });
     } else {
-      // Handle connection error with transporter recreation
-      if ((result as { isConnectionError?: boolean }).isConnectionError) {
-        logger.warn(`Connection error detected, recreating transporter`, {
-          module: 'newsletter-sending',
-          context: { newsletterId, mode, chunkInfo }
+      // sendEmailWithTransporter already retried 3× with exponential backoff
+      // If it failed after retries, mark all emails as failed
+      validatedEmails.forEach(email => {
+        results.push({
+          email,
+          success: false,
+          error: String(result.error)
         });
+      });
 
-        transporter.close();
-        const emailSettings = extractEmailSettings(settings);
-        const newTransporter = createTransporter(emailSettings);
-
-        // Retry once with new transporter
-        try {
-          const retryResult = await sendEmailWithTransporter(newTransporter, {
-            to: from,
-            bcc: bccString,
-            subject: formattedSubject,
-            html: settings.html,
-            from,
-            replyTo,
-            settings: extractEmailSettings(settings)
-          });
-
-          if (retryResult.success) {
-            validatedEmails.forEach(email => {
-              results.push({ email, success: true });
-            });
-
-            logger.info(`BCC email succeeded after transporter recreation`, {
-              module: 'newsletter-sending',
-              context: { newsletterId, mode, chunkInfo }
-            });
-          } else {
-            validatedEmails.forEach(email => {
-              results.push({
-                email,
-                success: false,
-                error: String(retryResult.error)
-              });
-            });
-          }
-        } catch (retryError) {
-          validatedEmails.forEach(email => {
-            results.push({
-              email,
-              success: false,
-              error: String(retryError)
-            });
-          });
+      logger.warn(`BCC email failed after retries`, {
+        module: 'newsletter-sending',
+        context: {
+          newsletterId,
+          mode,
+          chunkInfo,
+          error: result.error
         }
-      } else {
-        validatedEmails.forEach(email => {
-          results.push({
-            email,
-            success: false,
-            error: String(result.error)
-          });
-        });
-      }
+      });
     }
   } catch (error) {
     validatedEmails.forEach(email => {
@@ -737,9 +487,6 @@ async function sendIndividually(
 ): Promise<{ results: EmailSendResult[]; sentCount: number; failedCount: number }> {
   const results: EmailSendResult[] = [];
 
-  // Format subject line
-  const formattedSubject = formatSubject(settings.subject);
-
   // Prepare sender information
   const fromEmail = settings.fromEmail || 'newsletter@die-linke-frankfurt.de';
   const fromName = settings.fromName || 'Die Linke Frankfurt';
@@ -754,7 +501,7 @@ async function sendIndividually(
     try {
       const result = await sendEmailWithTransporter(transporter, {
         to: email,
-        subject: formattedSubject,
+        subject: settings.subject,
         html: settings.html,
         from,
         replyTo,
@@ -825,7 +572,7 @@ async function sendIndividually(
 async function initializeRetryProcess(
   newsletterId: string,
   chunkResults: ChunkResult[],
-  currentSettings: Record<string, unknown>
+  currentSettings: NewsletterSendingState
 ): Promise<void> {
   try {
     // Get newsletter settings for retry configuration
@@ -861,7 +608,7 @@ async function initializeRetryProcess(
     });
 
     // Prepare retry settings
-    const retrySettings = {
+    const retrySettings: NewsletterSendingState = {
       ...currentSettings,
       retryInProgress: true,
       retryStartedAt: new Date().toISOString(),
@@ -876,25 +623,20 @@ async function initializeRetryProcess(
       context: {
         newsletterId,
         retryInProgress: retrySettings.retryInProgress,
-        failedEmailsCount: retrySettings.failedEmails.length
+        failedEmailsCount: retrySettings.failedEmails?.length || 0
       }
     });
 
     // Store retry information in newsletter settings
-    await prisma.newsletterItem.update({
-      where: { id: newsletterId },
-      data: {
-        settings: JSON.stringify(retrySettings)
-      }
+    await updateNewsletterItem(newsletterId, {
+      settings: JSON.stringify(retrySettings)
     });
 
     // Verify the update was successful
-    const updatedNewsletter = await prisma.newsletterItem.findUnique({
-      where: { id: newsletterId }
-    });
+    const updatedNewsletter = await getNewsletterById(newsletterId);
 
     if (updatedNewsletter?.settings) {
-      const verifySettings = JSON.parse(updatedNewsletter.settings);
+      const verifySettings: NewsletterSendingState = JSON.parse(updatedNewsletter.settings);
       logger.info(`Verified newsletter update - retry process initialized`, {
         module: 'newsletter-sending',
         context: {
