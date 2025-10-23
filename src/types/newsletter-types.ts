@@ -1,9 +1,11 @@
-import { Appointment, Group, StatusReport } from '@prisma/client';
+import { Group, StatusReport, NewsletterItem } from '@prisma/client';
+import type { EmailTransportSettings } from './email-types';
 
 /**
  * Newsletter settings configuration for display and sending
  */
-export interface NewsletterSettings {
+export interface NewsletterSettings extends EmailTransportSettings {
+  [key: string]: unknown;
   headerLogo: string;
   headerBanner: string;
   footerText: string;
@@ -25,18 +27,8 @@ export interface NewsletterSettings {
   // Newsletter sending performance settings
   chunkSize?: number;
   chunkDelay?: number;
-  emailTimeout?: number;
-
-  // SMTP connection settings
-  connectionTimeout?: number;
-  greetingTimeout?: number;
-  socketTimeout?: number;
-  maxConnections?: number;
-  maxMessages?: number;
 
   // Retry logic settings
-  maxRetries?: number;
-  maxBackoffDelay?: number;
   retryChunkSizes?: string;
 
   // Header Composition Settings
@@ -78,24 +70,73 @@ export interface GroupWithReports {
 }
 
 /**
- * Parameters for email template generation
+ * Input data for creating a new newsletter item
+ * Required: subject, introductionText
+ * Optional: content, status (defaults to 'draft'), sentAt, recipientCount, settings
  */
-export interface EmailTemplateParams {
-  newsletterSettings: NewsletterSettings;
-  subject?: string;
+export interface CreateNewsletterItemData {
+  subject: string;
   introductionText: string;
-  featuredAppointments: Appointment[];
-  upcomingAppointments: Appointment[];
-  statusReportsByGroup?: GroupWithReports[];
-  baseUrl: string;
+  content?: string | null;
+  status?: string;
+  sentAt?: Date | null;
+  recipientCount?: number | null;
+  settings?: string | null;
 }
 
 /**
- * Optional parameters for analytics tracking integration
+ * Type guard to extract email transport settings from newsletter settings
+ * Safe type narrowing without casts
  */
-export interface NewsletterAnalyticsParams {
-  /** Analytics token for tracking pixel and link rewriting */
-  analyticsToken?: string;
-  /** Newsletter ID for analytics association */
-  newsletterId?: string;
+export function extractEmailSettings(
+  settings: NewsletterSettings
+): EmailTransportSettings {
+  return {
+    connectionTimeout: settings.connectionTimeout,
+    greetingTimeout: settings.greetingTimeout,
+    socketTimeout: settings.socketTimeout,
+    maxConnections: settings.maxConnections,
+    maxMessages: settings.maxMessages,
+    maxRetries: settings.maxRetries,
+    emailTimeout: settings.emailTimeout,
+    maxBackoffDelay: settings.maxBackoffDelay,
+  };
+}
+
+/**
+ * Filters for querying newsletters with optional search and status
+ */
+export interface NewsletterQueryFilters {
+  search?: string;
+  status?: string;
+}
+
+/**
+ * Pagination options for newsletter queries
+ */
+export interface PaginationOptions {
+  page: number;
+  limit: number;
+}
+
+/**
+ * Result of paginated newsletter query
+ */
+export interface PaginatedNewsletterResult {
+  items: NewsletterItem[];
+  total: number;
+}
+
+/**
+ * Options for querying newsletter items
+ */
+export interface GetNewsletterItemsOptions {
+  /** Filter by newsletter status (e.g., 'draft', 'sent', 'sending') */
+  status?: string;
+  /** Field to sort by (default: 'createdAt') */
+  sortBy?: 'createdAt' | 'sentAt';
+  /** Sort order (default: 'desc') */
+  sortOrder?: 'asc' | 'desc';
+  /** Maximum number of items to return */
+  limit?: number;
 }

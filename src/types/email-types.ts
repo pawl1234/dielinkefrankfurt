@@ -78,3 +78,115 @@ export interface GroupContactEmailProps extends NotificationEmailProps {
   requesterEmail: string;
   message: string;
 }
+
+/**
+ * SMTP Transporter configuration settings
+ * Used by all email sending operations
+ */
+export interface EmailTransportSettings {
+  connectionTimeout?: number;
+  greetingTimeout?: number;
+  socketTimeout?: number;
+  maxConnections?: number;
+  maxMessages?: number;
+  maxRetries?: number;
+  emailTimeout?: number;
+  maxBackoffDelay?: number;
+}
+
+/**
+ * Email attachment structure
+ */
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
+/**
+ * Standard mail options for SMTP transport
+ */
+export interface MailOptions {
+  from: string;
+  to: string;
+  bcc?: string;
+  subject: string;
+  html: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+  attachments?: EmailAttachment[];
+}
+
+/**
+ * Email send result metadata
+ */
+export interface EmailInfo {
+  messageId: string;
+}
+
+/**
+ * SMTP Transporter interface
+ * Matches nodemailer transporter API surface
+ */
+export interface SMTPTransporter {
+  sendMail: (mailOptions: MailOptions) => Promise<EmailInfo>;
+  verify: () => Promise<boolean | void>;
+  close: () => void;
+}
+
+/**
+ * Email send operation result
+ */
+export interface EmailSendResult {
+  email: string;
+  success: boolean;
+  error?: string;
+  messageId?: string;
+  isConnectionError?: boolean;
+}
+
+/**
+ * Validated, normalized email address
+ * - Cleaned of invisible characters via cleanEmail()
+ * - Validated for SMTP compatibility via validateEmail()
+ * - Lowercased and trimmed
+ * - Ready for sending
+ */
+export type ValidatedEmail = string;
+
+/**
+ * Array of validated email addresses ready for sending
+ * Used consistently across all newsletter sending APIs
+ */
+export type ValidatedEmails = ValidatedEmail[];
+
+/**
+ * Chunk processing result base
+ */
+export interface ChunkProcessingResult {
+  success: boolean;
+  chunkIndex: number;
+  sentCount: number;
+  failedCount: number;
+  results: EmailSendResult[];
+}
+
+/**
+ * Response from /send-chunk API
+ */
+export interface SendChunkResponse extends ChunkProcessingResult {
+  totalChunks: number;
+  isComplete: boolean;
+  newsletterStatus?: string;
+  error?: string;
+}
+
+/**
+ * Response from /retry-chunk API
+ */
+export interface RetryChunkResponse extends ChunkProcessingResult {
+  processedCount: number;
+  successfulEmails: string[];
+  failedEmails: string[];
+  error?: string;
+}

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AIGenerationWithTopicsRequest, AIGenerationResponse } from '@/types/api-types';
 import { logger } from '@/lib/logger';
 import { aiService } from '@/lib/ai';
-import prisma from '@/lib/db/prisma';
+import { getAllNewsletterItems } from '@/lib/db/newsletter-operations';
+import { aiGenerateIntroSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * POST /api/admin/newsletter/ai/generate
@@ -13,62 +14,51 @@ import prisma from '@/lib/db/prisma';
 export async function POST(request: NextRequest) {
   try {
     const data: AIGenerationWithTopicsRequest = await request.json();
-    
+
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(aiGenerateIntroSchema, data);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for AI generate intro', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/ai/generate',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors, success: false, generatedText: '' } as AIGenerationResponse,
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validation.data!;
+
     logger.debug('AI generation request received', {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/ai/generate',
-        hasTopThemes: !!data.topThemes,
-        hasBoardProtocol: !!data.boardProtocol,
-        hasExtractedTopics: !!data.extractedTopics,
-        topThemesLength: data.topThemes?.length || 0,
-        boardProtocolLength: data.boardProtocol?.length || 0,
-        extractedTopicsLength: data.extractedTopics?.length || 0
+        hasTopThemes: !!validatedData.topThemes,
+        hasBoardProtocol: !!validatedData.boardProtocol,
+        hasExtractedTopics: !!validatedData.extractedTopics,
+        topThemesLength: validatedData.topThemes?.length || 0,
+        boardProtocolLength: validatedData.boardProtocol?.length || 0,
+        extractedTopicsLength: validatedData.extractedTopics?.length || 0
       }
     });
 
-    // Validate input
-    if (!data.topThemes?.trim()) {
-      return NextResponse.json(
-        { error: 'Top Themen sind erforderlich', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-    
-    // Validate input length
-    if (data.topThemes.length > 5000) {
-      return NextResponse.json(
-        { error: 'Top Themen zu lang (max. 5000 Zeichen)', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-    
-    // Validate boardProtocol length if provided (now optional)
-    if (data.boardProtocol && data.boardProtocol.length > 10000) {
-      return NextResponse.json(
-        { error: 'Vorstandsprotokoll zu lang (max. 10000 Zeichen)', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-    
-    // Validate extractedTopics length if provided
-    if (data.extractedTopics && data.extractedTopics.length > 5000) {
-      return NextResponse.json(
-        { error: 'Extrahierte Themen zu lang (max. 5000 Zeichen)', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-
     // Get previous newsletter intro if not provided
-    let previousIntro = data.previousIntro || '';
+    let previousIntro = validatedData.previousIntro || '';
     if (!previousIntro) {
       try {
-        const lastNewsletter = await prisma.newsletterItem.findFirst({
-          where: { status: 'sent' },
-          orderBy: { sentAt: 'desc' },
-          select: { introductionText: true }
+        const [lastNewsletter] = await getAllNewsletterItems({
+          status: 'sent',
+          sortBy: 'sentAt',
+          sortOrder: 'desc',
+          limit: 1
         });
-        
+
         if (lastNewsletter?.introductionText) {
           previousIntro = lastNewsletter.introductionText;
           logger.debug('Found previous newsletter intro', {
@@ -93,10 +83,10 @@ export async function POST(request: NextRequest) {
     try {
       // Generate intro using AI service
       const generatedText = await aiService.generateIntro({
-        topThemes: data.topThemes,
+        topThemes: validatedData.topThemes,
         previousIntro,
-        boardProtocol: data.boardProtocol,
-        extractedTopics: data.extractedTopics
+        boardProtocol: validatedData.boardProtocol,
+        extractedTopics: validatedData.extractedTopics
       });
 
       return NextResponse.json({

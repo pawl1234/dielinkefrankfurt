@@ -209,7 +209,6 @@ src/
 - **Rich text editing**: TipTap editor with link support, outputs HTML
 - **Date handling**: Use `dayjs` and `date-fns-tz` for timezone-aware operations
 - **Error logging**: Use `src/lib/logger.ts` with structured logging
-- **Never create a file longer than 500 lines of code.** If a file approaches this limit, refactor by splitting it into modules or helper files.
 - **Organize code into clearly separated modules**, grouped by feature or responsibility.
 - **TypeScript**: NEVER use the `any` type. Always use specific types from `src/types/` (api-types.ts, component-types.ts, form-types.ts) or create proper interfaces. For Prisma models, use proper field types matching schema.prisma. While development make sure type safety is always ensured.
 - **Comment non-obvious code** and ensure everything is understandable to a mid-level developer.

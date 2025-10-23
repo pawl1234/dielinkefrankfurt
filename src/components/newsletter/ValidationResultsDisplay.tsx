@@ -18,17 +18,13 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import { ValidateRecipientsResponse } from '@/types/api-types';
 
 /**
  * Props for the ValidationResultsDisplay component
  */
 interface ValidationResultsDisplayProps {
-  validationResults: {
-    totalValid: number;
-    newRecipients: number;
-    existingRecipients: number;
-    invalidEmails: string[];
-  };
+  validationResults: ValidateRecipientsResponse;
   onBack: () => void;
   onNext: () => void;
   isSubmitting?: boolean;
@@ -43,7 +39,7 @@ const ValidationResultsDisplay: React.FC<ValidationResultsDisplayProps> = ({
   onNext,
   isSubmitting = false
 }) => {
-  const { totalValid, newRecipients, existingRecipients, invalidEmails } = validationResults;
+  const { valid: totalValid, new: newRecipients, existing: existingRecipients, invalidEmails } = validationResults;
   const hasInvalidEmails = invalidEmails.length > 0;
   const totalInvalid = invalidEmails.length;
   const totalRecipients = totalValid + totalInvalid;
