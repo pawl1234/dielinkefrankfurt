@@ -91,3 +91,86 @@ export interface PublicGroupWithMeeting {
   meetingPostalCode: string | null;
   meetingLocationDetails: string | null;
 }
+
+/**
+ * Navigation menu item type discriminator
+ */
+export type MenuItemType = 'link' | 'divider' | 'submenu';
+
+/**
+ * Base interface for all navigation menu items
+ * Provides common fields for MenuItem discriminated union
+ */
+export interface BaseMenuItem {
+  /**
+   * Type discriminator for the menu item
+   */
+  type: MenuItemType;
+  /**
+   * Unique identifier for React keys and submenu state tracking
+   */
+  key: string;
+}
+
+/**
+ * Navigation link menu item
+ * Represents a clickable link to a specific page
+ */
+export interface LinkMenuItem extends BaseMenuItem {
+  /**
+   * Type discriminator - must be 'link'
+   */
+  type: 'link';
+  /**
+   * Display label (German text, max 30 characters recommended)
+   */
+  label: string;
+  /**
+   * Next.js route path (must start with /)
+   */
+  href: string;
+  /**
+   * Optional Material UI icon component
+   */
+  icon?: React.ReactNode;
+}
+
+/**
+ * Divider menu item
+ * Represents a visual separator between groups of menu items
+ */
+export interface DividerMenuItem extends BaseMenuItem {
+  /**
+   * Type discriminator - must be 'divider'
+   */
+  type: 'divider';
+}
+
+/**
+ * Submenu menu item
+ * Represents a parent menu item with expandable child items
+ */
+export interface SubmenuMenuItem extends BaseMenuItem {
+  /**
+   * Type discriminator - must be 'submenu'
+   */
+  type: 'submenu';
+  /**
+   * Display label (German text, max 30 characters recommended)
+   */
+  label: string;
+  /**
+   * Optional Material UI icon component
+   */
+  icon?: React.ReactNode;
+  /**
+   * Nested menu items (no nested submenus - max 1 level deep)
+   */
+  items: MenuItem[];
+}
+
+/**
+ * Discriminated union of all menu item types
+ * Use type narrowing based on the 'type' field
+ */
+export type MenuItem = LinkMenuItem | DividerMenuItem | SubmenuMenuItem;

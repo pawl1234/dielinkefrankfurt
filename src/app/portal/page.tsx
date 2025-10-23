@@ -36,7 +36,7 @@ export default async function PortalPage() {
             Navigation
           </Typography>
           <Typography variant="body1">
-            Nutzen Sie das Menü auf der linken Seite, um zwischen verschiedenen Bereichen zu navigieren.
+            Nutzen Sie das Menü oben, um zwischen verschiedenen Bereichen zu navigieren.
           </Typography>
         </Box>
       </Box>

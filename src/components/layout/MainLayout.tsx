@@ -36,35 +36,8 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import GroupsIcon from '@mui/icons-material/Groups';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
+import type { MenuItem } from '@/types/component-types';
 // import MuiSetup from './MuiSetup'; // REMOVE THIS LINE
-
-// Menu item types for structured navigation
-type MenuItemType = 'link' | 'divider' | 'submenu';
-
-interface BaseMenuItem {
-  type: MenuItemType;
-  key: string;
-}
-
-interface LinkMenuItem extends BaseMenuItem {
-  type: 'link';
-  label: string;
-  href: string;
-  icon?: ReactNode;
-}
-
-interface DividerMenuItem extends BaseMenuItem {
-  type: 'divider';
-}
-
-interface SubmenuMenuItem extends BaseMenuItem {
-  type: 'submenu';
-  label: string;
-  icon?: ReactNode;
-  items: MenuItem[];
-}
-
-type MenuItem = LinkMenuItem | DividerMenuItem | SubmenuMenuItem;
 
 // Main navigation structure
 const mainNavigation: MenuItem[] = [

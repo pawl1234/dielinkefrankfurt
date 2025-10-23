@@ -1,11 +1,11 @@
-import { Box } from '@mui/material';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { redirect } from 'next/navigation';
+import { MainLayout } from '@/components/layout/MainLayout';
 import PortalNavigation from '@/components/portal/PortalNavigation';
 
 /**
- * Portal layout with navigation menu
+ * Portal layout with MainLayout wrapper and portal-specific navigation
  */
 export default async function PortalLayout({
   children,
@@ -20,23 +20,12 @@ export default async function PortalLayout({
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <PortalNavigation
-        username={session.user.username}
-        role={session.user.role}
-      />
+    <MainLayout showHeader={true} title="Mitgliederbereich">
+      {/* Portal-specific horizontal navigation */}
+      <PortalNavigation />
 
-      {/* Main Content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          ml: { xs: 0, md: '250px' }, // Offset for permanent drawer on desktop
-        }}
-      >
-        {children}
-      </Box>
-    </Box>
+      {/* Portal page content */}
+      {children}
+    </MainLayout>
   );
 }

@@ -224,3 +224,12 @@ src/
       function example(param1: string): string {
          // implementation
       }
+
+## Active Technologies
+- TypeScript 5.x (strict mode), Next.js 15 with App Router + React 18, Material UI (MUI) v5, NextAuth.js v4, Prisma (PostgreSQL) (008-refactor-member-portal)
+- N/A (no new data models - uses existing User session) (008-refactor-member-portal)
+- TypeScript 5.x (strict mode), Next.js 15 with App Router + React 18 + Material UI (MUI) v5, NextAuth.js v4, React Hook Form, Zod (008-refactor-member-portal)
+- PostgreSQL via Prisma (no new data models - uses existing User session) (008-refactor-member-portal)
+
+## Recent Changes
+- 008-refactor-member-portal: Added TypeScript 5.x (strict mode), Next.js 15 with App Router + React 18, Material UI (MUI) v5, NextAuth.js v4, Prisma (PostgreSQL)

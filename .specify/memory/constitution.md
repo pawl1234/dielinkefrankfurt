@@ -1,20 +1,19 @@
 <!--
 SYNC IMPACT REPORT
-Version: 1.1.0 → 1.2.0 (MINOR: Added centralized type definitions principle)
+Version: 1.2.0 → 1.2.1 (PATCH: Clarifications and template alignment)
 Modified Principles:
-  - I. Type Safety First → Expanded with requirement to check existing types before creating new ones
+  - None (clarifications only to existing principles)
 Added Sections:
-  - XII. Centralized Type Definitions (new principle)
-  - Type Organization Standards (new quality standard section)
-Removed Sections: None
+  - None
+Removed Sections:
+  - None
 Templates Requiring Updates:
-  ✅ plan-template.md - Constitution Check table updated to include new principle
-  ✅ spec-template.md - Already aligned with type reuse requirements
-  ✅ tasks-template.md - Updated to include type checking tasks
-  ⚠ CLAUDE.md - Should reference centralized type definitions (manual update recommended)
+  ✅ plan-template.md - Constitution Check table updated with all 12 principles
+  ✅ spec-template.md - Aligned with type safety and validation requirements
+  ✅ tasks-template.md - Aligned with domain organization and file size limits
+  ✅ checklist-template.md - Template reviewed and aligned
 Follow-up TODOs:
-  - Update CLAUDE.md to document centralized type definitions in src/types/
-  - Consider auditing existing codebase for duplicate interface definitions
+  - None
 -->
 
 # Die Linke Frankfurt Newsletter System Constitution
@@ -299,4 +298,4 @@ All code changes MUST comply with these principles. When principles conflict wit
 ### Constitution Authority
 This constitution supersedes conflicting guidance. When in doubt, consult this document. Template updates MUST align with constitutional principles.
 
-**Version**: 1.2.0 | **Ratified**: 2025-10-06 | **Last Amended**: 2025-10-09
+**Version**: 1.2.1 | **Ratified**: 2025-10-06 | **Last Amended**: 2025-10-23
