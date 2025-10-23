@@ -239,10 +239,8 @@ export async function updateNewsletterAfterChunk(
   if (isComplete) {
     if (totalFailed === 0) {
       finalStatus = 'sent';
-    } else if (totalSent > 0) {
-      finalStatus = 'retrying';
     } else {
-      finalStatus = 'failed';
+      finalStatus = 'retrying';
     }
 
     // If there are failures and we should retry, initialize retry process
