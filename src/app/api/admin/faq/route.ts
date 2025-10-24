@@ -16,7 +16,6 @@ import {
   createFaqEntry,
   findFaqsWithPagination
 } from '@/lib/db/faq-operations';
-import { resolveUserId } from '@/lib/db/system-user';
 import { logger } from '@/lib/logger';
 import { FaqStatus } from '@prisma/client';
 import { z } from 'zod';
@@ -104,10 +103,7 @@ export const POST: ApiHandler = async (request: NextRequest) => {
     // Validate with Zod
     const validatedData = createFaqSchema.parse(body);
 
-    // Resolve user ID (handle environment users)
-    const userId = await resolveUserId(session.user.id, session.user.isEnvironmentUser);
-
-    const faq = await createFaqEntry(validatedData, userId);
+    const faq = await createFaqEntry(validatedData, session.user.id);
 
     return NextResponse.json(faq, { status: 201 });
   } catch (error) {
