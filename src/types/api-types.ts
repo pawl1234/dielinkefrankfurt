@@ -416,3 +416,106 @@ export interface ChangePasswordResponse {
   message?: string;
   error?: string;
 }
+
+// ==============================================================================
+// FAQ System Types
+// ==============================================================================
+
+/**
+ * FAQ entry lifecycle status
+ */
+export type FaqStatus = 'ACTIVE' | 'ARCHIVED';
+
+/**
+ * Core FAQ entry data (matches Prisma model)
+ */
+export interface FaqEntry {
+  id: string;
+  title: string;
+  content: string;
+  status: FaqStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  updatedBy: string;
+}
+
+/**
+ * FAQ entry with creator/updater relations (used in admin views)
+ */
+export interface FaqEntryWithUsers extends FaqEntry {
+  creator: {
+    id: string;
+    username: string;
+  };
+  updater: {
+    id: string;
+    username: string;
+  };
+}
+
+/**
+ * FAQ entry for public/member view (excludes sensitive fields)
+ */
+export interface FaqEntryPublic {
+  id: string;
+  title: string;
+  content: string;
+  status: 'ACTIVE'; // Always ACTIVE for public view
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Request body for creating a new FAQ entry
+ */
+export interface CreateFaqRequest {
+  title: string;
+  content: string;
+  status?: FaqStatus; // Optional, defaults to ACTIVE
+}
+
+/**
+ * Request body for updating an existing FAQ entry (partial update)
+ */
+export interface UpdateFaqRequest {
+  title?: string;
+  content?: string;
+  status?: FaqStatus;
+}
+
+/**
+ * Query parameters for admin FAQ list endpoint
+ */
+export interface ListFaqsAdminQuery {
+  page?: number; // Default: 1
+  pageSize?: number; // Default: 10
+  status?: FaqStatus; // Optional: filter by status
+  search?: string; // Optional: search term (max 100 chars)
+}
+
+/**
+ * Response from admin FAQ list endpoint (paginated)
+ */
+export interface ListFaqsAdminResponse {
+  faqs: FaqEntryWithUsers[];
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+}
+
+/**
+ * Response from portal FAQ list endpoint (all active, no pagination)
+ */
+export interface ListFaqsPortalResponse {
+  faqs: FaqEntryPublic[];
+}
+
+/**
+ * API error response structure for FAQ endpoints
+ */
+export interface FaqApiError {
+  error: string; // German error message
+  details?: Record<string, string>; // Validation error details
+}

@@ -1,0 +1,554 @@
+openapi: 3.0.3
+info:
+  title: FAQ System API
+  description: |
+    REST API for admin-managed FAQ system in Die Linke Frankfurt member portal.
+
+    **Authentication**: All endpoints require NextAuth.js session authentication.
+    - Admin endpoints (`/api/admin/faq/*`) require role: `admin`
+    - Portal endpoints (`/api/portal/faq/*`) require role: `admin` or `mitglied`
+
+    **Authorization**: Enforced at both middleware level (NextAuth) and database operation level (data access layer pattern).
+
+    **Error Responses**: All errors return German messages for user display.
+  version: 1.0.0
+  contact:
+    name: Die Linke Frankfurt
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://dielinke-frankfurt.vercel.app
+    description: Production
+
+tags:
+  - name: Admin FAQ
+    description: Admin endpoints for FAQ management (create, update, delete, list all)
+  - name: Portal FAQ
+    description: Portal endpoints for member viewing (read-only, active FAQs only)
+
+paths:
+  /api/admin/faq:
+    get:
+      tags:
+        - Admin FAQ
+      summary: List FAQ entries (admin view with pagination)
+      description: |
+        Retrieve paginated list of FAQ entries with optional filtering by status and search term.
+        Only accessible to admin users.
+
+        **Query Parameters**:
+        - `page`: Page number (starts at 1)
+        - `pageSize`: Number of items per page (default: 10)
+        - `status`: Filter by status (ACTIVE, ARCHIVED, or omit for all)
+        - `search`: Search in title and content (max 100 chars)
+
+        **Response**: Array of FAQ entries with pagination metadata.
+      operationId: listFaqsAdmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (starts at 1)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: status
+          in: query
+          description: Filter by FAQ status (omit for all statuses)
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, ARCHIVED]
+        - name: search
+          in: query
+          description: Search term for title and content (max 100 characters)
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: FAQ entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  faqs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FaqEntry'
+                  totalItems:
+                    type: integer
+                    description: Total number of FAQ entries matching filters
+                  totalPages:
+                    type: integer
+                    description: Total number of pages
+                  currentPage:
+                    type: integer
+                    description: Current page number
+                  pageSize:
+                    type: integer
+                    description: Number of items per page
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Admin FAQ
+      summary: Create new FAQ entry
+      description: |
+        Create a new FAQ entry with title and content.
+        Only accessible to admin users.
+
+        **Request Body**: FAQ data with title, content, and optional status (defaults to ACTIVE).
+        **Response**: Created FAQ entry with generated ID and timestamps.
+      operationId: createFaq
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - content
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  description: Question or topic title
+                  example: "Wie werde ich Mitglied?"
+                content:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                  description: Answer in HTML format
+                  example: "<p>Um Mitglied zu werden, fülle bitte das <strong>Beitrittsformular</strong> aus...</p>"
+                status:
+                  type: string
+                  enum: [ACTIVE, ARCHIVED]
+                  default: ACTIVE
+                  description: Initial status (defaults to ACTIVE)
+      responses:
+        '201':
+          description: FAQ entry created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaqEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/admin/faq/{id}:
+    get:
+      tags:
+        - Admin FAQ
+      summary: Get single FAQ entry by ID (admin view)
+      description: |
+        Retrieve a single FAQ entry by ID.
+        Only accessible to admin users.
+        Admins can view FAQ entries with any status.
+      operationId: getFaqByIdAdmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: FAQ entry ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: FAQ entry retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaqEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Admin FAQ
+      summary: Update FAQ entry (partial update)
+      description: |
+        Update an existing FAQ entry with partial data.
+        Only accessible to admin users.
+
+        **Request Body**: Partial FAQ data (at least one field required).
+        **Response**: Updated FAQ entry.
+      operationId: updateFaq
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: FAQ entry ID (CUID)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  description: Updated question or topic title
+                content:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                  description: Updated answer in HTML format
+                status:
+                  type: string
+                  enum: [ACTIVE, ARCHIVED]
+                  description: Updated status
+      responses:
+        '200':
+          description: FAQ entry updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaqEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Admin FAQ
+      summary: Delete FAQ entry (only if archived)
+      description: |
+        Permanently delete a FAQ entry from the database.
+        Only accessible to admin users.
+
+        **Safety Rule**: Can only delete FAQ entries with status ARCHIVED.
+        Active entries must be archived first before deletion.
+      operationId: deleteFaq
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: FAQ entry ID (CUID)
+          schema:
+            type: string
+      responses:
+        '204':
+          description: FAQ entry deleted successfully (no content)
+        '400':
+          description: Cannot delete active FAQ (must archive first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Aktive FAQs können nicht gelöscht werden. Bitte zuerst archivieren."
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/portal/faq:
+    get:
+      tags:
+        - Portal FAQ
+      summary: List active FAQ entries (member view)
+      description: |
+        Retrieve all active FAQ entries for member viewing.
+        Accessible to authenticated members (role: admin or mitglied).
+
+        **No Pagination**: Returns all active FAQs (expected to be small dataset).
+        **Sorting**: Always sorted alphabetically by title (A-Z).
+        **Status Filter**: Only ACTIVE entries returned (ARCHIVED hidden from members).
+      operationId: listActiveFaqs
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Active FAQ entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  faqs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FaqEntryPublic'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/portal/faq/{id}:
+    get:
+      tags:
+        - Portal FAQ
+      summary: Get single active FAQ entry by ID (member view)
+      description: |
+        Retrieve a single active FAQ entry by ID.
+        Accessible to authenticated members (role: admin or mitglied).
+
+        **Status Filter**: Only ACTIVE entries can be retrieved by members.
+        Returns 404 if FAQ is archived or doesn't exist.
+      operationId: getFaqByIdPortal
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: FAQ entry ID (CUID)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: FAQ entry retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaqEntryPublic'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    FaqEntry:
+      type: object
+      description: FAQ entry with full details (admin view)
+      required:
+        - id
+        - title
+        - content
+        - status
+        - createdAt
+        - updatedAt
+        - createdBy
+        - updatedBy
+      properties:
+        id:
+          type: string
+          description: Unique identifier (CUID)
+          example: "clxyz123abc456def"
+        title:
+          type: string
+          maxLength: 200
+          description: Question or topic title
+          example: "Wie werde ich Mitglied?"
+        content:
+          type: string
+          maxLength: 10000
+          description: Answer in HTML format
+          example: "<p>Um Mitglied zu werden, fülle bitte das <strong>Beitrittsformular</strong> aus...</p>"
+        status:
+          type: string
+          enum: [ACTIVE, ARCHIVED]
+          description: Current lifecycle status
+          example: "ACTIVE"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when entry was created
+          example: "2025-10-23T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when entry was last modified
+          example: "2025-10-23T15:45:00Z"
+        createdBy:
+          type: string
+          description: User ID of admin who created the entry
+          example: "cluser123abc"
+        updatedBy:
+          type: string
+          description: User ID of admin who last updated the entry
+          example: "cluser123abc"
+        creator:
+          type: object
+          description: Admin user who created the entry
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+        updater:
+          type: object
+          description: Admin user who last updated the entry
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+
+    FaqEntryPublic:
+      type: object
+      description: FAQ entry with limited details (member view)
+      required:
+        - id
+        - title
+        - content
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: Unique identifier (CUID)
+          example: "clxyz123abc456def"
+        title:
+          type: string
+          maxLength: 200
+          description: Question or topic title
+          example: "Wie werde ich Mitglied?"
+        content:
+          type: string
+          maxLength: 10000
+          description: Answer in HTML format
+          example: "<p>Um Mitglied zu werden, fülle bitte das <strong>Beitrittsformular</strong> aus...</p>"
+        status:
+          type: string
+          enum: [ACTIVE]
+          description: Status (always ACTIVE for member view)
+          example: "ACTIVE"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when entry was created
+          example: "2025-10-23T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when entry was last modified
+          example: "2025-10-23T15:45:00Z"
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message in German
+          example: "FAQ konnte nicht erstellt werden"
+        details:
+          type: object
+          description: Optional validation error details
+          additionalProperties: true
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required (not logged in)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Nicht authentifiziert"
+
+    ForbiddenError:
+      description: Insufficient permissions (wrong role)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Zugriff verweigert"
+
+    NotFoundError:
+      description: FAQ entry not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "FAQ nicht gefunden"
+
+    ValidationError:
+      description: Invalid request data (validation failed)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Validierung fehlgeschlagen"
+            details:
+              title: "Titel darf maximal 200 Zeichen lang sein"
+
+    InternalServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Ein Fehler ist aufgetreten"
+
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: |
+        NextAuth.js session cookie.
+        Automatically included by browser after login.

@@ -1,4 +1,4 @@
-import { Container, Box, Typography } from '@mui/material';
+import { Container, Box } from '@mui/material';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { redirect } from 'next/navigation';
@@ -30,15 +30,6 @@ export default async function PortalPage() {
           username={session.user.username}
           firstName={user?.firstName}
         />
-
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h5" gutterBottom>
-            Navigation
-          </Typography>
-          <Typography variant="body1">
-            Nutzen Sie das Menü oben, um zwischen verschiedenen Bereichen zu navigieren.
-          </Typography>
-        </Box>
       </Box>
     </Container>
   );

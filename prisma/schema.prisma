@@ -144,6 +144,12 @@ enum StatusReportStatus {
   REJECTED
 }
 
+// Enum for FAQ status
+enum FaqStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 // Group model for managing groups/organizations
 model Group {
   id                      String               @id @default(cuid())
@@ -217,10 +223,35 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  createdFaqs  FaqEntry[] @relation("FaqCreator")
+  updatedFaqs  FaqEntry[] @relation("FaqUpdater")
+
   @@index([email])
   @@index([username])
   @@index([isActive])
   @@map("users")
+}
+
+// FaqEntry model for FAQ system
+model FaqEntry {
+  id        String    @id @default(cuid())
+  title     String    @db.VarChar(200)
+  content   String    @db.Text
+  status    FaqStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  createdBy String?
+  creator   User?     @relation("FaqCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  updatedBy String?
+  updater   User?     @relation("FaqUpdater", fields: [updatedBy], references: [id], onDelete: Cascade)
+
+  @@map("faq_entry")
+  @@index([status])
+  @@index([createdAt])
+  @@index([title])
 }
 
 // HashedRecipient model for newsletter subscribers

@@ -174,3 +174,26 @@ export interface SubmenuMenuItem extends BaseMenuItem {
  * Use type narrowing based on the 'type' field
  */
 export type MenuItem = LinkMenuItem | DividerMenuItem | SubmenuMenuItem;
+
+// ==============================================================================
+// FAQ Component Types
+// ==============================================================================
+
+import type { FaqStatus } from './api-types';
+
+/**
+ * Status display configuration for FAQ chips/badges
+ */
+export interface FaqStatusDisplay {
+  value: FaqStatus;
+  label: string; // German label
+  color: 'success' | 'default'; // MUI chip color
+}
+
+/**
+ * Status options for admin UI (constant)
+ */
+export const FAQ_STATUS_OPTIONS: readonly FaqStatusDisplay[] = [
+  { value: 'ACTIVE', label: 'Aktiv', color: 'success' },
+  { value: 'ARCHIVED', label: 'Archiviert', color: 'default' },
+] as const;
