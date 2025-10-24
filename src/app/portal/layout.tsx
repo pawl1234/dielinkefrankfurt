@@ -4,9 +4,9 @@ import { redirect } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import PortalNavigation from '@/components/portal/PortalNavigation';
 import HomeIcon from '@mui/icons-material/Home';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import SettingsIcon from '@mui/icons-material/Settings';
-import PersonIcon from '@mui/icons-material/Person';
+//import DashboardIcon from '@mui/icons-material/Dashboard';
+//import SettingsIcon from '@mui/icons-material/Settings';
+//import PersonIcon from '@mui/icons-material/Person';
 import HelpCenterIcon from '@mui/icons-material/HelpCenter';
 import type { MenuItem } from '@/types/component-types';
 
