@@ -22,13 +22,13 @@ const portalNavigationItems: MenuItem[] = [
     href: '/portal',
     icon: <HomeIcon />,
   },
-  {
+/*   {
     type: 'link',
     key: 'dashboard',
     label: 'Dashboard',
     href: '/portal/dashboard',
     icon: <DashboardIcon />,
-  },
+  }, */
   {
     type: 'link',
     key: 'faq',
@@ -36,7 +36,7 @@ const portalNavigationItems: MenuItem[] = [
     href: '/portal/faq',
     icon: <HelpCenterIcon />,
   },
-  {
+/*   {
     type: 'submenu',
     key: 'settings',
     label: 'Einstellungen',
@@ -50,7 +50,7 @@ const portalNavigationItems: MenuItem[] = [
         icon: <PersonIcon />,
       },
     ],
-  },
+  }, */
 ];
 
 /**
