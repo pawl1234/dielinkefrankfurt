@@ -209,6 +209,7 @@ src/
 - **Rich text editing**: TipTap editor with link support, outputs HTML
 - **Date handling**: Use `dayjs` and `date-fns-tz` for timezone-aware operations
 - **Error logging**: Use `src/lib/logger.ts` with structured logging
+- **Never create a file longer than 500 lines of code.** If a file approaches this limit, refactor by splitting it into modules or helper files.
 - **Organize code into clearly separated modules**, grouped by feature or responsibility.
 - **TypeScript**: NEVER use the `any` type. Always use specific types from `src/types/` (api-types.ts, component-types.ts, form-types.ts) or create proper interfaces. For Prisma models, use proper field types matching schema.prisma. While development make sure type safety is always ensured.
 - **Comment non-obvious code** and ensure everything is understandable to a mid-level developer.
@@ -223,3 +224,14 @@ src/
       function example(param1: string): string {
          // implementation
       }
+
+## Active Technologies
+- TypeScript 5.x (strict mode), Next.js 15 with App Router + React 18, Material UI (MUI) v5, NextAuth.js v4, Prisma (PostgreSQL) (008-refactor-member-portal)
+- N/A (no new data models - uses existing User session) (008-refactor-member-portal)
+- TypeScript 5.x (strict mode), Next.js 15 with App Router + React 18 + Material UI (MUI) v5, NextAuth.js v4, React Hook Form, Zod (008-refactor-member-portal)
+- PostgreSQL via Prisma (no new data models - uses existing User session) (008-refactor-member-portal)
+- TypeScript 5.x (strict mode) + Next.js 15 (App Router), React 18, Material UI (MUI) v5, NextAuth.js v4, Prisma ORM, React Hook Form, Zod, TipTap (existing RichTextEditor component) (009-admin-portal-faq)
+- PostgreSQL via Prisma ORM (009-admin-portal-faq)
+
+## Recent Changes
+- 008-refactor-member-portal: Added TypeScript 5.x (strict mode), Next.js 15 with App Router + React 18, Material UI (MUI) v5, NextAuth.js v4, Prisma (PostgreSQL)

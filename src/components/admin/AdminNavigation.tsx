@@ -10,6 +10,7 @@ import PersonIcon from '@mui/icons-material/Groups';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import MailIcon from '@mui/icons-material/Mail';
 import GavelIcon from '@mui/icons-material/Gavel';
+import HelpCenterIcon from '@mui/icons-material/HelpCenter';
 
 interface AdminNavigationProps {
   title?: string;
@@ -26,6 +27,7 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
   const isAntraegeActive = pathname?.startsWith('/admin/antraege') || false;
   const isGroupsActive = pathname?.startsWith('/admin/groups') || false;
   const isStatusReportsActive = pathname?.startsWith('/admin/status-reports') || false;
+  const isFaqActive = pathname?.startsWith('/admin/faq') || false;
   const isUsersActive = pathname?.startsWith('/admin/users') || false
 
   const navItems = [
@@ -60,11 +62,17 @@ export default function AdminNavigation({ title = 'Admin Dashboard' }: AdminNavi
       isActive: isStatusReportsActive
     },
     {
+      label: 'FAQ',
+      icon: <HelpCenterIcon />,
+      href: '/admin/faq',
+      isActive: isFaqActive
+    },
+    {
       label: 'Benutzerverwaltung',
       icon: <PersonIcon />,
       href: '/admin/users',
       isActive: isUsersActive
-    }    
+    }
   ];
 
   return (

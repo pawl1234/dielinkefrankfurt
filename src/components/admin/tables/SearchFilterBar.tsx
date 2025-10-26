@@ -1,13 +1,14 @@
-import { 
-  Box, 
-  Button, 
-  IconButton, 
+import {
+  Box,
+  Button,
+  IconButton,
   InputAdornment,
-  TextField, 
+  TextField,
 } from '@mui/material';
 import React from 'react';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import { FAQ_SEARCH_MAX_LENGTH } from '@/lib/validation/faq-schema';
 
 interface SearchFilterBarProps {
   searchTerm: string;
@@ -34,6 +35,7 @@ const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           onChange={onSearchChange}
           fullWidth
           size="small"
+          inputProps={{ maxLength: FAQ_SEARCH_MAX_LENGTH }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
