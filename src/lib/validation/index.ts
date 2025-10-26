@@ -17,6 +17,7 @@ export * from './group';
 export * from './status-report';
 export * from './appointment';
 export * from './admin-schemas';
+export * from './newsletter-schemas';
 
 // Re-export ValidationResult and ValidationError from errors.ts for convenience
 export type { ValidationResult } from '@/lib/errors';

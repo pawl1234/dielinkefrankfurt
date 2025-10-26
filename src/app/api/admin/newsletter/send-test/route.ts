@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendNewsletterTestEmail, fixUrlsInNewsletterHtml } from '@/lib/newsletter';
+import { sendNewsletterTestEmail } from '@/lib/newsletter';
 import { AppError, apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
+import { getNewsletterById } from '@/lib/db/newsletter-operations';
+import { sendTestEmailSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * POST /api/admin/newsletter/send-test
@@ -23,8 +24,28 @@ import prisma from '@/lib/db/prisma';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { html, newsletterId } = await request.json();
-    
+    const body = await request.json();
+
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(sendTestEmailSchema, body);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for send test email', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/send-test',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors },
+        { status: 400 }
+      );
+    }
+
+    const { html, newsletterId } = validation.data!;
+
     let newsletterHtml = html;
     let testRecipients: string | undefined;
     
@@ -37,9 +58,7 @@ export async function POST(request: NextRequest) {
         }
       });
       
-      const newsletter = await prisma.newsletterItem.findUnique({
-        where: { id: newsletterId }
-      });
+      const newsletter = await getNewsletterById(newsletterId);
       
       if (!newsletter) {
         logger.warn('Newsletter not found for test email', {
@@ -51,7 +70,7 @@ export async function POST(request: NextRequest) {
         return AppError.notFound('Newsletter not found').toResponse();
       }
       
-      newsletterHtml = fixUrlsInNewsletterHtml(newsletter.content || '');
+      newsletterHtml = newsletter.content || '';
       
       // Extract test recipients from newsletter settings if available
       if (newsletter.settings) {
@@ -69,8 +88,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (html) {
-      // Fix URLs in the provided HTML as well
-      newsletterHtml = fixUrlsInNewsletterHtml(html);
+      newsletterHtml = html;
     }
     
     if (!newsletterHtml) {

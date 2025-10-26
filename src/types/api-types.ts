@@ -58,18 +58,29 @@ export interface ChunkResult {
 }
 
 /**
- * Newsletter sending settings with chunk tracking
+ * Newsletter sending state with chunk tracking and retry information
+ * Extends NewsletterSettings to inherit all configuration options
  */
-export interface NewsletterSendingSettings {
-  chunkResults: ChunkResult[];
-  totalSent: number;
-  totalFailed: number;
-  lastChunkCompletedAt: string;
-  completedChunks: number;
-  totalRecipients?: number;
-  successfulSends?: number;
-  failedSends?: number;
-  adminNotificationEmail?: string;
+export interface NewsletterSendingState {
+  // Chunk tracking fields
+  chunkResults?: ChunkResult[];
+  totalSent?: number;
+  totalFailed?: number;
+  lastChunkCompletedAt?: string;
+  completedChunks?: number;
+
+  // Retry tracking fields
+  retryInProgress?: boolean;
+  retryStartedAt?: string;
+  failedEmails?: string[];
+  retryChunkSizes?: number[];
+  currentRetryStage?: number;
+  retryResults?: ChunkResult[];
+
+  // Status field
+  status?: string;
+
+  // Allow any additional fields for flexibility
   [key: string]: unknown;
 }
 
@@ -518,4 +529,37 @@ export interface ListFaqsPortalResponse {
 export interface FaqApiError {
   error: string; // German error message
   details?: Record<string, string>; // Validation error details
+}
+
+// ==============================================================================
+// Newsletter API Response Types
+// ==============================================================================
+
+/**
+ * Response from POST /api/admin/newsletter/validate
+ * Validates and processes recipient email addresses
+ */
+export interface ValidateRecipientsResponse {
+  valid: number;
+  invalid: number;
+  new: number;
+  existing: number;
+  invalidEmails: string[];
+  validatedEmails: string[]; // ValidatedEmails type
+}
+
+/**
+ * Response from POST /api/admin/newsletter/send
+ * Prepares newsletter for chunked sending
+ */
+export interface SendNewsletterResponse {
+  success: boolean;
+  validRecipients: number;
+  newsletterId: string;
+  emailChunks: string[][]; // ValidatedEmails[] - array of email chunks
+  totalChunks: number;
+  chunkSize: number;
+  html: string;
+  subject: string;
+  settings: Record<string, unknown>; // NewsletterSettings
 }

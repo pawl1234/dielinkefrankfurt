@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AIRefinementRequest, AIGenerationResponse } from '@/types/api-types';
 import { logger } from '@/lib/logger';
 import { aiService } from '@/lib/ai';
+import { aiRefineTextSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * POST /api/admin/newsletter/ai/refine
@@ -12,72 +13,45 @@ import { aiService } from '@/lib/ai';
 export async function POST(request: NextRequest) {
   try {
     const data: AIRefinementRequest = await request.json();
-    
+
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(aiRefineTextSchema, data);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for AI refine text', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/ai/refine',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors, success: false, generatedText: '' } as AIGenerationResponse,
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validation.data!;
+
     logger.debug('AI refinement request received', {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/ai/refine',
-        hasConversationHistory: !!data.conversationHistory,
-        conversationLength: data.conversationHistory?.length || 0,
-        hasInstructions: !!data.refinementInstructions,
-        instructionsLength: data.refinementInstructions?.length || 0
+        hasConversationHistory: !!validatedData.conversationHistory,
+        conversationLength: validatedData.conversationHistory?.length || 0,
+        hasInstructions: !!validatedData.refinementInstructions,
+        instructionsLength: validatedData.refinementInstructions?.length || 0
       }
     });
 
-    // Validate input
-    if (!data.conversationHistory || data.conversationHistory.length === 0) {
-      return NextResponse.json(
-        { error: 'Konversationshistorie ist erforderlich', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-    
-    if (!data.refinementInstructions?.trim()) {
-      return NextResponse.json(
-        { error: 'Verfeinerungsanweisungen sind erforderlich', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-    
-    // Validate conversation history structure
-    for (const message of data.conversationHistory) {
-      if (!message.role || !message.content) {
-        return NextResponse.json(
-          { error: 'Ungültige Konversationshistorie', success: false } as AIGenerationResponse,
-          { status: 400 }
-        );
-      }
-      if (!['user', 'assistant'].includes(message.role)) {
-        return NextResponse.json(
-          { error: 'Ungültige Nachrichtenrolle in Konversationshistorie', success: false } as AIGenerationResponse,
-          { status: 400 }
-        );
-      }
-    }
-    
-    // Validate refinement instructions length 
-    if (data.refinementInstructions.length > 2000) {
-      return NextResponse.json(
-        { error: 'Verfeinerungsanweisungen zu lang (max. 2000 Zeichen)', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-    
-    // Validate conversation history isn't too long (max 10 refinement cycles = 22 messages max)
-    if (data.conversationHistory.length > 22) {
-      return NextResponse.json(
-        { error: 'Maximale Anzahl an Verfeinerungszyklen erreicht', success: false } as AIGenerationResponse,
-        { status: 400 }
-      );
-    }
-
     try {
       // Get last generated text from conversation history
-      const lastAssistantMessage = data.conversationHistory
+      const lastAssistantMessage = validatedData.conversationHistory
         .slice()
         .reverse()
         .find(msg => msg.role === 'assistant');
-      
+
       if (!lastAssistantMessage) {
         return NextResponse.json(
           { error: 'Kein generierter Text in der Konversationshistorie gefunden', success: false } as AIGenerationResponse,
@@ -88,8 +62,8 @@ export async function POST(request: NextRequest) {
       // Refine text using AI service
       const refinedText = await aiService.refineIntro({
         generatedText: lastAssistantMessage.content,
-        refinementRequest: data.refinementInstructions,
-        conversationHistory: data.conversationHistory
+        refinementRequest: validatedData.refinementInstructions,
+        conversationHistory: validatedData.conversationHistory
       });
 
       return NextResponse.json({

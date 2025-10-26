@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
+import { getNewsletterAnalyticsWithDetails, getNewsletterById } from '@/lib/db/newsletter-operations';
 import { NewsletterAnalyticsResponse } from '@/types/newsletter-analytics';
 
 /**
@@ -18,39 +18,13 @@ async function handleGetNewsletterAnalytics(
 
     // Debug logging
     logger.info('Fetching analytics for newsletter', { context: { newsletterId } });
-    
-    // Check if prisma is available
-    if (!prisma || !prisma.newsletterAnalytics) {
-      logger.error('Prisma client or newsletterAnalytics model not available');
-      return NextResponse.json(
-        { error: 'Database connection error' },
-        { status: 500 }
-      );
-    }
 
     // Get analytics with related data in a single optimized query
-    const analytics = await prisma.newsletterAnalytics.findUnique({
-      where: { newsletterId },
-      include: {
-        newsletter: {
-          select: {
-            id: true,
-            subject: true,
-            sentAt: true,
-          },
-        },
-        linkClicks: {
-          orderBy: { clickCount: 'desc' },
-        },
-      },
-    });
+    const analytics = await getNewsletterAnalyticsWithDetails(newsletterId);
 
     if (!analytics) {
       // Check if the newsletter exists
-      const newsletter = await prisma.newsletterItem.findUnique({
-        where: { id: newsletterId },
-        select: { id: true, subject: true, status: true, sentAt: true }
-      });
+      const newsletter = await getNewsletterById(newsletterId);
       
       if (!newsletter) {
         return NextResponse.json(

@@ -11,9 +11,6 @@ export * from './senders';
 // Email rendering
 export * from './rendering';
 
-// Email hashing and validation
-export * from './hashing';
-
 // Email attachments
 export * from './attachments';
 

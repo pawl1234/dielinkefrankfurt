@@ -1,85 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiErrorResponse, handleDatabaseError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import prisma from '@/lib/db/prisma';
 import { generateNewsletterHtml } from '@/lib/newsletter';
-import { getNewsletterSettings, generateNewsletter, fetchNewsletterAppointments, fetchNewsletterStatusReports } from '@/lib/newsletter';
+import { getNewsletterSettings, fetchNewsletterAppointments, fetchNewsletterStatusReports } from '@/lib/newsletter';
 import { getBaseUrl } from '@/lib/base-url';
-
-/**
- * GET /api/admin/newsletter/generate
- * 
- * Admin endpoint for generating newsletter HTML preview.
- * Returns generated HTML without creating a newsletter record.
- * Authentication handled by middleware.
- * 
- * Query parameters:
- * - introductionText: string (optional) - Introduction HTML content
- */
-export async function GET(request: NextRequest) {
-  try {
-    // Get query parameters
-    const url = new URL(request.url);
-    const introductionText = url.searchParams.get('introductionText') || 
-      '<p>Herzlich willkommen zum Newsletter der Linken Frankfurt!</p>';
-    
-    logger.debug('Generating newsletter preview', {
-      module: 'api',
-      context: {
-        endpoint: '/api/admin/newsletter/generate',
-        method: 'GET',
-        hasIntroduction: !!introductionText
-      }
-    });
-
-    // Generate the HTML
-    const html = await generateNewsletter(introductionText);
-    
-    logger.info('Newsletter preview generated successfully', {
-      module: 'api',
-      context: {
-        endpoint: '/api/admin/newsletter/generate',
-        method: 'GET',
-        htmlLength: html.length
-      }
-    });
-
-    // Return the generated HTML
-    return new NextResponse(html, {
-      headers: {
-        'Content-Type': 'text/html',
-      },
-    });
-  } catch (error) {
-    logger.error(error as Error, {
-      module: 'api',
-      context: {
-        endpoint: '/api/admin/newsletter/generate',
-        method: 'GET',
-        operation: 'generateNewsletterPreview'
-      }
-    });
-
-    return apiErrorResponse(error, 'Failed to generate newsletter preview');
-  }
-}
+import { generateNewsletterSchema, zodToValidationResult } from '@/lib/validation';
+import { createNewsletterItem } from '@/lib/db/newsletter-operations';
 
 /**
  * POST /api/admin/newsletter/generate
- * 
- * Admin endpoint for generating a new newsletter with appointments and status reports.
- * Creates a draft newsletter with generated HTML content.
+ *
+ * Admin endpoint for generating a new newsletter draft with appointments and status reports.
+ * Creates a draft newsletter record in the database with generated HTML content.
  * Returns the created newsletter object including its ID.
  * Authentication handled by middleware.
- * 
+ *
  * Request body:
  * - subject: string (required) - Newsletter subject line
  * - introductionText: string (optional) - Introduction HTML content
+ *
+ * Response:
+ * - id: string - Newsletter ID
+ * - subject: string - Newsletter subject
+ * - introductionText: string - Introduction text
+ * - status: string - Newsletter status (draft)
+ * - createdAt: Date - Creation timestamp
+ * - updatedAt: Date - Last update timestamp
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { subject, introductionText = '' } = body;
+
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(generateNewsletterSchema, body);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for newsletter generation', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/generate',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors },
+        { status: 400 }
+      );
+    }
+
+    const { subject, introductionText } = validation.data!;
 
     logger.debug('Generating new newsletter', {
       module: 'api',
@@ -90,39 +60,6 @@ export async function POST(request: NextRequest) {
         hasIntroduction: !!introductionText
       }
     });
-
-    // Validate required fields
-    if (!subject || subject.trim().length === 0) {
-      logger.warn('Newsletter generation failed - missing subject', {
-        module: 'api',
-        context: {
-          endpoint: '/api/admin/newsletter/generate',
-          method: 'POST'
-        }
-      });
-
-      return NextResponse.json(
-        { error: 'Subject is required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate subject length
-    if (subject.length > 200) {
-      logger.warn('Newsletter generation failed - subject too long', {
-        module: 'api',
-        context: {
-          endpoint: '/api/admin/newsletter/generate',
-          method: 'POST',
-          subjectLength: subject.length
-        }
-      });
-
-      return NextResponse.json(
-        { error: 'Subject must be 200 characters or less' },
-        { status: 400 }
-      );
-    }
 
     // Get newsletter settings first
     const newsletterSettings = await getNewsletterSettings();
@@ -181,14 +118,12 @@ export async function POST(request: NextRequest) {
       baseUrl: getBaseUrl()
     });
 
-    // Create newsletter with generated content
-    const newsletter = await prisma.newsletterItem.create({
-      data: {
-        subject: subject.trim(),
-        introductionText,
-        content: newsletterHtml,
-        status: 'draft',
-      },
+    // Create newsletter with generated content using data access layer
+    const newsletter = await createNewsletterItem({
+      subject: subject.trim(),
+      introductionText,
+      content: newsletterHtml,
+      status: 'draft',
     });
 
     logger.info('Newsletter generated successfully', {

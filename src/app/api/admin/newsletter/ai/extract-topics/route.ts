@@ -3,6 +3,7 @@ import { AITopicExtractionRequest, AITopicExtractionResponse } from '@/types/api
 import { logger } from '@/lib/logger';
 import { getNewsletterSettings } from '@/lib/newsletter';
 import { aiService } from '@/lib/ai';
+import { aiExtractTopicsSchema, zodToValidationResult } from '@/lib/validation';
 
 /**
  * POST /api/admin/newsletter/ai/extract-topics
@@ -13,38 +14,42 @@ import { aiService } from '@/lib/ai';
 export async function POST(request: NextRequest) {
   try {
     const data: AITopicExtractionRequest = await request.json();
-    
+
+    // Validate with Zod schema
+    const validation = await zodToValidationResult(aiExtractTopicsSchema, data);
+    if (!validation.isValid) {
+      logger.warn('Validation failed for AI extract topics', {
+        module: 'api',
+        context: {
+          endpoint: '/api/admin/newsletter/ai/extract-topics',
+          method: 'POST',
+          errors: validation.errors
+        }
+      });
+
+      return NextResponse.json(
+        { error: 'Validierungsfehler', errors: validation.errors, success: false, extractedTopics: '' } as AITopicExtractionResponse,
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validation.data!;
+
     logger.debug('AI topic extraction request received', {
       module: 'api',
-      context: { 
+      context: {
         endpoint: '/api/admin/newsletter/ai/extract-topics',
-        boardProtocolLength: data.boardProtocol?.length || 0
+        boardProtocolLength: validatedData.boardProtocol?.length || 0
       }
     });
 
-    // Validate input
-    if (!data.boardProtocol?.trim()) {
-      return NextResponse.json(
-        { error: 'Vorstandsprotokoll ist erforderlich', success: false } as AITopicExtractionResponse,
-        { status: 400 }
-      );
-    }
-    
-    // Validate input length
-    if (data.boardProtocol.length > 20000) {
-      return NextResponse.json(
-        { error: 'Vorstandsprotokoll zu lang (max. 20000 Zeichen)', success: false } as AITopicExtractionResponse,
-        { status: 400 }
-      );
-    }
-
     // Get newsletter settings for custom prompt
     const settings = await getNewsletterSettings();
-    
+
     try {
       // Extract topics using AI service
       const extractedTopics = await aiService.extractTopics({
-        boardProtocol: data.boardProtocol,
+        boardProtocol: validatedData.boardProtocol,
         topThemes: '',
         previousIntro: undefined,
         topicExtractionPrompt: settings.aiTopicExtractionPrompt
