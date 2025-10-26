@@ -563,3 +563,21 @@ export interface SendNewsletterResponse {
   subject: string;
   settings: Record<string, unknown>; // NewsletterSettings
 }
+
+// ==============================================================================
+// Appointment Link Enhancement Types
+// ==============================================================================
+
+/**
+ * Metadata for appointment Open Graph tags.
+ * Used internally for building rich link previews.
+ */
+export interface AppointmentMetadata {
+  title: string;
+  description: string;
+  imageUrl: string;
+  url: string;
+  startDateTime: string; // ISO 8601
+  endDateTime?: string; // ISO 8601
+  location?: string;
+}

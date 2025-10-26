@@ -17,6 +17,7 @@ import {
   updateAppointmentById,
   deleteAppointmentById
 } from '@/lib/db/appointment-operations';
+import { generateAppointmentSlug } from './slug-generator';
 
 /**
  * Types for appointment operations
@@ -300,6 +301,35 @@ export async function updateAppointment(request: NextRequest) {
         updateData.processed = true;
         updateData.processingDate = new Date();
         updateData.statusChangeDate = new Date();
+      }
+
+      // Generate slug when status changes to "accepted" (T031-T034)
+      if (status === 'accepted') {
+        // Fetch current appointment to check if slug already exists and get title
+        const currentAppointment = await findAppointmentByIdPartial<{ slug: string | null; title: string }>(
+          Number(id),
+          { slug: true, title: true }
+        );
+
+        // Only generate slug if not already set
+        if (currentAppointment && !currentAppointment.slug) {
+          try {
+            const slug = generateAppointmentSlug(currentAppointment.title, Number(id));
+            updateData.slug = slug;
+          } catch (slugError) {
+            // Log error but continue with acceptance (T032)
+            logger.error('Slug generation failed during appointment acceptance', {
+              module: 'appointments/appointment-mutations',
+              context: {
+                appointmentId: id,
+                title: currentAppointment?.title,
+                error: slugError,
+              },
+              tags: ['slug-generation', 'admin-action'],
+            });
+            // Slug remains NULL, acceptance succeeds
+          }
+        }
       }
     }
 

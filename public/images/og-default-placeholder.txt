@@ -1,0 +1,26 @@
+# Open Graph Default Image Placeholder
+
+**Required**: A default Open Graph image is needed at `/public/images/og-default.jpg`
+
+## Specifications:
+- **Format**: JPEG or PNG (JPEG preferred for file size)
+- **Dimensions**: 1200x630px (1.91:1 ratio)
+- **File size**: < 1MB (smaller is better)
+- **Content**: Site logo + generic event imagery or branding
+- **Purpose**: Fallback image for appointments without cover images
+
+## Temporary Solution:
+You can create a placeholder using an online tool:
+```bash
+# Using placeholder.com (example)
+curl -o public/images/og-default.jpg \
+  "https://via.placeholder.com/1200x630/E53935/FFFFFF?text=DIE+LINKE+Frankfurt"
+```
+
+## Production:
+Replace this with a proper branded image showing:
+- Die Linke Frankfurt logo
+- Generic event or political imagery
+- Party branding colors
+
+**Action Required**: Please add `og-default.jpg` (1200x630px) to this directory before deployment.
