@@ -41,6 +41,9 @@ model Appointment {
   featured       Boolean   @default(false) // Flag for highlighting in newsletters
   metadata       String?   // JSON string for additional metadata (cover images, etc.)
 
+  // URL-friendly slug for SEO and pretty URLs
+  slug           String?   // Generated once on acceptance, never regenerated
+
   // System fields
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -55,6 +58,7 @@ model Appointment {
   @@index([processed]) // Add index for common query filter
   @@index([status]) // Add index for status filtering
   @@index([featured]) // Add index for featured filtering
+  @@index([slug]) // Add index for slug-based queries
   @@map("appointment") // Lowercase table name for PostgreSQL convention
 }
 

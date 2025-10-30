@@ -187,6 +187,7 @@ export async function getPublicAppointments(request: NextRequest) {
       city: true,
       locationDetails: true,
       postalCode: true,
+      slug: true,
       featured: true
     };
 

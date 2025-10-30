@@ -16,7 +16,7 @@ interface FeaturedEventProps {
  */
 export function FeaturedEvent({ appointment, baseUrl }: FeaturedEventProps) {
   const imageUrl = getCoverImageUrl(appointment);
-  const detailUrl = `${baseUrl}/termine/${appointment.id}`;
+  const detailUrl = `${baseUrl}/termine/${appointment.slug || appointment.id}`;
   const dateRange = formatAppointmentDateRange(appointment.startDateTime, appointment.endDateTime);
   const truncatedText = truncateText(appointment.mainText || '', 300);
 
