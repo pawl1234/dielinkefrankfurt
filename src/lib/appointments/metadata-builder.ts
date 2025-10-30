@@ -8,6 +8,7 @@
 import type { Metadata } from 'next';
 import type { Appointment } from '@prisma/client';
 import { getBaseUrl } from '@/lib/base-url';
+import { stripHtmlTags } from '@/lib/sanitization/sanitize';
 
 /**
  * Builds complete metadata object for an appointment page.
@@ -86,20 +87,12 @@ export function buildAppointmentMetadata(appointment: Appointment): Metadata {
  * @returns Plain text description suitable for meta tags
  */
 export function extractDescription(html: string, maxLength: number = 160): string {
-  // Strip HTML tags
-  const text = html.replace(/<[^>]*>/g, '');
-
-  // Decode common HTML entities
-  const decoded = text
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+  // Strip HTML tags and decode entities securely using sanitize-html library
+  // This handles malformed HTML, nested tags, and all HTML entities
+  const text = stripHtmlTags(html);
 
   // Trim whitespace
-  const trimmed = decoded.trim();
+  const trimmed = text.trim();
 
   // Return as-is if within length limit
   if (trimmed.length <= maxLength) {
