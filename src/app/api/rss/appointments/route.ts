@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         mainText: true,
         startDateTime: true,
         city: true,
+        slug: true,
         featured: true
       }
     });
@@ -63,13 +64,16 @@ export async function GET(request: NextRequest) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
-      
+
+      // Use slug if available, otherwise fall back to ID
+      const appointmentPath = appointment.slug || appointment.id;
+
       return `
     <item>
       <title>${safeTitle}</title>
       <description>${safeDescription}</description>
-      <link>${baseUrl}/termine/${appointment.id}</link>
-      <guid isPermaLink="true">${baseUrl}/termine/${appointment.id}</guid>
+      <link>${baseUrl}/termine/${appointmentPath}</link>
+      <guid isPermaLink="true">${baseUrl}/termine/${appointmentPath}</guid>
       <pubDate>${pubDate}</pubDate>
       ${appointment.city ? `<category>${appointment.city}</category>` : ''}
       ${appointment.featured ? `<category>Featured</category>` : ''}

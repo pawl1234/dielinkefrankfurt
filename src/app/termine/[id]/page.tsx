@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { buildAppointmentMetadata } from '@/lib/appointments/metadata-builder';
 import { findAppointmentById } from '@/lib/db/appointment-operations';
 import AppointmentDetailClient from './AppointmentDetailClient';
@@ -103,6 +103,28 @@ export default async function AppointmentDetailPage({
   // Handle appointment not found or not accepted
   if (!appointment || appointment.status !== 'accepted') {
     notFound();
+  }
+
+  /**
+   * Smart Slug Routing: Enforce canonical URL
+   *
+   * Purpose: Ensure each appointment has exactly one URL for SEO and user trust.
+   * This prevents URL manipulation (e.g., /termine/123-fake-slug still working).
+   *
+   * Behavior:
+   * - /termine/123-correct-slug  → Render page
+   * - /termine/123-wrong-slug    → 308 redirect to correct slug
+   * - /termine/123               → 308 redirect to slug URL (if slug exists)
+   * - /termine/456               → Render page (old appointments without slug)
+   *
+   * Note: Old appointments (created before slug feature) have slug=null and
+   * remain accessible via numeric ID without redirect. This maintains backwards
+   * compatibility with existing shared links.
+   */
+  if (appointment.slug) {
+    if (rawId !== appointment.slug) {
+      redirect(`/termine/${appointment.slug}`, 'replace' as any);
+    }
   }
 
   // Convert Date objects to ISO strings for client component

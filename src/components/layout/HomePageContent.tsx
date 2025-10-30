@@ -140,7 +140,7 @@ export default function HomePageContent() {
                     />
                   </CardContent>
                   <CardActions sx={{ p: 2, pt: 0 }}>
-                    <Button href={`/termine/${appointment.id}`} variant="contained" LinkComponent={Link}>Details anzeigen</Button>
+                    <Button href={`/termine/${appointment.slug || appointment.id}`} variant="contained" LinkComponent={Link}>Details anzeigen</Button>
                   </CardActions>
                 </Card>
               </Grid>

@@ -15,7 +15,7 @@ interface UpcomingEventProps {
  * Uses React Email components for better email client compatibility.
  */
 export function UpcomingEvent({ appointment, baseUrl }: UpcomingEventProps) {
-  const detailUrl = `${baseUrl}/termine/${appointment.id}`;
+  const detailUrl = `${baseUrl}/termine/${appointment.slug || appointment.id}`;
   const dateRange = formatAppointmentDateRange(appointment.startDateTime, appointment.endDateTime);
   const truncatedText = truncateText(appointment.mainText || '', 200);
 

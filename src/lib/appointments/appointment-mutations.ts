@@ -333,6 +333,50 @@ export async function updateAppointment(request: NextRequest) {
       }
     }
 
+    /**
+     * Slug Regeneration on Title Change
+     *
+     * When an admin changes the appointment title, regenerate the slug to keep
+     * URLs readable and accurate. This ensures shared links reflect current content.
+     *
+     * Note: Only regenerates for appointments that already have a slug. Old appointments
+     * (created before slug feature) without slugs remain unchanged to preserve their
+     * numeric-only URLs (/termine/123).
+     */
+    if (title !== undefined) {
+      const currentAppointment = await findAppointmentByIdPartial<{ slug: string | null }>(
+        Number(id),
+        { slug: true }
+      );
+
+      if (currentAppointment?.slug) {
+        try {
+          const newSlug = generateAppointmentSlug(title, Number(id));
+          updateData.slug = newSlug;
+
+          logger.info('Slug regenerated due to title change', {
+            module: 'appointments/appointment-mutations',
+            context: {
+              appointmentId: id,
+              oldSlug: currentAppointment.slug,
+              newSlug: newSlug,
+            },
+            tags: ['slug-regeneration', 'admin-action'],
+          });
+        } catch (slugError) {
+          logger.error('Slug regeneration failed on title change', {
+            module: 'appointments/appointment-mutations',
+            context: {
+              appointmentId: id,
+              newTitle: title,
+              error: slugError,
+            },
+            tags: ['slug-regeneration', 'admin-action'],
+          });
+        }
+      }
+    }
+
     // Handle other editable fields
     if (title !== undefined) updateData.title = title;
     if (mainText !== undefined) updateData.mainText = mainText;

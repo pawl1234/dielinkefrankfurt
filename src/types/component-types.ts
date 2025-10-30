@@ -45,6 +45,7 @@ export interface Appointment {
   firstName: string | null;
   lastName: string | null;
   recurringText: string | null;
+  slug: string | null;
   featured: boolean;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
@@ -71,6 +72,7 @@ export interface PublicAppointment {
   city: string | null;
   locationDetails: string | null;
   postalCode: string | null;
+  slug: string | null;
   featured: boolean;
 }
 
