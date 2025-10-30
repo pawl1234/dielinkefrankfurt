@@ -41,37 +41,24 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  try {
-    const { id: rawId } = await params;
+  const { id: rawId } = await params;
 
-    // Extract numeric ID from parameter
-    const appointmentId = extractAppointmentId(rawId);
+  // Extract numeric ID from parameter
+  const appointmentId = extractAppointmentId(rawId);
 
-    if (!appointmentId) {
-      return {
-        title: 'Termin nicht gefunden | Die Linke Frankfurt',
-      };
-    }
-
-    // Fetch appointment from database
-    const appointment = await findAppointmentById(appointmentId);
-
-    if (!appointment || appointment.status !== 'accepted') {
-      return {
-        title: 'Termin nicht gefunden | Die Linke Frankfurt',
-      };
-    }
-
-    // Build metadata with Open Graph tags
-    return buildAppointmentMetadata(appointment);
-  } catch (error) {
-    // Log error and return fallback metadata
-    console.error('Metadata generation failed:', error);
-
-    return {
-      title: 'Termin | Die Linke Frankfurt',
-    };
+  if (!appointmentId) {
+    notFound();
   }
+
+  // Fetch appointment from database
+  const appointment = await findAppointmentById(appointmentId);
+
+  if (!appointment || appointment.status !== 'accepted') {
+    notFound();
+  }
+
+  // Build metadata with Open Graph tags
+  return buildAppointmentMetadata(appointment);
 }
 
 /**
