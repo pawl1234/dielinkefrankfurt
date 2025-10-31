@@ -1,7 +1,7 @@
 import prisma from './prisma';
 import { Antrag, AntragStatus, Prisma } from '@prisma/client';
 import { deleteFiles } from '../blob-storage';
-import type { AntragPurposes } from '@/types/api-types';
+import type { AntragPurposes, PaginatedResponse } from '@/types/api-types';
 
 /**
  * Types for Antrag operations
@@ -29,17 +29,6 @@ export interface AntragUpdateData {
   decisionComment?: string;
   decidedBy?: string;
   decidedAt?: Date;
-}
-
-/**
- * Pagination and filtering response type
- */
-export interface PaginatedResponse<T> {
-  items: T[];
-  totalItems: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }
 
 /**

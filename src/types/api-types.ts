@@ -39,6 +39,20 @@ export type NextJSRouteContext = SimpleRouteContext | IdRouteContext | SlugRoute
 export type ApiHandler<TContext = NextJSRouteContext> = (request: NextRequest, context?: TContext) => Promise<NextResponse>;
 
 /**
+ * Generic paginated response structure used across all API endpoints.
+ * Provides consistent pagination metadata for list queries.
+ *
+ * @template T - The type of items in the paginated response
+ */
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
  * Result of processing a single email in newsletter sending
  */
 export interface EmailSendResult {

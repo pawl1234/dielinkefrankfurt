@@ -8,7 +8,7 @@ import {
 } from '@/lib/email';
 import * as statusReportOps from '@/lib/db/status-report-operations';
 import * as groupOps from '@/lib/db/group-operations';
-import type { PaginatedResponse } from './group-service';
+import { PaginatedResponse } from '@/types/api-types';
 
 /**
  * Types for status report operations

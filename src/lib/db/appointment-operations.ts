@@ -1,17 +1,7 @@
 import prisma from './prisma';
 import type { Appointment, Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
-
-/**
- * Interface for paginated responses
- */
-export interface PaginatedResponse<T> {
-  items: T[];
-  totalItems: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
+import { PaginatedResponse } from '@/types/api-types';
 
 /**
  * Finds a single appointment by ID.

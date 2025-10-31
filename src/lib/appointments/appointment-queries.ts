@@ -5,9 +5,9 @@ import { logger } from '@/lib/logger';
 import {
   findAppointmentById,
   findAppointments,
-  findAppointmentsPartial,
-  type PaginatedResponse
+  findAppointmentsPartial
 } from '@/lib/db/appointment-operations';
+import { PaginatedResponse } from '@/types/api-types';
 
 /**
  * Retrieves appointments with filtering, pagination, and proper caching headers.
