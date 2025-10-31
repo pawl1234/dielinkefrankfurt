@@ -15,7 +15,6 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // const { id: targetUserId } = await params;
   let targetUserId: string = '';
   try {
     const [{ id }, session] = await Promise.all([params, getServerSession(authOptions)]);
