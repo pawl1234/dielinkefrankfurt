@@ -27,13 +27,17 @@ export const GET: ApiHandler<IdRouteContext> = async (request: NextRequest, cont
       return NextResponse.json({ error: 'Zugriff verweigert' }, { status: 403 });
     }
 
-    const params = await context?.params;
-    if (!params?.id) {
+    if (!context?.params) {
+      return NextResponse.json({ error: 'Ungültige Anfrage' }, { status: 400 });
+    }
+
+    const { id: faqId } = await context.params;
+    if (!faqId) {
       return NextResponse.json({ error: 'FAQ-ID fehlt' }, { status: 400 });
     }
 
     const faq = await findFaqById(
-      params.id,
+      faqId,
       { role: session.user.role, user: { id: session.user.id } }
     );
 

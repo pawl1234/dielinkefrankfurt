@@ -12,16 +12,18 @@ import { logger } from '@/lib/logger';
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  let targetUserId: string = '';
   try {
-    const session = await getServerSession(authOptions);
+    const [{ id }, session] = await Promise.all([params, getServerSession(authOptions)]);
+    targetUserId = id;
 
     // Require admin role
     if (!session || !requireRole(session, ['admin'])) {
       logger.warn('Unauthorized password reset attempt', {
         module: 'api-admin-users',
-        context: { operation: 'reset-password', userId: session?.user?.id, targetUserId: params.id }
+        context: { operation: 'reset-password', userId: session?.user?.id, targetUserId }
       });
       return NextResponse.json(
         { success: false, error: 'Keine Berechtigung' },
@@ -36,7 +38,7 @@ export async function PATCH(
     if (!validationResult.success) {
       logger.warn('Password reset validation failed', {
         module: 'api-admin-users',
-        context: { errors: validationResult.error.issues, targetUserId: params.id }
+        context: { errors: validationResult.error.issues, targetUserId }
       });
       return NextResponse.json(
         { success: false, error: 'Neues Passwort erforderlich (mindestens 8 Zeichen)' },
@@ -47,7 +49,7 @@ export async function PATCH(
     const { newPassword } = validationResult.data;
 
     // Check if user exists
-    const existingUser = await findUserById(params.id);
+    const existingUser = await findUserById(targetUserId);
     if (!existingUser) {
       return NextResponse.json(
         { success: false, error: 'Benutzer nicht gefunden' },
@@ -56,12 +58,12 @@ export async function PATCH(
     }
 
     // Update password
-    await updateUser(params.id, { password: newPassword });
+    await updateUser(targetUserId, { password: newPassword });
 
     logger.info('Password reset successfully', {
       module: 'api-admin-users',
       context: {
-        userId: params.id,
+        userId: targetUserId,
         username: existingUser.username,
         resetBy: session.user.id
       }
@@ -74,7 +76,7 @@ export async function PATCH(
   } catch (error) {
     logger.error('Password reset failed', {
       module: 'api-admin-users',
-      context: { error, targetUserId: params.id },
+      context: { error, targetUserId },
       tags: ['critical']
     });
     return NextResponse.json(
