@@ -171,12 +171,30 @@ export async function prepareEmailAttachments(fileUrls: string[]): Promise<Attac
     try {
       const filename = extractFilenameFromUrl(url);
 
-      // Skip if URL doesn't look like a blob storage URL
-      if (!url.includes('blob.vercel-storage.com') && !url.includes('localhost')) {
+      // Validate URL hostname to prevent SSRF attacks
+      try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname;
+
+        // Check if hostname is valid (exact match or subdomain of blob.vercel-storage.com, or localhost)
+        const isValid = hostname === 'blob.vercel-storage.com' ||
+                        hostname.endsWith('.blob.vercel-storage.com') ||
+                        hostname === 'localhost';
+
+        if (!isValid) {
+          result.skippedFiles.push({
+            url,
+            filename,
+            reason: 'Invalid or external URL'
+          });
+          continue;
+        }
+      } catch {
+        // Invalid URL format
         result.skippedFiles.push({
           url,
           filename,
-          reason: 'Invalid or external URL'
+          reason: 'Invalid URL format'
         });
         continue;
       }

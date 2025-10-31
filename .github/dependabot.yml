@@ -17,8 +17,8 @@ updates:
       - "pawl1234"
 
     # Limit number of open pull requests to avoid spam
-    # Set to 5 to allow critical security updates while limiting noise
-    open-pull-requests-limit: 5
+    # Set to 0 to block all version update PRs (only security updates will be created)
+    open-pull-requests-limit: 0
 
     # Group dependency updates to reduce PR count
     groups:
