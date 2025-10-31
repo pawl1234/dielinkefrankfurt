@@ -135,7 +135,7 @@ export async function DELETE(
 ) {
   let targetUserId: string = '';
   try {
-    // Get params and session in parallel triggers catch block if either params or session retrieval fails
+    // Get params and session in parallel for better performance
     const [{ id }, session] = await Promise.all([params, getServerSession(authOptions)]);
     targetUserId = id;
 
