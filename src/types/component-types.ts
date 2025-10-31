@@ -199,3 +199,38 @@ export const FAQ_STATUS_OPTIONS: readonly FaqStatusDisplay[] = [
   { value: 'ACTIVE', label: 'Aktiv', color: 'success' },
   { value: 'ARCHIVED', label: 'Archiviert', color: 'default' },
 ] as const;
+
+// ==============================================================================
+// Pagination Component Types
+// ==============================================================================
+
+/**
+ * Props for UrlPagination component.
+ * Provides URL-based pagination for server-rendered pages.
+ *
+ * @example
+ * // For appointments section with preserved groups page
+ * <UrlPagination
+ *   currentPage={2}
+ *   totalPages={5}
+ *   queryParamName="aPage"
+ *   sectionId="appointments"
+ *   preserveParams={{ gPage: 1 }}
+ * />
+ */
+export interface UrlPaginationProps {
+  /** Current page number (1-indexed) */
+  currentPage: number;
+  /** Total number of pages */
+  totalPages: number;
+  /** Optional section ID for scroll anchoring */
+  sectionId?: string;
+  /** Query parameter name (default: 'page') */
+  queryParamName?: string;
+  /** Other query params to preserve in URLs */
+  preserveParams?: Record<string, string | number>;
+  /** Pagination style variant */
+  variant?: 'numbered' | 'buttons';
+  /** Size of pagination controls */
+  size?: 'small' | 'medium' | 'large';
+}

@@ -3,6 +3,7 @@ import slugify from 'slugify';
 import { sendGroupAcceptanceEmail, sendGroupRejectionEmail, sendGroupArchivingEmail } from '@/lib/email';
 import { logger } from '@/lib/logger';
 import * as groupOps from '@/lib/db/group-operations';
+import { PaginatedResponse } from '@/types/api-types';
 
 /**
  * Types for group operations
@@ -39,17 +40,6 @@ export interface GroupUpdateData {
   meetingCity?: string;
   meetingPostalCode?: string;
   meetingLocationDetails?: string;
-}
-
-/**
- * Generic pagination response wrapper for filtered results.
- */
-export interface PaginatedResponse<T> {
-  items: T[];
-  totalItems: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }
 
 /**

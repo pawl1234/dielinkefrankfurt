@@ -10,6 +10,7 @@ import {
 } from '@/lib/errors';
 import type { AntragPurposes } from '@/lib/validation/antrag';
 import { logger } from '@/lib/logger';
+import { PaginatedResponse } from '@/types/api-types';
 
 /**
  * Types for antrag operations
@@ -37,17 +38,6 @@ export interface AntragCreateData {
   email: string;      // Pre-validated: valid email format, max 100 chars, required
   purposes: AntragPurposes; // Pre-validated: complex purpose structure with conditional validation rules, at least one enabled
   fileUrls?: string | null; // Pre-validated: JSON string of valid URLs (optional)
-}
-
-/**
- * Interface for paginated responses
- */
-export interface PaginatedResponse<T> {
-  items: T[];
-  totalItems: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }
 
 /**
