@@ -40,7 +40,7 @@ import FileUpload from '@/components/forms/shared/FileUpload';
 
 export default function EditStatusReport() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
 
   // Form state
   const [title, setTitle] = useState<string>('');
