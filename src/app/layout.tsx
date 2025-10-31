@@ -33,6 +33,19 @@ export default function RootLayout({
   return (
     <html lang="de">
       <head>
+        <link
+          rel="preload"
+          href="/images/header-bg.webp"
+          as="image"
+          type="image/webp"
+          fetchPriority="high"
+        />
+        <link
+          rel="preload"
+          href="/images/logo.webp"
+          as="image"
+          type="image/webp"
+        />
       </head>
       <body className={openSans.className}>
         <AuthProvider>
