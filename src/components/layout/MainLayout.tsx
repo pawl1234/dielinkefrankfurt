@@ -250,7 +250,7 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
             <Box
               sx={{
                 position: 'relative',
-                backgroundImage: 'url("/images/header-bg.jpg")',
+                backgroundImage: 'url("/images/header-bg.webp")',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 py: { xs: 3, md: 4 },
