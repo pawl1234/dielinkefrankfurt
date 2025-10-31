@@ -137,7 +137,7 @@ export function selectOpenGraphImage(appointment: Appointment): string {
   }
 
   // Priority 2: Default site image
-  return `${siteUrl}/images/og-default.jpg`;
+  return `${siteUrl}/images/og-default.png`;
 }
 
 /**
