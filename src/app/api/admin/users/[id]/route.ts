@@ -132,9 +132,11 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id: targetUserId } = await params;
+  let targetUserId: string = '';
   try {
-    const session = await getServerSession(authOptions);
+    // Get params and session in parallel triggers catch block if either params or session retrieval fails
+    const [{ id }, session] = await Promise.all([params, getServerSession(authOptions)]);
+    targetUserId = id;
 
     // Require admin role
     if (!session || !requireRole(session, ['admin'])) {
