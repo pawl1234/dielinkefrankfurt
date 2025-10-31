@@ -15,9 +15,11 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id: targetUserId } = await params;
+  // const { id: targetUserId } = await params;
+  let targetUserId: string = '';
   try {
-    const session = await getServerSession(authOptions);
+    const [{ id }, session] = await Promise.all([params, getServerSession(authOptions)]);
+    targetUserId = id;
 
     // Require admin role
     if (!session || !requireRole(session, ['admin'])) {
