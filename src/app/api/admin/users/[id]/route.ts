@@ -13,8 +13,9 @@ import type { UpdateUserRequest, UpdateUserResponse, DeleteUserResponse } from '
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: targetUserId } = await params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -22,7 +23,7 @@ export async function PATCH(
     if (!session || !requireRole(session, ['admin'])) {
       logger.warn('Unauthorized user update attempt', {
         module: 'api-admin-users',
-        context: { operation: 'update', userId: session?.user?.id, targetUserId: params.id }
+        context: { operation: 'update', userId: session?.user?.id, targetUserId }
       });
       return NextResponse.json(
         { success: false, error: 'Keine Berechtigung. Nur Administratoren können Benutzer bearbeiten.' },
@@ -37,7 +38,7 @@ export async function PATCH(
     if (!validationResult.success) {
       logger.warn('User update validation failed', {
         module: 'api-admin-users',
-        context: { errors: validationResult.error.issues, targetUserId: params.id }
+        context: { errors: validationResult.error.issues, targetUserId }
       });
       return NextResponse.json(
         { success: false, error: `Validierungsfehler: ${validationResult.error.issues[0].message}` },
@@ -48,7 +49,7 @@ export async function PATCH(
     const data = validationResult.data;
 
     // Check if user exists
-    const existingUser = await findUserById(params.id);
+    const existingUser = await findUserById(targetUserId);
     if (!existingUser) {
       return NextResponse.json(
         { success: false, error: 'Benutzer nicht gefunden' },
@@ -79,7 +80,7 @@ export async function PATCH(
     }
 
     // Prevent self-deactivation
-    if (data.isActive === false && params.id === session.user.id) {
+    if (data.isActive === false && targetUserId === session.user.id) {
       return NextResponse.json(
         { success: false, error: 'Sie können Ihr eigenes Konto nicht deaktivieren' },
         { status: 400 }
@@ -87,7 +88,7 @@ export async function PATCH(
     }
 
     // Update user
-    const updatedUser = await updateUser(params.id, data);
+    const updatedUser = await updateUser(targetUserId, data);
 
     logger.info('User updated successfully', {
       module: 'api-admin-users',
@@ -114,7 +115,7 @@ export async function PATCH(
   } catch (error) {
     logger.error('User update failed', {
       module: 'api-admin-users',
-      context: { error, targetUserId: params.id },
+      context: { error, targetUserId },
       tags: ['critical']
     });
     return NextResponse.json(
@@ -129,8 +130,9 @@ export async function PATCH(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: targetUserId } = await params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -138,7 +140,7 @@ export async function DELETE(
     if (!session || !requireRole(session, ['admin'])) {
       logger.warn('Unauthorized user deletion attempt', {
         module: 'api-admin-users',
-        context: { operation: 'delete', userId: session?.user?.id, targetUserId: params.id }
+        context: { operation: 'delete', userId: session?.user?.id, targetUserId }
       });
       return NextResponse.json(
         { success: false, error: 'Keine Berechtigung. Nur Administratoren können Benutzer löschen.' },
@@ -147,7 +149,7 @@ export async function DELETE(
     }
 
     // Prevent self-deletion
-    if (params.id === session.user.id) {
+    if (targetUserId === session.user.id) {
       logger.warn('Self-deletion attempt prevented', {
         module: 'api-admin-users',
         context: { userId: session.user.id }
@@ -159,7 +161,7 @@ export async function DELETE(
     }
 
     // Check if user exists
-    const existingUser = await findUserById(params.id);
+    const existingUser = await findUserById(targetUserId);
     if (!existingUser) {
       return NextResponse.json(
         { success: false, error: 'Benutzer nicht gefunden' },
@@ -168,12 +170,12 @@ export async function DELETE(
     }
 
     // Delete user
-    await deleteUser(params.id);
+    await deleteUser(targetUserId);
 
     logger.info('User deleted successfully', {
       module: 'api-admin-users',
       context: {
-        deletedUserId: params.id,
+        deletedUserId: targetUserId,
         deletedUsername: existingUser.username,
         deletedBy: session.user.id
       }
@@ -187,7 +189,7 @@ export async function DELETE(
   } catch (error) {
     logger.error('User deletion failed', {
       module: 'api-admin-users',
-      context: { error, targetUserId: params.id },
+      context: { error, targetUserId },
       tags: ['critical']
     });
     return NextResponse.json(
