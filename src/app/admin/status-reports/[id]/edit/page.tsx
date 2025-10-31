@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Container,
   Paper,
@@ -38,9 +38,9 @@ import { Group, StatusReportStatus } from '@prisma/client';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import FileUpload from '@/components/forms/shared/FileUpload';
 
-export default function EditStatusReport({ params }: { params: { id: string } }) {
+export default function EditStatusReport() {
   const router = useRouter();
-  const id = params.id;
+  const { id } = useParams();
 
   // Form state
   const [title, setTitle] = useState<string>('');
@@ -52,7 +52,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
   const [fileUrls, setFileUrls] = useState<string[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [removedFileUrls, setRemovedFileUrls] = useState<string[]>([]);
-  
+
   // UI state
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -68,14 +68,14 @@ export default function EditStatusReport({ params }: { params: { id: string } })
     try {
       // Add timestamp to prevent caching
       const timestamp = Date.now();
-      const res = await fetch(`/api/admin/status-reports/${params.id}?t=${timestamp}`);
-      
+      const res = await fetch(`/api/admin/status-reports/${id}?t=${timestamp}`);
+
       if (!res.ok) {
         throw new Error('Failed to fetch status report');
       }
-      
+
       const data = await res.json();
-      
+
       // Populate form fields with fetched data
       setTitle(data.title);
       setContent(data.content);
@@ -83,7 +83,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
       setReporterFirstName(data.reporterFirstName);
       setReporterLastName(data.reporterLastName);
       setGroupId(data.groupId);
-      
+
       // Parse file URLs if they exist
       if (data.fileUrls) {
         try {
@@ -100,17 +100,17 @@ export default function EditStatusReport({ params }: { params: { id: string } })
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [id]);
 
   // Function to fetch active groups
   const fetchGroups = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/groups?status=ACTIVE');
-      
+
       if (!res.ok) {
         throw new Error('Failed to fetch groups');
       }
-      
+
       const data = await res.json();
       setGroups(data);
     } catch (err) {
@@ -121,11 +121,11 @@ export default function EditStatusReport({ params }: { params: { id: string } })
 
   // Fetch status report data and groups when component mounts
   useEffect(() => {
-    if (params.id) {
+    if (id) {
       fetchStatusReport();
       fetchGroups();
     }
-  }, [params.id, fetchStatusReport, fetchGroups]);
+  }, [id, fetchStatusReport, fetchGroups]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -133,7 +133,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
     setSaving(true);
     setError(null);
     setSuccessMessage(null);
-    
+
     try {
       // Prepare form data to handle file uploads
       const formData = new FormData();
@@ -142,35 +142,35 @@ export default function EditStatusReport({ params }: { params: { id: string } })
       formData.append('status', status);
       formData.append('reporterFirstName', reporterFirstName);
       formData.append('reporterLastName', reporterLastName);
-      
+
       // Add file count and files
       formData.append('fileCount', newFiles.length.toString());
       newFiles.forEach((file, i) => {
         formData.append(`file-${i}`, file);
       });
-      
+
       // Use flag to indicate whether to retain existing files
       formData.append('retainExistingFiles', 'true');
-      
+
       // Make API request to update the status report
       const res = await fetch(`/api/admin/status-reports/${id}`, {
         method: 'PUT',
         body: formData,
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to update status report');
       }
-      
+
       const data = await res.json();
-      
+
       // Show success message
       setSuccessMessage('Status report updated successfully!');
-      
+
       // Reset the removed files list since changes are now saved
       setRemovedFileUrls([]);
-      
+
       // Refresh file URLs from response
       if (data.statusReport.fileUrls) {
         try {
@@ -180,15 +180,15 @@ export default function EditStatusReport({ params }: { params: { id: string } })
           console.error('Error parsing updated file URLs:', e);
         }
       }
-      
+
       // Reset new files list
       setNewFiles([]);
-      
+
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
         setSuccessMessage(null);
       }, 5000);
-      
+
     } catch (err) {
       console.error('Error updating status report:', err);
       setError(err instanceof Error ? err.message : 'Failed to update status report. Please try again.');
@@ -224,22 +224,22 @@ export default function EditStatusReport({ params }: { params: { id: string } })
       const res = await fetch(`/api/admin/status-reports/${id}`, {
         method: 'DELETE',
       });
-      
+
       if (!res.ok) {
         throw new Error('Failed to delete status report');
       }
-      
+
       // Close dialog
       setDeleteDialogOpen(false);
-      
+
       // Show success message briefly
       setSuccessMessage('Status report deleted successfully!');
-      
+
       // Redirect to status reports list after a short delay
       setTimeout(() => {
         router.push('/admin/status-reports');
       }, 1500);
-      
+
     } catch (err) {
       console.error('Error deleting status report:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete status report. Please try again.');
@@ -251,27 +251,27 @@ export default function EditStatusReport({ params }: { params: { id: string } })
     <MainLayout title="Edit Status Report" breadcrumbs={[
       { label: 'Admin', href: '/admin' },
       { label: 'Status Reports', href: '/admin/status-reports' },
-      { label: 'Edit', href: `/admin/status-reports/${params.id}/edit` }
+      { label: 'Edit', href: `/admin/status-reports/${id}/edit` }
     ]}>
       <Container maxWidth="lg">
         {/* Admin Navigation */}
         <AdminNavigation />
-        
+
         <Paper sx={{ p: 3, mb: 4 }}>
           {/* Back button */}
           <Button
             component={Link}
-            href={`/admin/status-reports/${params.id}`}
+            href={`/admin/status-reports/${id}`}
             startIcon={<ArrowBackIcon />}
             sx={{ mb: 2 }}
           >
             Back to Details
           </Button>
-          
+
           <Typography variant="h4" component="h1" gutterBottom>
             Edit Status Report
           </Typography>
-          
+
           {/* Loading indicator */}
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -285,14 +285,14 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                   {error}
                 </Alert>
               )}
-              
+
               {/* Success message */}
               {successMessage && (
                 <Alert severity="success" sx={{ mb: 3 }}>
                   {successMessage}
                 </Alert>
               )}
-              
+
               <Grid container spacing={3}>
                 {/* Title field */}
                 <Grid size={{ xs: 12 }}>
@@ -306,7 +306,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     helperText={!title && 'Title is required'}
                   />
                 </Grid>
-                
+
                 {/* Group select */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth required>
@@ -324,7 +324,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     </Select>
                   </FormControl>
                 </Grid>
-                
+
                 {/* Status select */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth required>
@@ -343,7 +343,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     </Select>
                   </FormControl>
                 </Grid>
-                
+
                 {/* Reporter first name */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
@@ -356,7 +356,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     helperText={!reporterFirstName && 'First name is required'}
                   />
                 </Grid>
-                
+
                 {/* Reporter last name */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
@@ -369,7 +369,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     helperText={!reporterLastName && 'Last name is required'}
                   />
                 </Grid>
-                
+
                 {/* Report content */}
                 <Grid size={{ xs: 12 }}>
                   <Typography variant="subtitle1" gutterBottom>
@@ -382,22 +382,22 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     minHeight={250}
                   />
                 </Grid>
-                
+
                 {/* Existing file attachments */}
                 <Grid size={{ xs: 12 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Current Attachments
                   </Typography>
-                  
+
                   {fileUrls.length > 0 ? (
                     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
                       {fileUrls.map((url, index) => {
                         const filename = getFilename(url);
                         const isImage = isImageFile(filename);
-                        
+
                         // Skip files that are marked for removal
                         if (removedFileUrls.includes(url)) return null;
-                        
+
                         return (
                           <Chip
                             key={index}
@@ -422,7 +422,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     </Typography>
                   )}
                 </Grid>
-                
+
                 {/* Upload new files */}
                 <Grid size={{ xs: 12 }}>
                   <Typography variant="subtitle1" gutterBottom>
@@ -443,7 +443,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                     ]}
                   />
                 </Grid>
-                
+
                 {/* Form buttons */}
                 <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Button
@@ -454,18 +454,18 @@ export default function EditStatusReport({ params }: { params: { id: string } })
                   >
                     Delete Status Report
                   </Button>
-                  
+
                   <Box>
                     <Button
                       type="button"
                       variant="outlined"
                       component={Link}
-                      href={`/admin/status-reports/${params.id}`}
+                      href={`/admin/status-reports/${id}`}
                       sx={{ mr: 2 }}
                     >
                       Cancel
                     </Button>
-                    
+
                     <Button
                       type="submit"
                       variant="contained"
@@ -482,7 +482,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
           )}
         </Paper>
       </Container>
-      
+
       {/* Delete confirmation dialog */}
       <Dialog
         open={deleteDialogOpen}
@@ -503,7 +503,7 @@ export default function EditStatusReport({ params }: { params: { id: string } })
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Success message snackbar */}
       <Snackbar
         open={Boolean(successMessage)}
