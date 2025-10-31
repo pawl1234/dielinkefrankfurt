@@ -2,7 +2,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import AuthProvider from '@/components/auth/AuthProvider';
-import { Dosis } from 'next/font/google';
+import { Open_Sans } from 'next/font/google';
 import ThemeRegistry from '@/theme/ThemeRegistry'; // Ensure this path is correct
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -17,12 +17,12 @@ export const metadata: Metadata = {
   },
 };
 
-const dosis = Dosis({
+const openSans = Open_Sans({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['300', '400', '600', '700'],
   display: 'swap',
   preload: true,
-  variable: '--font-dosis', // Expose as CSS variable
+  variable: '--font-open-sans', // Expose as CSS variable
 });
 
 export default function RootLayout({
@@ -34,7 +34,7 @@ export default function RootLayout({
     <html lang="de">
       <head>
       </head>
-      <body className={dosis.variable}>
+      <body className={openSans.className}>
         <AuthProvider>
           <ThemeRegistry>
             {children}

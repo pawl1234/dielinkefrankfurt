@@ -373,11 +373,13 @@ export function MainLayout({ children, breadcrumbs = [], showHeader = true, titl
                   >
                     <Box
                       component="img"
-                      src="/images/logo.png"
+                      src="/images/logo.webp"
                       alt="Die Linke Kreisverband Frankfurt Logo"
+                      width="600"
+                      height="410"
                       sx={{
                         height: 'auto',
-                        width: { xs: '220px', md: '280px' },
+                        width: { xs: '154px', sm: '168px', md: '182px', lg: '196px' },
                         maxWidth: '100%',
                       }}
                     />
