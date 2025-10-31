@@ -20,12 +20,12 @@ export interface PublicGroupDetailResponse {
  * Only returns groups with ACTIVE status.
  */
 export async function GET(
-    request: NextRequest, 
-    { params }: { params: { slug: string } }
-  ) {
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   try {
     const { slug } = await params;
-    
+
     if (!slug) {
       const response: PublicGroupDetailResponse = {
         success: false,
@@ -33,9 +33,9 @@ export async function GET(
       };
       return NextResponse.json(response, { status: 400 });
     }
-    
+
     const group = await getGroupBySlug(slug);
-    
+
     if (!group) {
       const response: PublicGroupDetailResponse = {
         success: false,
@@ -43,7 +43,7 @@ export async function GET(
       };
       return NextResponse.json(response, { status: 404 });
     }
-    
+
     // Only show active groups to the public
     if (group.status !== 'ACTIVE') {
       const response: PublicGroupDetailResponse = {
@@ -52,7 +52,7 @@ export async function GET(
       };
       return NextResponse.json(response, { status: 404 });
     }
-    
+
     const response: PublicGroupDetailResponse = {
       success: true,
       group
@@ -60,12 +60,12 @@ export async function GET(
     return NextResponse.json(response);
   } catch (error: unknown) {
     console.error(`Error fetching group:`, error);
-    
+
     const response: PublicGroupDetailResponse = {
       success: false,
       error: 'Failed to fetch group'
     };
-    
+
     return NextResponse.json(response, { status: 500 });
   }
 }
