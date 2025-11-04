@@ -38,8 +38,22 @@ import { de } from 'date-fns/locale';
 import { stripHtmlTags } from '@/lib/sanitization/sanitize';
 import SafeHtml from '@/components/ui/SafeHtml';
 
+interface AdminGroupResponsibleUser {
+  id: string;
+  userId: string;
+  groupId: string;
+  assignedAt: Date;
+  user: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+}
+
 interface AdminGroup extends Group {
   responsiblePersons: ResponsiblePerson[];
+  responsibleUsers?: AdminGroupResponsibleUser[];
   _count?: { statusReports?: number; };
 }
 
@@ -305,6 +319,18 @@ export default function AdminGroupsPage() {
                   id: group.id, name: group.name, slug: group.slug, description: group.description || '',
                   logoUrl: group.logoUrl, metadata: group.metadata, status: group.status,
                   responsiblePersons: group.responsiblePersons || [], // Ensure it's an array
+                  responsibleUsers: (group.responsibleUsers || []).map((ru) => ({
+                    id: ru.id,
+                    userId: ru.userId,
+                    groupId: ru.groupId,
+                    assignedAt: ru.assignedAt.toISOString ? ru.assignedAt.toISOString() : ru.assignedAt.toString(),
+                    user: {
+                      id: ru.user.id,
+                      firstName: ru.user.firstName,
+                      lastName: ru.user.lastName,
+                      email: ru.user.email
+                    }
+                  })),
                   recurringPatterns: group.recurringPatterns,
                   meetingTime: group.meetingTime,
                   meetingStreet: group.meetingStreet,
@@ -382,6 +408,7 @@ export default function AdminGroupsPage() {
                             group={initialFormDataForGroupEdit}
                             onSubmit={(data, logo) => handleEditGroupFormSubmit(group.id, data, logo)}
                             onCancel={handleEditGroupFormCancel}
+                            onResponsibleUserChange={fetchGroups}
                           />
                         ) : (
                           <Grid container spacing={3}>
@@ -389,18 +416,86 @@ export default function AdminGroupsPage() {
                               <Typography variant="h6" gutterBottom>Beschreibung</Typography>
                               <SafeHtml html={group.description || "<em>Keine Beschreibung vorhanden.</em>"} />
                               
-                              {group.responsiblePersons && group.responsiblePersons.length > 0 && (
-                                <Box sx={{mt: 3}}>
-                                  <Typography variant="h6" gutterBottom>Verantwortliche Personen</Typography>
-                                  <List dense>
-                                    {group.responsiblePersons.map(rp => (
-                                      <ListItem key={rp.id} disableGutters>
-                                        <ListItemText primary={`${rp.firstName} ${rp.lastName}`} secondary={rp.email} />
-                                      </ListItem>
-                                    ))}
-                                  </List>
-                                </Box>
-                              )}
+                              {/* Responsible Persons Section - View Only */}
+                              <Box sx={{mt: 3}}>
+                                <Typography variant="h6" gutterBottom>Verantwortliche Personen</Typography>
+
+                                {/* Email-based Responsible Persons */}
+                                {group.responsiblePersons && group.responsiblePersons.length > 0 && (
+                                  <Box sx={{mb: 2}}>
+                                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                                      E-Mail-basiert
+                                    </Typography>
+                                    <List dense>
+                                      {group.responsiblePersons.map(rp => (
+                                        <ListItem
+                                          key={rp.id}
+                                          disableGutters
+                                          sx={{
+                                            bgcolor: 'action.hover',
+                                            borderRadius: 1,
+                                            mb: 0.5,
+                                            pl: 1
+                                          }}
+                                        >
+                                          <Chip
+                                            label="E-Mail"
+                                            size="small"
+                                            color="default"
+                                            sx={{ mr: 1 }}
+                                          />
+                                          <ListItemText
+                                            primary={`${rp.firstName} ${rp.lastName}`}
+                                            secondary={rp.email}
+                                          />
+                                        </ListItem>
+                                      ))}
+                                    </List>
+                                  </Box>
+                                )}
+
+                                {/* User-based Responsible Persons - Display Only */}
+                                {group.responsibleUsers && group.responsibleUsers.length > 0 && (
+                                  <Box sx={{mt: 2}}>
+                                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                                      Benutzer-basiert
+                                    </Typography>
+                                    <List dense>
+                                      {group.responsibleUsers.map(ru => (
+                                        <ListItem
+                                          key={ru.id}
+                                          disableGutters
+                                          sx={{
+                                            bgcolor: 'action.hover',
+                                            borderRadius: 1,
+                                            mb: 0.5,
+                                            pl: 1
+                                          }}
+                                        >
+                                          <Chip
+                                            label="Benutzer"
+                                            size="small"
+                                            color="primary"
+                                            sx={{ mr: 1 }}
+                                          />
+                                          <ListItemText
+                                            primary={`${ru.user.firstName || ''} ${ru.user.lastName || ''}`.trim() || ru.user.email}
+                                            secondary={ru.user.email}
+                                          />
+                                        </ListItem>
+                                      ))}
+                                    </List>
+                                  </Box>
+                                )}
+
+                                {/* No responsible persons at all */}
+                                {(!group.responsiblePersons || group.responsiblePersons.length === 0) &&
+                                 (!group.responsibleUsers || group.responsibleUsers.length === 0) && (
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                    Noch keine verantwortlichen Personen zugewiesen.
+                                  </Typography>
+                                )}
+                              </Box>
                             </Grid>
                             <Grid size={{ xs: 12, md: 4 }}>
                               <Typography variant="h6" gutterBottom>Details</Typography>

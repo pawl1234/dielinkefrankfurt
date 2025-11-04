@@ -177,6 +177,10 @@ model Group {
   statusReports           StatusReport[]
   responsiblePersons      ResponsiblePerson[]
 
+  // NEW: User-based relationships
+  members                 GroupMember[]         @relation("GroupMembers")
+  responsibleUsers        GroupResponsibleUser[] @relation("GroupResponsibleUsers")
+
   @@index([status])
   @@index([name])
   @@map("group") // Lowercase table name for PostgreSQL convention
@@ -229,6 +233,10 @@ model User {
 
   createdFaqs  FaqEntry[] @relation("FaqCreator")
   updatedFaqs  FaqEntry[] @relation("FaqUpdater")
+
+  // NEW: Group membership relationships
+  groupMemberships     GroupMember[]         @relation("UserGroupMemberships")
+  responsibleForGroups GroupResponsibleUser[] @relation("UserResponsibleGroups")
 
   @@index([email])
   @@index([username])
@@ -441,4 +449,34 @@ model GroupSettings {
   updatedAt          DateTime @updatedAt
 
   @@map("group_settings")
+}
+
+// GroupMember model for user membership in groups
+model GroupMember {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserGroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     Group    @relation("GroupMembers", fields: [groupId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+
+  @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+  @@map("group_member")
+}
+
+// GroupResponsibleUser model for user-based responsible persons
+model GroupResponsibleUser {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserResponsibleGroups", fields: [userId], references: [id], onDelete: Cascade)
+  groupId    String
+  group      Group    @relation("GroupResponsibleUsers", fields: [groupId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+  @@map("group_responsible_user")
 }

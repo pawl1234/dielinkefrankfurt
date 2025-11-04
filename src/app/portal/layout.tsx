@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import PortalNavigation from '@/components/portal/PortalNavigation';
 import HomeIcon from '@mui/icons-material/Home';
+import GroupIcon from '@mui/icons-material/Group';
 //import DashboardIcon from '@mui/icons-material/Dashboard';
 //import SettingsIcon from '@mui/icons-material/Settings';
 //import PersonIcon from '@mui/icons-material/Person';
@@ -29,6 +30,13 @@ const portalNavigationItems: MenuItem[] = [
     href: '/portal/dashboard',
     icon: <DashboardIcon />,
   }, */
+  {
+    type: 'link',
+    key: 'gruppen',
+    label: 'Gruppen',
+    href: '/portal/gruppen',
+    icon: <GroupIcon />,
+  },
   {
     type: 'link',
     key: 'faq',

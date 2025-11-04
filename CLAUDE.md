@@ -234,6 +234,7 @@ src/
 - PostgreSQL via Prisma ORM (009-admin-portal-faq)
 - TypeScript 5.x (strict mode), Node.js 18+ + Next.js 15 (App Router), React 18, Material UI (MUI) v5, Prisma ORM (PostgreSQL), NextAuth.js v4 (010-appointment-link-enhancement)
 - PostgreSQL via Prisma ORM, Vercel Blob Storage for images (010-appointment-link-enhancement)
+- TypeScript 5.9.2 (strict mode) + Next.js 15.4.6 (App Router), React 19.2.0, Material UI 7.3.1, Prisma 6.13.0, NextAuth.js 4.24.11, React Hook Form 7.62.0, Zod 4.0.17 (011-group-user-membership)
 
 ## Recent Changes
 - 008-refactor-member-portal: Added TypeScript 5.x (strict mode), Next.js 15 with App Router + React 18, Material UI (MUI) v5, NextAuth.js v4, Prisma (PostgreSQL)

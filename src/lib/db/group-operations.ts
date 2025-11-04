@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { Group, GroupStatus, ResponsiblePerson, StatusReport, Prisma } from '@prisma/client';
+import { Group, GroupStatus, ResponsiblePerson, StatusReport, GroupResponsibleUser, Prisma } from '@prisma/client';
 
 /**
  * Creates a new group with responsible persons in a transaction.
@@ -87,6 +87,22 @@ export async function findGroupsWithPagination(params: {
           lastName: true,
           email: true,
           groupId: true
+        }
+      },
+      responsibleUsers: {
+        select: {
+          id: true,
+          userId: true,
+          groupId: true,
+          assignedAt: true,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
         }
       }
     },
@@ -336,4 +352,321 @@ export async function findGroupBySlugForContact(
       responsiblePersons: true
     }
   });
+}
+
+/**
+ * Assign a user as a responsible person for a group.
+ * Automatically creates GroupMember record if not exists.
+ *
+ * @param userId - ID of the user to assign
+ * @param groupId - ID of the group
+ * @returns Promise resolving to created responsible user and whether member was created
+ */
+export async function assignResponsibleUser(
+  userId: string,
+  groupId: string
+): Promise<{ responsibleUser: GroupResponsibleUser; memberCreated: boolean }> {
+  return await prisma.$transaction(async (tx) => {
+    // Check if user is already a member
+    const existingMember = await tx.groupMember.findUnique({
+      where: {
+        userId_groupId: {
+          userId,
+          groupId,
+        },
+      },
+    });
+
+    let memberCreated = false;
+
+    // Create member record if not exists
+    if (!existingMember) {
+      await tx.groupMember.create({
+        data: {
+          userId,
+          groupId,
+        },
+      });
+      memberCreated = true;
+    }
+
+    // Create responsible user record
+    const responsibleUser = await tx.groupResponsibleUser.create({
+      data: {
+        userId,
+        groupId,
+      },
+    });
+
+    return { responsibleUser, memberCreated };
+  });
+}
+
+/**
+ * Remove a user's responsible person assignment.
+ * Does NOT remove GroupMember record.
+ *
+ * @param userId - ID of the user to remove
+ * @param groupId - ID of the group
+ * @returns Promise resolving to void
+ */
+export async function removeResponsibleUser(
+  userId: string,
+  groupId: string
+): Promise<void> {
+  await prisma.groupResponsibleUser.deleteMany({
+    where: {
+      userId,
+      groupId,
+    },
+  });
+}
+
+/**
+ * Find all user-based responsible persons for a group.
+ *
+ * @param groupId - ID of the group
+ * @returns Promise resolving to array of GroupResponsibleUser with user details
+ */
+export async function findGroupResponsibleUsers(
+  groupId: string
+): Promise<Array<GroupResponsibleUser & { user: { id: string; firstName: string | null; lastName: string | null; email: string } }>> {
+  return await prisma.groupResponsibleUser.findMany({
+    where: { groupId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      assignedAt: 'asc',
+    },
+  });
+}
+
+/**
+ * Check if user is a responsible person for a group.
+ *
+ * @param userId - ID of the user
+ * @param groupId - ID of the group
+ * @returns Promise resolving to boolean indicating responsible person status
+ */
+export async function isUserResponsibleForGroup(
+  userId: string,
+  groupId: string
+): Promise<boolean> {
+  const responsibleUser = await prisma.groupResponsibleUser.findUnique({
+    where: {
+      userId_groupId: {
+        userId,
+        groupId,
+      },
+    },
+  });
+
+  return responsibleUser !== null;
+}
+
+/**
+ * Find all groups where user is a member or responsible person.
+ *
+ * @param userId - ID of the user
+ * @returns Promise resolving to array of groups with membership flags
+ */
+export async function findGroupsWithMembership(
+  userId: string
+): Promise<Group[]> {
+  return await prisma.group.findMany({
+    where: {
+      OR: [
+        {
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+        {
+          responsibleUsers: {
+            some: {
+              userId,
+            },
+          },
+        },
+      ],
+    },
+    orderBy: {
+      name: 'asc',
+    },
+  });
+}
+
+/**
+ * Get all responsible person emails for a group (both email-based and user-based).
+ *
+ * @param groupId - ID of the group
+ * @returns Promise resolving to array of email addresses
+ */
+export async function getGroupResponsibleEmails(
+  groupId: string
+): Promise<string[]> {
+  // Get email-based responsible persons
+  const emailBased = await prisma.responsiblePerson.findMany({
+    where: { groupId },
+    select: { email: true },
+  });
+
+  // Get user-based responsible persons
+  const userBased = await prisma.groupResponsibleUser.findMany({
+    where: { groupId },
+    include: {
+      user: {
+        select: { email: true },
+      },
+    },
+  });
+
+  return [
+    ...emailBased.map((p) => p.email),
+    ...userBased.map((p) => p.user.email),
+  ];
+}
+
+/**
+ * Find groups with membership status for a specific user.
+ * OPTIMIZED: Single query with included membership and responsible person data.
+ *
+ * @param params - Query parameters including userId, view type, and search
+ * @returns Promise resolving to groups array with membership indicators
+ */
+export async function findGroupsWithMembershipStatus(params: {
+  userId: string;
+  view: 'all' | 'my';
+  searchQuery?: string;
+}): Promise<Array<{
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl: string | null;
+  status: string;
+  recurringPatterns: string | null;
+  meetingTime: string | null;
+  meetingStreet: string | null;
+  meetingCity: string | null;
+  meetingPostalCode: string | null;
+  meetingLocationDetails: string | null;
+  isMember: boolean;
+  isResponsiblePerson: boolean;
+}>> {
+  // Build where clause based on view
+  const baseWhere: Prisma.GroupWhereInput = params.view === 'my'
+    ? {
+        OR: [
+          {
+            members: {
+              some: {
+                userId: params.userId,
+              },
+            },
+          },
+          {
+            responsibleUsers: {
+              some: {
+                userId: params.userId,
+              },
+            },
+          },
+        ],
+      }
+    : {
+        status: 'ACTIVE',
+      };
+
+  // Add search filter if provided
+  const searchWhere: Prisma.GroupWhereInput = params.searchQuery
+    ? {
+        OR: [
+          {
+            name: {
+              contains: params.searchQuery,
+              mode: 'insensitive',
+            },
+          },
+          {
+            slug: {
+              contains: params.searchQuery,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      }
+    : {};
+
+  // Single optimized query with membership data included
+  const groups = await prisma.group.findMany({
+    where: {
+      AND: [baseWhere, searchWhere],
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      logoUrl: true,
+      status: true,
+      recurringPatterns: true,
+      meetingTime: true,
+      meetingStreet: true,
+      meetingCity: true,
+      meetingPostalCode: true,
+      meetingLocationDetails: true,
+      // Include membership data for current user only
+      members: {
+        where: {
+          userId: params.userId,
+        },
+        select: {
+          userId: true,
+        },
+      },
+      // Include responsible person data for current user only
+      responsibleUsers: {
+        where: {
+          userId: params.userId,
+        },
+        select: {
+          userId: true,
+        },
+      },
+    },
+    orderBy: {
+      name: 'asc',
+    },
+  });
+
+  // Transform to include boolean flags
+  return groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    slug: group.slug,
+    description: group.description,
+    logoUrl: group.logoUrl,
+    status: group.status,
+    recurringPatterns: group.recurringPatterns,
+    meetingTime: group.meetingTime,
+    meetingStreet: group.meetingStreet,
+    meetingCity: group.meetingCity,
+    meetingPostalCode: group.meetingPostalCode,
+    meetingLocationDetails: group.meetingLocationDetails,
+    // Check if membership array has any items
+    isMember: group.members.length > 0,
+    // Check if responsible users array has any items
+    isResponsiblePerson: group.responsibleUsers.length > 0,
+  }));
 }
