@@ -60,25 +60,28 @@ const featuredSection = {
 
 const imageColumn = {
   width: '35%',
-  verticalAlign: 'top',
+  maxWidth: '200px',  // Outlook fix: explicit max-width in pixels
+  verticalAlign: 'top' as const,
   paddingTop: '20px',
   paddingRight: '20px',
 };
 
 const contentColumn = {
   width: '65%',
-  verticalAlign: 'top',
+  verticalAlign: 'top' as const,
   paddingTop: '20px',
 };
 
 const fullContentColumn = {
   width: '100%',
-  verticalAlign: 'top',
+  verticalAlign: 'top' as const,
   paddingTop: '20px',
 };
 
 const imageStyle = {
   width: '100%',
+  maxWidth: '200px',   // Outlook fix: prevent image from exceeding column
   height: 'auto',
   objectFit: 'cover' as const,
+  display: 'block' as const,  // Outlook fix: removes extra spacing
 };
