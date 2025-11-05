@@ -263,11 +263,19 @@ export const retryChunkSchema = z.object({
 /**
  * Send Test Email Schema
  * Used for sending test emails
+ * Requires at least one of: html or newsletterId
  */
 export const sendTestEmailSchema = z.object({
-  html: htmlContentSchema,
-  newsletterId: z.string().optional()
-});
+  html: htmlContentSchema.optional(),
+  newsletterId: z.string().optional(),
+  subject: z.string().optional()
+}).refine(
+  (data) => data.html || data.newsletterId,
+  {
+    message: 'Entweder HTML-Inhalt oder Newsletter-ID muss angegeben werden',
+    path: ['html']
+  }
+);
 
 /**
  * Validate Recipients Schema
