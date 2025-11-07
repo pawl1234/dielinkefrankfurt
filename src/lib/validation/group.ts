@@ -210,3 +210,51 @@ export async function validateGroupUpdateWithZod(data: unknown) {
   const { zodToValidationResult } = await import('./helpers');
   return zodToValidationResult(groupUpdateDataSchema, data);
 }
+
+// ==============================================================================
+// Group Membership & Responsible Person Schemas
+// ==============================================================================
+
+/**
+ * Schema for joining a group
+ */
+export const joinGroupSchema = z.object({
+  groupId: z.string().cuid('Ungültige Gruppen-ID')
+});
+
+/**
+ * Schema for leaving a group
+ */
+export const leaveGroupSchema = z.object({
+  groupId: z.string().cuid('Ungültige Gruppen-ID')
+});
+
+/**
+ * Schema for removing a member from a group
+ */
+export const removeMemberSchema = z.object({
+  userId: z.string().cuid('Ungültige Benutzer-ID')
+});
+
+/**
+ * Schema for assigning a responsible user to a group
+ */
+export const assignResponsibleUserSchema = z.object({
+  userId: z.string().cuid('Ungültige Benutzer-ID')
+});
+
+/**
+ * Schema for removing a responsible user from a group
+ */
+export const removeResponsibleUserSchema = z.object({
+  userId: z.string().cuid('Ungültige Benutzer-ID')
+});
+
+/**
+ * TypeScript types derived from membership schemas
+ */
+export type JoinGroupInput = z.infer<typeof joinGroupSchema>;
+export type LeaveGroupInput = z.infer<typeof leaveGroupSchema>;
+export type RemoveMemberInput = z.infer<typeof removeMemberSchema>;
+export type AssignResponsibleUserInput = z.infer<typeof assignResponsibleUserSchema>;
+export type RemoveResponsibleUserInput = z.infer<typeof removeResponsibleUserSchema>;

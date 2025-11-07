@@ -28,9 +28,17 @@ export interface SlugRouteContext {
 }
 
 /**
+ * Context object for API routes with dynamic groupId parameter
+ */
+export interface GroupIdRouteContext {
+  params: Promise<{ groupId: string }>;
+  [key: string]: unknown;
+}
+
+/**
  * Union type covering all possible Next.js API route context shapes
  */
-export type NextJSRouteContext = SimpleRouteContext | IdRouteContext | SlugRouteContext;
+export type NextJSRouteContext = SimpleRouteContext | IdRouteContext | SlugRouteContext | GroupIdRouteContext;
 
 /**
  * Type for API handler functions with proper type safety
@@ -329,6 +337,135 @@ export interface GroupContactRequest {
 export interface GroupContactResponse {
   success: boolean;
   error?: string;
+}
+
+// ==============================================================================
+// Group Membership & Responsible Person Types
+// ==============================================================================
+
+/**
+ * Group member response (user membership)
+ */
+export interface GroupMemberResponse {
+  id: string;
+  userId: string;
+  groupId: string;
+  joinedAt: string;
+  user: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+  isResponsiblePerson?: boolean; // Flag indicating if member is also responsible person
+}
+
+/**
+ * Group responsible user response (user-based responsible person)
+ */
+export interface GroupResponsibleUserResponse {
+  id: string;
+  userId: string;
+  groupId: string;
+  assignedAt: string;
+  user: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+}
+
+/**
+ * Portal group list item with membership indicators
+ */
+export interface PortalGroupListItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl: string | null;
+  status: string;
+  isMember: boolean; // Current user is a member
+  isResponsiblePerson: boolean; // Current user is a responsible person
+  // Meeting information
+  recurringPatterns: string | null;
+  meetingTime: string | null;
+  meetingStreet: string | null;
+  meetingCity: string | null;
+  meetingPostalCode: string | null;
+  meetingLocationDetails: string | null;
+}
+
+/**
+ * Portal group detail with permissions
+ */
+export interface PortalGroupDetail {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl: string | null;
+  status: string;
+  recurringPatterns: string | null;
+  meetingTime: string | null;
+  meetingStreet: string | null;
+  meetingCity: string | null;
+  meetingPostalCode: string | null;
+  meetingLocationDetails: string | null;
+  responsiblePersons: Array<{
+    firstName: string;
+    lastName: string;
+    email: string;
+  }>;
+  responsibleUsers: GroupResponsibleUserResponse[];
+  permissions: GroupPermissions;
+}
+
+/**
+ * User permissions for a specific group
+ */
+export interface GroupPermissions {
+  isMember: boolean;
+  isResponsiblePerson: boolean;
+  canEdit: boolean;
+  canManageMembers: boolean;
+  canLeave: boolean;
+}
+
+/**
+ * Request to join a group
+ */
+export interface JoinGroupRequest {
+  groupId: string;
+}
+
+/**
+ * Request to leave a group
+ */
+export interface LeaveGroupRequest {
+  groupId: string;
+}
+
+/**
+ * Request to remove a member (for responsible persons)
+ */
+export interface RemoveMemberRequest {
+  userId: string;
+}
+
+/**
+ * Request to assign a responsible user (for admins)
+ */
+export interface AssignResponsibleUserRequest {
+  userId: string;
+}
+
+/**
+ * Request to remove a responsible user (for admins)
+ */
+export interface RemoveResponsibleUserRequest {
+  userId: string;
 }
 
 /**

@@ -31,22 +31,21 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-This feature MUST comply with the project constitution at `.specify/memory/constitution.md`. Review all 12 core principles and ensure compliance:
+This feature MUST comply with the project constitution at `.specify/memory/constitution.md`. Review all 11 core principles and ensure compliance:
 
 | Principle | Requirement | Compliance Status |
 |-----------|-------------|-------------------|
 | I. Type Safety First | No `any` type; use strict TypeScript; reuse types from `src/types/` | ⚠ Verify during implementation |
 | II. No Software Tests | Do NOT create test files or testing infrastructure | ✅ N/A (manual testing only) |
 | III. KISS Principle | Simplest solution preferred; avoid over-engineering | ⚠ Verify design choices |
-| IV. DRY Principle | Reuse existing code from `src/lib/`, `src/types/`, `src/components/` | ⚠ Check for existing solutions |
+| IV. DRY Principle | Check existing solutions first: `src/lib/`, `src/types/`, `src/components/`, `src/app/api/` | ⚠ MUST search before adding new code |
 | V. Path Aliases | Use `@/` imports; follow Next.js conventions | ⚠ Verify import patterns |
 | VI. German User-Facing Text | All UI text MUST be in German | ⚠ Review all user messages |
 | VII. Structured Logging | Use `logger` from `@/lib/logger.ts` (no `console.log`) | ⚠ Verify logging calls |
 | VIII. Server-Side Validation | MUST validate with Zod schemas from `src/lib/validation/` | ⚠ Verify API endpoints |
-| IX. File Size Limit | NO file over 500 lines; split into modules if needed | ⚠ Monitor during implementation |
-| X. Code Documentation | JSDoc for all functions; avoid excessive comments | ⚠ Verify documentation |
-| XI. Domain-Based Architecture | Organize by domain; DB operations in `db/`; follow structure | ⚠ Verify file organization |
-| XII. Centralized Types | Check `src/types/` before creating new types; no duplicates | ⚠ Verify type definitions |
+| IX. Code Documentation | JSDoc for all functions; avoid excessive comments | ⚠ Verify documentation |
+| X. Domain-Based Architecture | ALL db operations in `src/lib/db/`; organize by domain | ⚠ Verify db layer separation |
+| XI. Centralized Types | Check `src/types/` before creating new types; no duplicates | ⚠ Verify type definitions |
 
 **Validation Commands**:
 - MUST run `npm run check` before committing (runs lint + typecheck)

@@ -1,33 +1,69 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
-import { Box, Divider, Typography } from '@mui/material';
-import FormBase from '../shared/FormBase';
+import FormBase from '../forms/shared/FormBase';
 import { useZodForm } from '@/hooks/useZodForm';
-import { groupEditFormSchema, GroupEditFormData } from '@/lib/validation/group';
-import { GroupStatus, ResponsiblePerson as PrismaResponsiblePerson } from '@prisma/client';
+import { ResponsiblePerson as PrismaResponsiblePerson } from '@prisma/client';
 import { rrulesToPatterns } from '@/lib/groups/recurring-patterns';
-import ResponsibleUserSelector from '@/components/admin/groups/ResponsibleUserSelector';
+import { z } from 'zod';
+import {
+  createNameSchema,
+  createDescriptionSchema,
+  createResponsiblePersonsSchema
+} from '@/lib/validation/schemas';
+import { FILE_SIZE_LIMITS, FILE_TYPES, createSecureFileSchema } from '@/lib/validation/file-schemas';
+import { recurringMeetingDataSchema } from '@/lib/validation/group';
 import {
   GroupInfoSection,
   GroupLogoSection,
   ResponsiblePersonsSection,
-  GroupStatusSection,
   GroupMeetingSection
-} from './fields';
+} from '../forms/groups/fields';
 
-export interface ResponsibleUser {
-  id: string;
-  userId: string;
-  groupId: string;
-  assignedAt: string;
-  user: {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-  };
-}
+/**
+ * Portal-specific group edit form schema (without status field)
+ * Responsible persons can edit all group details except status/delete/archive
+ */
+const portalGroupEditFormSchema = z.object({
+  name: createNameSchema(3, 100, 'name'),
+  description: createDescriptionSchema(50, 5000, 'description'),
+  responsiblePersons: createResponsiblePersonsSchema(1, 'responsiblePersons'),
+  logo: createSecureFileSchema(
+    FILE_SIZE_LIMITS.LOGO,
+    FILE_TYPES.IMAGE,
+    'Logo'
+  ).nullable().optional(),
+  regularMeeting: z
+    .string()
+    .max(500, 'Regelmäßiges Treffen darf maximal 500 Zeichen lang sein')
+    .trim()
+    .optional(),
+  recurringMeeting: recurringMeetingDataSchema.optional(),
+  meetingStreet: z
+    .string()
+    .max(200, 'Straße darf maximal 200 Zeichen lang sein')
+    .trim()
+    .optional(),
+  meetingCity: z
+    .string()
+    .max(100, 'Stadt darf maximal 100 Zeichen lang sein')
+    .trim()
+    .optional(),
+  meetingPostalCode: z
+    .string()
+    .max(5, 'Postleitzahl darf maximal 5 Zeichen lang sein')
+    .regex(/^\d{5}$/, 'Postleitzahl muss 5 Ziffern enthalten')
+    .trim()
+    .optional()
+    .or(z.literal('')),
+  meetingLocationDetails: z
+    .string()
+    .max(1000, 'Ortsdetails dürfen maximal 1000 Zeichen lang sein')
+    .trim()
+    .optional()
+});
+
+export type PortalGroupEditFormData = z.infer<typeof portalGroupEditFormSchema>;
 
 export interface InitialGroupData {
   id: string;
@@ -36,9 +72,7 @@ export interface InitialGroupData {
   description: string;
   logoUrl?: string | null;
   metadata?: string | null;
-  status: GroupStatus;
   responsiblePersons: PrismaResponsiblePerson[];
-  responsibleUsers?: ResponsibleUser[];
   recurringPatterns?: string | null;
   meetingTime?: string | null;
   meetingStreet?: string | null;
@@ -47,32 +81,28 @@ export interface InitialGroupData {
   meetingLocationDetails?: string | null;
 }
 
-// Export for backward compatibility with admin pages
-export type EditGroupFormInput = GroupEditFormData;
-
-interface EditGroupFormProps {
+interface GroupEditFormProps {
   group: InitialGroupData;
   onSubmit: (
-    data: GroupEditFormData,
+    data: PortalGroupEditFormData,
     newLogoFile: File | Blob | null
   ) => Promise<void>;
   onCancel: () => void;
-  onResponsibleUserChange?: () => void;
 }
 
-export default function EditGroupForm({ group, onSubmit, onCancel, onResponsibleUserChange }: EditGroupFormProps) {
-  const handleFormSubmit = useCallback(async (data: GroupEditFormData) => {
+/**
+ * Portal group edit form for responsible persons.
+ * Similar to admin EditGroupForm but without status management.
+ */
+export default function GroupEditForm({ group, onSubmit, onCancel }: GroupEditFormProps) {
+  const handleFormSubmit = useCallback(async (data: PortalGroupEditFormData) => {
     const { logo, ...formFields } = data;
-    await onSubmit(formFields as GroupEditFormData, logo || null);
+    await onSubmit(formFields as PortalGroupEditFormData, logo || null);
   }, [onSubmit]);
 
-  const handleResponsibleUserUpdate = useCallback(() => {
-    if (onResponsibleUserChange) {
-      onResponsibleUserChange();
-    }
-  }, [onResponsibleUserChange]);
-
-  // Convert rrule strings back to PatternConfig for editing
+  /**
+   * Convert rrule strings back to PatternConfig for editing
+   */
   const convertRecurringPatternsToFormData = () => {
     if (!group.recurringPatterns) {
       return { patterns: [], time: undefined, hasNoMeeting: false };
@@ -95,12 +125,11 @@ export default function EditGroupForm({ group, onSubmit, onCancel, onResponsible
     }
   };
 
-  const form = useZodForm<GroupEditFormData>({
-    schema: groupEditFormSchema,
+  const form = useZodForm<PortalGroupEditFormData>({
+    schema: portalGroupEditFormSchema,
     defaultValues: {
       name: group.name,
       description: group.description,
-      status: group.status,
       responsiblePersons: group.responsiblePersons?.map(rp => ({
         firstName: rp.firstName,
         lastName: rp.lastName,
@@ -114,8 +143,9 @@ export default function EditGroupForm({ group, onSubmit, onCancel, onResponsible
       meetingLocationDetails: group.meetingLocationDetails || ''
     },
     onSubmit: handleFormSubmit,
-    onError: (error: Error) => {
-      console.error('Form submission error:', error);
+    onError: () => {
+      // Error will be displayed by FormBase
+      // No logging needed here as errors are handled by the form
     }
   });
 
@@ -123,7 +153,6 @@ export default function EditGroupForm({ group, onSubmit, onCancel, onResponsible
     form.reset({
       name: group.name,
       description: group.description,
-      status: group.status,
       responsiblePersons: group.responsiblePersons?.map(rp => ({
         firstName: rp.firstName,
         lastName: rp.lastName,
@@ -137,7 +166,7 @@ export default function EditGroupForm({ group, onSubmit, onCancel, onResponsible
       meetingLocationDetails: group.meetingLocationDetails || ''
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group.id, group.name, group.description, group.status, group.responsiblePersons, group.recurringPatterns, group.meetingTime, group.meetingStreet, group.meetingCity, group.meetingPostalCode, group.meetingLocationDetails]);
+  }, [group.id, group.name, group.description, group.responsiblePersons, group.recurringPatterns, group.meetingTime, group.meetingStreet, group.meetingCity, group.meetingPostalCode, group.meetingLocationDetails]);
 
   return (
     <FormBase
@@ -155,25 +184,7 @@ export default function EditGroupForm({ group, onSubmit, onCancel, onResponsible
       />
       <GroupMeetingSection control={form.control} formState={form.formState} />
       <ResponsiblePersonsSection control={form.control} formState={form.formState} />
-
-      {/* User-based Responsible Persons Management */}
-      <Box sx={{ mt: 3 }}>
-        <Divider sx={{ mb: 3 }} />
-        <Typography variant="h6" gutterBottom>
-          Benutzer-basierte Verantwortliche
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Weisen Sie registrierte Benutzerkonten als verantwortliche Personen zu.
-        </Typography>
-        <ResponsibleUserSelector
-          groupId={group.id}
-          responsibleUsers={group.responsibleUsers || []}
-          onAssign={handleResponsibleUserUpdate}
-          onRemove={handleResponsibleUserUpdate}
-        />
-      </Box>
-
-      <GroupStatusSection control={form.control} formState={form.formState} />
+      {/* Note: GroupStatusSection is intentionally omitted for portal users */}
     </FormBase>
   );
 }
